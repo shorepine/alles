@@ -25,8 +25,11 @@
 #include <lwip/dns.h>
 #include "sineLUT.h"
 
-#define EXAMPLE_WIFI_SSID "wifissid"
-#define EXAMPLE_WIFI_PASS "password"
+#include "auth.h"
+// has 
+// #define EXAMPLE_WIFI_SSID "wifissid"
+// #define EXAMPLE_WIFI_PASS "password"
+
 
 float frequency = 440.0;
 float amplitude = 0.2;
