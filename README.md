@@ -1,5 +1,7 @@
 # synthserver
 
+![picture](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/IMG_2872.jpeg)
+
 Turns an ESP32 & an i2s chip into a remote speaker that accepts synthesizer commands over UDP.
 
 currently using
