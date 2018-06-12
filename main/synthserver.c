@@ -41,7 +41,7 @@ const int STARTED_BIT = BIT1;
 #define RECEIVER_PORT_NUM 6001
 char my_ip[32];
 
-#define LUT_SIZE 4095
+#define SINE_LUT_SIZE 4095
 #define SAMPLE_RATE 44100
 #define BLOCK_SIZE 256
 
@@ -50,16 +50,16 @@ uint16_t block[BLOCK_SIZE];
 float step = 0;
 
 void fill_audio_buffer() {
-    float skip = frequency / 44100.0 * LUT_SIZE;
+    float skip = frequency / 44100.0 * SINE_LUT_SIZE;
     if(skip < 1) skip = 1; // lowest is 10hz. 
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         float x0 = (float)sine_LUT[(uint16_t)floor(step)];
-        float x1 = (float)sine_LUT[(uint16_t)(floor(step)+1) % LUT_SIZE];
+        float x1 = (float)sine_LUT[(uint16_t)(floor(step)+1) % SINE_LUT_SIZE];
         float frac = step - floor(step);
         float sample = x0 + ((x1 - x0) * frac);
         block[i] = floor(sample * amplitude);
         step = step + skip;
-        if(step >= LUT_SIZE) step = step - LUT_SIZE;
+        if(step >= SINE_LUT_SIZE) step = step - SINE_LUT_SIZE;
     }
 }
 
@@ -81,7 +81,7 @@ i2s_config_t i2s_config = {
 i2s_pin_config_t pin_config = {
     .bck_io_num = 26, //this is BCK pin, to "A0" on the adafruit feather 
     .ws_io_num = 25, //25 this is LRCK pin, to "A1" on the adafruit feather
-    .data_out_num = 21, // this is DATA output pin, to "21" on the feather
+    .data_out_num = 4, //21, // this is DATA output pin, to "21" on the feather
     .data_in_num = -1   //Not used
 };
 
