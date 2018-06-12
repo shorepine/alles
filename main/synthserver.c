@@ -79,9 +79,9 @@ i2s_config_t i2s_config = {
     };
     
 i2s_pin_config_t pin_config = {
-    .bck_io_num = 26, //this is BCK pin
-    .ws_io_num = 25, // this is LRCK pin
-    .data_out_num = 22, // this is DATA output pin
+    .bck_io_num = 26, //this is BCK pin, to "A0" on the adafruit feather 
+    .ws_io_num = 25, //25 this is LRCK pin, to "A1" on the adafruit feather
+    .data_out_num = 21, // this is DATA output pin, to "21" on the feather
     .data_in_num = -1   //Not used
 };
 
