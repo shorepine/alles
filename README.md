@@ -6,13 +6,24 @@ Turns an ESP32 & an i2s chip into a remote speaker that accepts synthesizer comm
 
 currently using
 
-https://www.adafruit.com/product/3006
-
-and
-
-https://www.adafruit.com/product/3405
+* https://www.adafruit.com/product/3006
+* https://www.adafruit.com/product/3405
+* https://www.adafruit.com/product/1314
 
 LIPO battery charged via USB powers both + 4W speaker
+
+Wire it up like
+
+```
+LRC -> A1
+BCLK -> A0
+DIN -> A5
+GAIN -> GND (i jumper this on the breakout)
+SD -> NC
+GND -> GND
+Vin -> 3v3
+```
+
 
 Send sine frequency (for now) via UDP
 
