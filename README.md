@@ -3,7 +3,8 @@
 ![picture](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/IMG_2872.jpeg)
 
 Turns an ESP32 & an i2s chip into a remote battery powered 10-voice syntheiszer that responds over wifi using UDP. 
-The idea is you can install a bunch of them -- they're cheap to make ($30 each)-- throughout a space and make nice sounds controlled by a computer or phone.
+They're cheap to make ($28 each, bring your own lipo or USB battery).
+The idea is you can install a bunch of them throughout a space and make nice sounds controlled by a computer or phone.
 
 ## Putting it together 
 
@@ -11,9 +12,9 @@ currently using
 
 * https://www.adafruit.com/product/3006
 * https://www.adafruit.com/product/3405
-* https://www.adafruit.com/product/1314
+* https://www.adafruit.com/product/1314 (but any unpowered desktop speaker will work)
 
-LIPO battery charged via USB powers both + 4W speaker
+LiPo battery is charged via USB powers both boards and a small speaker at pretty good volumes.
 
 Wire it up like
 
@@ -25,6 +26,7 @@ GAIN -> GND (i jumper this on the breakout)
 SD -> NC
 GND -> GND
 Vin -> 3v3
+Speaker connectors -> speaker
 ```
 
 ![closeup](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/closeup.png)
