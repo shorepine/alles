@@ -75,8 +75,7 @@ def c_major(octave=2,vol=0.2):
 
 ```
 
-You can also use it in Max or similar software (note you have to wrap the command in quotes in Max, as otherwise it'll assume it's an OSC message.)
-
+You can also use it in Max or similar software (note you have to wrap string commands in quotes in Max, as otherwise it'll assume it's an OSC message.)
 
 ![Max](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/max.png)
 
