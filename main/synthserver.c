@@ -56,6 +56,10 @@ float frequency[VOICES];
 float amplitude[VOICES];
 uint8_t get_going = 0;
 
+int16_t bswap16(int16_t x) {
+    return ((x << 8) & 0xff00) | ((x >> 8) & 0x00ff);
+}
+
 void setup_voices() {
     for(int i=0;i<VOICES;i++) {
         wave[i] = SINE;
@@ -66,7 +70,8 @@ void setup_voices() {
 }
 void fill_audio_buffer() {
     // Clear out the buffer first
-    for(uint16_t i=0;i<BLOCK_SIZE;i++) block[i] = 0;
+    float floatblock[BLOCK_SIZE];
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
 
     for(uint8_t voice=0;voice<VOICES;voice++) {
         if(wave[voice]==SINE) {
@@ -77,8 +82,7 @@ void fill_audio_buffer() {
                     float x1 = (float)sine_LUT[(uint16_t)(floor(step[voice])+1) % SINE_LUT_SIZE];
                     float frac = step[voice] - floor(step[voice]);
                     float sample = x0 + ((x1 - x0) * frac);
-                    sample = sample - 32767.0; // signed output
-                    block[i] = block[i] + floor(sample * amplitude[voice]);
+                    floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
                     step[voice] = step[voice] + skip;
                     if(step[voice] >= SINE_LUT_SIZE) step[voice] = step[voice] - SINE_LUT_SIZE;
                 }
@@ -89,11 +93,19 @@ void fill_audio_buffer() {
 
         } else if(wave[voice] == NOISE) {
             for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                float sample = (int16_t) (esp_random() >> 16);
-                block[i] = block[i] + floor(sample * amplitude[voice]);
+                float sample = (uint16_t) (esp_random() >> 16);
+                floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
             }
         }
     }
+    //float min = 65536*2; float max = -65536*2;
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+        //if(floatblock[i] > max) max = floatblock[i];
+        //if(floatblock[i] < min) min = floatblock[i];
+        floatblock[i] = floatblock[i] - 32767.0;
+        block[i] = (int16_t)floatblock[i];
+    }
+    //printf("min %f max %f\n", min, max);
 }
 
 
@@ -171,6 +183,7 @@ void receive_thread(void *pvParameters) {
                     frequency[voice] = atof(data_buffer+k+1);
                 }
             }
+            printf("voice %d wave %d amp %f freq %f\n", voice, wave[voice], amplitude[voice], frequency[voice]);
         }
     }
     close(socket_fd); 
