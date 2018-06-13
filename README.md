@@ -60,14 +60,19 @@ e.g.
 
 Python example:
 ```
-udp_ip = "192.168.86.66"
-udp_port = 6001
 import socket
+udp_ip = "192.168.86.66" # see the IP of the ESP32 via make monitor
+udp_port = 6001
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-def tone(voice=0, type=0, amplitude=1.0/8.0, freq=0):
-	sock.sendto(str(voice)+","+str(type)+","+str(amplitude)+","+str(freq), (udp_ip, udp_port))
-  
+def tone(voice=0, type=0, amp=0.1, freq=0):
+    sock.sendto("%d,%d,%f,%f" % (voice, type, amp, freq), (udp_ip, udp_port))
+
+def c_major(octave=2,vol=0.2):
+    tone(voice=0,freq=220.5*octave,amp=vol/3.0)
+    tone(voice=1,freq=138.5*octave,amp=vol/3.0)
+    tone(voice=2,freq=164.5*octave,amp=vol/3.0)
+
 ```
 
 You can also use it in Max or similar software (note you have to wrap the command in quotes in Max, as otherwise it'll assume it's an OSC message.)
@@ -76,7 +81,12 @@ You can also use it in Max or similar software (note you have to wrap the comman
 ![Max](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/max.png)
 
 
+## TODO
 
+* remove distortion at higher amplitudes for mixed sine waves
+* SVF filter
+* wifi hotspot for in-field setup
+* broadcast UDP for multiples
 
 
 
