@@ -56,10 +56,7 @@ i2s_pin_config_t pin_config = {
     .data_in_num = -1   //Not used
 };
 
-
-
 #define LUT_SIZE 4095
-
 #define BLOCK_SIZE 256
 #define VOICES 6 // we get buffer underruns after 6 voices. could increase cpu clock? 2nd cpu? 
 #define SINE 0

@@ -26,6 +26,8 @@ GND -> GND
 Vin -> 3v3
 ```
 
+![closeup](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/closeup.png)
+
 ## Building
 
 Setup esp-idf: http://esp-idf.readthedocs.io/en/latest/get-started/
