@@ -25,14 +25,32 @@ Vin -> 3v3
 ```
 
 
-Send sine frequency (for now) via UDP
+Send sine frequency (for now) via UDP ASCII as
 
+```
+voice,type,amplitude{,frequency}
+
+Where 
+voice = 0..7
+type = 0,1,2,3 [SINE, SQUARE, SAW, NOISE]
+amplitude=float 0-1 summed over all voices
+frequency=float 0-22050 
+
+e.g.
+
+0,0,0.4,440.0
+```
+
+Python example:
 ```
 udp_ip = "192.168.86.66"
 udp_port = 6001
 import socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.sendto("220", (udp_ip, udp_port))
+
+def tone(voice=0, type=0, amplitude=1.0/8.0, freq=0):
+	sock.sendto(str(voice)+","+str(type)+","+str(amplitude)+","+str(freq), (udp_ip, udp_port))
+  
 ```
 
 
