@@ -39,7 +39,7 @@ const int STARTED_BIT = BIT1;
 #define RECEIVER_PORT_NUM 6001
 char my_ip[32];
 
-#define SINE_LUT_SIZE 4095
+#define LUT_SIZE 4095
 
 #define SAMPLE_RATE 44100
 #define BLOCK_SIZE 256
@@ -56,10 +56,29 @@ float frequency[VOICES];
 float amplitude[VOICES];
 uint8_t get_going = 0;
 
+uint16_t ** LUT;
+
 int16_t bswap16(int16_t x) {
     return ((x << 8) & 0xff00) | ((x >> 8) & 0x00ff);
 }
 
+void setup_luts() {
+    LUT = (uint16_t **)malloc(sizeof(uint16_t*)*3);
+    uint16_t * square_LUT = (uint16_t*)malloc(sizeof(uint16_t)*LUT_SIZE);
+    uint16_t * saw_LUT = (uint16_t*)malloc(sizeof(uint16_t)*LUT_SIZE);
+
+    for(uint16_t i=0;i<LUT_SIZE;i++) {
+        if(i<LUT_SIZE/2) {
+            square_LUT[i] = 0;
+        } else {
+            square_LUT[i] = 0xffff;
+        }
+        saw_LUT[i] = (uint16_t) (((float)i/(float)LUT_SIZE)*65535.0);
+    }
+    LUT[SINE] = sine_LUT;
+    LUT[SQUARE] = square_LUT;
+    LUT[SAW] = saw_LUT;
+}
 void setup_voices() {
     for(int i=0;i<VOICES;i++) {
         wave[i] = SINE;
@@ -74,24 +93,20 @@ void fill_audio_buffer() {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
 
     for(uint8_t voice=0;voice<VOICES;voice++) {
-        if(wave[voice]==SINE) {
-            float skip = frequency[voice] / 44100.0 * SINE_LUT_SIZE;
+        if(wave[voice]!=NOISE) {
+            float skip = frequency[voice] / 44100.0 * LUT_SIZE;
             for(uint16_t i=0;i<BLOCK_SIZE;i++) {
                 if(skip >= 1) { // skip compute if frequency is < 10hz
-                    float x0 = (float)sine_LUT[(uint16_t)floor(step[voice])];
-                    float x1 = (float)sine_LUT[(uint16_t)(floor(step[voice])+1) % SINE_LUT_SIZE];
+                    float x0 = (float)LUT[wave[voice]][(uint16_t)floor(step[voice])];
+                    float x1 = (float)LUT[wave[voice]][(uint16_t)(floor(step[voice])+1) % LUT_SIZE];
                     float frac = step[voice] - floor(step[voice]);
                     float sample = x0 + ((x1 - x0) * frac);
                     floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
                     step[voice] = step[voice] + skip;
-                    if(step[voice] >= SINE_LUT_SIZE) step[voice] = step[voice] - SINE_LUT_SIZE;
+                    if(step[voice] >= LUT_SIZE) step[voice] = step[voice] - LUT_SIZE;
                 }
             }
-        } else if(wave[voice] == SQUARE) {
-
-        } else if(wave[voice] == SAW) {
-
-        } else if(wave[voice] == NOISE) {
+        } else {
             for(uint16_t i=0;i<BLOCK_SIZE;i++) {
                 float sample = (uint16_t) (esp_random() >> 16);
                 floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
@@ -292,6 +307,7 @@ void app_main()
     printf("wait for wifi\n");
     while(!get_going) vTaskDelay(1000 / portTICK_PERIOD_MS);
     printf("go\n");
+    setup_luts();
     setup_voices();
     size_t written = 0;
 
