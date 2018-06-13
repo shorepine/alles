@@ -58,7 +58,7 @@ i2s_pin_config_t pin_config = {
 
 #define LUT_SIZE 4095
 #define BLOCK_SIZE 256
-#define VOICES 6 // we get buffer underruns after 6 voices. could increase cpu clock? 2nd cpu? 
+#define VOICES 10 
 #define SINE 0
 #define SQUARE 1
 #define SAW 2
@@ -269,6 +269,7 @@ static void initialize_wifi(void) {
 
 
 void app_main() {
+    // The flash has get init'd even though we're not using it as some wifi stuff is stored in there
     ESP_ERROR_CHECK(nvs_flash_init());
 
     /* Print chip information */
