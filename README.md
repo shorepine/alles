@@ -32,9 +32,9 @@ voice,type,amplitude{,frequency}
 
 Where 
 voice = 0..7
-type = 0,1,2,3 [SINE, SQUARE, SAW, NOISE]
-amplitude=float 0-1 summed over all voices
-frequency=float 0-22050 
+type = 0,1,2,3,4 [SINE, SQUARE, SAW, TRIANGLE, NOISE]
+amplitude = float 0-1 summed over all voices
+frequency = float 0-22050 
 
 e.g.
 

@@ -39,91 +39,7 @@ const int STARTED_BIT = BIT1;
 #define RECEIVER_PORT_NUM 6001
 char my_ip[32];
 
-#define LUT_SIZE 4095
-
 #define SAMPLE_RATE 44100
-#define BLOCK_SIZE 256
-#define VOICES 8
-#define SINE 0
-#define SQUARE 1
-#define SAW 2
-#define NOISE 3
-
-int16_t block[BLOCK_SIZE];
-float step[VOICES];
-uint8_t wave[VOICES];
-float frequency[VOICES];
-float amplitude[VOICES];
-uint8_t get_going = 0;
-
-uint16_t ** LUT;
-
-int16_t bswap16(int16_t x) {
-    return ((x << 8) & 0xff00) | ((x >> 8) & 0x00ff);
-}
-
-void setup_luts() {
-    LUT = (uint16_t **)malloc(sizeof(uint16_t*)*3);
-    uint16_t * square_LUT = (uint16_t*)malloc(sizeof(uint16_t)*LUT_SIZE);
-    uint16_t * saw_LUT = (uint16_t*)malloc(sizeof(uint16_t)*LUT_SIZE);
-
-    for(uint16_t i=0;i<LUT_SIZE;i++) {
-        if(i<LUT_SIZE/2) {
-            square_LUT[i] = 0;
-        } else {
-            square_LUT[i] = 0xffff;
-        }
-        saw_LUT[i] = (uint16_t) (((float)i/(float)LUT_SIZE)*65535.0);
-    }
-    LUT[SINE] = sine_LUT;
-    LUT[SQUARE] = square_LUT;
-    LUT[SAW] = saw_LUT;
-}
-void setup_voices() {
-    for(int i=0;i<VOICES;i++) {
-        wave[i] = SINE;
-        step[i] = 0;
-        frequency[i] = 0;
-        amplitude[i] = 0;
-    }
-}
-void fill_audio_buffer() {
-    // Clear out the buffer first
-    float floatblock[BLOCK_SIZE];
-    for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
-
-    for(uint8_t voice=0;voice<VOICES;voice++) {
-        if(wave[voice]!=NOISE) {
-            float skip = frequency[voice] / 44100.0 * LUT_SIZE;
-            for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                if(skip >= 1) { // skip compute if frequency is < 10hz
-                    float x0 = (float)LUT[wave[voice]][(uint16_t)floor(step[voice])];
-                    float x1 = (float)LUT[wave[voice]][(uint16_t)(floor(step[voice])+1) % LUT_SIZE];
-                    float frac = step[voice] - floor(step[voice]);
-                    float sample = x0 + ((x1 - x0) * frac);
-                    floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
-                    step[voice] = step[voice] + skip;
-                    if(step[voice] >= LUT_SIZE) step[voice] = step[voice] - LUT_SIZE;
-                }
-            }
-        } else {
-            for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                float sample = (uint16_t) (esp_random() >> 16);
-                floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
-            }
-        }
-    }
-    //float min = 65536*2; float max = -65536*2;
-    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        //if(floatblock[i] > max) max = floatblock[i];
-        //if(floatblock[i] < min) min = floatblock[i];
-        floatblock[i] = floatblock[i] - 32767.0;
-        block[i] = (int16_t)floatblock[i];
-    }
-    //printf("min %f max %f\n", min, max);
-}
-
-
 
 //i2s configuration
 int i2s_num = 0; // i2s port number
@@ -145,22 +61,107 @@ i2s_pin_config_t pin_config = {
     .data_in_num = -1   //Not used
 };
 
+
+
+#define LUT_SIZE 4095
+
+#define BLOCK_SIZE 256
+#define VOICES 8
+#define SINE 0
+#define SQUARE 1
+#define SAW 2
+#define TRIANGLE 3
+#define NOISE 4
+
+int16_t block[BLOCK_SIZE];
+float step[VOICES];
+uint8_t wave[VOICES];
+float frequency[VOICES];
+float amplitude[VOICES];
+uint8_t get_going = 0;
+
+uint16_t ** LUT;
+
+void setup_luts() {
+    LUT = (uint16_t **)malloc(sizeof(uint16_t*)*4);
+    uint16_t * square_LUT = (uint16_t*)malloc(sizeof(uint16_t)*LUT_SIZE);
+    uint16_t * saw_LUT = (uint16_t*)malloc(sizeof(uint16_t)*LUT_SIZE);
+    uint16_t * triangle_LUT = (uint16_t*)malloc(sizeof(uint16_t)*LUT_SIZE);
+
+    for(uint16_t i=0;i<LUT_SIZE;i++) {
+        if(i<LUT_SIZE/2) {
+            square_LUT[i] = 0;
+            triangle_LUT[i] = (uint16_t) (((float)i/(float)LUT_SIZE/2)*65535.0);
+        } else {
+            square_LUT[i] = 0xffff;
+            triangle_LUT[i] = 65535 - ((uint16_t) (((float)i/(float)LUT_SIZE/2)*65535.0));
+        }
+        saw_LUT[i] = (uint16_t) (((float)i/(float)LUT_SIZE)*65535.0);
+    }
+    LUT[SINE] = sine_LUT;
+    LUT[SQUARE] = square_LUT;
+    LUT[SAW] = saw_LUT;
+    LUT[TRIANGLE] = triangle_LUT;
+}
+
+void destroy_luts() {
+    free(LUT[SQUARE]);
+    free(LUT[SAW]);
+    free(LUT[TRIANGLE]);
+    free(LUT);
+}
+
+void setup_voices() {
+    for(int i=0;i<VOICES;i++) {
+        wave[i] = SINE;
+        step[i] = 0;
+        frequency[i] = 0;
+        amplitude[i] = 0;
+    }
+}
+void fill_audio_buffer() {
+    float floatblock[BLOCK_SIZE];
+    int16_t block[BLOCK_SIZE];
+
+    // Clear out the accumulator buffer
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
+
+    for(uint8_t voice=0;voice<VOICES;voice++) {
+        if(wave[voice]==NOISE) { // noise is special 
+           for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                float sample = (uint16_t) (esp_random() >> 16);
+                floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
+            }
+        } else { // all other voices come from a LUT
+            float skip = frequency[voice] / 44100.0 * LUT_SIZE;
+            for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                if(skip >= 1) { // skip compute if frequency is < 10hz
+                    float x0 = (float)LUT[wave[voice]][(uint16_t)floor(step[voice])];
+                    float x1 = (float)LUT[wave[voice]][(uint16_t)(floor(step[voice])+1) % LUT_SIZE];
+                    float frac = step[voice] - floor(step[voice]);
+                    float sample = x0 + ((x1 - x0) * frac);
+                    floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
+                    step[voice] = step[voice] + skip;
+                    if(step[voice] >= LUT_SIZE) step[voice] = step[voice] - LUT_SIZE;
+                }
+            }
+        }
+    }
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+        floatblock[i] = floatblock[i] - 32767.0;
+        block[i] = (int16_t)floatblock[i];
+    }
+    size_t written = 0;
+    i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
+}
+
+
 void setup_i2s(void) {
   //initialize i2s with configurations above
   i2s_driver_install((i2s_port_t)i2s_num, &i2s_config, 0, NULL);
   i2s_set_pin((i2s_port_t)i2s_num, &pin_config);
   i2s_set_sample_rates((i2s_port_t)i2s_num, SAMPLE_RATE);
 }
-
-
-// Similar to uint32_t system_get_time(void)
-uint32_t get_usec() {
-  struct timeval tv;
-   gettimeofday(&tv,NULL);
-   return (tv.tv_sec*1000000 + tv.tv_usec);
-}
-
-
 
 
 void receive_thread(void *pvParameters) {
@@ -184,10 +185,10 @@ void receive_thread(void *pvParameters) {
         exit(1);
     }
 
+    // Spin forever in this thread waiting for commands
     while(1) {
         recv_data = recv(socket_fd,data_buffer,sizeof(data_buffer),0);
-        if(recv_data > 0)
-        {
+        if(recv_data > 0) {
             data_buffer[recv_data] = '\0';
             uint8_t voice = data_buffer[0]-48;
             wave[voice] = data_buffer[2]-48;
@@ -198,7 +199,7 @@ void receive_thread(void *pvParameters) {
                     frequency[voice] = atof(data_buffer+k+1);
                 }
             }
-            printf("voice %d wave %d amp %f freq %f\n", voice, wave[voice], amplitude[voice], frequency[voice]);
+            //printf("voice %d wave %d amp %f freq %f\n", voice, wave[voice], amplitude[voice], frequency[voice]);
         }
     }
     close(socket_fd); 
@@ -256,8 +257,7 @@ static esp_err_t esp32_wifi_eventHandler(void *ctx, system_event_t *event) {
 
 
 
-static void initialize_wifi(void)
-{
+static void initialize_wifi(void) {
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
     ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
@@ -275,8 +275,7 @@ static void initialize_wifi(void)
 }
 
 
-void app_main()
-{
+void app_main() {
     ESP_ERROR_CHECK(nvs_flash_init());
 
     /* Print chip information */
@@ -297,7 +296,7 @@ void app_main()
 
     printf("sleep\n");
     vTaskDelay(1000 / portTICK_PERIOD_MS);
-    printf("setup Wifi\n");
+    printf("setup wifi\n");
 
     wifi_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK( esp_event_loop_init(esp32_wifi_eventHandler, NULL) );
@@ -307,23 +306,23 @@ void app_main()
     printf("wait for wifi\n");
     while(!get_going) vTaskDelay(1000 / portTICK_PERIOD_MS);
     printf("go\n");
+
+    // Setup the oscillators
     setup_luts();
     setup_voices();
-    size_t written = 0;
 
-    // Beep for 0.25s
+    // Beep for 0.25s to confirm we're online
     amplitude[0] = 0.1;
     frequency[0] = 440;
-    for(uint8_t i=0;i<60;i++) {
-        fill_audio_buffer();
-        i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
-    }
+    uint16_t cycles = 0.25 / ((float)BLOCK_SIZE/SAMPLE_RATE);
+    for(uint8_t i=0;i<cycles;i++) fill_audio_buffer();
 
+    // Reset the voices and go forever, waiting for commands on the UDP thread
     setup_voices();
-    while(1) {
-        fill_audio_buffer();
-        i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
-    }
+    while(1) fill_audio_buffer();
+
+    // We will never get here but just in case
+    destroy_luts();
 
 
 }
