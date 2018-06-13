@@ -24,15 +24,13 @@
 #include <lwip/netdb.h>
 #include <lwip/dns.h>
 #include "sineLUT.h"
-
 #include "auth.h"
 // has 
-// #define EXAMPLE_WIFI_SSID "wifissid"
-// #define EXAMPLE_WIFI_PASS "password"
+// #define WIFI_SSID "wifissid"
+// #define WIFI_PASS "password"
 
 
-float frequency = 440.0;
-float amplitude = 0.2;
+
 static const char *TAG = "UDP";
 
 static EventGroupHandle_t wifi_event_group;
@@ -42,24 +40,59 @@ const int STARTED_BIT = BIT1;
 char my_ip[32];
 
 #define SINE_LUT_SIZE 4095
+
 #define SAMPLE_RATE 44100
 #define BLOCK_SIZE 256
+#define VOICES 8
+#define SINE 0
+#define SQUARE 1
+#define SAW 2
+#define NOISE 3
 
+int16_t block[BLOCK_SIZE];
+float step[VOICES];
+uint8_t wave[VOICES];
+float frequency[VOICES];
+float amplitude[VOICES];
+uint8_t get_going = 0;
 
-uint16_t block[BLOCK_SIZE];
-float step = 0;
-
+void setup_voices() {
+    for(int i=0;i<VOICES;i++) {
+        wave[i] = SINE;
+        step[i] = 0;
+        frequency[i] = 0;
+        amplitude[i] = 0;
+    }
+}
 void fill_audio_buffer() {
-    float skip = frequency / 44100.0 * SINE_LUT_SIZE;
-    if(skip < 1) skip = 1; // lowest is 10hz. 
-    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        float x0 = (float)sine_LUT[(uint16_t)floor(step)];
-        float x1 = (float)sine_LUT[(uint16_t)(floor(step)+1) % SINE_LUT_SIZE];
-        float frac = step - floor(step);
-        float sample = x0 + ((x1 - x0) * frac);
-        block[i] = floor(sample * amplitude);
-        step = step + skip;
-        if(step >= SINE_LUT_SIZE) step = step - SINE_LUT_SIZE;
+    // Clear out the buffer first
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) block[i] = 0;
+
+    for(uint8_t voice=0;voice<VOICES;voice++) {
+        if(wave[voice]==SINE) {
+            float skip = frequency[voice] / 44100.0 * SINE_LUT_SIZE;
+            for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                if(skip >= 1) { // skip compute if frequency is < 10hz
+                    float x0 = (float)sine_LUT[(uint16_t)floor(step[voice])];
+                    float x1 = (float)sine_LUT[(uint16_t)(floor(step[voice])+1) % SINE_LUT_SIZE];
+                    float frac = step[voice] - floor(step[voice]);
+                    float sample = x0 + ((x1 - x0) * frac);
+                    sample = sample - 32767.0; // signed output
+                    block[i] = block[i] + floor(sample * amplitude[voice]);
+                    step[voice] = step[voice] + skip;
+                    if(step[voice] >= SINE_LUT_SIZE) step[voice] = step[voice] - SINE_LUT_SIZE;
+                }
+            }
+        } else if(wave[voice] == SQUARE) {
+
+        } else if(wave[voice] == SAW) {
+
+        } else if(wave[voice] == NOISE) {
+            for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                float sample = (int16_t) (esp_random() >> 16);
+                block[i] = block[i] + floor(sample * amplitude[voice]);
+            }
+        }
     }
 }
 
@@ -80,8 +113,8 @@ i2s_config_t i2s_config = {
     
 i2s_pin_config_t pin_config = {
     .bck_io_num = 26, //this is BCK pin, to "A0" on the adafruit feather 
-    .ws_io_num = 25, //25 this is LRCK pin, to "A1" on the adafruit feather
-    .data_out_num = 4, //21, // this is DATA output pin, to "21" on the feather
+    .ws_io_num = 25, //this is LRCK pin, to "A1" on the adafruit feather
+    .data_out_num = 4, // this is DATA output pin, to "A5" on the feather
     .data_in_num = -1   //Not used
 };
 
@@ -108,42 +141,36 @@ void receive_thread(void *pvParameters) {
     struct sockaddr_in sa,ra;
 
     int recv_data; char data_buffer[80];
-    printf("1\n");
     socket_fd = socket(PF_INET, SOCK_DGRAM, 0);
     if ( socket_fd < 0 ) {
         printf("socket call failed");
         exit(0);
     }
-    printf("2\n");
 
     memset(&sa, 0, sizeof(struct sockaddr_in));
     ra.sin_family = AF_INET;
     ra.sin_addr.s_addr = inet_addr(my_ip);
     ra.sin_port = htons(RECEIVER_PORT_NUM);
-
-    printf("3\n");
-
-    /* Bind the UDP socket to the port RECEIVER_PORT_NUM and to the current
-    * machines IP address (Its defined by RECEIVER_PORT_NUM).
-    * Once bind is successful for UDP sockets application can operate
-    * on the socket descriptor for sending or receiving data.
-    */
-    if (bind(socket_fd, (struct sockaddr *)&ra, sizeof(struct sockaddr_in)) == -1)
-    {
-
+    if (bind(socket_fd, (struct sockaddr *)&ra, sizeof(struct sockaddr_in)) == -1) {
         printf("Bind to Port Number %d ,IP address %s failed\n",RECEIVER_PORT_NUM,my_ip);
         close(socket_fd);
         exit(1);
     }
-        printf("4\n");
 
     while(1) {
         recv_data = recv(socket_fd,data_buffer,sizeof(data_buffer),0);
         if(recv_data > 0)
         {
             data_buffer[recv_data] = '\0';
-            printf("%s\n",data_buffer);
-            frequency = atof(data_buffer);
+            uint8_t voice = data_buffer[0]-48;
+            wave[voice] = data_buffer[2]-48;
+            amplitude[voice] = atof(data_buffer+4);
+            // Look for frequency, not required
+            for(uint8_t k=5;k<recv_data;k++) {
+                if(data_buffer[k] == ',') {
+                    frequency[voice] = atof(data_buffer+k+1);
+                }
+            }
         }
     }
     close(socket_fd); 
@@ -165,9 +192,7 @@ static esp_err_t esp32_wifi_eventHandler(void *ctx, system_event_t *event) {
         // When we have started being an access point
         case SYSTEM_EVENT_AP_START: 
             ESP_LOGD(TAG, "EVENT_START");
-            printf("s1\n");
             xEventGroupSetBits(wifi_event_group, STARTED_BIT);            
-            printf("s2\n");
             break;
         case SYSTEM_EVENT_SCAN_DONE:
             ESP_LOGD(TAG, "EVENT_SCAN_DONE");
@@ -175,16 +200,12 @@ static esp_err_t esp32_wifi_eventHandler(void *ctx, system_event_t *event) {
 
         case SYSTEM_EVENT_STA_CONNECTED: 
             ESP_LOGD(TAG, "EVENT_STA_CONNECTED");
-            printf("c1\n");
             xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
-            printf("c2\n");
             break;
 
         // If we fail to connect to an access point as a station, become an access point.
         case SYSTEM_EVENT_STA_DISCONNECTED:
-            printf("d1\n");
             xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
-            printf("d2\n");
             ESP_LOGD(TAG, "EVENT_STA_DISCONNECTED");
             // We think we tried to connect as a station and failed! ... become
             // an access point.
@@ -193,11 +214,9 @@ static esp_err_t esp32_wifi_eventHandler(void *ctx, system_event_t *event) {
         // If we connected as a station then we are done and we can stop being a
         // web server.
         case SYSTEM_EVENT_STA_GOT_IP: 
-            printf("e1\n");
             sprintf(my_ip,IPSTR, IP2STR(&event->event_info.got_ip.ip_info.ip));
-            printf("e2\n");
             xTaskCreate(&receive_thread, "receive_thread", 2048, NULL, 5, NULL);
-            printf("e3\n");
+            get_going = 1;
             break;
 
         default: // Ignore the other event types
@@ -211,36 +230,26 @@ static esp_err_t esp32_wifi_eventHandler(void *ctx, system_event_t *event) {
 
 static void initialize_wifi(void)
 {
-    printf("w1\n");
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    printf("w2\n");
     ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
-    printf("w3\n");
     ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
-    printf("w4\n");
     wifi_config_t wifi_config = {
         .sta = {
-               .ssid = EXAMPLE_WIFI_SSID,
-               .password = EXAMPLE_WIFI_PASS,
+               .ssid = WIFI_SSID,
+               .password = WIFI_PASS,
         },
     };
     ESP_LOGI(TAG, "Setting WiFi configuration SSID %s...", wifi_config.sta.ssid);
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
-    printf("w5\n");
     ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
-    printf("w6\n");
     ESP_ERROR_CHECK( esp_wifi_start() );
-    printf("w7\n");
     ESP_ERROR_CHECK( esp_wifi_connect() );
-    printf("w8\n");
-
 }
 
 
 void app_main()
 {
     ESP_ERROR_CHECK(nvs_flash_init());
-    printf("Hello world!\n");
 
     /* Print chip information */
     esp_chip_info_t chip_info;
@@ -257,21 +266,31 @@ void app_main()
 
     printf("i2s\n");
     setup_i2s();
-    printf("i2s done\n");
 
-    printf("Sleep\n");
+    printf("sleep\n");
     vTaskDelay(1000 / portTICK_PERIOD_MS);
-    printf("Wifi\n");
+    printf("setup Wifi\n");
 
     wifi_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK( esp_event_loop_init(esp32_wifi_eventHandler, NULL) );
     tcpip_adapter_init();
 
     initialize_wifi();
-    printf("wait\n");
-    vTaskDelay(10000 / portTICK_PERIOD_MS);
+    printf("wait for wifi\n");
+    while(!get_going) vTaskDelay(1000 / portTICK_PERIOD_MS);
     printf("go\n");
+    setup_voices();
     size_t written = 0;
+
+    // Beep for 0.25s
+    amplitude[0] = 0.1;
+    frequency[0] = 440;
+    for(uint8_t i=0;i<60;i++) {
+        fill_audio_buffer();
+        i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
+    }
+
+    setup_voices();
     while(1) {
         fill_audio_buffer();
         i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
