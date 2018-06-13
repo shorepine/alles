@@ -182,6 +182,7 @@ void receive_thread(void *pvParameters) {
         recv_data = recv(socket_fd,data_buffer,sizeof(data_buffer),0);
         if(recv_data > 0) {
             data_buffer[recv_data] = '\0';
+            //printf("##%s##\n", data_buffer);
             uint8_t voice = data_buffer[0]-48;
             wave[voice] = data_buffer[2]-48;
             amplitude[voice] = atof(data_buffer+4);
