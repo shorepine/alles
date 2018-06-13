@@ -89,6 +89,7 @@ You can also use it in Max or similar software (note you have to wrap string com
 * SVF filter
 * wifi hotspot for in-field setup
 * broadcast UDP for multiples
+* FM
 
 
 
