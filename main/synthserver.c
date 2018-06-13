@@ -194,6 +194,7 @@ void receive_thread(void *pvParameters) {
             amplitude[voice] = atof(data_buffer+4);
             // Look for frequency, not required
             for(uint8_t k=5;k<recv_data;k++) {
+                if(data_buffer[k] == 0) k = recv_data; // skip to the end, MAX sends footer data after a NULL
                 if(data_buffer[k] == ',') {
                     frequency[voice] = atof(data_buffer+k+1);
                 }

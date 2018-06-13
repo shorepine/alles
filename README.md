@@ -68,6 +68,11 @@ def tone(voice=0, type=0, amplitude=1.0/8.0, freq=0):
   
 ```
 
+You can also use it in Max or similar software (note you have to wrap the command in quotes in Max, as otherwise it'll assume it's an OSC message.)
+
+
+![Max](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/max.png)
+
 
 
 
