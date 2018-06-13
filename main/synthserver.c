@@ -1,30 +1,26 @@
 #include <stdio.h>
+#include <stddef.h>
+#include <math.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
+#include "freertos/event_groups.h"
+
 #include "esp_system.h"
 #include "esp_spi_flash.h"
-#include <stddef.h>
 #include "esp_intr_alloc.h"
 #include "esp_attr.h"
-#include "driver/timer.h"
-#include "driver/i2s.h"
-#include "freertos/queue.h"
-#include <lwip/sockets.h>
-#include <string.h>
-#include <freertos/event_groups.h>
-#include <esp_wifi.h>
-#include <esp_event_loop.h>
-#include <esp_log.h>
-#include <esp_err.h>
-#include <nvs_flash.h>
-#include <math.h>
-#include <lwip/err.h>
-#include <lwip/sockets.h>
-#include <lwip/sys.h>
-#include <lwip/netdb.h>
-#include <lwip/dns.h>
-#include "sineLUT.h"
+#include "esp_wifi.h"
+#include "esp_event_loop.h"
+#include "esp_log.h"
+#include "esp_err.h"
 
+#include "driver/i2s.h"
+#include "nvs_flash.h"
+#include "lwip/netdb.h"
+
+#include "sineLUT.h"
 #include "auth.h"
 // has 
 // #define WIFI_SSID "wifissid"
@@ -65,7 +61,7 @@ i2s_pin_config_t pin_config = {
 #define LUT_SIZE 4095
 
 #define BLOCK_SIZE 256
-#define VOICES 8
+#define VOICES 6 // we get buffer underruns after 6 voices. could increase cpu clock? 2nd cpu? 
 #define SINE 0
 #define SQUARE 1
 #define SAW 2
@@ -194,7 +190,7 @@ void receive_thread(void *pvParameters) {
             amplitude[voice] = atof(data_buffer+4);
             // Look for frequency, not required
             for(uint8_t k=5;k<recv_data;k++) {
-                if(data_buffer[k] == 0) k = recv_data; // skip to the end, MAX sends footer data after a NULL
+                if(data_buffer[k] == 0) k = recv_data; // skip to the end, Max's udpsend sends footer data after a NULL
                 if(data_buffer[k] == ',') {
                     frequency[voice] = atof(data_buffer+k+1);
                 }
@@ -291,32 +287,35 @@ void app_main() {
     printf("%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024),
             (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
-    printf("i2s\n");
+    printf("Setting up I2S\n");
     setup_i2s();
 
-    printf("sleep\n");
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    printf("setup wifi\n");
+    printf("Setting up wifi\n");
 
     wifi_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK( esp_event_loop_init(esp32_wifi_eventHandler, NULL) );
     tcpip_adapter_init();
 
     initialize_wifi();
-    printf("wait for wifi\n");
+    printf("Waiting for wifi to connect\n");
     while(!get_going) vTaskDelay(200 / portTICK_PERIOD_MS);
-    printf("go\n");
 
+    printf("Ready\n");
     // Setup the oscillators
     setup_luts();
     setup_voices();
 
-    // Beep for 0.25s to confirm we're online
-    amplitude[0] = 0.1;
-    frequency[0] = 440;
+    // Bleep to confirm we're online
     uint16_t cycles = 0.25 / ((float)BLOCK_SIZE/SAMPLE_RATE);
-    for(uint8_t i=0;i<cycles;i++) fill_audio_buffer();
-
+    amplitude[0] = 0.05;
+    for(uint8_t i=0;i<cycles;i++) {
+        if(i<cycles/2) {
+            frequency[0] = 220;
+        } else {
+            frequency[0] = 440;
+        }
+        fill_audio_buffer();
+    } 
     // Reset the voices and go forever, waiting for commands on the UDP thread
     setup_voices();
     while(1) fill_audio_buffer();

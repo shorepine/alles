@@ -2,7 +2,7 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/IMG_2872.jpeg)
 
-Turns an ESP32 & an i2s chip into a remote battery powered 8 voice syntheiszer that accepts voice commands over wifi using UDP.
+Turns an ESP32 & an i2s chip into a remote battery powered 6-voice syntheiszer that responds over wifi using UDP.
 
 ## Putting it together 
 
@@ -40,13 +40,13 @@ Just run `make flash` to build and flash to the board after setup.
 
 ## Using it
 
-Send commands via UDP ASCII as
+Send commands via UDP in ASCII as
 
 ```
 voice,type,amplitude{,frequency}
 
 Where 
-voice = 0..7
+voice = 0..5
 type = 0,1,2,3,4 [SINE, SQUARE, SAW, TRIANGLE, NOISE]
 amplitude = float 0-1 summed over all voices
 frequency = float 0-22050 
