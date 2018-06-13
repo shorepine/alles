@@ -2,7 +2,9 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/IMG_2872.jpeg)
 
-Turns an ESP32 & an i2s chip into a remote speaker that accepts synthesizer commands over UDP.
+Turns an ESP32 & an i2s chip into a remote battery powered 8 voice syntheiszer that accepts voice commands over wifi using UDP.
+
+## Putting it together 
 
 currently using
 
@@ -24,6 +26,19 @@ GND -> GND
 Vin -> 3v3
 ```
 
+## Building
+
+Setup esp-idf: http://esp-idf.readthedocs.io/en/latest/get-started/
+
+Make sure to add an auth.h in the main/ folder with 
+```
+#define WIFI_SSID "your ssid"
+#define WIFI_PASS "your password"
+```
+
+Just run `make flash` to build and flash to the board after setup.
+
+## Using it
 
 Send commands via UDP ASCII as
 
@@ -52,5 +67,10 @@ def tone(voice=0, type=0, amplitude=1.0/8.0, freq=0):
 	sock.sendto(str(voice)+","+str(type)+","+str(amplitude)+","+str(freq), (udp_ip, udp_port))
   
 ```
+
+
+
+
+
 
 

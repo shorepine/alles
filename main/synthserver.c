@@ -24,12 +24,11 @@
 #include <lwip/netdb.h>
 #include <lwip/dns.h>
 #include "sineLUT.h"
+
 #include "auth.h"
 // has 
 // #define WIFI_SSID "wifissid"
 // #define WIFI_PASS "password"
-
-
 
 static const char *TAG = "UDP";
 
@@ -94,7 +93,7 @@ void setup_luts() {
             triangle_LUT[i] = (uint16_t) (((float)i/(float)LUT_SIZE/2)*65535.0);
         } else {
             square_LUT[i] = 0xffff;
-            triangle_LUT[i] = 65535 - ((uint16_t) (((float)i/(float)LUT_SIZE/2)*65535.0));
+            triangle_LUT[i] = 65535 - ((uint16_t) (((float)(i-(LUT_SIZE/2))/(float)LUT_SIZE/2)*65535.0));
         }
         saw_LUT[i] = (uint16_t) (((float)i/(float)LUT_SIZE)*65535.0);
     }
@@ -304,7 +303,7 @@ void app_main() {
 
     initialize_wifi();
     printf("wait for wifi\n");
-    while(!get_going) vTaskDelay(1000 / portTICK_PERIOD_MS);
+    while(!get_going) vTaskDelay(200 / portTICK_PERIOD_MS);
     printf("go\n");
 
     // Setup the oscillators
