@@ -2,7 +2,8 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/IMG_2872.jpeg)
 
-Turns an ESP32 & an i2s chip into a remote battery powered 10-voice syntheiszer that responds over wifi using UDP.
+Turns an ESP32 & an i2s chip into a remote battery powered 10-voice syntheiszer that responds over wifi using UDP. 
+The idea is you can install a bunch of them -- they're cheap to make ($30 each)-- throughout a space and make nice sounds controlled by a computer or phone.
 
 ## Putting it together 
 
