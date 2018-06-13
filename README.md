@@ -25,7 +25,7 @@ Vin -> 3v3
 ```
 
 
-Send sine frequency (for now) via UDP ASCII as
+Send commands via UDP ASCII as
 
 ```
 voice,type,amplitude{,frequency}
