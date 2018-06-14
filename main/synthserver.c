@@ -128,8 +128,10 @@ void fill_audio_buffer() {
             float skip = frequency[voice] / 44100.0 * LUT_SIZE;
             for(uint16_t i=0;i<BLOCK_SIZE;i++) {
                 if(skip >= 1) { // skip compute if frequency is < 10hz
-                    float x0 = (float)LUT[wave[voice]][(uint16_t)floor(step[voice])];
-                    float x1 = (float)LUT[wave[voice]][(uint16_t)(floor(step[voice])+1) % LUT_SIZE];
+                    uint16_t u0 = LUT[wave[voice]][(uint16_t)floor(step[voice])];
+                    uint16_t u1 = LUT[wave[voice]][(uint16_t)(floor(step[voice])+1 % LUT_SIZE)];
+                    float x0 = u0 - 32767.0;
+                    float x1 = u1 - 32767.0;
                     float frac = step[voice] - floor(step[voice]);
                     float sample = x0 + ((x1 - x0) * frac);
                     floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
@@ -140,7 +142,6 @@ void fill_audio_buffer() {
         }
     }
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        floatblock[i] = floatblock[i] - 32767.0;
         block[i] = (int16_t)floatblock[i];
     }
     size_t written = 0;
@@ -193,7 +194,7 @@ void receive_thread(void *pvParameters) {
                     frequency[voice] = atof(data_buffer+k+1);
                 }
             }
-            //printf("voice %d wave %d amp %f freq %f\n", voice, wave[voice], amplitude[voice], frequency[voice]);
+            printf("voice %d wave %d amp %f freq %f\n", voice, wave[voice], amplitude[voice], frequency[voice]);
         }
     }
     close(socket_fd); 
