@@ -42,7 +42,7 @@ i2s_config_t i2s_config = {
      .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
      .sample_rate = SAMPLE_RATE,
      .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
+     .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,//I2S_CHANNEL_FMT_ONLY_LEFT,
      .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB),
      .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1, // high interrupt priority
      .dma_buf_count = 8,
@@ -56,7 +56,7 @@ i2s_pin_config_t pin_config = {
     .data_in_num = -1   //Not used
 };
 
-#define LUT_SIZE 4095
+#define LUT_SIZE 16383
 #define BLOCK_SIZE 256
 #define VOICES 10 
 #define SINE 0
@@ -113,7 +113,7 @@ void setup_voices() {
 }
 void fill_audio_buffer() {
     float floatblock[BLOCK_SIZE];
-    int16_t block[BLOCK_SIZE];
+    int16_t block[BLOCK_SIZE*2]; // *2 for stereo 
 
     // Clear out the accumulator buffer
     for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
@@ -127,11 +127,11 @@ void fill_audio_buffer() {
         } else { // all other voices come from a LUT
             float skip = frequency[voice] / 44100.0 * LUT_SIZE;
             for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                if(skip >= 1) { // skip compute if frequency is < 10hz
+                if(skip >= 1) { // skip compute if frequency is < 3Hz
                     uint16_t u0 = LUT[wave[voice]][(uint16_t)floor(step[voice])];
                     uint16_t u1 = LUT[wave[voice]][(uint16_t)(floor(step[voice])+1 % LUT_SIZE)];
-                    float x0 = u0 - 32767.0;
-                    float x1 = u1 - 32767.0;
+                    float x0 = (float)u0 - 32768.0;
+                    float x1 = (float)u1 - 32768.0;
                     float frac = step[voice] - floor(step[voice]);
                     float sample = x0 + ((x1 - x0) * frac);
                     floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
@@ -142,10 +142,12 @@ void fill_audio_buffer() {
         }
     }
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        block[i] = (int16_t)floatblock[i];
+        block[i*2] = (int16_t)floatblock[i]; //R
+        block[(i*2) + 1] = (int16_t)floatblock[i]; //L
+        //block[i] = (int16_t)floatblock[i];
     }
     size_t written = 0;
-    i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
+    i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 4, &written, portMAX_DELAY);
 }
 
 
