@@ -22,7 +22,7 @@ Wire it up like
 LRC -> A1
 BCLK -> A0
 DIN -> A5
-GAIN -> GND (i jumper this on the breakout)
+GAIN -> Vin (i jumper this on the breakout)
 SD -> NC
 GND -> GND
 Vin -> 3v3
@@ -30,6 +30,8 @@ Speaker connectors -> speaker
 ```
 
 ![closeup](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/closeup.png)
+
+(note, in this picture the GAIN pin is connected incorrectly, it should be on Vin) 
 
 ## Building
 
@@ -85,7 +87,7 @@ You can also use it in Max or similar software (note you have to wrap string com
 
 ## TODO
 
-* remove distortion at higher amplitudes for mixed sine waves
+* ~~remove distortion at higher amplitudes for mixed sine waves~~
 * SVF filter
 * wifi hotspot for in-field setup
 * broadcast UDP for multiples
