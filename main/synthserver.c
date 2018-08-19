@@ -42,7 +42,7 @@ i2s_config_t i2s_config = {
      .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
      .sample_rate = SAMPLE_RATE,
      .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-     .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,//I2S_CHANNEL_FMT_ONLY_LEFT,
+     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, //I2S_CHANNEL_FMT_RIGHT_LEFT,
      .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB),
      .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1, // high interrupt priority
      .dma_buf_count = 8,
@@ -142,12 +142,13 @@ void fill_audio_buffer() {
         }
     }
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        block[i*2] = (int16_t)floatblock[i]; //R
-        block[(i*2) + 1] = (int16_t)floatblock[i]; //L
-        //block[i] = (int16_t)floatblock[i];
+        //block[i*2] = (int16_t)floatblock[i]; //R
+        //block[(i*2) + 1] = (int16_t)floatblock[i]; //L
+        block[i] = (int16_t)floatblock[i];
     }
     size_t written = 0;
-    i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 4, &written, portMAX_DELAY);
+    //i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 4, &written, portMAX_DELAY);
+    i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
 }
 
 
@@ -309,7 +310,7 @@ void app_main() {
 
     // Bleep to confirm we're online
     uint16_t cycles = 0.25 / ((float)BLOCK_SIZE/SAMPLE_RATE);
-    amplitude[0] = 0.05;
+    amplitude[0] = 0.2;
     for(uint8_t i=0;i<cycles;i++) {
         if(i<cycles/2) {
             frequency[0] = 220;
