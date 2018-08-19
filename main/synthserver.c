@@ -83,10 +83,10 @@ void setup_luts() {
     for(uint16_t i=0;i<LUT_SIZE;i++) {
         if(i<LUT_SIZE/2) {
             square_LUT[i] = 0;
-            triangle_LUT[i] = (uint16_t) (((float)i/(float)LUT_SIZE/2)*65535.0);
+            triangle_LUT[i] = (uint16_t) (((float)i/(float)(LUT_SIZE/2.0))*65535.0);
         } else {
             square_LUT[i] = 0xffff;
-            triangle_LUT[i] = 65535 - ((uint16_t) (((float)(i-(LUT_SIZE/2))/(float)LUT_SIZE/2)*65535.0));
+            triangle_LUT[i] = 65535 - ((uint16_t) (((float)(i-(LUT_SIZE/2.0))/(float)(LUT_SIZE/2))*65535.0));
         }
         saw_LUT[i] = (uint16_t) (((float)i/(float)LUT_SIZE)*65535.0);
     }
