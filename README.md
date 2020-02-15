@@ -3,8 +3,10 @@
 ![picture](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/IMG_2872.jpeg)
 
 Turns an ESP32 & an i2s chip into a remote battery powered 10-voice syntheiszer that responds over wifi using UDP. 
-They're cheap to make ($28 each, bring your own lipo or USB battery).
-The idea is you can install a bunch of them throughout a space and make nice sounds controlled by a computer or phone.
+
+They're cheap to make ($25 each, bring your own battery).
+
+The idea is you can install a bunch of them throughout a space and make a version of the [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled from a laptop or phone or etc. 
 
 ## Putting it together 
 
@@ -86,6 +88,10 @@ You can also use it in Max or similar software (note you have to wrap string com
 
 ![Max](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/max.png)
 
+## THANK YOU TO
+
+* douglas repetto
+* dan ellis
 
 ## TODO
 
@@ -93,7 +99,7 @@ You can also use it in Max or similar software (note you have to wrap string com
 * SVF filter
 * wifi hotspot for in-field setup
 * broadcast UDP for multiples
-* FM
+* FM (in master now, needs some work)
 
 
 
