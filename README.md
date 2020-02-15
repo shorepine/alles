@@ -1,4 +1,4 @@
-# synthserver
+# alles
 
 ![picture](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/IMG_2872.jpeg)
 
@@ -29,6 +29,8 @@ Vin -> 3v3
 Speaker connectors -> speaker
 ```
 
+(Note, you more likely want to feed the i2s amp from 5V if you can, so stay tuned)
+
 ![closeup](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/closeup.png)
 
 (note, in this picture the GAIN pin is connected incorrectly, it should be on Vin) 
@@ -43,7 +45,7 @@ Make sure to add an auth.h in the main/ folder with
 #define WIFI_PASS "your password"
 ```
 
-Just run `make flash` to build and flash to the board after setup.
+Just run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board after setup.
 
 ## Using it
 
