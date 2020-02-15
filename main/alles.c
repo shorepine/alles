@@ -36,6 +36,11 @@ char my_ip[32];
 
 #define SAMPLE_RATE 44100
 
+#include "dx7bridge.h"
+extern void dx7_init();
+extern void render_samples(uint16_t * buf, uint16_t len);
+
+
 //i2s configuration
 int i2s_num = 0; // i2s port number
 i2s_config_t i2s_config = {
@@ -56,6 +61,7 @@ i2s_pin_config_t pin_config = {
     .data_in_num = -1   //Not used
 };
 
+
 #define LUT_SIZE 16383
 #define BLOCK_SIZE 256
 #define VOICES 10 
@@ -64,6 +70,9 @@ i2s_pin_config_t pin_config = {
 #define SAW 2
 #define TRIANGLE 3
 #define NOISE 4
+#define FM 5
+#define OFF 6
+
 
 int16_t block[BLOCK_SIZE];
 float step[VOICES];
@@ -105,7 +114,7 @@ void destroy_luts() {
 
 void setup_voices() {
     for(int i=0;i<VOICES;i++) {
-        wave[i] = SINE;
+        wave[i] = OFF;
         step[i] = 0;
         frequency[i] = 0;
         amplitude[i] = 0;
@@ -119,24 +128,26 @@ void fill_audio_buffer() {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
 
     for(uint8_t voice=0;voice<VOICES;voice++) {
-        if(wave[voice]==NOISE) { // noise is special 
-           for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                float sample = (uint16_t) (esp_random() >> 16);
-                floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
-            }
-        } else { // all other voices come from a LUT
-            float skip = frequency[voice] / 44100.0 * LUT_SIZE;
-            for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                if(skip >= 1) { // skip compute if frequency is < 3Hz
-                    uint16_t u0 = LUT[wave[voice]][(uint16_t)floor(step[voice])];
-                    uint16_t u1 = LUT[wave[voice]][(uint16_t)(floor(step[voice])+1 % LUT_SIZE)];
-                    float x0 = (float)u0 - 32768.0;
-                    float x1 = (float)u1 - 32768.0;
-                    float frac = step[voice] - floor(step[voice]);
-                    float sample = x0 + ((x1 - x0) * frac);
+        if(wave[voice]!=OFF) { // don't waste CPU
+            if(wave[voice]==NOISE) { // noise is special 
+               for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                    float sample = (uint16_t) (esp_random() >> 16);
                     floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
-                    step[voice] = step[voice] + skip;
-                    if(step[voice] >= LUT_SIZE) step[voice] = step[voice] - LUT_SIZE;
+                }
+            } else { // all other voices come from a LUT
+                float skip = frequency[voice] / 44100.0 * LUT_SIZE;
+                for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                    if(skip >= 1) { // skip compute if frequency is < 3Hz
+                        uint16_t u0 = LUT[wave[voice]][(uint16_t)floor(step[voice])];
+                        uint16_t u1 = LUT[wave[voice]][(uint16_t)(floor(step[voice])+1 % LUT_SIZE)];
+                        float x0 = (float)u0 - 32768.0;
+                        float x1 = (float)u1 - 32768.0;
+                        float frac = step[voice] - floor(step[voice]);
+                        float sample = x0 + ((x1 - x0) * frac);
+                        floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
+                        step[voice] = step[voice] + skip;
+                        if(step[voice] >= LUT_SIZE) step[voice] = step[voice] - LUT_SIZE;
+                    }
                 }
             }
         }
@@ -307,10 +318,14 @@ void app_main() {
     // Setup the oscillators
     setup_luts();
     setup_voices();
+    printf("Oscillators ready\n");
+    dx7_init();
+    printf("FM ready\n");
 
     // Bleep to confirm we're online
     uint16_t cycles = 0.25 / ((float)BLOCK_SIZE/SAMPLE_RATE);
-    amplitude[0] = 0.2;
+    amplitude[0] = 0.8;
+    wave[0] = SINE;
     for(uint8_t i=0;i<cycles;i++) {
         if(i<cycles/2) {
             frequency[0] = 220;
@@ -328,3 +343,4 @@ void app_main() {
 
 
 }
+
