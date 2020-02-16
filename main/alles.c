@@ -123,7 +123,9 @@ void setup_voices() {
     }
 }
 void fill_audio_buffer() {
+    // floatblock -- accumulative for mixing, -32767.0 -- 32768.0
     float floatblock[BLOCK_SIZE];
+    // block -- used in interim for FM, but also what gets sent to the DAC -- -32767...32768 (wave file, int16 LE)
     int16_t block[BLOCK_SIZE];  
 
     // Clear out the accumulator buffer
@@ -132,19 +134,20 @@ void fill_audio_buffer() {
     for(uint8_t voice=0;voice<VOICES;voice++) {
         if(wave[voice]!=OFF) { // don't waste CPU
             if(wave[voice]==FM) { // FM is special
-                // we can render into int16 block just fine for now 
+                // we can render into int16 block just fine 
                 render_samples(block, BLOCK_SIZE);
 
                 // but then add it into floatblock
                 for(uint16_t i=0;i<BLOCK_SIZE;i++) {
                     floatblock[i] = floatblock[i] + (block[i] * amplitude[voice]);
                 }
-            } else if(wave[voice]==NOISE) { // noise is special 
+            } else if(wave[voice]==NOISE) { // noise is special, just use esp_random
                for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                    float sample = (uint16_t) (esp_random() >> 16);
+                    float sample = (int16_t) ((esp_random() >> 16) - 32768);
                     floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
                 }
             } else { // all other voices come from a LUT
+                // Choose which LUT we're using, they are different sizes
                 uint32_t lut_size = OTHER_LUT_SIZE;
                 if(wave[voice]==SINE) lut_size = SINE_LUT_SIZE;
 
@@ -165,13 +168,12 @@ void fill_audio_buffer() {
             }
         }
     }
+    // Now make it a signed int16 for the i2s
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        //block[i*2] = (int16_t)floatblock[i]; //R
-        //block[(i*2) + 1] = (int16_t)floatblock[i]; //L
         block[i] = (int16_t)floatblock[i];
     }
+    // And write
     size_t written = 0;
-    //i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 4, &written, portMAX_DELAY);
     i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
 }
 
@@ -200,7 +202,7 @@ void receive_thread(void *pvParameters) {
     ra.sin_addr.s_addr = inet_addr(my_ip);
     ra.sin_port = htons(RECEIVER_PORT_NUM);
     if (bind(socket_fd, (struct sockaddr *)&ra, sizeof(struct sockaddr_in)) == -1) {
-        printf("Bind to Port Number %d ,IP address %s failed\n",RECEIVER_PORT_NUM,my_ip);
+        printf("bind to port %d IP address %s failed\n",RECEIVER_PORT_NUM,my_ip);
         close(socket_fd);
         exit(1);
     }
@@ -327,11 +329,10 @@ void app_main() {
     printf("Waiting for wifi to connect\n");
     while(!get_going) vTaskDelay(200 / portTICK_PERIOD_MS);
 
-    printf("Ready\n");
-    // Setup the oscillators
+    printf("wifi ready\n");
     setup_luts();
     setup_voices();
-    printf("Oscillators ready\n");
+    printf("oscillators ready\n");
     dx7_init();
     printf("FM ready\n");
 
@@ -347,6 +348,7 @@ void app_main() {
         }
         fill_audio_buffer();
     } 
+
     // Reset the voices and go forever, waiting for commands on the UDP thread
     setup_voices();
     while(1) fill_audio_buffer();

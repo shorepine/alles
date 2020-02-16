@@ -30,6 +30,7 @@
 class Dx7Note {
  public:
   void init(const char patch[128], int midinote, int velocity);
+  void init_with_freq(const char patch[156], float freq, int velocity);
 
   // Note: this _adds_ to the buffer. Interesting question whether it's
   // worth it...

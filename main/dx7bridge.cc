@@ -19,23 +19,25 @@
 #include "patches.h"
 #include "dx7bridge.h"
 
-// We want to keep Dx7Note static don't we, and controllers
+// We want to keep Dx7Note global don't we, and controllers
+// TODO -- if more than one FM voice(?) 
 Dx7Note note;
 Controllers controllers;
-
 
 extern "C" void render_samples(int16_t * buf, uint16_t len) {
     int32_t int32_t_buf[N];
     uint16_t rounds = len / N;
     uint16_t count = 0;
+    // I2S requests usually 256 samples, FM synth renders 64 at a time
     for(int i=0;i<rounds;i++) {
 	    // this computes "N" (which is 64) samples
-	    for(int j=0;j<N;j++) {
-	    	int32_t_buf[j] = 0;
-	    }
+
+    	// Important -- clear out this first -- note.compute is accumulative (maybe use this for mixing?)
+	    for(int j=0;j<N;j++) int32_t_buf[j] = 0;
+
 		note.compute(int32_t_buf, 0, 0, &controllers);
-		// Now make an int32 an int16_t, and put it in buf
-		// from the wav writer
+
+		// Now make an int32 an int16_t, and put it in buf, this is from their wav writer
 	    int32_t delta = 0x100;
 		for(int j=0;j<N;j++) {
 		    int32_t val = int32_t_buf[j] >> 2;
