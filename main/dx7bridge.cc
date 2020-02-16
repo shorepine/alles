@@ -26,17 +26,22 @@ Controllers controllers;
 
 extern "C" void render_samples(int16_t * buf, uint16_t len) {
     int32_t int32_t_buf[N];
-
     uint16_t rounds = len / N;
-    //printf("asked for %d samples, N is %d, rounds is %d\n", len, N, rounds);
     uint16_t count = 0;
     for(int i=0;i<rounds;i++) {
 	    // this computes "N" (which is 64) samples
+	    for(int j=0;j<N;j++) {
+	    	int32_t_buf[j] = 0;
+	    }
 		note.compute(int32_t_buf, 0, 0, &controllers);
-		// Now make an int32 a int16_t, and put it in buf
+		// Now make an int32 an int16_t, and put it in buf
+		// from the wav writer
+	    int32_t delta = 0x100;
 		for(int j=0;j<N;j++) {
-			// TOOD -- look at native datatype
-			buf[count++] = (int16_t) (int32_t_buf[j] >> 2);
+		    int32_t val = int32_t_buf[j] >> 2;
+		    int clip_val = val < -(1 << 24) ? 0x8000 : (val >= (1 << 24) ? 0x7fff : (val + delta) >> 9);
+		    delta = (delta + val) & 0x1ff;
+		    buf[count++] = (int16_t) clip_val;
 		}
 	}
 }
