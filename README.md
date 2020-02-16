@@ -110,11 +110,10 @@ You can also use it in Max or similar software (note you have to wrap string com
 ## TODO
 
 * ~~remove distortion at higher amplitudes for mixed sine waves~~
-* SVF filter 
+* SVF filter (maybe use the FM synth's) 
 * envelopes
 * wifi hotspot for in-field setup
 * broadcast UDP for multiples
-* FM (in master now, needs some work)
 * case / battery setup
 
 
