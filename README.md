@@ -51,23 +51,32 @@ Just run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board 
 
 ## Using it
 
-Send commands via UDP in ASCII as
+Send commands via UDP in ASCII delimited by a character, like
 
 ```
-voice,type,amplitude{,frequency}
-
-Where 
-voice = 0..9
-type = 0,1,2,3,4,5,6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF]
-amplitude = float 0-1 summed over all voices
-frequency = float 0-22050 OR as midi_note preceded by an n, e.g. n57 
-
-e.g.
-
-0,0,0.4,440.0
-2,5,0.6,n69
-2,5,0.4
+v0w4f440.0a0.5
 ```
+
+Where
+```
+v = voice, int, 0 to 9 for now
+w = waveform, int, 0,1,2,3,4,5,6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF]
+a = amplitude, float 0-1 summed over all voices
+f = frequency, float 0-22050
+n = midinote, 0-127 (note that this interacts with f) 
+p = patch, 0-X, choose a preloaded DX7 patch number for FM waveforms
+```
+
+Commands are cumulative, state is held. The only required command per message is voice. e.g.
+
+```
+v0f440a0.1
+v0a0.5
+v0w1
+```
+
+Will set voice 0 to a sine wave (default) at 440Hz amplitude 0.1, then set amplitude of the voice to 0.5, then change the waveform to a square but keep everything else the same.
+
 
 Python example:
 ```
@@ -77,7 +86,7 @@ udp_port = 6001
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 def tone(voice=0, type=0, amp=0.1, freq=0):
-    sock.sendto("%d,%d,%f,%f" % (voice, type, amp, freq), (udp_ip, udp_port))
+    sock.sendto("v%dw%da%ff%f" % (voice, type, amp, freq), (udp_ip, udp_port))
 
 def c_major(octave=2,vol=0.2):
     tone(voice=0,freq=220.5*octave,amp=vol/3.0)
@@ -85,6 +94,8 @@ def c_major(octave=2,vol=0.2):
     tone(voice=2,freq=164.5*octave,amp=vol/3.0)
 
 ```
+
+See `tones.py` for a better example.
 
 You can also use it in Max or similar software (note you have to wrap string commands in quotes in Max, as otherwise it'll assume it's an OSC message.)
 
