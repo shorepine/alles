@@ -6,7 +6,7 @@ Turns an ESP32 & an i2s chip into a remote battery powered 10-voice syntheiszer 
 
 They're cheap to make ($25 each, bring your own battery).
 
-The idea is you can install a bunch of them throughout a space and make a version of the [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled from a laptop or phone or etc. 
+The idea is you can install a bunch of them throughout a space and make a distributed / spatial version of the [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled from a laptop or phone or etc. 
 
 ## Putting it together 
 
@@ -58,7 +58,7 @@ voice,type,amplitude{,frequency}
 
 Where 
 voice = 0..9
-type = 0,1,2,3,4 [SINE, SQUARE, SAW, TRIANGLE, NOISE]
+type = 0,1,2,3,4,5,6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF]
 amplitude = float 0-1 summed over all voices
 frequency = float 0-22050 
 
@@ -92,6 +92,7 @@ You can also use it in Max or similar software (note you have to wrap string com
 
 * douglas repetto
 * dan ellis
+* [MSFA](https://github.com/google/music-synthesizer-for-android) for FM impl
 
 ## TODO
 

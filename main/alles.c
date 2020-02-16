@@ -38,7 +38,7 @@ char my_ip[32];
 
 #include "dx7bridge.h"
 extern void dx7_init();
-extern void render_samples(uint16_t * buf, uint16_t len);
+extern void render_samples(int16_t * buf, uint16_t len);
 
 
 //i2s configuration
@@ -122,14 +122,22 @@ void setup_voices() {
 }
 void fill_audio_buffer() {
     float floatblock[BLOCK_SIZE];
-    int16_t block[BLOCK_SIZE*2]; // *2 for stereo 
+    int16_t block[BLOCK_SIZE];  
 
     // Clear out the accumulator buffer
     for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
 
     for(uint8_t voice=0;voice<VOICES;voice++) {
         if(wave[voice]!=OFF) { // don't waste CPU
-            if(wave[voice]==NOISE) { // noise is special 
+            if(wave[voice]==FM) { // FM is special
+                // we can render into int16 block just fine for now 
+                render_samples(block, BLOCK_SIZE);
+
+                // but then add it into floatblock
+                for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                    floatblock[i] = floatblock[i] + (block[i] * amplitude[voice]);
+                }
+            } else if(wave[voice]==NOISE) { // noise is special 
                for(uint16_t i=0;i<BLOCK_SIZE;i++) {
                     float sample = (uint16_t) (esp_random() >> 16);
                     floatblock[i] = floatblock[i] + (sample * amplitude[voice]);

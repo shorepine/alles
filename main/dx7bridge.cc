@@ -24,18 +24,19 @@ Dx7Note note;
 Controllers controllers;
 
 
-extern "C" void render_samples(uint16_t * buf, uint16_t len) {
+extern "C" void render_samples(int16_t * buf, uint16_t len) {
     int32_t int32_t_buf[N];
 
     uint16_t rounds = len / N;
+    //printf("asked for %d samples, N is %d, rounds is %d\n", len, N, rounds);
     uint16_t count = 0;
     for(int i=0;i<rounds;i++) {
 	    // this computes "N" (which is 64) samples
 		note.compute(int32_t_buf, 0, 0, &controllers);
-		// Now make an int32 a uint16_t, and put it in buf
+		// Now make an int32 a int16_t, and put it in buf
 		for(int j=0;j<N;j++) {
 			// TOOD -- look at native datatype
-			buf[count++] = (uint16_t) (int32_t_buf[j] >> 2);
+			buf[count++] = (int16_t) (int32_t_buf[j] >> 2);
 		}
 	}
 }
