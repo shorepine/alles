@@ -150,29 +150,15 @@ void Dx7Note::init_with_freq(const char patch[156], float freq, int velocity) {
     }
     int outlevel = patch[off + 16];
     outlevel = Env::scaleoutlevel(outlevel);
-#ifdef VERBOSE
-    for (int j = 8; j < 12; j++) {
-      cout << (int)patch[off + j] << " ";
-    }
-#endif
-    int level_scaling = ScaleLevel(midinote, patch[off + 8], patch[off + 9],
+    int level_scaling = ScaleLevel(closest_midinote_to_freq(freq), patch[off + 8], patch[off + 9],
         patch[off + 10], patch[off + 11], patch[off + 12]);
     outlevel += level_scaling;
     outlevel = min(127, outlevel);
-#ifdef VERBOSE
-    cout << op << ": " << level_scaling << " " << outlevel << endl;
-#endif
     outlevel = outlevel << 5;
     outlevel += ScaleVelocity(velocity, patch[off + 15]);
     outlevel = max(0, outlevel);
-
     int rate_scaling = ScaleRate(closest_midinote_to_freq(freq), patch[off + 13]);
     env_[op].init(rates, levels, outlevel, rate_scaling);
-
-    int mode = patch[off + 17];
-    int coarse = patch[off + 18];
-    int fine = patch[off + 19];
-    int detune = patch[off + 20];
     int32_t logfreq = freq_to_logfreq(freq); // osc_freq(midinote, mode, coarse, fine, detune);
     basepitch_[op] = logfreq;
     printf("freq in, %f, freq out %d , closest midinote %d\n", freq, logfreq, closest_midinote_to_freq(freq));
