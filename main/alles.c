@@ -61,8 +61,10 @@ i2s_pin_config_t pin_config = {
     .data_in_num = -1   //Not used
 };
 
+// We like a lot of LUT for sines, but maybe don't need to alloc 16384*4 bytes for a square wave
+#define SINE_LUT_SIZE 16383
+#define OTHER_LUT_SIZE 2047
 
-#define LUT_SIZE 16383
 #define BLOCK_SIZE 256
 #define VOICES 10 
 #define SINE 0
@@ -85,19 +87,19 @@ uint16_t ** LUT;
 
 void setup_luts() {
     LUT = (uint16_t **)malloc(sizeof(uint16_t*)*4);
-    uint16_t * square_LUT = (uint16_t*)malloc(sizeof(uint16_t)*LUT_SIZE);
-    uint16_t * saw_LUT = (uint16_t*)malloc(sizeof(uint16_t)*LUT_SIZE);
-    uint16_t * triangle_LUT = (uint16_t*)malloc(sizeof(uint16_t)*LUT_SIZE);
+    uint16_t * square_LUT = (uint16_t*)malloc(sizeof(uint16_t)*OTHER_LUT_SIZE);
+    uint16_t * saw_LUT = (uint16_t*)malloc(sizeof(uint16_t)*OTHER_LUT_SIZE);
+    uint16_t * triangle_LUT = (uint16_t*)malloc(sizeof(uint16_t)*OTHER_LUT_SIZE);
 
-    for(uint16_t i=0;i<LUT_SIZE;i++) {
-        if(i<LUT_SIZE/2) {
+    for(uint16_t i=0;i<OTHER_LUT_SIZE;i++) {
+        if(i<OTHER_LUT_SIZE/2) {
             square_LUT[i] = 0;
-            triangle_LUT[i] = (uint16_t) (((float)i/(float)(LUT_SIZE/2.0))*65535.0);
+            triangle_LUT[i] = (uint16_t) (((float)i/(float)(OTHER_LUT_SIZE/2.0))*65535.0);
         } else {
             square_LUT[i] = 0xffff;
-            triangle_LUT[i] = 65535 - ((uint16_t) (((float)(i-(LUT_SIZE/2.0))/(float)(LUT_SIZE/2.0))*65535.0));
+            triangle_LUT[i] = 65535 - ((uint16_t) (((float)(i-(OTHER_LUT_SIZE/2.0))/(float)(OTHER_LUT_SIZE/2.0))*65535.0));
         }
-        saw_LUT[i] = (uint16_t) (((float)i/(float)LUT_SIZE)*65535.0);
+        saw_LUT[i] = (uint16_t) (((float)i/(float)OTHER_LUT_SIZE)*65535.0);
     }
     LUT[SINE] = sine_LUT;
     LUT[SQUARE] = square_LUT;
@@ -143,18 +145,21 @@ void fill_audio_buffer() {
                     floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
                 }
             } else { // all other voices come from a LUT
-                float skip = frequency[voice] / 44100.0 * LUT_SIZE;
+                uint32_t lut_size = OTHER_LUT_SIZE;
+                if(wave[voice]==SINE) lut_size = SINE_LUT_SIZE;
+
+                float skip = frequency[voice] / 44100.0 * lut_size;
                 for(uint16_t i=0;i<BLOCK_SIZE;i++) {
                     if(skip >= 1) { // skip compute if frequency is < 3Hz
                         uint16_t u0 = LUT[wave[voice]][(uint16_t)floor(step[voice])];
-                        uint16_t u1 = LUT[wave[voice]][(uint16_t)(floor(step[voice])+1 % LUT_SIZE)];
+                        uint16_t u1 = LUT[wave[voice]][(uint16_t)(floor(step[voice])+1 % lut_size)];
                         float x0 = (float)u0 - 32768.0;
                         float x1 = (float)u1 - 32768.0;
                         float frac = step[voice] - floor(step[voice]);
                         float sample = x0 + ((x1 - x0) * frac);
                         floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
                         step[voice] = step[voice] + skip;
-                        if(step[voice] >= LUT_SIZE) step[voice] = step[voice] - LUT_SIZE;
+                        if(step[voice] >= lut_size) step[voice] = step[voice] - lut_size;
                     }
                 }
             }

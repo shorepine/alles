@@ -38,9 +38,9 @@
 #define SLICE_SHIFT (24 - LG_SLICES_PER_OCTAVE)
 #define SLICE_EXTRA 3
 
-//TODO -- i had to do this to save RAM but i don't know what it does... obviously a big issue
-//#define N_SLICES 36
-#define N_SLICES 12 
+//TODO -- this and the LUTs in alles.c are the big RAM / malloc hogs. N_SLICES can go down a bit to save it
+#define N_SLICES 36 
+
 // 0.5 * (log(440./44100) / log(2) + log(440./48000) / log(2) + 2./12) + 1./64 - 3 in Q24
 #define SLICE_BASE 161217316
 #define LOW_FREQ_LIMIT (-SLICE_BASE)
