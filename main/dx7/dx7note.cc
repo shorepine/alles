@@ -142,6 +142,7 @@ static const uint8_t pitchmodsenstab[] = {
 void Dx7Note::init_with_freq(const char patch[156], float freq, int velocity) {
   int rates[4];
   int levels[4];
+  if(freq < 50) freq = 50;
   for (int op = 0; op < 6; op++) {
     int off = op * 21;
     for (int i = 0; i < 4; i++) {
@@ -161,7 +162,7 @@ void Dx7Note::init_with_freq(const char patch[156], float freq, int velocity) {
     env_[op].init(rates, levels, outlevel, rate_scaling);
     int32_t logfreq = freq_to_logfreq(freq); // osc_freq(midinote, mode, coarse, fine, detune);
     basepitch_[op] = logfreq;
-    printf("freq in, %f, freq out %d , closest midinote %d\n", freq, logfreq, closest_midinote_to_freq(freq));
+    //printf("freq in, %f, freq out %d , closest midinote %d\n", freq, logfreq, closest_midinote_to_freq(freq));
     //cout << op << " freq: " << freq << " midinote " << midinote << endl;
     params_[op].phase = 0;
     params_[op].gain[1] = 0;
@@ -214,7 +215,7 @@ void Dx7Note::init(const char patch[156], int midinote, int velocity) {
     int detune = patch[off + 20];
     int32_t freq = osc_freq(midinote, mode, coarse, fine, detune);
     basepitch_[op] = freq;
-    printf("freq %d midinote %d\n", freq, midinote);
+    //printf("freq %d midinote %d\n", freq, midinote);
     //cout << op << " freq: " << freq << " midinote " << midinote << endl;
     params_[op].phase = 0;
     params_[op].gain[1] = 0;

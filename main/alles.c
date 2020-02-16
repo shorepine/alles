@@ -39,6 +39,8 @@ char my_ip[32];
 #include "dx7bridge.h"
 extern void dx7_init();
 extern void render_samples(int16_t * buf, uint16_t len);
+extern void dx7_new_note(uint8_t midi_note, uint8_t velocity, uint16_t patch);
+extern void dx7_new_freq(float freq, uint8_t velocity, uint16_t patch);
 
 
 //i2s configuration
@@ -79,11 +81,17 @@ i2s_pin_config_t pin_config = {
 int16_t block[BLOCK_SIZE];
 float step[VOICES];
 uint8_t wave[VOICES];
+int16_t patch[VOICES];
+uint8_t midi_note[VOICES];
 float frequency[VOICES];
 float amplitude[VOICES];
 uint8_t get_going = 0;
 
 uint16_t ** LUT;
+
+float freq_for_midi_note(uint8_t midi_note) {
+    return 440.0*pow(2,(midi_note-57.0)/12.0);
+}
 
 void setup_luts() {
     LUT = (uint16_t **)malloc(sizeof(uint16_t*)*4);
@@ -118,6 +126,8 @@ void setup_voices() {
     for(int i=0;i<VOICES;i++) {
         wave[i] = OFF;
         step[i] = 0;
+        patch[i] = 0;
+        midi_note[i] = 0;
         frequency[i] = 0;
         amplitude[i] = 0;
     }
@@ -209,23 +219,55 @@ void receive_thread(void *pvParameters) {
 
     // Spin forever in this thread waiting for commands
     while(1) {
+        uint8_t mode = 0;
+        uint16_t start = 0;
         recv_data = recv(socket_fd,data_buffer,sizeof(data_buffer),0);
-        if(recv_data > 0) {
-            data_buffer[recv_data] = '\0';
-            //printf("##%s##\n", data_buffer);
-            uint8_t voice = data_buffer[0]-48;
-            wave[voice] = data_buffer[2]-48;
-            amplitude[voice] = atof(data_buffer+4);
-            // Look for frequency, not required
-            for(uint8_t k=5;k<recv_data;k++) {
-                if(data_buffer[k] == 0) k = recv_data; // skip to the end, Max's udpsend sends footer data after a NULL
-                if(data_buffer[k] == ',') {
-                    frequency[voice] = atof(data_buffer+k+1);
+        data_buffer[recv_data] = 0;
+        uint16_t c = 0;
+        int16_t t_voice = -1;
+        int16_t t_note = -1;
+        int16_t t_wave = -1;
+        int16_t t_patch = -1;
+        float t_freq = -1;
+        float t_amp = -1;
+        while(c < recv_data+1) {
+            uint8_t b = data_buffer[c];
+            if(b >= 'a' || b <= 'z' || b == 0) {  // new mode or end
+                if(mode=='v') t_voice=atoi(data_buffer + start);
+                if(mode=='n') t_note=atoi(data_buffer + start);
+                if(mode=='w') t_wave=atoi(data_buffer + start);
+                if(mode=='p') t_patch=atoi(data_buffer + start);
+                if(mode=='f') t_freq=atof(data_buffer + start);
+                if(mode=='a') t_amp=atof(data_buffer + start);
+                mode=b;
+                start=c+1;
+            }
+            c++;
+        }
+        // Don't do anything if you didn't get a voice
+        if(t_voice >= 0) {
+            if(t_note >= 0) midi_note[t_voice] = t_note;
+            if(t_wave >= 0) wave[t_voice] = t_wave;
+            if(t_patch >= 0) patch[t_voice] = t_patch;
+            if(t_freq >= 0) frequency[t_voice] = t_freq;
+            if(t_amp >= 0) amplitude[t_voice] = t_amp;
+        
+            // Also, TODO, think about note/freq -- does one trigger the other
+
+            // Trigger a new note for FM / env? Obv rethink all of this, an env command?
+            // For now, trigger a new note on every param change for FM
+            if(wave[t_voice]==FM) {
+                if(midi_note[t_voice]>0) {
+                    dx7_new_note(midi_note[t_voice], 100, patch[t_voice]);
+                } else {
+                    dx7_new_freq(frequency[t_voice], 100, patch[t_voice]);
                 }
             }
-            printf("voice %d wave %d amp %f freq %f\n", voice, wave[voice], amplitude[voice], frequency[voice]);
+            printf("voice %d wave %d amp %f freq %f note %d patch %d\n", t_voice, wave[t_voice], amplitude[t_voice], frequency[t_voice], midi_note[t_voice], patch[t_voice]);
         }
+
     }
+
     close(socket_fd); 
 
 }

@@ -5,8 +5,20 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF] = range(7)
 
-def tone(voice=0, type=SINE, amp=0.1, freq=0, which=0):
-    sock.sendto("%d,%d,%f,%f" % (voice, type, amp, freq), (udp_ip[which], udp_port))
+def tone(voice=0, type=SINE, patch=-1, amp=-1, note=-1, freq=-1, which=0):
+    m = "v%dw%d" % (voice,type)
+    if(amp>=0): m = m + "a%f" % (amp)
+    if(freq>=0): m = m + "f%f" % (freq)
+    if(note>=0): m = m + "n%d" % (note)
+    if(patch>=0): m = m + "p%d" % (patch)
+    sock.sendto(m, (udp_ip[which], udp_port))
+
+
+def scale(voice=0, type=FM, amp=0.5, which=0):
+    while 1:
+        for i in range(24):
+            tone(voice=voice, type=type, amp=amp, note=40+i, which=which, patch=(i%20))
+            time.sleep(0.5)
 
 def off():
 	for x in xrange(10):

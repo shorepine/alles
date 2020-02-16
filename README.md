@@ -60,11 +60,13 @@ Where
 voice = 0..9
 type = 0,1,2,3,4,5,6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF]
 amplitude = float 0-1 summed over all voices
-frequency = float 0-22050 
+frequency = float 0-22050 OR as midi_note preceded by an n, e.g. n57 
 
 e.g.
 
 0,0,0.4,440.0
+2,5,0.6,n69
+2,5,0.4
 ```
 
 Python example:

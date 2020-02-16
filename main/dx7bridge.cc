@@ -23,6 +23,7 @@
 // TODO -- if more than one FM voice(?) 
 Dx7Note note;
 Controllers controllers;
+char *unpacked_patches;
 
 extern "C" void render_samples(int16_t * buf, uint16_t len) {
     int32_t int32_t_buf[N];
@@ -48,6 +49,17 @@ extern "C" void render_samples(int16_t * buf, uint16_t len) {
 	}
 }
 
+extern "C" void dx7_new_freq(float freq, uint8_t velocity, uint16_t patch) {
+	note.init_with_freq(unpacked_patches+(patch*156), freq, velocity);
+	controllers.values_[kControllerPitch] = 0x2000; // pitch wheel?
+
+}
+extern "C" void dx7_new_note(uint8_t midi_note, uint8_t velocity, uint16_t patch) {
+	// patch 2, note 50, vel 100
+	note.init(unpacked_patches+(patch*156), midi_note, velocity);
+	controllers.values_[kControllerPitch] = 0x2000; // pitch wheel?
+	// now we're ready to render
+}
 
 extern "C" void dx7_init(void) {
 	double sample_rate = SAMPLE_RATE;
@@ -57,14 +69,10 @@ extern "C" void dx7_init(void) {
 	Exp2::init();
 	Log2::init();
 	// Unpack patches in h file
-	char *unpacked_patches = (char*) malloc(PATCHES*156);
+	unpacked_patches = (char*) malloc(PATCHES*156);
 	for(int i=0;i<PATCHES;i++) {
 		UnpackPatch(patches[i], unpacked_patches + (i*156));
 	}
-	// patch 2, note 50, vel 100
-	note.init(unpacked_patches+(0*156), 50, 100);
-	controllers.values_[kControllerPitch] = 0x2000; // pitch wheel?
-	// now we're ready to render
 }
 
 
