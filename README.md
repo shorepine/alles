@@ -2,9 +2,9 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/IMG_2872.jpeg)
 
-Turns an ESP32 & an i2s chip into a remote battery powered 10-voice syntheiszer that responds over wifi using UDP. 
+Turns an ESP32 & an i2s chip & speaker into a WiFi controlled battery powered 10-voice synthesizer. Supports additive sine, saw, square, triangle oscillators as well as a full FM stage, modeled after the DX7 including support for DX7 patches.
 
-They're cheap to make ($25 each, bring your own battery).
+They're cheap to make ($7 for the ESP, $6 for the I2S amp, speakers from $0.50 up depending on quality) and can be powered off of 9V batteries for many hours or LiPo / USB battery cells for much, much longer. Pulls around 100mA at max amplitude, receiving WiFi packets with oscillators going.
 
 The idea is you can install a bunch of them throughout a space and make a distributed / spatial version of the [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled from a laptop or phone or etc. 
 
@@ -12,11 +12,11 @@ The idea is you can install a bunch of them throughout a space and make a distri
 
 currently using
 
-* https://www.adafruit.com/product/3006
+* https://www.adafruit.com/product/3006 
 * https://www.adafruit.com/product/3405
-* https://www.adafruit.com/product/1314 (but any unpowered desktop speaker will work)
+* https://www.adafruit.com/product/1314 
 
-LiPo battery is charged via USB powers both boards and a small speaker at pretty good volumes.
+A 5V input (USB battery, USB input, rechargeable batteries direct to power input) powers both boards and a small speaker at pretty good volumes. A 3.7V LiPo battery will also work, but note the I2S amp will not get as loud (without distorting) if you give it 3.7V. I recommend using a 9V battery or 4 1.5V batteries through a 5V voltage regulator to power both boards.
 
 Wire it up like
 
@@ -25,17 +25,15 @@ LRC -> A1
 BCLK -> A0
 DIN -> A5
 GAIN -> Vin (i jumper this on the breakout)
-SD -> NC
+SD -> not connected
 GND -> GND
-Vin -> 3v3
+Vin -> 3v3 (or direct to your 5V power source)
 Speaker connectors -> speaker
 ```
 
-(Note, you more likely want to feed the i2s amp from 5V if you can, so stay tuned)
-
 ![closeup](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/closeup.png)
 
-(note, in this picture the GAIN pin is connected incorrectly, it should be on Vin) 
+(please note, in this picture the GAIN pin is connected incorrectly, it should be on Vin) 
 
 ## Building
 
