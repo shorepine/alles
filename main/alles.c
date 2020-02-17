@@ -224,7 +224,7 @@ void receive_thread(void *pvParameters) {
         recv_data = recv(socket_fd,data_buffer,sizeof(data_buffer),0);
         data_buffer[recv_data] = 0;
         uint16_t c = 0;
-        int16_t t_voice = -1;
+        int16_t t_voice = 0;
         int16_t t_note = -1;
         int16_t t_wave = -1;
         int16_t t_patch = -1;
@@ -244,28 +244,23 @@ void receive_thread(void *pvParameters) {
             }
             c++;
         }
-        // Don't do anything if you didn't get a voice
-        if(t_voice >= 0) {
-            if(t_note >= 0) { midi_note[t_voice] = t_note; frequency[t_voice] = freq_for_midi_note(t_note); } 
-            if(t_wave >= 0) wave[t_voice] = t_wave;
-            if(t_patch >= 0) patch[t_voice] = t_patch;
-            if(t_freq >= 0) frequency[t_voice] = t_freq;
-            if(t_amp >= 0) amplitude[t_voice] = t_amp;
-        
-            // Also, TODO, think about note/freq -- does one trigger the other
-
-            // Trigger a new note for FM / env? Obv rethink all of this, an env command?
-            // For now, trigger a new note on every param change for FM
-            if(wave[t_voice]==FM) {
-                if(midi_note[t_voice]>0) {
-                    dx7_new_note(midi_note[t_voice], 100, patch[t_voice]);
-                } else {
-                    dx7_new_freq(frequency[t_voice], 100, patch[t_voice]);
-                }
+        // Now we have the whole message parsed and figured out what voice we are, make changes
+        // Note change triggers a freq change, but not the other way around (i think that's good)
+        if(t_note >= 0) { midi_note[t_voice] = t_note; frequency[t_voice] = freq_for_midi_note(t_note); } 
+        if(t_wave >= 0) wave[t_voice] = t_wave;
+        if(t_patch >= 0) patch[t_voice] = t_patch;
+        if(t_freq >= 0) frequency[t_voice] = t_freq;
+        if(t_amp >= 0) amplitude[t_voice] = t_amp;
+        // Trigger a new note for FM / env? Obv rethink all of this, an env command?
+        // For now, trigger a new note on every param change for FM
+        if(wave[t_voice]==FM) {
+            if(midi_note[t_voice]>0) {
+                dx7_new_note(midi_note[t_voice], 100, patch[t_voice]);
+            } else {
+                dx7_new_freq(frequency[t_voice], 100, patch[t_voice]);
             }
-            printf("voice %d wave %d amp %f freq %f note %d patch %d\n", t_voice, wave[t_voice], amplitude[t_voice], frequency[t_voice], midi_note[t_voice], patch[t_voice]);
         }
-
+        printf("voice %d wave %d amp %f freq %f note %d patch %d\n", t_voice, wave[t_voice], amplitude[t_voice], frequency[t_voice], midi_note[t_voice], patch[t_voice]);
     }
 
     close(socket_fd); 

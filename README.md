@@ -57,23 +57,28 @@ v0w4f440.0a0.5
 
 Where
 ```
-v = voice, int, 0 to 9 for now
-w = waveform, int, 0,1,2,3,4,5,6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF]
-a = amplitude, float 0-1 summed over all voices
-f = frequency, float 0-22050
-n = midinote, 0-127 (note that this will also set f) 
-p = patch, 0-X, choose a preloaded DX7 patch number for FM waveforms
+v = voice, uint, 0 to 9. default: 0
+w = waveform, uint, 0,1,2,3,4,5,6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF]. default: 0/SINE
+a = amplitude, float 0-1 summed over all voices. default 0
+f = frequency, float 0-22050. default 0
+n = midinote, uint, 0-127 (note that this will also set f). default 0
+p = patch, uint, 0-X, choose a preloaded DX7 patch number for FM waveforms. default 0
 ```
 
-Commands are cumulative, state is held. The only required command per message is voice. e.g.
+Commands are cumulative, state is held per voice. If voice is not given it's assumed to be 0. 
+
+Example:
 
 ```
-v0f440a0.1
-v0a0.5
-v0w1
+f440a0.1
+a0.5
+w1
+v1w5n50a0.2
+v10.4
+w2
 ```
 
-Will set voice 0 to a sine wave (default) at 440Hz amplitude 0.1, then set amplitude of the voice to 0.5, then change the waveform to a square but keep everything else the same.
+Will set voice 0 (default) to a sine wave (default) at 440Hz amplitude 0.1, then set amplitude of voice 0 to 0.5, then change the waveform to a square but keep everything else the same. Then set voice 1 to an FM synth playing midi note 50 at amplitude 0.2. Then set voice 1's amplitude to 0.4. Then change voice 0 again to a saw wave.
 
 
 Python example:
