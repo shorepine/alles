@@ -16,9 +16,7 @@ currently using
 
 ### Power 
 
-A 5V input (USB battery, USB input, rechargeable batteries direct to power input) powers both boards and a small speaker at pretty good volumes. A 3.7V LiPo battery will also work, but note the I2S amp will not get as loud (without distorting) if you give it 3.7V. I recommend using a 9V battery or 4 1.5V batteries through a 5V voltage regulator to power both boards.
-
-It can powered off of 9V batteries for many hours or LiPo / USB battery cells for much, much longer. Pulls around 100mA at max amplitude, receiving WiFi packets with oscillators going. If you're using a USB cell phone battery, make sure to get one that doesn't do [low current shutoff](https://www.element14.com/community/groups/test-and-measurement/blog/2018/10/15/on-using-a-usb-battery-for-a-portable-project-power-supply). I lucked on [this one at Amazon for $9.44](https://www.amazon.com/gp/product/B00MWU1GGI) that should power a single synth making sound for 50 hours. 
+A 5V input (USB battery, USB input, rechargeable batteries direct to power input) powers both boards and a small speaker at pretty good volumes. A 3.7V LiPo battery will also work, but note the I2S amp will not get as loud (without distorting) if you give it 3.7V. I recommend using a USB battery pack that does not do [low current shutoff](https://www.element14.com/community/groups/test-and-measurement/blog/2018/10/15/on-using-a-usb-battery-for-a-portable-project-power-supply). I lucked on [this one at Amazon for $9.44](https://www.amazon.com/gp/product/B00MWU1GGI). The draw of the whole unit at loud volumes is around 100mA, so my battery should power a single synth making sound for 50 hours. 
 
 ### Wiring
 
