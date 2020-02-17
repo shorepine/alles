@@ -14,10 +14,11 @@ def tone(voice=0, type=SINE, patch=-1, amp=-1, note=-1, freq=-1, which=0):
     sock.sendto(m, (udp_ip[which], udp_port))
 
 
-def scale(voice=0, type=FM, amp=0.5, which=0):
+def scale(voice=0, type=FM, amp=0.5, which=0, patch=None):
     while 1:
         for i in range(24):
-            tone(voice=voice, type=type, amp=amp, note=40+i, which=which, patch=(i%20))
+            if patch is None: patch = i % 20
+            tone(voice=voice, type=type, amp=amp, note=40+i, which=which, patch=patch)
             time.sleep(0.5)
 
 def off():

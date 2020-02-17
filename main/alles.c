@@ -246,7 +246,7 @@ void receive_thread(void *pvParameters) {
         }
         // Don't do anything if you didn't get a voice
         if(t_voice >= 0) {
-            if(t_note >= 0) midi_note[t_voice] = t_note;
+            if(t_note >= 0) { midi_note[t_voice] = t_note; frequency[t_voice] = freq_for_midi_note(t_note); } 
             if(t_wave >= 0) wave[t_voice] = t_wave;
             if(t_patch >= 0) patch[t_voice] = t_patch;
             if(t_freq >= 0) frequency[t_voice] = t_freq;
