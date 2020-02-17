@@ -2,9 +2,7 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/IMG_2872.jpeg)
 
-Turns an ESP32 & an i2s chip & speaker into a WiFi controlled battery powered 10-voice synthesizer. Supports additive sine, saw, square, triangle oscillators as well as a full FM stage, modeled after the DX7 including support for DX7 patches.
-
-They're cheap to make ($7 for the ESP, $6 for the I2S amp, speakers from $0.50 up depending on quality) and can be powered off of 9V batteries for many hours or LiPo / USB battery cells for much, much longer. Pulls around 100mA at max amplitude, receiving WiFi packets with oscillators going. If you're using a USB cell phone battery, make sure to get one that doesn't do [low current shutoff](https://www.element14.com/community/groups/test-and-measurement/blog/2018/10/15/on-using-a-usb-battery-for-a-portable-project-power-supply). I lucked on [this one at Amazon for $9.44](https://www.amazon.com/gp/product/B00MWU1GGI) that should power a single synth making sound for 50 hours. 
+Turns an ESP32 & an i2s chip & speaker into a WiFi controlled battery powered 10-voice synthesizer. Supports additive sine, saw, square, triangle oscillators as well as a full FM stage, modeled after the DX7 including support for DX7 patches. They're cheap to make ($7 for the ESP, $6 for the I2S amp, speakers from $0.50 up depending on quality). And only a few soldering points. 
 
 The synthesizers listen to UDP multicast messages. The idea is you can install a bunch of them throughout a space and make a distributed / spatial version of the [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled as a group or individually from a laptop or phone or etc. 
 
@@ -16,7 +14,13 @@ currently using
 * https://www.adafruit.com/product/3405
 * https://www.adafruit.com/product/1314 
 
+### Power 
+
 A 5V input (USB battery, USB input, rechargeable batteries direct to power input) powers both boards and a small speaker at pretty good volumes. A 3.7V LiPo battery will also work, but note the I2S amp will not get as loud (without distorting) if you give it 3.7V. I recommend using a 9V battery or 4 1.5V batteries through a 5V voltage regulator to power both boards.
+
+It can powered off of 9V batteries for many hours or LiPo / USB battery cells for much, much longer. Pulls around 100mA at max amplitude, receiving WiFi packets with oscillators going. If you're using a USB cell phone battery, make sure to get one that doesn't do [low current shutoff](https://www.element14.com/community/groups/test-and-measurement/blog/2018/10/15/on-using-a-usb-battery-for-a-portable-project-power-supply). I lucked on [this one at Amazon for $9.44](https://www.amazon.com/gp/product/B00MWU1GGI) that should power a single synth making sound for 50 hours. 
+
+### Wiring
 
 Wire it up like
 
@@ -35,7 +39,7 @@ Speaker connectors -> speaker
 
 (please note, in this picture the GAIN pin is connected incorrectly, it should be on Vin) 
 
-## Building
+## Firmware
 
 Setup esp-idf: http://esp-idf.readthedocs.io/en/latest/get-started/
 
