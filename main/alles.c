@@ -254,7 +254,7 @@ void app_main() {
     printf("Setting up I2S\n");
     setup_i2s();
 
-    printf("Setting up wifi\n");
+    printf("Setting up wifi & multicast listening\n");
     ESP_ERROR_CHECK(wifi_connect());
     xTaskCreate(&mcast_listen_task, "mcast_task", 4096, NULL, 5, NULL);
     printf("wifi ready\n");

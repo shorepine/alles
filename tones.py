@@ -1,8 +1,8 @@
-import socket, time
-udp_ip = ["192.168.86.20", "192.168.86.24"] # see the IP of the ESP32 via make monitor
-udp_port = 6001
+import socket, time, struct
+multicast_group = ('232.10.11.12', 3333)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
+ttl = struct.pack('b', 1)
+sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF] = range(7)
 
 def tone(voice=0, type=SINE, patch=-1, amp=-1, note=-1, freq=-1, which=0):
@@ -11,15 +11,17 @@ def tone(voice=0, type=SINE, patch=-1, amp=-1, note=-1, freq=-1, which=0):
     if(freq>=0): m = m + "f%f" % (freq)
     if(note>=0): m = m + "n%d" % (note)
     if(patch>=0): m = m + "p%d" % (patch)
-    sock.sendto(m, (udp_ip[which], udp_port))
+    sock.sendto(m, multicast_group)
 
 
-def scale(voice=0, type=FM, amp=0.5, which=0, patch=None):
-    while 1:
-        for i in range(24):
+def scale(voice=0, type=FM, amp=0.5, which=0, patch=None,forever=True):
+    once = True
+    while (forever or once):
+        once=False
+        for i in range(12):
             if patch is None: patch = i % 20
             tone(voice=voice, type=type, amp=amp, note=40+i, which=which, patch=patch)
-            time.sleep(0.5)
+            time.sleep(0.1)
 
 def off():
 	for x in xrange(10):
