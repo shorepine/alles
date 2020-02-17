@@ -61,7 +61,7 @@ v = voice, int, 0 to 9 for now
 w = waveform, int, 0,1,2,3,4,5,6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF]
 a = amplitude, float 0-1 summed over all voices
 f = frequency, float 0-22050
-n = midinote, 0-127 (note that this interacts with f) 
+n = midinote, 0-127 (note that this will also set f) 
 p = patch, 0-X, choose a preloaded DX7 patch number for FM waveforms
 ```
 
