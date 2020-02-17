@@ -4,7 +4,7 @@
 
 Turns an ESP32 & an i2s chip & speaker into a WiFi controlled battery powered 10-voice synthesizer. Supports additive sine, saw, square, triangle oscillators as well as a full FM stage, modeled after the DX7 including support for DX7 patches.
 
-They're cheap to make ($7 for the ESP, $6 for the I2S amp, speakers from $0.50 up depending on quality) and can be powered off of 9V batteries for many hours or LiPo / USB battery cells for much, much longer. Pulls around 100mA at max amplitude, receiving WiFi packets with oscillators going. If you're using a USB cell phone battery, make sure to get one that doesn't do ["low current shutoff"](https://www.element14.com/community/groups/test-and-measurement/blog/2018/10/15/on-using-a-usb-battery-for-a-portable-project-power-supply). I lucked on [this one at Amazon for $9.44](https://www.amazon.com/gp/product/B00MWU1GGI) that should power a single synth making sound for 50 hours. 
+They're cheap to make ($7 for the ESP, $6 for the I2S amp, speakers from $0.50 up depending on quality) and can be powered off of 9V batteries for many hours or LiPo / USB battery cells for much, much longer. Pulls around 100mA at max amplitude, receiving WiFi packets with oscillators going. If you're using a USB cell phone battery, make sure to get one that doesn't do [low current shutoff](https://www.element14.com/community/groups/test-and-measurement/blog/2018/10/15/on-using-a-usb-battery-for-a-portable-project-power-supply). I lucked on [this one at Amazon for $9.44](https://www.amazon.com/gp/product/B00MWU1GGI) that should power a single synth making sound for 50 hours. 
 
 The synthesizers listen to UDP multicast messages. The idea is you can install a bunch of them throughout a space and make a distributed / spatial version of the [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled as a group or individually from a laptop or phone or etc. 
 
@@ -120,7 +120,7 @@ You can also use it in Max or similar software (note you have to wrap string com
 * wifi hotspot mode for in-field setup (tbh think it's better to use a dedicated router)
 * ~~broadcast UDP for multiples~~
 * addresses / communicate to one or groups 
-* timing / latency
+* do what i can about timing / jitter - sync time? timed messages? 
 * case / battery setup
 
 
