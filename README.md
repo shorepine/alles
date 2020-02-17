@@ -82,12 +82,12 @@ Will set voice 0 (default) to a sine wave (default) at 440Hz amplitude 0.1, then
 
 
 Python example:
+
 ```
 import socket, struct
 multicast_group = ('232.10.11.12', 3333)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-ttl = struct.pack('b', 1)
-sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
+sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, struct.pack('b', 1))
 
 def tone(voice=0, type=0, amp=0.1, freq=0):
     sock.sendto("v%dw%da%ff%f" % (voice, type, amp, freq), multicast_group)
@@ -114,10 +114,11 @@ You can also use it in Max or similar software (note you have to wrap string com
 ## TODO
 
 * ~~remove distortion at higher amplitudes for mixed sine waves~~
+* ~~FM~~
 * SVF filter (maybe use the FM synth's) 
-* envelopes
-* wifi hotspot for in-field setup
-* broadcast UDP for multiples
+* envelopes / note on/offs
+* wifi hotspot mode for in-field setup (tbh think it's better to use a dedicated router)
+* ~~broadcast UDP for multiples~~
 * case / battery setup
 
 
