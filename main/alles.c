@@ -11,8 +11,7 @@
 #include "esp_spi_flash.h"
 #include "esp_intr_alloc.h"
 #include "esp_attr.h"
-#include "esp_wifi.h"
-#include "esp_event_loop.h"
+#include "esp_event.h"
 #include "esp_log.h"
 #include "esp_err.h"
 
@@ -21,21 +20,14 @@
 #include "lwip/netdb.h"
 
 #include "sineLUT.h"
-#include "auth.h"
-// has 
-// #define WIFI_SSID "wifissid"
-// #define WIFI_PASS "password"
-
-static const char *TAG = "UDP";
-
-static EventGroupHandle_t wifi_event_group;
-const int CONNECTED_BIT = BIT0;
-const int STARTED_BIT = BIT1;
-#define RECEIVER_PORT_NUM 6001
-char my_ip[32];
+#include "wifi.h"
 
 #define SAMPLE_RATE 44100
 
+extern void mcast_listen_task(void *pvParameters);
+
+
+// FM synth stuff
 #include "dx7bridge.h"
 extern void dx7_init();
 extern void render_samples(int16_t * buf, uint16_t len);
@@ -109,7 +101,7 @@ void setup_luts() {
         }
         saw_LUT[i] = (uint16_t) (((float)i/(float)OTHER_LUT_SIZE)*65535.0);
     }
-    LUT[SINE] = sine_LUT;
+    LUT[SINE] = (uint16_t*)sine_LUT;
     LUT[SQUARE] = square_LUT;
     LUT[SAW] = saw_LUT;
     LUT[TRIANGLE] = triangle_LUT;
@@ -195,150 +187,56 @@ void setup_i2s(void) {
   i2s_set_sample_rates((i2s_port_t)i2s_num, SAMPLE_RATE);
 }
 
-
-void receive_thread(void *pvParameters) {
-    int socket_fd;
-    struct sockaddr_in sa,ra;
-
-    int recv_data; char data_buffer[80];
-    socket_fd = socket(PF_INET, SOCK_DGRAM, 0);
-    if ( socket_fd < 0 ) {
-        printf("socket call failed");
-        exit(0);
-    }
-
-    memset(&sa, 0, sizeof(struct sockaddr_in));
-    ra.sin_family = AF_INET;
-    ra.sin_addr.s_addr = inet_addr(my_ip);
-    ra.sin_port = htons(RECEIVER_PORT_NUM);
-    if (bind(socket_fd, (struct sockaddr *)&ra, sizeof(struct sockaddr_in)) == -1) {
-        printf("bind to port %d IP address %s failed\n",RECEIVER_PORT_NUM,my_ip);
-        close(socket_fd);
-        exit(1);
-    }
-
-    // Spin forever in this thread waiting for commands
-    while(1) {
-        uint8_t mode = 0;
-        uint16_t start = 0;
-        recv_data = recv(socket_fd,data_buffer,sizeof(data_buffer),0);
-        data_buffer[recv_data] = 0;
-        uint16_t c = 0;
-        int16_t t_voice = 0;
-        int16_t t_note = -1;
-        int16_t t_wave = -1;
-        int16_t t_patch = -1;
-        float t_freq = -1;
-        float t_amp = -1;
-        while(c < recv_data+1) {
-            uint8_t b = data_buffer[c];
-            if(b >= 'a' || b <= 'z' || b == 0) {  // new mode or end
-                if(mode=='v') t_voice=atoi(data_buffer + start);
-                if(mode=='n') t_note=atoi(data_buffer + start);
-                if(mode=='w') t_wave=atoi(data_buffer + start);
-                if(mode=='p') t_patch=atoi(data_buffer + start);
-                if(mode=='f') t_freq=atof(data_buffer + start);
-                if(mode=='a') t_amp=atof(data_buffer + start);
-                mode=b;
-                start=c+1;
-            }
-            c++;
+void parse_message(char * data_buffer, int recv_data) {
+    uint8_t mode = 0;
+    uint16_t start = 0;
+    data_buffer[recv_data] = 0;
+    uint16_t c = 0;
+    int16_t t_voice = 0;
+    int16_t t_note = -1;
+    int16_t t_wave = -1;
+    int16_t t_patch = -1;
+    float t_freq = -1;
+    float t_amp = -1;
+    while(c < recv_data+1) {
+        uint8_t b = data_buffer[c];
+        if(b >= 'a' || b <= 'z' || b == 0) {  // new mode or end
+            if(mode=='v') t_voice=atoi(data_buffer + start);
+            if(mode=='n') t_note=atoi(data_buffer + start);
+            if(mode=='w') t_wave=atoi(data_buffer + start);
+            if(mode=='p') t_patch=atoi(data_buffer + start);
+            if(mode=='f') t_freq=atof(data_buffer + start);
+            if(mode=='a') t_amp=atof(data_buffer + start);
+            mode=b;
+            start=c+1;
         }
-        // Now we have the whole message parsed and figured out what voice we are, make changes
-        // Note change triggers a freq change, but not the other way around (i think that's good)
-        if(t_note >= 0) { midi_note[t_voice] = t_note; frequency[t_voice] = freq_for_midi_note(t_note); } 
-        if(t_wave >= 0) wave[t_voice] = t_wave;
-        if(t_patch >= 0) patch[t_voice] = t_patch;
-        if(t_freq >= 0) frequency[t_voice] = t_freq;
-        if(t_amp >= 0) amplitude[t_voice] = t_amp;
-        // Trigger a new note for FM / env? Obv rethink all of this, an env command?
-        // For now, trigger a new note on every param change for FM
-        if(wave[t_voice]==FM) {
-            if(midi_note[t_voice]>0) {
-                dx7_new_note(midi_note[t_voice], 100, patch[t_voice]);
-            } else {
-                dx7_new_freq(frequency[t_voice], 100, patch[t_voice]);
-            }
-        }
-        printf("voice %d wave %d amp %f freq %f note %d patch %d\n", t_voice, wave[t_voice], amplitude[t_voice], frequency[t_voice], midi_note[t_voice], patch[t_voice]);
+        c++;
     }
-
-    close(socket_fd); 
-
-}
-
-static esp_err_t esp32_wifi_eventHandler(void *ctx, system_event_t *event) {
-
-    switch(event->event_id) {
-        case SYSTEM_EVENT_WIFI_READY:
-            ESP_LOGD(TAG, "EVENT_WIFI_READY");
-
-            break;
-
-        case SYSTEM_EVENT_AP_STACONNECTED:
-            ESP_LOGD(TAG, "EVENT_AP_START");
-            break;
-
-        // When we have started being an access point
-        case SYSTEM_EVENT_AP_START: 
-            ESP_LOGD(TAG, "EVENT_START");
-            xEventGroupSetBits(wifi_event_group, STARTED_BIT);            
-            break;
-        case SYSTEM_EVENT_SCAN_DONE:
-            ESP_LOGD(TAG, "EVENT_SCAN_DONE");
-            break;
-
-        case SYSTEM_EVENT_STA_CONNECTED: 
-            ESP_LOGD(TAG, "EVENT_STA_CONNECTED");
-            xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
-            break;
-
-        // If we fail to connect to an access point as a station, become an access point.
-        case SYSTEM_EVENT_STA_DISCONNECTED:
-            xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
-            ESP_LOGD(TAG, "EVENT_STA_DISCONNECTED");
-            // We think we tried to connect as a station and failed! ... become
-            // an access point.
-            break;
-
-        // If we connected as a station then we are done and we can stop being a
-        // web server.
-        case SYSTEM_EVENT_STA_GOT_IP: 
-            sprintf(my_ip,IPSTR, IP2STR(&event->event_info.got_ip.ip_info.ip));
-            xTaskCreate(&receive_thread, "receive_thread", 2048, NULL, 5, NULL);
-            get_going = 1;
-            break;
-
-        default: // Ignore the other event types
-            break;
-    } // Switch event
-
-    return ESP_OK;
-} // esp32_wifi_eventHandler
-
-
-
-static void initialize_wifi(void) {
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
-    ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
-    wifi_config_t wifi_config = {
-        .sta = {
-               .ssid = WIFI_SSID,
-               .password = WIFI_PASS,
-        },
-    };
-    ESP_LOGI(TAG, "Setting WiFi configuration SSID %s...", wifi_config.sta.ssid);
-    ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
-    ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
-    ESP_ERROR_CHECK( esp_wifi_start() );
-    ESP_ERROR_CHECK( esp_wifi_connect() );
+    // Now we have the whole message parsed and figured out what voice we are, make changes
+    // Note change triggers a freq change, but not the other way around (i think that's good)
+    if(t_note >= 0) { midi_note[t_voice] = t_note; frequency[t_voice] = freq_for_midi_note(t_note); } 
+    if(t_wave >= 0) wave[t_voice] = t_wave;
+    if(t_patch >= 0) patch[t_voice] = t_patch;
+    if(t_freq >= 0) frequency[t_voice] = t_freq;
+    if(t_amp >= 0) amplitude[t_voice] = t_amp;
+    // Trigger a new note for FM / env? Obv rethink all of this, an env command?
+    // For now, trigger a new note on every param change for FM
+    if(wave[t_voice]==FM) {
+        if(midi_note[t_voice]>0) {
+            dx7_new_note(midi_note[t_voice], 100, patch[t_voice]);
+        } else {
+            dx7_new_freq(frequency[t_voice], 100, patch[t_voice]);
+        }
+    }
+    printf("voice %d wave %d amp %f freq %f note %d patch %d\n", t_voice, wave[t_voice], amplitude[t_voice], frequency[t_voice], midi_note[t_voice], patch[t_voice]);
 }
 
 
 void app_main() {
     // The flash has get init'd even though we're not using it as some wifi stuff is stored in there
     ESP_ERROR_CHECK(nvs_flash_init());
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     /* Print chip information */
     esp_chip_info_t chip_info;
@@ -356,17 +254,12 @@ void app_main() {
     printf("Setting up I2S\n");
     setup_i2s();
 
-    printf("Setting up wifi\n");
-
-    wifi_event_group = xEventGroupCreate();
-    ESP_ERROR_CHECK( esp_event_loop_init(esp32_wifi_eventHandler, NULL) );
-    tcpip_adapter_init();
-
-    initialize_wifi();
-    printf("Waiting for wifi to connect\n");
-    while(!get_going) vTaskDelay(200 / portTICK_PERIOD_MS);
-
+    printf("Setting up wifi & multicast listening\n");
+    ESP_ERROR_CHECK(wifi_connect());
+    xTaskCreate(&mcast_listen_task, "mcast_task", 4096, NULL, 5, NULL);
     printf("wifi ready\n");
+
+
     setup_luts();
     setup_voices();
     printf("oscillators ready\n");
@@ -385,6 +278,7 @@ void app_main() {
         }
         fill_audio_buffer();
     } 
+
 
     // Reset the voices and go forever, waiting for commands on the UDP thread
     setup_voices();
