@@ -6,7 +6,7 @@ Turns an ESP32 & an i2s chip & speaker into a WiFi controlled battery powered 10
 
 They're cheap to make ($7 for the ESP, $6 for the I2S amp, speakers from $0.50 up depending on quality) and can be powered off of 9V batteries for many hours or LiPo / USB battery cells for much, much longer. Pulls around 100mA at max amplitude, receiving WiFi packets with oscillators going. If you're using a USB cell phone battery, make sure to get one that doesn't do ["low current shutoff"](https://www.element14.com/community/groups/test-and-measurement/blog/2018/10/15/on-using-a-usb-battery-for-a-portable-project-power-supply). I lucked on [this one at Amazon for $9.44](https://www.amazon.com/gp/product/B00MWU1GGI) that should power a single synth making sound for 50 hours. 
 
-The idea is you can install a bunch of them throughout a space and make a distributed / spatial version of the [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled from a laptop or phone or etc. 
+The synthesizers listen to UDP multicast messages. The idea is you can install a bunch of them throughout a space and make a distributed / spatial version of the [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled as a group or individually from a laptop or phone or etc. 
 
 ## Putting it together 
 
@@ -83,13 +83,14 @@ Will set voice 0 (default) to a sine wave (default) at 440Hz amplitude 0.1, then
 
 Python example:
 ```
-import socket
-udp_ip = "192.168.86.66" # see the IP of the ESP32 via make monitor
-udp_port = 6001
+import socket, struct
+multicast_group = ('232.10.11.12', 3333)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+ttl = struct.pack('b', 1)
+sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
 
 def tone(voice=0, type=0, amp=0.1, freq=0):
-    sock.sendto("v%dw%da%ff%f" % (voice, type, amp, freq), (udp_ip, udp_port))
+    sock.sendto("v%dw%da%ff%f" % (voice, type, amp, freq), multicast_group)
 
 def c_major(octave=2,vol=0.2):
     tone(voice=0,freq=220.5*octave,amp=vol/3.0)
