@@ -187,12 +187,21 @@ void setup_i2s(void) {
   i2s_set_sample_rates((i2s_port_t)i2s_num, SAMPLE_RATE);
 }
 
+void handle_sync(uint64_t sync) {
+    int64_t last_sync = -1;
+    int64_t esp_time_at_sync = -1;
+    uint16_t delta_sync = 100;    
+    // Do something here with
+    int64_t ms_since_boot = esp_timer_get_time() / 1000;
+}
+
 void parse_message(char * data_buffer, int recv_data) {
     uint8_t mode = 0;
     uint16_t start = 0;
     data_buffer[recv_data] = 0;
     uint16_t c = 0;
     int16_t t_voice = 0;
+    int32_t t_sync = -1;
     int16_t t_note = -1;
     int16_t t_wave = -1;
     int16_t t_patch = -1;
@@ -201,6 +210,7 @@ void parse_message(char * data_buffer, int recv_data) {
     while(c < recv_data+1) {
         uint8_t b = data_buffer[c];
         if(b >= 'a' || b <= 'z' || b == 0) {  // new mode or end
+            if(mode=='s') t_sync=atoi(data_buffer + start);
             if(mode=='v') t_voice=atoi(data_buffer + start);
             if(mode=='n') t_note=atoi(data_buffer + start);
             if(mode=='w') t_wave=atoi(data_buffer + start);
@@ -214,21 +224,24 @@ void parse_message(char * data_buffer, int recv_data) {
     }
     // Now we have the whole message parsed and figured out what voice we are, make changes
     // Note change triggers a freq change, but not the other way around (i think that's good)
-    if(t_note >= 0) { midi_note[t_voice] = t_note; frequency[t_voice] = freq_for_midi_note(t_note); } 
-    if(t_wave >= 0) wave[t_voice] = t_wave;
-    if(t_patch >= 0) patch[t_voice] = t_patch;
-    if(t_freq >= 0) frequency[t_voice] = t_freq;
-    if(t_amp >= 0) amplitude[t_voice] = t_amp;
-    // Trigger a new note for FM / env? Obv rethink all of this, an env command?
-    // For now, trigger a new note on every param change for FM
-    if(wave[t_voice]==FM) {
-        if(midi_note[t_voice]>0) {
-            dx7_new_note(midi_note[t_voice], 100, patch[t_voice]);
-        } else {
-            dx7_new_freq(frequency[t_voice], 100, patch[t_voice]);
+    // Sync is separate, and only ever comes in on its own 
+    if(t_sync >= 0) { handle_sync(t_sync); } else {
+        if(t_note >= 0) { midi_note[t_voice] = t_note; frequency[t_voice] = freq_for_midi_note(t_note); } 
+        if(t_wave >= 0) wave[t_voice] = t_wave;
+        if(t_patch >= 0) patch[t_voice] = t_patch;
+        if(t_freq >= 0) frequency[t_voice] = t_freq;
+        if(t_amp >= 0) amplitude[t_voice] = t_amp;
+        // Trigger a new note for FM / env? Obv rethink all of this, an env command?
+        // For now, trigger a new note on every param change for FM
+        if(wave[t_voice]==FM) {
+            if(midi_note[t_voice]>0) {
+                dx7_new_note(midi_note[t_voice], 100, patch[t_voice]);
+            } else {
+                dx7_new_freq(frequency[t_voice], 100, patch[t_voice]);
+            }
         }
+        printf("voice %d wave %d amp %f freq %f note %d patch %d\n", t_voice, wave[t_voice], amplitude[t_voice], frequency[t_voice], midi_note[t_voice], patch[t_voice]);
     }
-    printf("voice %d wave %d amp %f freq %f note %d patch %d\n", t_voice, wave[t_voice], amplitude[t_voice], frequency[t_voice], midi_note[t_voice], patch[t_voice]);
 }
 
 

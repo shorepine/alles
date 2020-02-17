@@ -59,12 +59,13 @@ v0w4f440.0a0.5
 
 Where
 ```
-v = voice, uint, 0 to 9. default: 0
-w = waveform, uint, 0,1,2,3,4,5,6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF]. default: 0/SINE
 a = amplitude, float 0-1 summed over all voices. default 0
 f = frequency, float 0-22050. default 0
 n = midinote, uint, 0-127 (note that this will also set f). default 0
 p = patch, uint, 0-X, choose a preloaded DX7 patch number for FM waveforms. default 0
+s = sync, int64: ms since epoch, intended as a sync signal. see tones.py
+v = voice, uint, 0 to 9. default: 0
+w = waveform, uint, 0,1,2,3,4,5,6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF]. default: 0/SINE
 ```
 
 Commands are cumulative, state is held per voice. If voice is not given it's assumed to be 0. 

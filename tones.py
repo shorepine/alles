@@ -1,9 +1,23 @@
-import socket, time, struct
+import socket, time, struct, datetime
 multicast_group = ('232.10.11.12', 3333)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 ttl = struct.pack('b', 1)
 sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF] = range(7)
+
+def timestamp_ms():
+    return int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds() * 1000)
+
+def sync(count=10, delay_ms=100):
+    # Sends sync packets to all the listeners so they can correct / get the time
+    # I'm guessing: 
+    start = timestamp_ms()
+    for i in range(count):
+        sock.sendto("s%d" % (timestamp_ms()), multicast_group)
+        time.sleep(delay_ms / 1000.0)
+    end = timestamp_ms()
+    ms_per_call = ((end-start-(count * delay_ms)) / float(count))
+    print "Total %d ms. Expected %d ms. Difference %d ms. Calls take %2.2fms extra." % (end-start, count*delay_ms, end-start-(count*delay_ms), ms_per_call)
 
 def tone(voice=0, type=SINE, patch=-1, amp=-1, note=-1, freq=-1, which=0):
     m = "v%dw%d" % (voice,type)
