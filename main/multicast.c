@@ -123,6 +123,39 @@ err:
     return -1;
 }
 
+// Send a multicast message 
+// Needs a socket -- can i use the existing one or does it cross a thread boundary? unclear 
+// could also create a new socket
+void mcast_send(int sock, char * message, uint16_t len) {
+    char addrbuf[32] = { 0 };
+    struct addrinfo hints = {
+        .ai_flags = AI_PASSIVE,
+        .ai_socktype = SOCK_DGRAM,
+    };
+    struct addrinfo *res;
+
+    if(sock < 0) { // no socket 
+        sock = create_multicast_ipv4_socket();
+        if (sock < 0) ESP_LOGE(TAG, "Failed to create IPv4 multicast sending socket");
+    }
+
+    hints.ai_family = AF_INET; // For an IPv4 socket
+    int err = getaddrinfo(MULTICAST_IPV4_ADDR, NULL, &hints, &res);
+    if (err < 0) {
+        ESP_LOGE(TAG, "getaddrinfo() failed for IPV4 destination address. error: %d", err);
+    }
+    if (res == 0) {
+        ESP_LOGE(TAG, "getaddrinfo() did not return any addresses");
+    }
+    ((struct sockaddr_in *)res->ai_addr)->sin_port = htons(UDP_PORT);
+    inet_ntoa_r(((struct sockaddr_in *)res->ai_addr)->sin_addr, addrbuf, sizeof(addrbuf)-1);
+    ESP_LOGI(TAG, "Sending to IPV4 multicast address %s:%d...",  addrbuf, UDP_PORT);
+    err = sendto(sock, message, len, 0, res->ai_addr, res->ai_addrlen);
+    freeaddrinfo(res);
+    if (err < 0) {
+        ESP_LOGE(TAG, "IPV4 sendto failed. errno: %d", errno);
+    }
+}
 
 void mcast_listen_task(void *pvParameters)
 {
