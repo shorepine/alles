@@ -150,15 +150,6 @@ void setup_i2s(void) {
 // Let's first re-factor to get a sequencer in here and do 1-unit 200ms latency timing
 // that's t_time
 
-void handle_sync(uint64_t sync) {
-/*
-    int64_t last_sync = -1;
-    int64_t esp_time_at_sync = -1;
-    uint16_t delta_sync = 100;    
-    // Do something here with
-    int64_t ms_since_boot = esp_timer_get_time() / 1000;
-    */
-}
 
 /*
 void parse_message(char * data_buffer, int recv_data) {
@@ -167,7 +158,6 @@ void parse_message(char * data_buffer, int recv_data) {
     data_buffer[recv_data] = 0;
     uint16_t c = 0;
     int16_t t_voice = 0;
-    int32_t t_sync = -1;
     int32_t t_time = -1;
     int16_t t_note = -1;
     int16_t t_wave = -1;
@@ -178,7 +168,6 @@ void parse_message(char * data_buffer, int recv_data) {
         uint8_t b = data_buffer[c];
         if(b >= 'a' || b <= 'z' || b == 0) {  // new mode or end
             if(mode=='t') t_time=atoi(data_buffer + start);
-            if(mode=='s') t_sync=atoi(data_buffer + start);
             if(mode=='v') t_voice=atoi(data_buffer + start);
             if(mode=='n') t_note=atoi(data_buffer + start);
             if(mode=='w') t_wave=atoi(data_buffer + start);
@@ -195,7 +184,6 @@ void parse_message(char * data_buffer, int recv_data) {
     if(t_time >= 0) { // do something with time
 
     }
-    if(t_sync >= 0) { handle_sync(t_sync); } 
     if(t_note >= 0) { midi_note[t_voice] = t_note; frequency[t_voice] = freq_for_midi_note(t_note); } 
     if(t_wave >= 0) wave[t_voice] = t_wave;
     if(t_patch >= 0) patch[t_voice] = t_patch;
@@ -228,7 +216,6 @@ uint8_t computed_delta_set = 0; // have we set a delta yet?
 // Here, some events
 struct event {
     uint64_t time;
-    uint64_t sync;
     int16_t voice;
     int16_t wave;
     int16_t patch;
@@ -247,7 +234,6 @@ void setup_events() {
         events[i].status = EMPTY;
         events[i].time = 0;
         events[i].voice = 0;
-        events[i].sync = -1;
         events[i].patch = -1;
         events[i].wave = -1;
         events[i].midi_note = -1;
@@ -288,7 +274,6 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
                     computed_delta_set = 1;
                 }
             }
-            if(mode=='s') e.sync=atoi(data_buffer + start);
             if(mode=='v') e.voice=atoi(data_buffer + start);
             if(mode=='n') e.midi_note=atoi(data_buffer + start);
             if(mode=='w') e.wave=atoi(data_buffer + start);
@@ -308,7 +293,7 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
     // second event goes out at 1100-900 + 200 = 400ms (150ms away)
     // third event comes in at client 450, no host time
     // just gets played at 650 
-    
+
 
     // Now adjust time in some useful way:
     // if we have a delta & got a time in this message, use it schedule it properly

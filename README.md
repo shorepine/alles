@@ -63,7 +63,7 @@ a = amplitude, float 0-1 summed over all voices. default 0
 f = frequency, float 0-22050. default 0
 n = midinote, uint, 0-127 (note that this will also set f). default 0
 p = patch, uint, 0-X, choose a preloaded DX7 patch number for FM waveforms. default 0
-s = sync, int64: ms since epoch, intended as a sync signal. see tones.py
+t = time, int64: ms since alles_epoch representing host time. you should always give this if you can
 v = voice, uint, 0 to 9. default: 0
 w = waveform, uint, 0,1,2,3,4,5,6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF]. default: 0/SINE
 ```
@@ -83,6 +83,12 @@ w2
 
 Will set voice 0 (default) to a sine wave (default) at 440Hz amplitude 0.1, then set amplitude of voice 0 to 0.5, then change the waveform to a square but keep everything else the same. Then set voice 1 to an FM synth playing midi note 50 at amplitude 0.2. Then set voice 1's amplitude to 0.4. Then change voice 0 again to a saw wave.
 
+
+## Timing & latency
+
+WiFi, UDP multicast, distance, microcontrollers with bad antennas: all of these are in the way of doing anything close to "real time" control from your host. A message you send from a laptop will arrive between 10ms and 200ms to the connected speakers, and it'll change each time. That's definitely noticeable. We mitigate this by setting a global latency, right now 200ms, and by allowing any host to send along a `time` parameter of when the host expects the sound to play. The first time you send a message the synth uses this to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of both fixed latency and jitter.) Further messages will be accurate message-to-message, but with the fixed latency. 
+
+## Clients
 
 Python example:
 
