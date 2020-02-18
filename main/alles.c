@@ -30,9 +30,9 @@ extern void mcast_listen_task(void *pvParameters);
 // FM synth stuff
 #include "dx7bridge.h"
 extern void dx7_init();
-extern void render_samples(int16_t * buf, uint16_t len);
-extern void dx7_new_note(uint8_t midi_note, uint8_t velocity, uint16_t patch);
-extern void dx7_new_freq(float freq, uint8_t velocity, uint16_t patch);
+extern void render_samples(int16_t * buf, uint16_t len, uint8_t voice);
+extern void dx7_new_note(uint8_t midi_note, uint8_t velocity, uint16_t patch, uint8_t voice);
+extern void dx7_new_freq(float freq, uint8_t velocity, uint16_t patch, uint8_t voice);
 
 
 //i2s configuration
@@ -115,6 +115,7 @@ void destroy_luts() {
 }
 
 void setup_voices() {
+    dx7_init();
     for(int i=0;i<VOICES;i++) {
         wave[i] = OFF;
         step[i] = 0;
@@ -137,7 +138,7 @@ void fill_audio_buffer() {
         if(wave[voice]!=OFF) { // don't waste CPU
             if(wave[voice]==FM) { // FM is special
                 // we can render into int16 block just fine 
-                render_samples(block, BLOCK_SIZE);
+                render_samples(block, BLOCK_SIZE, voice);
 
                 // but then add it into floatblock
                 for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -188,11 +189,13 @@ void setup_i2s(void) {
 }
 
 void handle_sync(uint64_t sync) {
+/*
     int64_t last_sync = -1;
     int64_t esp_time_at_sync = -1;
     uint16_t delta_sync = 100;    
     // Do something here with
     int64_t ms_since_boot = esp_timer_get_time() / 1000;
+    */
 }
 
 void parse_message(char * data_buffer, int recv_data) {
@@ -234,9 +237,9 @@ void parse_message(char * data_buffer, int recv_data) {
     // For now, trigger a new note on every param change for FM
     if(wave[t_voice]==FM) {
         if(midi_note[t_voice]>0) {
-            dx7_new_note(midi_note[t_voice], 100, patch[t_voice]);
+            dx7_new_note(midi_note[t_voice], 100, patch[t_voice], t_voice);
         } else {
-            dx7_new_freq(frequency[t_voice], 100, patch[t_voice]);
+            dx7_new_freq(frequency[t_voice], 100, patch[t_voice], t_voice);
         }
     }
     printf("voice %d wave %d amp %f freq %f note %d patch %d\n", t_voice, wave[t_voice], amplitude[t_voice], frequency[t_voice], midi_note[t_voice], patch[t_voice]);
@@ -275,8 +278,6 @@ void app_main() {
     setup_luts();
     setup_voices();
     printf("oscillators ready\n");
-    dx7_init();
-    printf("FM ready\n");
 
     // Bleep to confirm we're online
     uint16_t cycles = 0.25 / ((float)BLOCK_SIZE/SAMPLE_RATE);
