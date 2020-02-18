@@ -27,7 +27,7 @@ Dx7Note note[VOICES];
 Controllers controllers[VOICES];
 char *unpacked_patches;
 
-extern "C" void render_samples(int16_t * buf, uint16_t len, uint8_t voice) {
+extern "C" void render_fm_samples(int16_t * buf, uint16_t len, uint8_t voice) {
     int32_t int32_t_buf[N];
     uint16_t rounds = len / N;
     uint16_t count = 0;
@@ -51,19 +51,19 @@ extern "C" void render_samples(int16_t * buf, uint16_t len, uint8_t voice) {
 	}
 }
 
-extern "C" void dx7_new_freq(float freq, uint8_t velocity, uint16_t patch, uint8_t voice) {
+extern "C" void fm_new_note_freq(float freq, uint8_t velocity, uint16_t patch, uint8_t voice) {
 	note[voice].init_with_freq(unpacked_patches+(patch*156), freq, velocity);
 	controllers[voice].values_[kControllerPitch] = 0x2000; // pitch wheel?
 
 }
-extern "C" void dx7_new_note(uint8_t midi_note, uint8_t velocity, uint16_t patch, uint8_t voice) {
+extern "C" void fm_new_note_number(uint8_t midi_note, uint8_t velocity, uint16_t patch, uint8_t voice) {
 	// patch 2, note 50, vel 100
 	note[voice].init(unpacked_patches+(patch*156), midi_note, velocity);
 	controllers[voice].values_[kControllerPitch] = 0x2000; // pitch wheel?
 	// now we're ready to render
 }
 
-extern "C" void dx7_init(void) {
+extern "C" void fm_init(void) {
 	double sample_rate = SAMPLE_RATE;
 	Freqlut::init(sample_rate);
 	Sawtooth::init(sample_rate);

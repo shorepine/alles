@@ -28,7 +28,8 @@
 static const char *TAG = "multicast";
 static const char *V4TAG = "mcast-ipv4";
 
-extern void parse_message(char*, int);
+//extern void parse_message(char*, int);
+extern void parse_message_into_events(char * data_buffer, int recv_data);
 
 static int socket_add_ipv4_multicast_group(int sock, bool assign_source_if)
 {
@@ -126,7 +127,7 @@ err:
 // Send a multicast message 
 // Needs a socket -- can i use the existing one or does it cross a thread boundary? unclear 
 // could also create a new socket
-void mcast_send(int sock, char * message, uint16_t len) {
+int mcast_send(int sock, char * message, uint16_t len) {
     char addrbuf[32] = { 0 };
     struct addrinfo hints = {
         .ai_flags = AI_PASSIVE,
@@ -155,6 +156,7 @@ void mcast_send(int sock, char * message, uint16_t len) {
     if (err < 0) {
         ESP_LOGE(TAG, "IPV4 sendto failed. errno: %d", errno);
     }
+    return sock; // Why not 
 }
 
 void mcast_listen_task(void *pvParameters)
@@ -210,7 +212,7 @@ void mcast_listen_task(void *pvParameters)
                         inet_ntoa_r(((struct sockaddr_in *)&raddr)->sin_addr.s_addr,
                                     raddr_name, sizeof(raddr_name)-1);
                     }
-                    parse_message(recvbuf, len);
+                    parse_message_into_events(recvbuf, len);
                     ESP_LOGI(TAG, "received %d bytes from %s:", len, raddr_name);
                     ESP_LOGI(TAG, "%s", recvbuf);
                 }

@@ -62,10 +62,13 @@ void destroy_luts() {
     free(LUT[SAW]);
     free(LUT[TRIANGLE]);
     free(LUT);
+    // TOOD: Destroy FM and all the ram. low-pri, we never get here so ... 
 }
 
 void setup_voices() {
-    dx7_init();
+    // This inits all 10 FM voices
+    fm_init();
+    // This inits the oscillators to 0
     for(int i=0;i<VOICES;i++) {
         wave[i] = OFF;
         step[i] = 0;
@@ -75,6 +78,7 @@ void setup_voices() {
         amplitude[i] = 0;
     }
 }
+
 void fill_audio_buffer() {
     // floatblock -- accumulative for mixing, -32767.0 -- 32768.0
     float floatblock[BLOCK_SIZE];
@@ -88,7 +92,7 @@ void fill_audio_buffer() {
         if(wave[voice]!=OFF) { // don't waste CPU
             if(wave[voice]==FM) { // FM is special
                 // we can render into int16 block just fine 
-                render_samples(block, BLOCK_SIZE, voice);
+                render_fm_samples(block, BLOCK_SIZE, voice);
 
                 // but then add it into floatblock
                 for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -138,6 +142,14 @@ void setup_i2s(void) {
   i2s_set_sample_rates((i2s_port_t)i2s_num, SAMPLE_RATE);
 }
 
+// Sync to me is a host sending a bunch of UDP packets to everyone
+// I receive N of them, and average them out, then send something back to the host
+// The host can figure out my latency, give me an ID, find out how many there are, etc
+// And then what? how do i compute latency for sequencing?
+
+// Let's first re-factor to get a sequencer in here and do 1-unit 200ms latency timing
+// that's t_time
+
 void handle_sync(uint64_t sync) {
 /*
     int64_t last_sync = -1;
@@ -148,6 +160,7 @@ void handle_sync(uint64_t sync) {
     */
 }
 
+/*
 void parse_message(char * data_buffer, int recv_data) {
     uint8_t mode = 0;
     uint16_t start = 0;
@@ -155,6 +168,7 @@ void parse_message(char * data_buffer, int recv_data) {
     uint16_t c = 0;
     int16_t t_voice = 0;
     int32_t t_sync = -1;
+    int32_t t_time = -1;
     int16_t t_note = -1;
     int16_t t_wave = -1;
     int16_t t_patch = -1;
@@ -163,6 +177,7 @@ void parse_message(char * data_buffer, int recv_data) {
     while(c < recv_data+1) {
         uint8_t b = data_buffer[c];
         if(b >= 'a' || b <= 'z' || b == 0) {  // new mode or end
+            if(mode=='t') t_time=atoi(data_buffer + start);
             if(mode=='s') t_sync=atoi(data_buffer + start);
             if(mode=='v') t_voice=atoi(data_buffer + start);
             if(mode=='n') t_note=atoi(data_buffer + start);
@@ -177,6 +192,9 @@ void parse_message(char * data_buffer, int recv_data) {
     }
     // Now we have the whole message parsed and figured out what voice we are, make changes
     // Note change triggers a freq change, but not the other way around (i think that's good)
+    if(t_time >= 0) { // do something with time
+
+    }
     if(t_sync >= 0) { handle_sync(t_sync); } 
     if(t_note >= 0) { midi_note[t_voice] = t_note; frequency[t_voice] = freq_for_midi_note(t_note); } 
     if(t_wave >= 0) wave[t_voice] = t_wave;
@@ -187,13 +205,161 @@ void parse_message(char * data_buffer, int recv_data) {
     // For now, trigger a new note on every param change for FM
     if(wave[t_voice]==FM) {
         if(midi_note[t_voice]>0) {
-            dx7_new_note(midi_note[t_voice], 100, patch[t_voice], t_voice);
+            fm_new_note_number(midi_note[t_voice], 100, patch[t_voice], t_voice);
         } else {
-            dx7_new_freq(frequency[t_voice], 100, patch[t_voice], t_voice);
+            fm_new_note_freq(frequency[t_voice], 100, patch[t_voice], t_voice);
         }
     }
     printf("voice %d wave %d amp %f freq %f note %d patch %d\n", t_voice, wave[t_voice], amplitude[t_voice], frequency[t_voice], midi_note[t_voice], patch[t_voice]);
     
+}
+*/
+
+// My dumb FIFO / circular buffer impl
+
+#define EMPTY 0
+#define PLAYED 1
+#define SCHEDULED 2
+#define LATENCY_MS 200
+
+int64_t computed_delta = 0; // can be negative no prob, but usually host is larger # than client
+uint8_t computed_delta_set = 0; // have we set a delta yet?
+
+// Here, some events
+struct event {
+    uint64_t time;
+    uint64_t sync;
+    int16_t voice;
+    int16_t wave;
+    int16_t patch;
+    int16_t midi_note;
+    float amp;
+    float freq;
+    uint8_t status;
+};
+
+#define EVENT_FIFO_LEN 100
+int16_t next_event_write;
+struct event events[EVENT_FIFO_LEN];
+
+void setup_events() {
+    for(int i=0;i<EVENT_FIFO_LEN;i++) {
+        events[i].status = EMPTY;
+        events[i].time = 0;
+        events[i].voice = 0;
+        events[i].sync = -1;
+        events[i].patch = -1;
+        events[i].wave = -1;
+        events[i].midi_note = -1;
+        events[i].amp = -1;
+        events[i].freq = -1;
+    }
+    next_event_write = 0;
+}
+
+// my fifo is like
+// new message goes into 0, read ptr goes to 0, write to 1
+// next new msg to 1, read at 0
+// next 2, 0
+// 3, 0
+// now a read starts at 0
+// reading goes until status is no longer scheduled
+// we check time of each entry to see if it's time yet
+
+
+// A replacement for "parse messages" -- instead of parsing into audio_buffer changes,
+// parse into a FIFO of messages that the sequencer will trigger, neat
+void parse_message_into_events(char * data_buffer, int recv_data) {
+    uint8_t mode = 0;
+    uint16_t start = 0;
+    data_buffer[recv_data] = 0;
+    uint16_t c = 0;
+    struct event e;
+    int64_t sysclock = esp_timer_get_time() / 1000;
+
+    while(c < recv_data+1) {
+        uint8_t b = data_buffer[c];
+        if(b >= 'a' || b <= 'z' || b == 0) {  // new mode or end
+            if(mode=='t') {
+                e.time=atoi(data_buffer + start);
+                // if we haven't yet synced our times, do it now
+                if(!computed_delta_set) {
+                    computed_delta = e.time - sysclock;
+                    computed_delta_set = 1;
+                }
+            }
+            if(mode=='s') e.sync=atoi(data_buffer + start);
+            if(mode=='v') e.voice=atoi(data_buffer + start);
+            if(mode=='n') e.midi_note=atoi(data_buffer + start);
+            if(mode=='w') e.wave=atoi(data_buffer + start);
+            if(mode=='p') e.patch=atoi(data_buffer + start);
+            if(mode=='f') e.freq=atof(data_buffer + start);
+            if(mode=='a') e.amp=atof(data_buffer + start);
+            mode=b;
+            start=c+1;
+        }
+        c++;
+    }
+
+    // so 1st message is host 1000, client 100
+    // computed delta is 900.
+    // first event goes out at 1000-900 + 200 = 300ms (200ms away)
+    // next message comes in for host 1100, client is now at 250 (took some time to get it)
+    // second event goes out at 1100-900 + 200 = 400ms (150ms away)
+    // third event comes in at client 450, no host time
+    // just gets played at 650 
+    
+
+    // Now adjust time in some useful way:
+    // if we have a delta & got a time in this message, use it schedule it properly
+    if(computed_delta_set && e.time > 0) {
+        e.time = (e.time - computed_delta) + LATENCY_MS;
+    } else { // else play it asap 
+        e.time = sysclock + LATENCY_MS;
+    }
+
+    e.status = SCHEDULED;
+    events[next_event_write] = e;
+    next_event_write = (next_event_write + 1) % EVENT_FIFO_LEN;
+}
+
+
+// Play an event, now -- tell the audio thread to start making noise
+void play_event(struct event e) {
+    if(e.midi_note >= 0) { midi_note[e.voice] = e.midi_note; frequency[e.voice] = freq_for_midi_note(e.midi_note); } 
+    if(e.wave >= 0) wave[e.voice] = e.wave;
+    if(e.patch >= 0) patch[e.voice] = e.patch;
+    if(e.freq >= 0) frequency[e.voice] = e.freq;
+    if(e.amp >= 0) amplitude[e.voice] = e.amp;
+    if(wave[e.voice]==FM) {
+        if(midi_note[e.voice]>0) {
+            fm_new_note_number(midi_note[e.voice], 100, patch[e.voice], e.voice);
+        } else {
+            fm_new_note_freq(frequency[e.voice], 100, patch[e.voice], e.voice);
+        }
+    }
+}
+
+
+void sequencer_task(void *pvParameters) {
+    // i spin forever, processing sequencer events parsed above 
+    // i turn them into audio_buffer commands at the right times
+    while(1) {
+        int64_t sysclock = esp_timer_get_time() / 1000;
+        // We could save some CPU by starting at a read pointer, depends on how big this gets
+        for(uint16_t i=0;i<EVENT_FIFO_LEN;i++) {
+            if(events[i].status == SCHEDULED) {
+                // By now event.time is corrected to our sysclock (from the host)
+                if(events[i].time >= sysclock) {
+                    // time to play
+                    play_event(events[i]);
+                    events[i].status = EMPTY;
+                }
+            }
+        }
+        // Maybe a 1ms sleep here
+    }
+
 }
 
 
@@ -243,8 +409,14 @@ void app_main() {
     } 
 
 
-    // Reset the voices and go forever, waiting for commands on the UDP thread
+    // reset the voices & events
     setup_voices();
+    setup_events();
+
+    // Create the sequencer thread
+    xTaskCreate(&sequencer_task, "sequencer_task", 4096, NULL, 5, NULL);
+
+    // Fill the audio buffer based on what the sequencer says.
     while(1) fill_audio_buffer();
 
     // We will never get here but just in case

@@ -31,12 +31,14 @@ extern "C" {
 #define SAMPLE_RATE 44100
 
 extern void mcast_listen_task(void *pvParameters);
+extern int mcast_send(int sock, char * message, uint16_t len);
+
 
 // C++ FM synth stuff
-extern void dx7_init();
-extern void render_samples(int16_t * buf, uint16_t len, uint8_t voice);
-extern void dx7_new_note(uint8_t midi_note, uint8_t velocity, uint16_t patch, uint8_t voice);
-extern void dx7_new_freq(float freq, uint8_t velocity, uint16_t patch, uint8_t voice);
+extern void fm_init();
+extern void render_fm_samples(int16_t * buf, uint16_t len, uint8_t voice);
+extern void fm_new_note_number(uint8_t midi_note, uint8_t velocity, uint16_t patch, uint8_t voice);
+extern void fm_new_note_freq(float freq, uint8_t velocity, uint16_t patch, uint8_t voice);
 
 
 // We like a lot of LUT for sines, but maybe don't need to alloc 16384*4 bytes for a square wave
