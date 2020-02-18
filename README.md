@@ -73,12 +73,12 @@ Commands are cumulative, state is held per voice. If voice is not given it's ass
 Example:
 
 ```
-f440a0.1
-a0.5
-w1
-v1w5n50a0.2
-v10.4
-w2
+f440a0.1t4500
+a0.5t4600
+w1t4600
+v1w5n50a0.2t5500
+v10.4t7000
+w2t7000
 ```
 
 Will set voice 0 (default) to a sine wave (default) at 440Hz amplitude 0.1, then set amplitude of voice 0 to 0.5, then change the waveform to a square but keep everything else the same. Then set voice 1 to an FM synth playing midi note 50 at amplitude 0.2. Then set voice 1's amplitude to 0.4. Then change voice 0 again to a saw wave.
@@ -86,7 +86,17 @@ Will set voice 0 (default) to a sine wave (default) at 440Hz amplitude 0.1, then
 
 ## Timing & latency
 
-WiFi, UDP multicast, distance, microcontrollers with bad antennas: all of these are in the way of doing anything close to "real time" control from your host. A message you send from a laptop will arrive between 10ms and 200ms to the connected speakers, and it'll change each time. That's definitely noticeable. We mitigate this by setting a global latency, right now 200ms, and by allowing any host to send along a `time` parameter of when the host expects the sound to play. The first time you send a message the synth uses this to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of both fixed latency and jitter.) Further messages will be accurate message-to-message, but with the fixed latency. 
+WiFi, UDP multicast, distance, microcontrollers with bad antennas: all of these are in the way of doing anything close to "real time" control from your host. A message you send from a laptop will arrive between 10ms and 200ms to the connected speakers, and it'll change each time. That's definitely noticeable. We mitigate this by setting a global latency, right now 200ms, and by allowing any host to send along a `time` parameter of when the host expects the sound to play. `time` can be anything, but I'd suggest using the number of milliseconds since the "alles epoch", e.g.
+
+```
+def alles_ms():
+    return int((datetime.datetime.utcnow() - datetime.datetime(2020, 2, 1)).total_seconds() * 1000)
+```
+
+The first time you send a message the synth uses this to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of both fixed latency and jitter.) Further messages will be accurate message-to-message, but with the fixed latency. 
+
+A big TODO is to send sync signals back to the host to account for different devices' average drift and latency. This also lets us enumerate how many synths are on the network and address them individually! But requires more smarts on the host side.
+
 
 ## Clients
 

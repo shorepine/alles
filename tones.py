@@ -6,7 +6,7 @@ sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF] = range(7)
 
 def timestamp_ms():
-    return int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds() * 1000)
+    return int((datetime.datetime.utcnow() - datetime.datetime(2020, 2, 1)).total_seconds() * 1000)
 
 def sync(count=10, delay_ms=100):
     # Sends sync packets to all the listeners so they can correct / get the time
