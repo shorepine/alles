@@ -21,10 +21,9 @@ extern "C" {
 	#include "alles.h"
 }
 
-// We want to keep Dx7Note global don't we, and controllers
-// TODO -- if more than one FM voice(?) 
-Dx7Note note[2];
-Controllers controllers[2];
+// One note/controller object per voice
+Dx7Note note[VOICES];
+Controllers controllers[VOICES];
 char *unpacked_patches;
 
 extern "C" void render_fm_samples(int16_t * buf, uint16_t len, uint8_t voice) {
@@ -53,13 +52,13 @@ extern "C" void render_fm_samples(int16_t * buf, uint16_t len, uint8_t voice) {
 
 extern "C" void fm_new_note_freq(float freq, uint8_t velocity, uint16_t patch, uint8_t voice) {
 	note[voice].init_with_freq(unpacked_patches+(patch*156), freq, velocity);
-	controllers[voice].values_[kControllerPitch] = 0x2000; // pitch wheel?
+	controllers[voice].values_[kControllerPitch] = 0x2000; // pitch wheel
 
 }
 extern "C" void fm_new_note_number(uint8_t midi_note, uint8_t velocity, uint16_t patch, uint8_t voice) {
 	// patch 2, note 50, vel 100
 	note[voice].init(unpacked_patches+(patch*156), midi_note, velocity);
-	controllers[voice].values_[kControllerPitch] = 0x2000; // pitch wheel?
+	controllers[voice].values_[kControllerPitch] = 0x2000; // pitch wheel
 	// now we're ready to render
 }
 
@@ -77,6 +76,11 @@ extern "C" void fm_init(void) {
 	}
 }
 
+extern "C" void fm_destroy(void) {
+	// Not sure i need to worry about this too much, but for good hygiene  
+	free(unpacked_patches);
+	
+}
 
 
 

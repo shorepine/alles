@@ -1,12 +1,13 @@
 import socket, time, struct, datetime
 multicast_group = ('232.10.11.12', 3333)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-ttl = struct.pack('b', 1)
+ttl = struct.pack('b', 1) 
+
 sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF] = range(7)
 
 def alles_ms():
-    return int((datetime.datetime.utcnow() - datetime.datetime(2020, 2, 1)).total_seconds() * 1000)
+    return int((datetime.datetime.utcnow() - datetime.datetime(2020, 2, 18)).total_seconds() * 1000)
 
 def sync(count=10, delay_ms=100):
     # Sends sync packets to all the listeners so they can correct / get the time
@@ -46,9 +47,9 @@ def complex():
             time.sleep(0.250)
             tone(voice=1, wave=FM, amp=0.2, note=40+i, patch=8)
             time.sleep(0.250)
-            tone(voice=2, wave=SINE, amp=0.5, note=40+i, patch=15)
+            tone(voice=2, wave=SINE, amp=0.5, note=40+i)
             time.sleep(0.250)
-            tone(voice=2, wave=SINE, amp=0, note=40+i, patch=15)
+            tone(voice=2, wave=SINE, amp=0, note=40+i)
             time.sleep(0.250)
 
 

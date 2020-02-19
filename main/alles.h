@@ -1,5 +1,8 @@
 // alles.h
 
+#ifndef __ALLES_H
+#define __ALLES_H
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -25,14 +28,17 @@ extern "C" {
 #include "nvs_flash.h"
 #include "lwip/netdb.h"
 
-#include "sineLUT.h"
 #include "wifi.h"
 
 #define SAMPLE_RATE 44100
 
+#define MAX_RECEIVE_LEN 96
+#define UDP_PORT 3333
+#define MULTICAST_TTL 1
+#define MULTICAST_IPV4_ADDR "232.10.11.12"
+
 extern void mcast_listen_task(void *pvParameters);
 extern int mcast_send(int sock, char * message, uint16_t len);
-
 
 // C++ FM synth stuff
 extern void fm_init();
@@ -56,14 +62,17 @@ extern void fm_new_note_freq(float freq, uint8_t velocity, uint16_t patch, uint8
 #define OFF 6
 
 #define EVENT_FIFO_LEN 100
-
 #define EMPTY 0
 #define SCHEDULED 1
 #define PLAYED 2
 #define LATENCY_MS 500
+#define MAX_MS_DRIFT 2500
 
 #ifdef __cplusplus
 }
 #endif
+
+#endif
+
 
 

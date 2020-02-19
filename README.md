@@ -138,8 +138,10 @@ You can also use it in Max or similar software (note you have to wrap string com
 * envelopes / note on/offs
 * wifi hotspot mode for in-field setup (tbh think it's better to use a dedicated router)
 * ~~broadcast UDP for multiples~~
+* dropped packets
 * addresses / communicate to one or groups 
-* do what i can about timing / jitter - sync time? timed messages? 
+* ~~do what i can about timing / jitter - sync time? timed messages?~~
+* sync and enumerate across multiple devices
 * case / battery setup
 
 

@@ -20,11 +20,8 @@
 #include "lwip/netdb.h"
 #include "wifi.h"
 
+#include "alles.h"
 
-// UDP Multicast stuff
-#define UDP_PORT 3333
-#define MULTICAST_TTL 1
-#define MULTICAST_IPV4_ADDR "232.10.11.12"
 static const char *TAG = "multicast";
 static const char *V4TAG = "mcast-ipv4";
 
@@ -193,8 +190,8 @@ void mcast_listen_task(void *pvParameters)
             else if (s > 0) {
                 if (FD_ISSET(sock, &rfds)) {
                     // Incoming datagram received
-                    char recvbuf[80];
-                    char raddr_name[32] = { 0 };
+                    char recvbuf[MAX_RECEIVE_LEN];
+                    //char raddr_name[32] = { 0 };
 
                     struct sockaddr_in6 raddr; // Large enough for both IPv4 or IPv6
                     socklen_t socklen = sizeof(raddr);
@@ -207,15 +204,17 @@ void mcast_listen_task(void *pvParameters)
                     }
 
                     // Get the sender's address as a string
-                    if (raddr.sin6_family == PF_INET) {
-                        inet_ntoa_r(((struct sockaddr_in *)&raddr)->sin_addr.s_addr,
-                                    raddr_name, sizeof(raddr_name)-1);
-                    }
+                    //if (raddr.sin6_family == PF_INET) {
+                    //    inet_ntoa_r(((struct sockaddr_in *)&raddr)->sin_addr.s_addr,
+                    //                raddr_name, sizeof(raddr_name)-1);
+                    //}
                     parse_message_into_events(recvbuf, len);
-                    ESP_LOGI(TAG, "received %d bytes from %s:", len, raddr_name);
-                    ESP_LOGI(TAG, "%s", recvbuf);
+                    //ESP_LOGI(TAG, "received %d bytes from %s:", len, raddr_name);
+                    //ESP_LOGI(TAG, "%s", recvbuf);
                 }
             }
+            // Try to delay 1ms here
+            //vTaskDelay( 1 / portTICK_PERIOD_MS );
 
         }
 

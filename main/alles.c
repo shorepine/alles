@@ -1,4 +1,5 @@
 #include "alles.h"
+#include "sineLUT.h"
 
 //i2s configuration
 int i2s_num = 0; // i2s port number
@@ -252,6 +253,7 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
                     computed_delta = e.time - sysclock;
                     computed_delta_set = 1;
                 }
+                // TODO -- reset this on sync
             }
             if(mode=='v') e.voice=atoi(data_buffer + start);
             if(mode=='n') e.midi_note=atoi(data_buffer + start);
