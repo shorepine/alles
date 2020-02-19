@@ -28,7 +28,6 @@
 static const char *TAG = "multicast";
 static const char *V4TAG = "mcast-ipv4";
 
-//extern void parse_message(char*, int);
 extern void parse_message_into_events(char * data_buffer, int recv_data);
 
 static int socket_add_ipv4_multicast_group(int sock, bool assign_source_if)

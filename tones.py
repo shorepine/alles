@@ -19,8 +19,9 @@ def sync(count=10, delay_ms=100):
     ms_per_call = ((end-start-(count * delay_ms)) / float(count))
     print "Total %d ms. Expected %d ms. Difference %d ms. Calls take %2.2fms extra." % (end-start, count*delay_ms, end-start-(count*delay_ms), ms_per_call)
 
-def tone(voice=0, type=SINE, patch=-1, amp=-1, note=-1, freq=-1, which=0):
-    m = "t%dv%dw%d" % (alles_ms(), voice,type)
+def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, freq=-1, timestamp=-1):
+    if(timestamp < 0): timestamp = alles_ms()
+    m = "t%dv%dw%d" % (timestamp, voice, wave)
     if(amp>=0): m = m + "a%f" % (amp)
     if(freq>=0): m = m + "f%f" % (freq)
     if(note>=0): m = m + "n%d" % (note)
@@ -28,28 +29,41 @@ def tone(voice=0, type=SINE, patch=-1, amp=-1, note=-1, freq=-1, which=0):
     sock.sendto(m, multicast_group)
 
 
-def scale(voice=0, type=FM, amp=0.5, which=0, patch=None,forever=True, wait=0.750):
+def scale(voice=0, wave=FM, amp=0.5, which=0, patch=None,forever=True, wait=0.750):
     once = True
     while (forever or once):
         once=False
         for i in range(12):
             if patch is None: patch = i % 20
-            tone(voice=voice, type=type, amp=amp, note=40+i, which=which, patch=patch)
+            tone(voice=voice, wave=wave, amp=amp, note=40+i, which=which, patch=patch)
             time.sleep(wait)
+
+
+def complex():
+    while 1:
+        for i in range(12):
+            tone(voice=0, wave=FM, amp=0.1, note=40+i, patch=15)
+            time.sleep(0.250)
+            tone(voice=1, wave=FM, amp=0.2, note=40+i, patch=8)
+            time.sleep(0.250)
+            tone(voice=2, wave=SINE, amp=0.5, note=40+i, patch=15)
+            time.sleep(0.250)
+            tone(voice=2, wave=SINE, amp=0, note=40+i, patch=15)
+            time.sleep(0.250)
+
+
 
 def off():
 	for x in xrange(10):
-		tone(x, amp=0, type=OFF, freq=0, which=0)
-		tone(x, amp=0, type=OFF, freq=0, which=1)
+		tone(x, amp=0, wave=OFF, freq=0)
 
 def c_major(octave=2,vol=0.2,which=0):
-    tone(voice=0,freq=220.5*octave,amp=vol/3.0,which=which)
-    tone(voice=1,freq=138.5*octave,amp=vol/3.0,which=which)
-    tone(voice=2,freq=164.5*octave,amp=vol/3.0,which=which)
+    tone(voice=0,freq=220.5*octave,amp=vol/3.0)
+    tone(voice=1,freq=138.5*octave,amp=vol/3.0)
+    tone(voice=2,freq=164.5*octave,amp=vol/3.0)
 
 if __name__ == "__main__":
 	for x in xrange(3):
-		c_major(vol=1, octave=x+2,which=0)
-		#c_major(vol=0.1, octave=x+1,which=1)
+		c_major(vol=1, octave=x+2)
 		time.sleep(10)
 	off()

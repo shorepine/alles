@@ -27,20 +27,12 @@ int16_t patch[VOICES];
 uint8_t midi_note[VOICES];
 float frequency[VOICES];
 float amplitude[VOICES];
-uint8_t get_going = 0;
 uint16_t ** LUT;
-
-// My dumb FIFO / circular buffer impl
-
-#define EMPTY 0
-#define SCHEDULED 1
-#define PLAYED 2
-#define LATENCY_MS 500
 
 int64_t computed_delta = 0; // can be negative no prob, but usually host is larger # than client
 uint8_t computed_delta_set = 0; // have we set a delta yet?
 
-// Here, some events
+
 struct event {
     uint64_t time;
     int16_t voice;
@@ -52,8 +44,7 @@ struct event {
     uint8_t status;
 };
 
-#define EVENT_FIFO_LEN 100
-int16_t next_event_write;
+int16_t next_event_write = 0;
 struct event events[EVENT_FIFO_LEN];
 
 
@@ -84,7 +75,7 @@ void setup_luts() {
     LUT[TRIANGLE] = triangle_LUT;
 }
 
-void destroy_luts() {
+void destroy() {
     free(LUT[SQUARE]);
     free(LUT[SAW]);
     free(LUT[TRIANGLE]);
@@ -93,6 +84,7 @@ void destroy_luts() {
 }
 
 void setup_voices() {
+    fm_init();
     // This inits the oscillators to 0
     for(int i=0;i<VOICES;i++) {
         wave[i] = OFF;
@@ -238,9 +230,7 @@ void setup_events() {
     for(int i=0;i<EVENT_FIFO_LEN;i++) {
         add_event(default_event(), i);
     }
-    next_event_write = 0;
 }
-
 
 // A replacement for "parse messages" -- instead of parsing into audio_buffer changes,
 // parse into a FIFO of messages that the sequencer will trigger, neat
@@ -335,9 +325,7 @@ void app_main() {
     xTaskCreate(&mcast_listen_task, "mcast_task", 4096, NULL, 5, NULL);
     printf("wifi ready\n");
 
-
     setup_luts();
-    fm_init();
     setup_voices();
     setup_events();
     printf("oscillators ready\n");
@@ -346,7 +334,7 @@ void app_main() {
     while(1) fill_audio_buffer();
     
     // We will never get here but just in case
-    destroy_luts();
+    destroy();
 
 
 }

@@ -55,6 +55,13 @@ extern void fm_new_note_freq(float freq, uint8_t velocity, uint16_t patch, uint8
 #define FM 5
 #define OFF 6
 
+#define EVENT_FIFO_LEN 100
+
+#define EMPTY 0
+#define SCHEDULED 1
+#define PLAYED 2
+#define LATENCY_MS 500
+
 #ifdef __cplusplus
 }
 #endif
