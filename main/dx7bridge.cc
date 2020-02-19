@@ -23,8 +23,8 @@ extern "C" {
 
 // We want to keep Dx7Note global don't we, and controllers
 // TODO -- if more than one FM voice(?) 
-Dx7Note note[VOICES];
-Controllers controllers[VOICES];
+Dx7Note note[2];
+Controllers controllers[2];
 char *unpacked_patches;
 
 extern "C" void render_fm_samples(int16_t * buf, uint16_t len, uint8_t voice) {

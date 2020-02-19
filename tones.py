@@ -5,7 +5,7 @@ ttl = struct.pack('b', 1)
 sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF] = range(7)
 
-def timestamp_ms():
+def alles_ms():
     return int((datetime.datetime.utcnow() - datetime.datetime(2020, 2, 1)).total_seconds() * 1000)
 
 def sync(count=10, delay_ms=100):
@@ -20,7 +20,7 @@ def sync(count=10, delay_ms=100):
     print "Total %d ms. Expected %d ms. Difference %d ms. Calls take %2.2fms extra." % (end-start, count*delay_ms, end-start-(count*delay_ms), ms_per_call)
 
 def tone(voice=0, type=SINE, patch=-1, amp=-1, note=-1, freq=-1, which=0):
-    m = "v%dw%d" % (voice,type)
+    m = "t%dv%dw%d" % (alles_ms(), voice,type)
     if(amp>=0): m = m + "a%f" % (amp)
     if(freq>=0): m = m + "f%f" % (freq)
     if(note>=0): m = m + "n%d" % (note)
@@ -28,14 +28,14 @@ def tone(voice=0, type=SINE, patch=-1, amp=-1, note=-1, freq=-1, which=0):
     sock.sendto(m, multicast_group)
 
 
-def scale(voice=0, type=FM, amp=0.5, which=0, patch=None,forever=True):
+def scale(voice=0, type=FM, amp=0.5, which=0, patch=None,forever=True, wait=0.750):
     once = True
     while (forever or once):
         once=False
         for i in range(12):
             if patch is None: patch = i % 20
             tone(voice=voice, type=type, amp=amp, note=40+i, which=which, patch=patch)
-            time.sleep(0.1)
+            time.sleep(wait)
 
 def off():
 	for x in xrange(10):
