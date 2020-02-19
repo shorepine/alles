@@ -20,14 +20,15 @@ def sync(count=10, delay_ms=100):
     ms_per_call = ((end-start-(count * delay_ms)) / float(count))
     print "Total %d ms. Expected %d ms. Difference %d ms. Calls take %2.2fms extra." % (end-start, count*delay_ms, end-start-(count*delay_ms), ms_per_call)
 
-def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, freq=-1, timestamp=-1):
+def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, freq=-1, timestamp=-1, retries=4):
     if(timestamp < 0): timestamp = alles_ms()
     m = "t%dv%dw%d" % (timestamp, voice, wave)
     if(amp>=0): m = m + "a%f" % (amp)
     if(freq>=0): m = m + "f%f" % (freq)
     if(note>=0): m = m + "n%d" % (note)
     if(patch>=0): m = m + "p%d" % (patch)
-    sock.sendto(m, multicast_group)
+    for x in range(retries):
+        sock.sendto(m, multicast_group)
 
 
 def scale(voice=0, wave=FM, amp=0.5, which=0, patch=None,forever=True, wait=0.750):
@@ -40,17 +41,17 @@ def scale(voice=0, wave=FM, amp=0.5, which=0, patch=None,forever=True, wait=0.75
             time.sleep(wait)
 
 
-def complex():
+def complex(speed=0.250):
     while 1:
         for i in range(12):
             tone(voice=0, wave=FM, amp=0.1, note=40+i, patch=15)
-            time.sleep(0.250)
+            time.sleep(speed)
             tone(voice=1, wave=FM, amp=0.2, note=40+i, patch=8)
-            time.sleep(0.250)
+            time.sleep(speed)
             tone(voice=2, wave=SINE, amp=0.5, note=40+i)
-            time.sleep(0.250)
+            time.sleep(speed)
             tone(voice=2, wave=SINE, amp=0, note=40+i)
-            time.sleep(0.250)
+            time.sleep(speed)
 
 
 
