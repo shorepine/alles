@@ -36,7 +36,7 @@ def sync(count=10, delay_ms=100):
     
     end = alles_ms()
 
-    for i in range(count*2):
+    for i in range(count*4):
         try:
             data, address = rsock.recvfrom(1024)
             print "got %s from %s" % (data, address)

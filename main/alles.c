@@ -244,7 +244,7 @@ void handle_sync(uint64_t time, uint8_t index) {
     // Then the host can compute latency on their end per client, and know how many clients there are. 
     int64_t sysclock = esp_timer_get_time() / 1000;
     char message[100];
-    sprintf(message, "sync response input %lld / %d output %lld", time, index, sysclock);
+    sprintf(message, "_sync response input %lld / %d output %lld", time, index, sysclock);
     mcast_send(message, strlen(message));
 
 
@@ -262,6 +262,9 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
     uint16_t c = 0;
     struct event e = default_event();
     int64_t sysclock = esp_timer_get_time() / 1000;
+
+    // Skip this if the message starts with _ (an ack message)
+    if(recv_data>0) if(data_buffer[0]=='_') recv_data = -1;
 
     while(c < recv_data+1) {
         uint8_t b = data_buffer[c];
@@ -288,20 +291,21 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
         }
         c++;
     }
+    if(recv_data >0) {
+        // Now adjust time in some useful way:
+        // if we have a delta & got a time in this message, use it schedule it properly
+        if(computed_delta_set && e.time > 0) {
+            e.time = (e.time - computed_delta) + LATENCY_MS;
+        } else { // else play it asap 
+            e.time = sysclock + LATENCY_MS;
+        }
+        e.status = SCHEDULED;
 
-    // Now adjust time in some useful way:
-    // if we have a delta & got a time in this message, use it schedule it properly
-    if(computed_delta_set && e.time > 0) {
-        e.time = (e.time - computed_delta) + LATENCY_MS;
-    } else { // else play it asap 
-        e.time = sysclock + LATENCY_MS;
-    }
-    e.status = SCHEDULED;
-
-    if(sync >= 0 && sync_index >= 0) {
-        handle_sync(sync, sync_index);
-    } else {
-        add_event(e, -1);
+        if(sync >= 0 && sync_index >= 0) {
+            handle_sync(sync, sync_index);
+        } else {
+            add_event(e, -1);
+        }
     }
 }
 
