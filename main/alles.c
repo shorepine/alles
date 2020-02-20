@@ -233,10 +233,25 @@ void setup_events() {
     }
 }
 
+void handle_sync(uint64_t time, uint8_t index) {
+    // I am called when I get an s message, which comes along with host time
+    // I am normally called N times in a row, probably like 10? with 100ms divisons inbetween
+    // of course, i may miss one, so i'm also called with an index
+    // My job is to 
+    // (1) update computed_delta by averaging it out over the sync messages
+    // (2) send a message back to the network via multicast, with 
+    //      my ip
+    //      my time 
+    // Then the host can compute latency on their end per client, and know how many clients there are. 
+}
+
+
 // A replacement for "parse messages" -- instead of parsing into audio_buffer changes,
 // parse into a FIFO of messages that the sequencer will trigger, neat
 void parse_message_into_events(char * data_buffer, int recv_data) {
     uint8_t mode = 0;
+    int64_t sync = -1;
+    int8_t sync_index = -1;
     uint16_t start = 0;
     data_buffer[recv_data] = 0;
     uint16_t c = 0;
@@ -255,6 +270,8 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
                 }
                 // TODO -- reset this on sync
             }
+            if(mode=='s') sync = atoi(data_buffer + start); 
+            if(mode=='i') sync_index = atoi(data_buffer + start);
             if(mode=='v') e.voice=atoi(data_buffer + start);
             if(mode=='n') e.midi_note=atoi(data_buffer + start);
             if(mode=='w') e.wave=atoi(data_buffer + start);
@@ -274,9 +291,13 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
     } else { // else play it asap 
         e.time = sysclock + LATENCY_MS;
     }
-
     e.status = SCHEDULED;
-    add_event(e, -1);
+
+    if(sync >= 0 && sync_index >= 0) {
+        handle_sync(sync, sync_index);
+    } else {
+        add_event(e, -1);
+    }
 }
 
 // Schedule a bleep now

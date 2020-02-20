@@ -44,13 +44,13 @@ def scale(voice=0, wave=FM, amp=0.5, which=0, patch=None,forever=True, wait=0.75
 def complex(speed=0.250):
     while 1:
         for i in range(12):
-            tone(voice=0, wave=FM, amp=0.1, note=40+i, patch=15)
+            tone(voice=0, wave=FM, amp=0.5, note=50+i, patch=15)
             time.sleep(speed)
-            tone(voice=1, wave=FM, amp=0.2, note=40+i, patch=8)
+            tone(voice=1, wave=FM, amp=0.3, note=50+i, patch=8)
             time.sleep(speed)
-            tone(voice=2, wave=SINE, amp=0.5, note=40+i)
+            tone(voice=2, wave=FM, amp=0.3, note=50+i, patch=2)
             time.sleep(speed)
-            tone(voice=2, wave=SINE, amp=0, note=40+i)
+            tone(voice=2, wave=OFF)
             time.sleep(speed)
 
 
