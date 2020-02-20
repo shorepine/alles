@@ -246,8 +246,6 @@ void handle_sync(uint64_t time, uint8_t index) {
     char message[100];
     sprintf(message, "_sync response input %lld / %d output %lld", time, index, sysclock);
     mcast_send(message, strlen(message));
-
-
 }
 
 
@@ -263,7 +261,7 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
     struct event e = default_event();
     int64_t sysclock = esp_timer_get_time() / 1000;
 
-    // Skip this if the message starts with _ (an ack message)
+    // Skip this if the message starts with _ (an ack message for sync)
     if(recv_data>0) if(data_buffer[0]=='_') recv_data = -1;
 
     while(c < recv_data+1) {
@@ -291,6 +289,7 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
         }
         c++;
     }
+    // Only do this if we get some data
     if(recv_data >0) {
         // Now adjust time in some useful way:
         // if we have a delta & got a time in this message, use it schedule it properly
