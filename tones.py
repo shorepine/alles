@@ -9,7 +9,20 @@ sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
 def alles_ms():
     return int((datetime.datetime.utcnow() - datetime.datetime(2020, 2, 18)).total_seconds() * 1000)
 
+_total_addresses = {}
+_recvcount = 0
+
+
+def parse_response(data, address):
+    global _total_addresses, _recvcount
+    if(data[0] == '_'):
+        print "got response %s from %s" % (data, address)
+        _total_addresses[address] = 1
+        _recvcount = _recvcount + 1
+
 def sync(count=10, delay_ms=100):
+    global _total_addresses, _recvcount
+
     # Sends sync packets to all the listeners so they can correct / get the time
     start = alles_ms()
     
@@ -23,12 +36,12 @@ def sync(count=10, delay_ms=100):
     rsock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
     rsock.setblocking(0)
 
-
+    recv_count = 0
     for i in range(count):
         sock.sendto("s%di%d" % (alles_ms(), i), multicast_group)
         try:
             data, address = rsock.recvfrom(1024)
-            print "got %s from %s" % (data, address)
+            parse_response(data, address)
         except socket.error:
             pass
 
@@ -39,11 +52,14 @@ def sync(count=10, delay_ms=100):
     for i in range(count*4):
         try:
             data, address = rsock.recvfrom(1024)
-            print "got %s from %s" % (data, address)
+            parse_response(data, address)
         except socket.error:
             pass
         time.sleep(delay_ms/1000.0)
 
+
+    print "i was expecting %d to be a multiple of %d" % (_recvcount, count)
+    print str(_total_addresses)
     ms_per_call = ((end-start-(count * delay_ms)) / float(count))
     print "Total %d ms. Expected %d ms. Difference %d ms. Calls take %2.2fms extra." % (end-start, count*delay_ms, end-start-(count*delay_ms), ms_per_call)
 
