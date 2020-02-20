@@ -38,7 +38,9 @@ extern "C" {
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
 
 extern void mcast_listen_task(void *pvParameters);
-extern int mcast_send(int sock, char * message, uint16_t len);
+extern void mcast_send(char * message, uint16_t len);
+extern void create_multicast_ipv4_socket();
+
 
 // C++ FM synth stuff
 extern void fm_init();

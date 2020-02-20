@@ -49,7 +49,6 @@ int16_t next_event_write = 0;
 struct event events[EVENT_FIFO_LEN];
 
 
-
 float freq_for_midi_note(uint8_t midi_note) {
     return 440.0*pow(2,(midi_note-57.0)/12.0);
 }
@@ -243,6 +242,12 @@ void handle_sync(uint64_t time, uint8_t index) {
     //      my ip
     //      my time 
     // Then the host can compute latency on their end per client, and know how many clients there are. 
+    int64_t sysclock = esp_timer_get_time() / 1000;
+    char message[100];
+    sprintf(message, "sync response input %lld / %d output %lld", time, index, sysclock);
+    mcast_send(message, strlen(message));
+
+
 }
 
 
@@ -345,6 +350,7 @@ void app_main() {
 
     printf("Setting up wifi & multicast listening\n");
     ESP_ERROR_CHECK(wifi_connect());
+    create_multicast_ipv4_socket();
     xTaskCreate(&mcast_listen_task, "mcast_task", 4096, NULL, 5, NULL);
     printf("wifi ready\n");
 

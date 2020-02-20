@@ -25,9 +25,11 @@
 static const char *TAG = "multicast";
 static const char *V4TAG = "mcast-ipv4";
 
+int sock= -1;
+
 extern void parse_message_into_events(char * data_buffer, int recv_data);
 
-static int socket_add_ipv4_multicast_group(int sock, bool assign_source_if)
+static int socket_add_ipv4_multicast_group(bool assign_source_if)
 {
     struct ip_mreq imreq = { 0 };
     struct in_addr iaddr = { 0 };
@@ -75,16 +77,15 @@ static int socket_add_ipv4_multicast_group(int sock, bool assign_source_if)
     return err;
 }
 
-static int create_multicast_ipv4_socket(void)
+void create_multicast_ipv4_socket(void)
 {
     struct sockaddr_in saddr = { 0 };
-    int sock = -1;
+    sock = -1;
     int err = 0;
 
     sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (sock < 0) {
         ESP_LOGE(V4TAG, "Failed to create socket. Error %d", errno);
-        return -1;
     }
 
     // Bind the socket to any address
@@ -94,7 +95,6 @@ static int create_multicast_ipv4_socket(void)
     err = bind(sock, (struct sockaddr *)&saddr, sizeof(struct sockaddr_in));
     if (err < 0) {
         ESP_LOGE(V4TAG, "Failed to bind socket. Error %d", errno);
-        goto err;
     }
 
     // Assign multicast TTL (set separately from normal interface TTL)
@@ -102,28 +102,22 @@ static int create_multicast_ipv4_socket(void)
     setsockopt(sock, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(uint8_t));
     if (err < 0) {
         ESP_LOGE(V4TAG, "Failed to set IP_MULTICAST_TTL. Error %d", errno);
-        goto err;
     }
 
     // this is also a listening socket, so add it to the multicast
     // group for listening...
-    err = socket_add_ipv4_multicast_group(sock, true);
-    if (err < 0) {
-        goto err;
-    }
+    err = socket_add_ipv4_multicast_group(true);
 
     // All set, socket is configured for sending and receiving
-    return sock;
 
-err:
-    close(sock);
-    return -1;
+
+    //close(sock);
 }
 
 // Send a multicast message 
 // Needs a socket -- can i use the existing one or does it cross a thread boundary? unclear 
 // could also create a new socket
-int mcast_send(int sock, char * message, uint16_t len) {
+void mcast_send(char * message, uint16_t len) {
     char addrbuf[32] = { 0 };
     struct addrinfo hints = {
         .ai_flags = AI_PASSIVE,
@@ -131,10 +125,6 @@ int mcast_send(int sock, char * message, uint16_t len) {
     };
     struct addrinfo *res;
 
-    if(sock < 0) { // no socket 
-        sock = create_multicast_ipv4_socket();
-        if (sock < 0) ESP_LOGE(TAG, "Failed to create IPv4 multicast sending socket");
-    }
 
     hints.ai_family = AF_INET; // For an IPv4 socket
     int err = getaddrinfo(MULTICAST_IPV4_ADDR, NULL, &hints, &res);
@@ -146,21 +136,18 @@ int mcast_send(int sock, char * message, uint16_t len) {
     }
     ((struct sockaddr_in *)res->ai_addr)->sin_port = htons(UDP_PORT);
     inet_ntoa_r(((struct sockaddr_in *)res->ai_addr)->sin_addr, addrbuf, sizeof(addrbuf)-1);
-    ESP_LOGI(TAG, "Sending to IPV4 multicast address %s:%d...",  addrbuf, UDP_PORT);
+    //ESP_LOGI(TAG, "Sending to IPV4 multicast address %s:%d...",  addrbuf, UDP_PORT);
     err = sendto(sock, message, len, 0, res->ai_addr, res->ai_addrlen);
     freeaddrinfo(res);
     if (err < 0) {
         ESP_LOGE(TAG, "IPV4 sendto failed. errno: %d", errno);
     }
-    return sock; // Why not 
 }
 
 void mcast_listen_task(void *pvParameters)
 {
     while (1) {
-        int sock;
 
-        sock = create_multicast_ipv4_socket();
         if (sock < 0) ESP_LOGE(TAG, "Failed to create IPv4 multicast socket");
         // set destination multicast addresses for sending from these sockets
         struct sockaddr_in sdestv4 = {

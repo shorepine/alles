@@ -1,4 +1,4 @@
-import socket, time, struct, datetime
+import socket, time, struct, datetime, sys
 multicast_group = ('232.10.11.12', 3333)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 ttl = struct.pack('b', 1) 
@@ -11,12 +11,39 @@ def alles_ms():
 
 def sync(count=10, delay_ms=100):
     # Sends sync packets to all the listeners so they can correct / get the time
-    # I'm guessing: 
-    start = timestamp_ms()
+    start = alles_ms()
+    
+    # This should also have the receiver on to get the acks back
+    rsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    rsock.bind(('', 3333))
+    group = socket.inet_aton(multicast_group[0])
+    mreq = struct.pack('4sL', group, socket.INADDR_ANY)
+    rsock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+    # Turn off loopback here
+    rsock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
+    rsock.setblocking(0)
+
+
     for i in range(count):
-        sock.sendto("s%d" % (timestamp_ms()), multicast_group)
+        sock.sendto("s%di%d" % (alles_ms(), i), multicast_group)
+        try:
+            data, address = rsock.recvfrom(1024)
+            print "got %s from %s" % (data, address)
+        except socket.error:
+            pass
+
         time.sleep(delay_ms / 1000.0)
-    end = timestamp_ms()
+    
+    end = alles_ms()
+
+    for i in range(count*2):
+        try:
+            data, address = rsock.recvfrom(1024)
+            print "got %s from %s" % (data, address)
+        except socket.error:
+            pass
+        time.sleep(delay_ms/1000.0)
+
     ms_per_call = ((end-start-(count * delay_ms)) / float(count))
     print "Total %d ms. Expected %d ms. Difference %d ms. Calls take %2.2fms extra." % (end-start, count*delay_ms, end-start-(count*delay_ms), ms_per_call)
 
@@ -52,6 +79,23 @@ def complex(speed=0.250):
             time.sleep(speed)
             tone(voice=2, wave=OFF)
             time.sleep(speed)
+
+def recv_loop():
+    rsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    rsock.bind(('', 3333))
+    group = socket.inet_aton(multicast_group[0])
+    mreq = struct.pack('4sL', group, socket.INADDR_ANY)
+    rsock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+    # Turn off loopback here
+    rsock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
+
+
+    while True:
+        print >>sys.stderr, '\nwaiting to receive message'
+        data, address = rsock.recvfrom(1024)
+        
+        print >>sys.stderr, 'received %s bytes from %s' % (len(data), address)
+        print >>sys.stderr, data
 
 
 
