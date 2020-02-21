@@ -25,7 +25,7 @@ Wire it up like this (I2S -> ESP)
 ```
 LRC -> D25 / A1
 BCLK -> D26 / A0
-DIN -> D4/ A5
+DIN -> D4 / A5
 GAIN -> I2S Vin (i jumper this on the I2S board)
 SD -> not connected
 GND -> GND
@@ -114,7 +114,7 @@ If you want to update this delta (drift over time, clock changes, etc) use the `
 
 ## Reliability 
 
-UDP multicast is naturally 'lossy' -- there is no guarantee that a message will be received by a synth. On average, in my testing, the ESP32s booted with no power saving in wifi and no antenna, receive about 70-90% of UDP multicast messages. This is quite low, and seems to be a function of the ESP-IDF libraries and hardware. I mitigate this by simply sending messages N times (2-4). Since messages are stateful and have timestamps, sending multiple duplicate messages do not have any averse effect on the synth's state. 
+UDP multicast is naturally 'lossy' -- there is no guarantee that a message will be received by a synth. On average, in my testing, the ESP32s booted with no power saving in wifi and no antenna, receive about 70-90% of UDP multicast messages. This is quite low, and seems to be a function of the ESP-IDF libraries and hardware. I mitigate this by simply sending messages N times (2-4). Since individual messages are stateless and can have target timestamps, sending multiple duplicate messages do not have any averse effect on the synths.
 
 
 ## Clients
