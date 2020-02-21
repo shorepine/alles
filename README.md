@@ -10,26 +10,26 @@ The synthesizers listen to UDP multicast messages. The idea is you can install a
 
 currently using
 
-* [ESP32 dev board (any one will do, you want pins broken out)](https://www.amazon.com/gp/product/B07Q576VWZ/) (pack of 2, $7.45 each)
-* [I2S mono amplifier](https://www.adafruit.com/product/3006) ($5.95)
-* [4 ohm speaker, this one is especially nice](https://www.parts-express.com/peerless-by-tymphany-tc6fd00-04-2-full-range-paper-cone-woofer-4-ohm--264-1126?gclid=EAIaIQobChMIwcX3-vXi5wIVgpOzCh0a7gjuEAYYASABEgLwf_D_BwE) ($9.77, but you can save a lot of money here going lower-end)
+* [ESP32 dev board (any one will do, but you want pins broken out)](https://www.amazon.com/gp/product/B07Q576VWZ/) (pack of 2, $7.45 each)
+* [The Adafruit I2S mono amplifier](https://www.adafruit.com/product/3006) ($5.95)
+* [4 ohm speaker, this one is especially nice](https://www.parts-express.com/peerless-by-tymphany-tc6fd00-04-2-full-range-paper-cone-woofer-4-ohm--264-1126?gclid=EAIaIQobChMIwcX3-vXi5wIVgpOzCh0a7gjuEAYYASABEgLwf_D_BwE) ($9.77, but you can save a lot of money here going lower-end if you're ok with the sound quality)
 
 ### Power 
 
-A 5V input (USB battery, USB input, rechargeable batteries direct to power input) powers both boards and a small speaker at pretty good volumes. A 3.7V LiPo battery will also work, but note the I2S amp will not get as loud (without distorting) if you give it 3.7V. I recommend using a USB battery pack that does not do [low current shutoff](https://www.element14.com/community/groups/test-and-measurement/blog/2018/10/15/on-using-a-usb-battery-for-a-portable-project-power-supply). I lucked on [this one at Amazon for $9.44](https://www.amazon.com/gp/product/B00MWU1GGI). The draw of the whole unit at loud volumes is around 100mA, so my battery should power a single synth making sound for 50 hours. 
+A 5V input (USB battery, USB input, rechargeable batteries direct to power input) powers both boards and speaker at pretty good volumes. A 3.7V LiPo battery will also work, but note the I2S amp will not get as loud (without distorting) if you give it 3.7V. I recommend using a USB battery pack that does not do [low current shutoff](https://www.element14.com/community/groups/test-and-measurement/blog/2018/10/15/on-using-a-usb-battery-for-a-portable-project-power-supply). I lucked on [this one at Amazon for $9.44](https://www.amazon.com/gp/product/B00MWU1GGI). The draw of the whole unit at loud volumes is around 150mA, so my battery should power a single synth making sound for 30 hours. 
 
 ### Wiring
 
-Wire it up like
+Wire it up like this (I2S -> ESP)
 
 ```
 LRC -> D25 / A1
 BCLK -> D26 / A0
 DIN -> D4/ A5
-GAIN -> Vin (i jumper this on the breakout)
+GAIN -> I2S Vin (i jumper this on the I2S board)
 SD -> not connected
 GND -> GND
-Vin -> 3v3 (or direct to your 5V power source)
+Vin -> Vin / USB / 3.3 (or direct to your 5V power source)
 Speaker connectors -> speaker
 ```
 
@@ -102,7 +102,7 @@ def alles_ms():
 
 The first time you send a message the synth uses this to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of both fixed latency and jitter.) Further messages will be accurate message-to-message, but with the fixed latency. 
 
-If you want to update this delta (drift over time, clock changes, etc) use the `sync` command. See `tones.py`'s implementation, but sending an `sTIMEiINDEX` message (preferably regularly, e.g. 10 messages once every 100ms) will update the delta and also trigger a response back from each on-line synthesizer. The response looks like `_sCLIENT_TIMEiRECEIVED_INDEXcCLIENT_ID`. This lets you build a map of not only each booted synthesizer, but also be able to figure the round-trip latency for each one. This is helpful when your synths are spread far apart in space and each may have unique latencies. e.g. here we see we have two synths booted.
+If you want to update this delta (drift over time, clock changes, etc) use the `sync` command. See `tones.py`'s implementation, but sending an `sTIMEiINDEX` message (preferably regularly, e.g. 10 messages once every 100ms) will update the delta and also trigger a response back from each on-line synthesizer. The response looks like `_s65201i4c248`, where s is the time on the client, i is the index it is responding to, and c is the client id. This lets you build a map of not only each booted synthesizer, but also be able to figure the round-trip latency for each one along with the reliability. This is helpful when your synths are spread far apart in space and each may have unique latencies. e.g. here we see we have two synths booted.
 
 ```
 >>> tones.sync(count=10)
@@ -112,6 +112,9 @@ If you want to update this delta (drift over time, clock changes, etc) use the `
 }
 ```
 
+## Reliability 
+
+UDP multicast is naturally 'lossy' -- there is no guarantee that a message will be received by a synth. On average, in my testing, the ESP32s booted with no power saving in wifi and no antenna, receive about 70-90% of UDP multicast messages. This is quite low, and seems to be a function of the ESP-IDF libraries and hardware. I mitigate this by simply sending messages N times (2-4). Since messages are stateful and have timestamps, sending multiple duplicate messages do not have any averse effect on the synth's state. 
 
 
 ## Clients
