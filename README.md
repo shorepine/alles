@@ -102,7 +102,16 @@ def alles_ms():
 
 The first time you send a message the synth uses this to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of both fixed latency and jitter.) Further messages will be accurate message-to-message, but with the fixed latency. 
 
-If you want to update this delta (drift over time, clock changes, etc) use the `sync` command. See `tones.py`'s implementation, but senidng an `sTIMEiINDEX` message (preferably regularly, e.g. 10 messages once every 100ms) will update the delta and also trigger a response back from each on-line synthesizer. The response looks like `_sCLIENT_TIMEiRECEIVED_INDEXcCLIENT_ID`. This lets you build a map of not only each booted synthesizer, but also be able to figure the round-trip latency for each one. This is helpful when your synths are spread far apart in space and each may have unique latencies. 
+If you want to update this delta (drift over time, clock changes, etc) use the `sync` command. See `tones.py`'s implementation, but sending an `sTIMEiINDEX` message (preferably regularly, e.g. 10 messages once every 100ms) will update the delta and also trigger a response back from each on-line synthesizer. The response looks like `_sCLIENT_TIMEiRECEIVED_INDEXcCLIENT_ID`. This lets you build a map of not only each booted synthesizer, but also be able to figure the round-trip latency for each one. This is helpful when your synths are spread far apart in space and each may have unique latencies. e.g. here we see we have two synths booted.
+
+```
+>>> tones.sync(count=10)
+{
+	248: {'avg_rtt': 319.14285714285717, 'reliability': 0.7}, 
+	26: {'avg_rtt': 323.5, 'reliability': 0.8}
+}
+```
+
 
 
 ## Clients
