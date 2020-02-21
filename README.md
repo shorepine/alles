@@ -10,9 +10,9 @@ The synthesizers listen to UDP multicast messages. The idea is you can install a
 
 currently using
 
-* https://www.adafruit.com/product/3006 
-* https://www.adafruit.com/product/3405
-* https://www.adafruit.com/product/1314 
+* [ESP32 dev board (any one will do, you want pins broken out)](https://www.amazon.com/gp/product/B07Q576VWZ/) (pack of 2, $7.45 each)
+* [I2S mono amplifier](https://www.adafruit.com/product/3006) ($5.95)
+* [4 ohm speaker, this one is especially nice](https://www.parts-express.com/peerless-by-tymphany-tc6fd00-04-2-full-range-paper-cone-woofer-4-ohm--264-1126?gclid=EAIaIQobChMIwcX3-vXi5wIVgpOzCh0a7gjuEAYYASABEgLwf_D_BwE) ($9.77, but you can save a lot of money here going lower-end)
 
 ### Power 
 
@@ -23,9 +23,9 @@ A 5V input (USB battery, USB input, rechargeable batteries direct to power input
 Wire it up like
 
 ```
-LRC -> A1
-BCLK -> A0
-DIN -> A5
+LRC -> D25 / A1
+BCLK -> D26 / A0
+DIN -> D4/ A5
 GAIN -> Vin (i jumper this on the breakout)
 SD -> not connected
 GND -> GND
