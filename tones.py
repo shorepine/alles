@@ -9,10 +9,8 @@ sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
 def alles_ms():
     return int((datetime.datetime.utcnow() - datetime.datetime(2020, 2, 18)).total_seconds() * 1000)
 
-_clients = {}
 
 def sync(count=10, delay_ms=100):
-    global _clients
     # Sends sync packets to all the listeners so they can correct / get the time
     # This should also have the receiver on to get the acks back
     rsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -20,34 +18,54 @@ def sync(count=10, delay_ms=100):
     group = socket.inet_aton(multicast_group[0])
     mreq = struct.pack('4sL', group, socket.INADDR_ANY)
     rsock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-    # Turn off loopback here
+    # Turn off loopback here -- although it doesn't seem to work
     rsock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
+    # We're not going to block because only % of things come back
     rsock.setblocking(0)
 
-    _clients = {}
+    clients = {}
     start_time = alles_ms()
     last_sent = 0
+    time_sent = {}
+    rtt = {}
     i = 0
     while 1:
         tic = alles_ms() - start_time
         if((tic - last_sent) > delay_ms):
-            sock.sendto("s%di%d" % (alles_ms(), i), multicast_group)
+            time_sent[i] = alles_ms()
+            sock.sendto("s%di%d" % (time_sent[i], i), multicast_group)
             i = i + 1
             last_sent = tic
         try:
             data, address = rsock.recvfrom(1024)
             if(data[0] == '_'):
-                [_, client_time, client_index, client_id] = re.split(r'[sic]',data)
-                if(int(client_index) < count):
-                    _clients[int(client_id)] = _clients.get(int(client_id), 0) + 1
-
+                [_, client_time, sync_index, client_id] = re.split(r'[sic]',data)
+                rtt[int(client_id)] = rtt.get(int(client_id), {})
+                rtt[int(client_id)][int(sync_index)] = alles_ms()-time_sent[int(sync_index)]
         except socket.error:
             pass
-        if((i-2) > count):
-            break
-    print(str(_clients))
-    rsock.close()
 
+        # Wait for at least 500ms (client latency) to get any straggling UDP packets back 
+        delay_period = 1 + (500 / delay_ms)
+        if((i-delay_period) > count):
+            break
+
+    # Compute average rtt in ms and reliability (number of rt packets we got)
+    for client in rtt.keys():
+        hit = 0
+        total_rtt_ms = 0
+        for i in range(count):
+            ms = rtt[client].get(i, None)
+            if ms is not None:
+                total_rtt_ms = total_rtt_ms + ms
+                hit = hit + 1
+        clients[client] = {}
+        clients[client]["reliability"] = float(hit)/float(count)
+        clients[client]["avg_rtt"] = float(total_rtt_ms) / float(hit)
+
+    rsock.close()
+    # Return this as a map for future use
+    return clients
 
 
 def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, freq=-1, timestamp=-1, client=-1, retries=4):
