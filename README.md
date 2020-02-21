@@ -60,9 +60,11 @@ v0w4f440.0a0.5
 Where
 ```
 a = amplitude, float 0-1 summed over all voices. default 0
+c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_id % (x-255) == 0) for groups, default all clients
 f = frequency, float 0-22050. default 0
 n = midinote, uint, 0-127 (note that this will also set f). default 0
 p = patch, uint, 0-X, choose a preloaded DX7 patch number for FM waveforms. default 0
+s = sync, int64, same as time but used alone to do an enumeration / sync, see tones.py, also uses i for sync_index
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can
 v = voice, uint, 0 to 9. default: 0
 w = waveform, uint, 0,1,2,3,4,5,6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF]. default: 0/SINE
@@ -83,8 +85,13 @@ w2t7000
 
 Will set voice 0 (default) to a sine wave (default) at 440Hz amplitude 0.1, then set amplitude of voice 0 to 0.5, then change the waveform to a square but keep everything else the same. Then set voice 1 to an FM synth playing midi note 50 at amplitude 0.2. Then set voice 1's amplitude to 0.4. Then change voice 0 again to a saw wave.
 
+## Addressing individual synthesizers
 
-## Timing & latency
+By default, a UDP multicast message reaches all booted synthesizers at once (see below for timing info.) If you want to address a single synth, or half or a quarter of them, use the `client` parameter. Keeping `client` off sends a message to all synths. Setting `client` to a number between 0 and 255 will only reach the synthesizer with that client ID. Client ID is simply the last octet of its IPV4 address. To learn which client IDs are online, use the `sync` command and see `tones.py`'s implementation.
+
+Setting `client` to a number greater than 255 allows you to address groups. For example, a `client` of 257 performs the following check on each booted synthesizer: `my_client_id % (client-255) == 0`. This would only address every other synthesizer. A `client` of 259 would address every fourth synthesizer, and so on.
+
+## Timing & latency & sync
 
 WiFi, UDP multicast, distance, microcontrollers with bad antennas: all of these are in the way of doing anything close to "real time" control from your host. A message you send from a laptop will arrive between 10ms and 200ms to the connected speakers, and it'll change each time. That's definitely noticeable. We mitigate this by setting a global latency, right now 500ms, and by allowing any host to send along a `time` parameter of when the host expects the sound to play. `time` can be anything, but I'd suggest using the number of milliseconds since the "alles epoch", e.g.
 
@@ -95,7 +102,7 @@ def alles_ms():
 
 The first time you send a message the synth uses this to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of both fixed latency and jitter.) Further messages will be accurate message-to-message, but with the fixed latency. 
 
-A big TODO is to send sync signals back to the host to account for different devices' average drift and latency. This also lets us enumerate how many synths are on the network and address them individually! But requires more smarts on the host side.
+If you want to update this delta (drift over time, clock changes, etc) use the `sync` command. See `tones.py`'s implementation, but senidng an `sTIMEiINDEX` message (preferably regularly, e.g. 10 messages once every 100ms) will update the delta and also trigger a response back from each on-line synthesizer. The response looks like `_sCLIENT_TIMEiRECEIVED_INDEXcCLIENT_ID`. This lets you build a map of not only each booted synthesizer, but also be able to figure the round-trip latency for each one. This is helpful when your synths are spread far apart in space and each may have unique latencies. 
 
 
 ## Clients

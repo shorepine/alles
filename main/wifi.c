@@ -30,7 +30,7 @@
 #define CONNECTED_BITS (GOT_IPV4_BIT)
 
 static EventGroupHandle_t s_connect_event_group;
-static esp_ip4_addr_t s_ip_addr;
+esp_ip4_addr_t s_ip_addr;
 static const char *s_connection_name;
 static esp_netif_t *s_example_esp_netif = NULL;
 

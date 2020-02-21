@@ -40,7 +40,7 @@ extern "C" {
 extern void mcast_listen_task(void *pvParameters);
 extern void mcast_send(char * message, uint16_t len);
 extern void create_multicast_ipv4_socket();
-
+extern esp_ip4_addr_t s_ip_addr;
 
 // C++ FM synth stuff
 extern void fm_init();

@@ -47,7 +47,7 @@ struct event {
 
 int16_t next_event_write = 0;
 struct event events[EVENT_FIFO_LEN];
-
+uint8_t client_id = 0;
 
 float freq_for_midi_note(uint8_t midi_note) {
     return 440.0*pow(2,(midi_note-57.0)/12.0);
@@ -232,20 +232,18 @@ void setup_events() {
     }
 }
 
-void handle_sync(uint64_t time, uint8_t index) {
+void handle_sync(int64_t time, uint8_t index) {
     // I am called when I get an s message, which comes along with host time
     // I am normally called N times in a row, probably like 10? with 100ms divisons inbetween
     // of course, i may miss one, so i'm also called with an index
-    // My job is to 
-    // (1) update computed_delta by averaging it out over the sync messages
-    // (2) send a message back to the network via multicast, with 
-    //      my ip
-    //      my time 
-    // Then the host can compute latency on their end per client, and know how many clients there are. 
     int64_t sysclock = esp_timer_get_time() / 1000;
     char message[100];
-    sprintf(message, "_sync response input %lld / %d output %lld", time, index, sysclock);
+    // Send back sync message with my time and received sync index and my client id
+    sprintf(message, "_s%lldi%dc%d", sysclock, index, client_id);
     mcast_send(message, strlen(message));
+    // Update computed delta (i could average these out, but I don't think that'll help too much)
+    computed_delta = time - sysclock;
+    computed_delta_set = 1;
 }
 
 
@@ -255,12 +253,14 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
     uint8_t mode = 0;
     int64_t sync = -1;
     int8_t sync_index = -1;
+    int16_t client = -1;
     uint16_t start = 0;
-    data_buffer[recv_data] = 0;
     uint16_t c = 0;
     struct event e = default_event();
     int64_t sysclock = esp_timer_get_time() / 1000;
 
+    // Put a null at the end for atoi
+    data_buffer[recv_data] = 0;
     // Skip this if the message starts with _ (an ack message for sync)
     if(recv_data>0) if(data_buffer[0]=='_') recv_data = -1;
 
@@ -274,8 +274,8 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
                     computed_delta = e.time - sysclock;
                     computed_delta_set = 1;
                 }
-                // TODO -- reset this on sync
             }
+            if(mode=='c') client = atoi(data_buffer + start); 
             if(mode=='s') sync = atoi(data_buffer + start); 
             if(mode=='i') sync_index = atoi(data_buffer + start);
             if(mode=='v') e.voice=atoi(data_buffer + start);
@@ -289,7 +289,7 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
         }
         c++;
     }
-    // Only do this if we get some data
+    // Only do this if we got some data
     if(recv_data >0) {
         // Now adjust time in some useful way:
         // if we have a delta & got a time in this message, use it schedule it properly
@@ -300,10 +300,23 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
         }
         e.status = SCHEDULED;
 
+        // Don't add sync messages to the event queue
         if(sync >= 0 && sync_index >= 0) {
             handle_sync(sync, sync_index);
         } else {
-            add_event(e, -1);
+            // Assume it's for me
+            uint8_t for_me = 1;
+            // But wait, they specified, so don't assume
+            if(client >= 0) {
+                for_me = 0;
+                // It's actually precisely for me
+                if(client == client_id) for_me = 1;
+                if(client > 255) {
+                    // It's a group message, see if i'm in the group
+                    if(client_id % (client-255) == 0) for_me = 1;
+                }
+            }
+            if(for_me) add_event(e, -1);
         }
     }
 }
@@ -356,7 +369,7 @@ void app_main() {
     create_multicast_ipv4_socket();
     xTaskCreate(&mcast_listen_task, "mcast_task", 4096, NULL, 5, NULL);
     printf("wifi ready\n");
-
+    client_id =esp_ip4_addr4(&s_ip_addr);
     setup_luts();
     setup_voices();
     setup_events();

@@ -1,4 +1,4 @@
-import socket, time, struct, datetime, sys
+import socket, time, struct, datetime, sys, re
 multicast_group = ('232.10.11.12', 3333)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 ttl = struct.pack('b', 1) 
@@ -9,23 +9,11 @@ sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
 def alles_ms():
     return int((datetime.datetime.utcnow() - datetime.datetime(2020, 2, 18)).total_seconds() * 1000)
 
-_total_addresses = {}
-_recvcount = 0
-
-
-def parse_response(data, address):
-    global _total_addresses, _recvcount
-    if(data[0] == '_'):
-        print "got response %s from %s" % (data, address)
-        _total_addresses[address] = 1
-        _recvcount = _recvcount + 1
+_clients = {}
 
 def sync(count=10, delay_ms=100):
-    global _total_addresses, _recvcount
-
+    global _clients
     # Sends sync packets to all the listeners so they can correct / get the time
-    start = alles_ms()
-    
     # This should also have the receiver on to get the acks back
     rsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     rsock.bind(('', 3333))
@@ -36,40 +24,40 @@ def sync(count=10, delay_ms=100):
     rsock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
     rsock.setblocking(0)
 
-    recv_count = 0
-    for i in range(count):
-        sock.sendto("s%di%d" % (alles_ms(), i), multicast_group)
+    _clients = {}
+    start_time = alles_ms()
+    last_sent = 0
+    i = 0
+    while 1:
+        tic = alles_ms() - start_time
+        if((tic - last_sent) > delay_ms):
+            sock.sendto("s%di%d" % (alles_ms(), i), multicast_group)
+            i = i + 1
+            last_sent = tic
         try:
             data, address = rsock.recvfrom(1024)
-            parse_response(data, address)
+            if(data[0] == '_'):
+                [_, client_time, client_index, client_id] = re.split(r'[sic]',data)
+                if(int(client_index) < count):
+                    _clients[int(client_id)] = _clients.get(int(client_id), 0) + 1
+
         except socket.error:
             pass
-
-        time.sleep(delay_ms / 1000.0)
-    
-    end = alles_ms()
-
-    for i in range(count*4):
-        try:
-            data, address = rsock.recvfrom(1024)
-            parse_response(data, address)
-        except socket.error:
-            pass
-        time.sleep(delay_ms/1000.0)
+        if((i-2) > count):
+            break
+    print(str(_clients))
+    rsock.close()
 
 
-    print "i was expecting %d to be a multiple of %d" % (_recvcount, count)
-    print str(_total_addresses)
-    ms_per_call = ((end-start-(count * delay_ms)) / float(count))
-    print "Total %d ms. Expected %d ms. Difference %d ms. Calls take %2.2fms extra." % (end-start, count*delay_ms, end-start-(count*delay_ms), ms_per_call)
 
-def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, freq=-1, timestamp=-1, retries=4):
+def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, freq=-1, timestamp=-1, client=-1, retries=4):
     if(timestamp < 0): timestamp = alles_ms()
     m = "t%dv%dw%d" % (timestamp, voice, wave)
     if(amp>=0): m = m + "a%f" % (amp)
     if(freq>=0): m = m + "f%f" % (freq)
     if(note>=0): m = m + "n%d" % (note)
     if(patch>=0): m = m + "p%d" % (patch)
+    if(client>0): m = m + "c%d" % (client)
     for x in range(retries):
         sock.sendto(m, multicast_group)
 
