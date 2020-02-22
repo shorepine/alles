@@ -161,6 +161,9 @@ You can also use it in Max or similar software (note you have to wrap string com
 * ~~addresses / communicate to one or groups, like "play this on half / one-quarter / all"~~
 * ~~do what i can about timing / jitter - sync time? timed messages?~~
 * case / battery setup
+* sleep command?
+* overloading the volume (I think only on FM) crashes
+* UDP message clicks 
 
 
 

@@ -33,6 +33,7 @@ def sync(count=10, delay_ms=100):
         tic = alles_ms() - start_time
         if((tic - last_sent) > delay_ms):
             time_sent[i] = alles_ms()
+            #print "sending %d at %d" % (i, time_sent[i])
             sock.sendto("s%di%d" % (time_sent[i], i), multicast_group)
             i = i + 1
             last_sent = tic
@@ -42,6 +43,8 @@ def sync(count=10, delay_ms=100):
                 [_, client_time, sync_index, client_id] = re.split(r'[sic]',data)
                 rtt[int(client_id)] = rtt.get(int(client_id), {})
                 rtt[int(client_id)][int(sync_index)] = alles_ms()-time_sent[int(sync_index)]
+                #print "recvd at %d:  %s %s %s" % (alles_ms(), client_time, sync_index, client_id)
+                #print str(rtt)
         except socket.error:
             pass
 
@@ -79,6 +82,30 @@ def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, freq=-1, timestamp=-1, c
     for x in range(retries):
         sock.sendto(m, multicast_group)
 
+def beating_tones(wave=SINE, vol=0.5, cycle_len_ms = 20000, resolution_ms=100):
+    start_f = 220
+    end_f = 880
+    clients = sync()
+    # Increase freq slowly from like 220 to 440 but in phase on each one? 
+    tic = 0
+    beat = 0
+    offset = float(end_f-start_f) / (len(clients.keys())+1)
+    while 1:
+        for i,client_id in enumerate(clients.keys()):
+            distance = float(tic) / cycle_len_ms # 0 - 1
+            base_freq = start_f + (distance * (end_f-start_f))
+            freq =  (offset * i) + base_freq
+            if(freq > end_f): freq = freq - (end_f - start_f)
+            #print "%d %f" % (i, freq)
+            tone(wave=wave, client=client_id, amp=0.5*vol, freq=freq, retries=1)
+            if(beat % 4 == 0):
+                tone(voice=1, wave=FM, amp=0.5*vol, note=50+i, patch=8, client=client_id, retries=1)
+        beat = beat + 1
+        tic = tic + resolution_ms
+        if(tic > cycle_len_ms): tic = 0
+        time.sleep(resolution_ms / 1000.0)
+
+
 
 def scale(voice=0, wave=FM, amp=0.5, which=0, patch=None,forever=True, wait=0.750):
     once = True
@@ -90,16 +117,16 @@ def scale(voice=0, wave=FM, amp=0.5, which=0, patch=None,forever=True, wait=0.75
             time.sleep(wait)
 
 
-def complex(speed=0.250):
+def complex(speed=0.250, vol=1, client =-1):
     while 1:
-        for i in range(12):
-            tone(voice=0, wave=FM, amp=0.5, note=50+i, patch=15)
+        for i in [0,2,4,5, 0, 4, 0, 2]:
+            tone(voice=0, wave=FM, amp=0.5*vol, note=50+i, patch=15, client=client)
             time.sleep(speed)
-            tone(voice=1, wave=FM, amp=0.3, note=50+i, patch=8)
+            tone(voice=1, wave=FM, amp=0.4*vol, note=50+i, patch=8, client=client)
             time.sleep(speed)
-            tone(voice=2, wave=FM, amp=0.3, note=50+i, patch=2)
+            tone(voice=2, wave=SINE, amp=0.3*vol, note=50+i, patch=2, client=client)
             time.sleep(speed)
-            tone(voice=2, wave=OFF)
+            tone(voice=2, wave=OFF,client=client)
             time.sleep(speed)
 
 def recv_loop():
