@@ -2,6 +2,7 @@ idf_component_register(SRCS alles.c
 							wifi.c
 							multicast.c
 							stdin_out.c
+							bytebeat.cc
 							dx7bridge.cc
 							dx7/dx7note.cc
 							dx7/env.cc

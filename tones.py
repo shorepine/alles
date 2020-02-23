@@ -94,12 +94,13 @@ def beating_tones(wave=SINE, vol=0.5, cycle_len_ms = 20000, resolution_ms=100):
         for i,client_id in enumerate(clients.keys()):
             distance = float(tic) / cycle_len_ms # 0 - 1
             base_freq = start_f + (distance * (end_f-start_f))
-            freq =  (offset * i) + base_freq
+            freq = base_freq
+            #freq =  (offset * i) + base_freq
             if(freq > end_f): freq = freq - (end_f - start_f)
             #print "%d %f" % (i, freq)
             tone(wave=wave, client=client_id, amp=0.5*vol, freq=freq, retries=1)
-            if(beat % 4 == 0):
-                tone(voice=1, wave=FM, amp=0.5*vol, note=50+i, patch=8, client=client_id, retries=1)
+            #if(beat % 4 == 0):
+            #    tone(voice=1, wave=FM, amp=0.5*vol, note=50+i, patch=8, client=client_id, retries=1)
         beat = beat + 1
         tic = tic + resolution_ms
         if(tic > cycle_len_ms): tic = 0

@@ -177,6 +177,9 @@ void fill_audio_buffer() {
         }
         // Now make it a signed int16 for the i2s
         for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+            // Clip 
+            if(floatblock[i] > 32767) floatblock[i] = 32767;
+            if(floatblock[i] < -32768) floatblock[i] = -32768;
             block[i] = (int16_t)floatblock[i];
         }
         // And write
@@ -376,6 +379,7 @@ void app_main() {
     printf("oscillators ready\n");
     bleep();
 
+    // TODO -- udp packets will starve this -- figure out priority 
     while(1) fill_audio_buffer();
     
     // We will never get here but just in case
