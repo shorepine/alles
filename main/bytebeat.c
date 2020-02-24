@@ -19,42 +19,12 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <math.h>
-#include "exprtk.hpp"
 
-//#include "freertos/FreeRTOS.h"
-//#include "freertos/task.h"
-//#include "freertos/queue.h"
-//#include "freertos/event_groups.h"
-
-//#include "esp_system.h"
-//#include "esp_spi_flash.h"
-//#include "esp_intr_alloc.h"
-//#include "esp_attr.h"
-//#include "esp_event.h"
-//#include "esp_log.h"
-//#include "esp_err.h"
-
-
-struct mathop {
-	uint8_t type;
-	uint16_t l;
-	uint16_t r;
-};
-
-struct bytebeat {
-	uint16_t t;
-	struct mathop * mathops;
-	uint16_t num_mathops;
-};
-
-uint16_t render(struct bytebeat b) {
-
+uint16_t render() {
 	return 0;
 }
 
-struct bytebeat parse(char * string, uint16_t len) {
-	// parse a small form of C-dialect into some structure / function
-	struct bytebeat b;
-	b.t = 0;
-	return b;
+
+void bytebeat_parse(char * string, uint16_t len) {
+
 }
