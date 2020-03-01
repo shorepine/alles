@@ -63,8 +63,8 @@ a = amplitude, float 0-1 summed over all voices. default 0
 c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_id % (x-255) == 0) for groups, default all clients
 f = frequency, float 0-22050. default 0
 n = midinote, uint, 0-127 (note that this will also set f). default 0
-p = patch, uint, 0-1000, choose a preloaded DX7 patch number for FM waveforms. default 0
-s = sync, int64, same as time but used alone to do an enumeration / sync, see tones.py, also uses i for sync_index
+p = patch, uint, 0-999, choose a preloaded DX7 patch number for FM waveforms. See patches.h and alles.py. default 0
+s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py, also uses i for sync_index
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can
 v = voice, uint, 0 to 9. default: 0
 w = waveform, uint, 0,1,2,3,4,5,6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF]. default: 0/SINE
@@ -87,7 +87,7 @@ Will set voice 0 (default) to a sine wave (default) at 440Hz amplitude 0.1, then
 
 ## Addressing individual synthesizers
 
-By default, a UDP multicast message reaches all booted synthesizers at once (see below for timing info.) If you want to address a single synth, or half or a quarter of them, use the `client` parameter. Keeping `client` off sends a message to all synths. Setting `client` to a number between 0 and 255 will only reach the synthesizer with that client ID. Client ID is simply the last octet of its IPV4 address. To learn which client IDs are online, use the `sync` command and see `tones.py`'s implementation.
+By default, a UDP multicast message reaches all booted synthesizers at once (see below for timing info.) If you want to address a single synth, or half or a quarter of them, use the `client` parameter. Keeping `client` off sends a message to all synths. Setting `client` to a number between 0 and 255 will only reach the synthesizer with that client ID. Client ID is simply the last octet of its IPV4 address. To learn which client IDs are online, use the `sync` command and see `alles.py`'s implementation.
 
 Setting `client` to a number greater than 255 allows you to address groups. For example, a `client` of 257 performs the following check on each booted synthesizer: `my_client_id % (client-255) == 0`. This would only address every other synthesizer. A `client` of 259 would address every fourth synthesizer, and so on.
 
@@ -102,10 +102,10 @@ def alles_ms():
 
 The first time you send a message the synth uses this to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of both fixed latency and jitter.) Further messages will be accurate message-to-message, but with the fixed latency. 
 
-If you want to update this delta (to correct for drift over time or clock base changes) use the `sync` command. See `tones.py`'s implementation, but sending an `sTIMEiINDEX` message (preferably regularly, e.g. 10 messages once every 100ms) will update the delta and also trigger a response back from each on-line synthesizer. The response looks like `_s65201i4c248`, where s is the time on the client, i is the index it is responding to, and c is the client id. This lets you build a map of not only each booted synthesizer, but also be able to figure the round-trip latency for each one along with the reliability. This is helpful when your synths are spread far apart in space and each may have unique latencies. e.g. here we see we have two synths booted on a busy WiFi network.
+If you want to update this delta (to correct for drift over time or clock base changes) use the `sync` command. See `alles.py`'s implementation, but sending an `sTIMEiINDEX` message (preferably regularly, e.g. 10 messages once every 100ms) will update the delta and also trigger a response back from each on-line synthesizer. The response looks like `_s65201i4c248`, where s is the time on the client, i is the index it is responding to, and c is the client id. This lets you build a map of not only each booted synthesizer, but also be able to figure the round-trip latency for each one along with the reliability. This is helpful when your synths are spread far apart in space and each may have unique latencies. e.g. here we see we have two synths booted on a busy WiFi network.
 
 ```
->>> tones.sync(count=10)
+>>> alles.sync(count=10)
 {
 	248: {'avg_rtt': 319.14285714285717, 'reliability': 0.7}, 
 	26: {'avg_rtt': 323.5, 'reliability': 0.8}
@@ -115,7 +115,7 @@ If you want to update this delta (to correct for drift over time or clock base c
 And here's a response with 4 synths on a local wired dedicated router:
 
 ```
->>> tones.sync()
+>>> alles.sync()
 {
 	3: {'avg_rtt': 4.0, 'reliability': 1.0},
 	4: {'avg_rtt': 4.6, 'reliability': 1.0},
@@ -128,7 +128,7 @@ And here's a response with 4 synths on a local wired dedicated router:
 
 UDP multicast is naturally 'lossy' -- there is no guarantee that a message will be received by a synth. Depending on a lot of factors, but most especially your wireless router and the presence of other devices, that reliability can go between 70% and 99%. In my home network, a many-client Google WiFi mesh, my average round trip latencies are in the high 200 ms range, and my reliability is in the 75% range. On a direct wired Netgear Nighthawk AC2300 with only synthesizers as clients, latencies are well under 50ms and reliability is close to 100%. For performance purposes, I highly suggest using a dedicated wireless router instead of an existing WiFi network. You'll want to be able to turn off many "quality of service" features (these prioritize a randomly chosen synth and will make sync hard to work with), and you'll want to in the best case only have synthesizers as direct WiFi clients. Using a standalone router also helps with WiFi authentication setup -- by default the login & password for WiFi is `alles` and `sellasella` on all synthesizers. If you were using your own network you'll have to recompile with your own authentication, which gets tiresome with many synths. 
 
-An easy way to do this is to set up a dedicated router but not wire any internet into it. Connect your laptop or host machine to the router over a wired connection (via a USB-ethernet adapter if you need one) from the router, but keep your laptop's wifi or other internet network active. In your controlling software, you simply set the source network address to send and receive multicast packets from. See `tones.py` for more details on this. This will keep your host machine on its normal network but allow you to control the synths from a second interface.
+An easy way to do this is to set up a dedicated router but not wire any internet into it. Connect your laptop or host machine to the router over a wired connection (via a USB-ethernet adapter if you need one) from the router, but keep your laptop's wifi or other internet network active. In your controlling software, you simply set the source network address to send and receive multicast packets from. See `alles.py` for more details on this. This will keep your host machine on its normal network but allow you to control the synths from a second interface.
 
 If you're in a place where you can't control your network, you can mitigate reliability by simply sending messages N times (2-4). Since individual messages are stateless and can have target timestamps, sending multiple duplicate messages do not have any averse effect on the synths.
 
@@ -153,7 +153,7 @@ def c_major(octave=2,vol=0.2):
 
 ```
 
-See `tones.py` for a better example.
+See `alles.py` for a better example.
 
 You can also use it in Max or similar software (note you have to wrap string commands in quotes in Max, as otherwise it'll assume it's an OSC message.)
 
