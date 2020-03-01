@@ -1,28 +1,40 @@
 import socket, time, struct, datetime, sys, re
 multicast_group = ('232.10.11.12', 3333)
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-ttl = struct.pack('b', 1) 
 
-sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
+local_ip = socket.gethostbyname(socket.gethostname())
+
+# Override this if you are using multiple network interfaces!!
+local_ip = '192.168.1.2'
+
 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF] = range(7)
+
+def setup_sock():
+    global sock
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 20)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
+    sock.bind(('', 3333))
+    sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(local_ip))
+    mreq = socket.inet_aton(multicast_group[0]) + socket.inet_aton(local_ip)
+    sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+    sock.setblocking(0)
+
+def shutdown_sock():
+    global sock
+    mreq = socket.inet_aton(multicast_group[0]) + socket.inet_aton(local_ip)
+    sock.setsockopt(socket.SOL_IP, socket.IP_DROP_MEMBERSHIP, mreq)
+    sock.close()
 
 def alles_ms():
     return int((datetime.datetime.utcnow() - datetime.datetime(2020, 2, 18)).total_seconds() * 1000)
 
 
 def sync(count=10, delay_ms=100):
+    global sock
     # Sends sync packets to all the listeners so they can correct / get the time
     # This should also have the receiver on to get the acks back
-    rsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    rsock.bind(('', 3333))
-    group = socket.inet_aton(multicast_group[0])
-    mreq = struct.pack('4sL', group, socket.INADDR_ANY)
-    rsock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-    # Turn off loopback here -- although it doesn't seem to work
-    rsock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
-    # We're not going to block because only % of things come back
-    rsock.setblocking(0)
-
     clients = {}
     start_time = alles_ms()
     last_sent = 0
@@ -38,13 +50,14 @@ def sync(count=10, delay_ms=100):
             i = i + 1
             last_sent = tic
         try:
-            data, address = rsock.recvfrom(1024)
+            data, address = sock.recvfrom(1024)
             if(data[0] == '_'):
                 [_, client_time, sync_index, client_id] = re.split(r'[sic]',data)
-                rtt[int(client_id)] = rtt.get(int(client_id), {})
-                rtt[int(client_id)][int(sync_index)] = alles_ms()-time_sent[int(sync_index)]
-                #print "recvd at %d:  %s %s %s" % (alles_ms(), client_time, sync_index, client_id)
-                #print str(rtt)
+                if(int(sync_index) <= i): # skip old ones from a previous run
+                    rtt[int(client_id)] = rtt.get(int(client_id), {})
+                    rtt[int(client_id)][int(sync_index)] = alles_ms()-time_sent[int(sync_index)]
+                    #print "recvd at %d:  %s %s %s" % (alles_ms(), client_time, sync_index, client_id)
+                    #print str(rtt)
         except socket.error:
             pass
 
@@ -65,13 +78,14 @@ def sync(count=10, delay_ms=100):
         clients[client] = {}
         clients[client]["reliability"] = float(hit)/float(count)
         clients[client]["avg_rtt"] = float(total_rtt_ms) / float(hit)
-
-    rsock.close()
+    shutdown_sock()
+    setup_sock()
     # Return this as a map for future use
     return clients
 
 
 def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, freq=-1, timestamp=-1, client=-1, retries=4):
+    global sock
     if(timestamp < 0): timestamp = alles_ms()
     m = "t%dv%dw%d" % (timestamp, voice, wave)
     if(amp>=0): m = m + "a%f" % (amp)
@@ -108,13 +122,13 @@ def beating_tones(wave=SINE, vol=0.5, cycle_len_ms = 20000, resolution_ms=100):
 
 
 
-def scale(voice=0, wave=FM, amp=0.5, which=0, patch=None,forever=True, wait=0.750):
+def scale(voice=0, wave=FM, amp=0.5,  patch=None,forever=True, wait=0.750):
     once = True
     while (forever or once):
         once=False
         for i in range(12):
             if patch is None: patch = i % 20
-            tone(voice=voice, wave=wave, amp=amp, note=40+i, which=which, patch=patch)
+            tone(voice=voice, wave=wave, amp=amp, note=40+i, patch=patch)
             time.sleep(wait)
 
 
@@ -130,33 +144,17 @@ def complex(speed=0.250, vol=1, client =-1):
             tone(voice=2, wave=OFF,client=client)
             time.sleep(speed)
 
-def recv_loop():
-    rsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    rsock.bind(('', 3333))
-    group = socket.inet_aton(multicast_group[0])
-    mreq = struct.pack('4sL', group, socket.INADDR_ANY)
-    rsock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-    # Turn off loopback here
-    rsock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
-
-
-    while True:
-        print >>sys.stderr, '\nwaiting to receive message'
-        data, address = rsock.recvfrom(1024)
-        
-        print >>sys.stderr, 'received %s bytes from %s' % (len(data), address)
-        print >>sys.stderr, data
-
-
-
 def off():
 	for x in xrange(10):
 		tone(x, amp=0, wave=OFF, freq=0)
 
-def c_major(octave=2,vol=0.2,which=0):
+def c_major(octave=2,vol=0.2):
     tone(voice=0,freq=220.5*octave,amp=vol/3.0)
     tone(voice=1,freq=138.5*octave,amp=vol/3.0)
     tone(voice=2,freq=164.5*octave,amp=vol/3.0)
+
+setup_sock()
+
 
 if __name__ == "__main__":
 	for x in xrange(3):
