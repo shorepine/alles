@@ -24,7 +24,6 @@ extern "C" {
 // One note/controller object per voice
 Dx7Note note[VOICES];
 Controllers controllers[VOICES];
-//char *unpacked_patches;
 
 extern "C" void render_fm_samples(int16_t * buf, uint16_t len, uint8_t voice) {
     int32_t int32_t_buf[N];
@@ -56,10 +55,8 @@ extern "C" void fm_new_note_freq(float freq, uint8_t velocity, uint16_t patch, u
 
 }
 extern "C" void fm_new_note_number(uint8_t midi_note, uint8_t velocity, uint16_t patch, uint8_t voice) {
-	// patch 2, note 50, vel 100
 	note[voice].init(patches+(patch*156), midi_note, velocity);
 	controllers[voice].values_[kControllerPitch] = 0x2000; // pitch wheel
-	// now we're ready to render
 }
 
 extern "C" void fm_init(void) {
@@ -69,17 +66,11 @@ extern "C" void fm_init(void) {
 	Sin::init();
 	Exp2::init();
 	Log2::init();
-	// Unpack patches in h file
-	//unpacked_patches = (char*) malloc(PATCHES*156);
-	//for(int i=0;i<PATCHES;i++) {
-	//	UnpackPatch(patches[i], unpacked_patches + (i*156));
-	//}
 }
 
 extern "C" void fm_destroy(void) {
 	// Not sure i need to worry about this too much, but for good hygiene  
-	//free(unpacked_patches);
-	
+	// Probably do a lot here
 }
 
 
