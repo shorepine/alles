@@ -164,7 +164,7 @@ def c_major(octave=2,vol=0.2):
     tone(voice=2,freq=164.5*octave,amp=vol/3.0)
 
 
-def generate_patches_header(how_many = 20):
+def generate_patches_header(how_many = 1000):
     # Generate a list of baked-in DX7 patches from our database of 31,000 patches
     # You're limited to the flash size on your board, which on mine are 2MB
     # You can pick and choose the ones you want, i'm just choosing the first N
