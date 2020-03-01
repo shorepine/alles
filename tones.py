@@ -1,40 +1,48 @@
 import socket, time, struct, datetime, sys, re
+
+# Setup stuff -- this is the multicast IP & port all the synths listen on
 multicast_group = ('232.10.11.12', 3333)
-
+# This is your source IP -- by default your main network interface. 
 local_ip = socket.gethostbyname(socket.gethostname())
-
-# Override this if you are using multiple network interfaces!!
+# But override this if you are using multiple network interfaces, for example a dedicated router to control the synths
 local_ip = '192.168.1.2'
 
 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF] = range(7)
 
 def setup_sock():
+    # Set up the socket for multicast send & receive
     global sock
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    # TTL defines how many hops it can take
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 20)
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
+    # Loopback or not, I don't need it
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
     sock.bind(('', 3333))
+    # Set the local interface for multicast receive
     sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(local_ip))
+    # And the networks to be a member of (destination and host)
     mreq = socket.inet_aton(multicast_group[0]) + socket.inet_aton(local_ip)
     sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+    # Don't block to receive -- not necessary and we sometimes drop packets we're waiting for
     sock.setblocking(0)
 
 def shutdown_sock():
     global sock
+    # Remove ourselves from membership
     mreq = socket.inet_aton(multicast_group[0]) + socket.inet_aton(local_ip)
     sock.setsockopt(socket.SOL_IP, socket.IP_DROP_MEMBERSHIP, mreq)
     sock.close()
 
 def alles_ms():
+    # Timestamp to send over to synths for global sync
     return int((datetime.datetime.utcnow() - datetime.datetime(2020, 2, 18)).total_seconds() * 1000)
 
 
 def sync(count=10, delay_ms=100):
     global sock
     # Sends sync packets to all the listeners so they can correct / get the time
-    # This should also have the receiver on to get the acks back
     clients = {}
     start_time = alles_ms()
     last_sent = 0
@@ -78,13 +86,11 @@ def sync(count=10, delay_ms=100):
         clients[client] = {}
         clients[client]["reliability"] = float(hit)/float(count)
         clients[client]["avg_rtt"] = float(total_rtt_ms) / float(hit)
-    shutdown_sock()
-    setup_sock()
     # Return this as a map for future use
     return clients
 
 
-def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, freq=-1, timestamp=-1, client=-1, retries=4):
+def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, freq=-1, timestamp=-1, client=-1, retries=1):
     global sock
     if(timestamp < 0): timestamp = alles_ms()
     m = "t%dv%dw%d" % (timestamp, voice, wave)

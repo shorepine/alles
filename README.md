@@ -93,7 +93,7 @@ Setting `client` to a number greater than 255 allows you to address groups. For 
 
 ## Timing & latency & sync
 
-WiFi, UDP multicast, distance, microcontrollers with bad antennas: all of these are in the way of doing anything close to "real time" control from your host. A message you send from a laptop will arrive between 10ms and 200ms to the connected speakers, and it'll change each time. That's definitely noticeable. We mitigate this by setting a global latency, right now 500ms, and by allowing any host to send along a `time` parameter of when the host expects the sound to play. `time` can be anything, but I'd suggest using the number of milliseconds since the "alles epoch", e.g.
+WiFi, UDP multicast, distance, microcontrollers with bad antennas: all of these are in the way of doing anything close to "real time" control from your host. A message you send from a laptop will arrive between 5ms and 200ms to the connected speakers, and it'll change each time. That's definitely noticeable. We mitigate this by setting a global latency, right now 500ms, and by allowing any host to send along a `time` parameter of when the host expects the sound to play. `time` can be anything, but I'd suggest using the number of milliseconds since the "alles epoch", e.g.
 
 ```
 def alles_ms():
@@ -102,7 +102,7 @@ def alles_ms():
 
 The first time you send a message the synth uses this to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of both fixed latency and jitter.) Further messages will be accurate message-to-message, but with the fixed latency. 
 
-If you want to update this delta (drift over time, clock changes, etc) use the `sync` command. See `tones.py`'s implementation, but sending an `sTIMEiINDEX` message (preferably regularly, e.g. 10 messages once every 100ms) will update the delta and also trigger a response back from each on-line synthesizer. The response looks like `_s65201i4c248`, where s is the time on the client, i is the index it is responding to, and c is the client id. This lets you build a map of not only each booted synthesizer, but also be able to figure the round-trip latency for each one along with the reliability. This is helpful when your synths are spread far apart in space and each may have unique latencies. e.g. here we see we have two synths booted.
+If you want to update this delta (to correct for drift over time or clock base changes) use the `sync` command. See `tones.py`'s implementation, but sending an `sTIMEiINDEX` message (preferably regularly, e.g. 10 messages once every 100ms) will update the delta and also trigger a response back from each on-line synthesizer. The response looks like `_s65201i4c248`, where s is the time on the client, i is the index it is responding to, and c is the client id. This lets you build a map of not only each booted synthesizer, but also be able to figure the round-trip latency for each one along with the reliability. This is helpful when your synths are spread far apart in space and each may have unique latencies. e.g. here we see we have two synths booted on a busy WiFi network.
 
 ```
 >>> tones.sync(count=10)
@@ -112,14 +112,30 @@ If you want to update this delta (drift over time, clock changes, etc) use the `
 }
 ```
 
-## Reliability 
+And here's a response with 4 synths on a local wired dedicated router:
 
-UDP multicast is naturally 'lossy' -- there is no guarantee that a message will be received by a synth. On average, in my testing, the ESP32s booted with no power saving in wifi and no antenna, receive about 70-90% of UDP multicast messages. This is quite low, and seems to be a function of the ESP-IDF libraries and hardware. I mitigate this by simply sending messages N times (2-4). Since individual messages are stateless and can have target timestamps, sending multiple duplicate messages do not have any averse effect on the synths.
+```
+>>> tones.sync()
+{
+	3: {'avg_rtt': 4.0, 'reliability': 1.0},
+	4: {'avg_rtt': 4.6, 'reliability': 1.0},
+	5: {'avg_rtt': 4.2, 'reliability': 1.0},
+	6: {'avg_rtt': 5.2, 'reliability': 1.0}
+}
+```
+
+## WiFi & reliability 
+
+UDP multicast is naturally 'lossy' -- there is no guarantee that a message will be received by a synth. Depending on a lot of factors, but most especially your wireless router and the presence of other devices, that reliability can go between 70% and 99%. In my home network, a many-client Google WiFi mesh, my average round trip latencies are in the high 200 ms range, and my reliability is in the 75% range. On a direct wired Netgear Nighthawk AC2300 with only synthesizers as clients, latencies are well under 50ms and reliability is close to 100%. For performance purposes, I highly suggest using a dedicated wireless router instead of an existing WiFi network. You'll want to be able to turn off many "quality of service" features (these prioritize a randomly chosen synth and will make sync hard to work with), and you'll want to in the best case only have synthesizers as direct WiFi clients. Using a standalone router also helps with WiFi authentication setup -- by default the login & password for WiFi is `alles` and `sellasella` on all synthesizers. If you were using your own network you'll have to recompile with your own authentication, which gets tiresome with many synths. 
+
+An easy way to do this is to set up a dedicated router but not wire any internet into it. Connect your laptop or host machine to the router over a wired connection (via a USB-ethernet adapter if you need one) from the router, but keep your laptop's wifi or other internet network active. In your controlling software, you simply set the source network address to send and receive multicast packets from. See `tones.py` for more details on this. This will keep your host machine on its normal network but allow you to control the synths from a second interface.
+
+If you're in a place where you can't control your network, you can mitigate reliability by simply sending messages N times (2-4). Since individual messages are stateless and can have target timestamps, sending multiple duplicate messages do not have any averse effect on the synths.
 
 
 ## Clients
 
-Python example:
+Simple Python example:
 
 ```
 import socket, struct
