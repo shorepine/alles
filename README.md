@@ -25,7 +25,7 @@ Wire it up like this (I2S -> ESP)
 ```
 LRC -> D25 / A1
 BCLK -> D26 / A0
-DIN -> D4 / A5
+DIN -> D27 / A5
 GAIN -> I2S Vin (i jumper this on the I2S board)
 SD -> not connected
 GND -> GND
