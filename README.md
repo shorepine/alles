@@ -33,9 +33,21 @@ Vin -> Vin / USB / 3.3 (or direct to your 5V power source)
 Speaker connectors -> speaker
 ```
 
-![closeup](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/closeup.png)
+### PCBs
 
-(please note, in this picture the GAIN pin is connected incorrectly, it should be on Vin) 
+*You don't need any PCBs made to build this synth!* -- it will work with just hookup wire. But if you're making a lot or want more stability, you've got two options so far:
+
+(1) I had a tiny little board made to join the boards together, like so:
+
+![closeup](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/adapter.jpg)
+
+Fritzing file in the `pcbs` folder of this repository, and [it's here on Aisler](https://aisler.net/p/TEBMDZWQ). This is a lot more stable and easier to wire up than snipping small bits of hookup wire, especially for the GAIN connection. 
+
+![joined](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/joined.jpg)
+
+(2) I am working on a PCB with the ESP32 and i2s amp chip mounted directly on the board. This should be cheaper and smaller and less reliant on the dev-board's quirks. Eagle files in `pcbs` but I'd hold off until I verify this works:
+
+![alles pro](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/alles-board.jpg)
 
 ## Firmware
 
