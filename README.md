@@ -43,11 +43,8 @@ Speaker connectors -> speaker
 
 Fritzing file in the `pcbs` folder of this repository, and [it's here on Aisler](https://aisler.net/p/TEBMDZWQ). This is a lot more stable and easier to wire up than snipping small bits of hookup wire, especially for the GAIN connection. 
 
-![joined](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/joined.jpg)
+(2) I am working on a PCB with the ESP32 and i2s amp chip mounted directly on the board. This should be cheaper and smaller and less reliant on the dev-board's quirks. Eagle files in `pcbs` but I'd hold off until I verify this works.
 
-(2) I am working on a PCB with the ESP32 and i2s amp chip mounted directly on the board. This should be cheaper and smaller and less reliant on the dev-board's quirks. Eagle files in `pcbs` but I'd hold off until I verify this works:
-
-![alles pro](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/alles-board.jpg)
 
 ## Firmware
 
