@@ -179,15 +179,15 @@ You can also use it in Max or similar software (note you have to wrap string com
 * ~~remove distortion at higher amplitudes for mixed sine waves~~
 * ~~FM~~
 * envelopes / note on/offs
-* wifi hotspot mode for in-field setup (tbh think it's better to use a dedicated router)
+* ~~wifi hotspot mode for in-field setup (tbh think it's better to use a dedicated router)~~
 * ~~broadcast UDP for multiples~~
 * ~~dropped packets~~ (although more work can be done here)
 * ~~sync and enumerate across multiple devices~~
 * ~~addresses / communicate to one or groups, like "play this on half / one-quarter / all"~~
 * ~~do what i can about timing / jitter - sync time? timed messages?~~
 * case / battery setup
-* overloading the volume (I think only on FM) crashes
-* UDP message clicks 
+* ~~overloading the volume (I think only on FM) crashes~~
+* ~~UDP message clicks~~
 
 
 
