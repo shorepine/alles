@@ -25,6 +25,8 @@ extern "C" {
 Dx7Note note[VOICES];
 Controllers controllers[VOICES];
 
+
+// TODO some patches "crackle" on their own, not volume related - check up on dithering etc 
 extern "C" void render_fm_samples(int16_t * buf, uint16_t len, uint8_t voice) {
     int32_t int32_t_buf[N];
     uint16_t rounds = len / N;
@@ -41,7 +43,7 @@ extern "C" void render_fm_samples(int16_t * buf, uint16_t len, uint8_t voice) {
 		// Now make an int32 an int16_t, and put it in buf, this is from their wav writer
 	    int32_t delta = 0x100;
 		for(int j=0;j<N;j++) {
-		    int32_t val = int32_t_buf[j] >> 2;
+		    int32_t val = int32_t_buf[j] >> 4;
 		    int clip_val = val < -(1 << 24) ? 0x8000 : (val >= (1 << 24) ? 0x7fff : (val + delta) >> 9);
 		    delta = (delta + val) & 0x1ff;
 		    buf[count++] = (int16_t) clip_val;

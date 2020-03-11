@@ -370,7 +370,7 @@ void app_main() {
     printf("Setting up wifi & multicast listening\n");
     ESP_ERROR_CHECK(wifi_connect());
     create_multicast_ipv4_socket();
-    //xTaskCreate(&mcast_listen_task, "mcast_task", 4096, NULL, 5, NULL);
+    // Pin the UDP task to the 2nd core so the audio / main core runs on its own without getting starved
     xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 5, NULL, 1);
     printf("wifi ready\n");
     client_id =esp_ip4_addr4(&s_ip_addr);
@@ -380,7 +380,7 @@ void app_main() {
     printf("oscillators ready\n");
     bleep();
 
-    // TODO -- udp packets will starve this -- figure out priority 
+    // Spin this core forever parsing events and making sounds
     while(1) fill_audio_buffer();
     
     // We will never get here but just in case
