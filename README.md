@@ -1,6 +1,6 @@
 # alles
 
-![picture](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/set.jpg)
+![picture](https://raw.githubusercontent.com/bwhitman/alles/master/pics/set.jpg)
 
 Turns an ESP32 & an i2s chip & speaker into a WiFi controlled battery powered 10-voice synthesizer. Supports additive sine, saw, square, triangle oscillators as well as a full FM stage, modeled after the DX7 including support for DX7 patches. They're cheap to make ($7 for the ESP, $6 for the I2S amp, speakers from $0.50 up depending on quality). And only a few soldering points. 
 
