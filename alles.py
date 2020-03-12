@@ -92,7 +92,7 @@ def sync(count=10, delay_ms=100):
     return clients
 
 
-def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, freq=-1, timestamp=-1, client=-1, retries=1):
+def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, timestamp=-1, client=-1, retries=1):
     global sock
     if(timestamp < 0): timestamp = alles_ms()
     m = "t%dv%dw%d" % (timestamp, voice, wave)
@@ -101,6 +101,7 @@ def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, freq=-1, timestamp=-1, c
     if(note>=0): m = m + "n%d" % (note)
     if(patch>=0): m = m + "p%d" % (patch)
     if(client>0): m = m + "c%d" % (client)
+    if(vel>=0): m = m + "e%d" % (vel)
     for x in range(retries):
         sock.sendto(m, multicast_group)
 
@@ -130,7 +131,7 @@ def beating_tones(wave=SINE, vol=0.5, cycle_len_ms = 20000, resolution_ms=100):
 
 
 
-def play_patches(voice=0, wave=FM, amp=0.5 ,forever=True, wait=0.750, patch_total = 100):
+def play_patches(voice=0, wave=FM, amp=0.5 ,forever=True, vel=100, wait=0.750, patch_total = 100):
     once = True
     patch_count = 0
     while (forever or once):
@@ -138,7 +139,7 @@ def play_patches(voice=0, wave=FM, amp=0.5 ,forever=True, wait=0.750, patch_tota
         for i in range(12):
             patch = patch_count % patch_total
             patch_count = patch_count + 1
-            tone(voice=voice, wave=wave, amp=amp, note=40+i, patch=patch)
+            tone(voice=voice, wave=wave, amp=amp, vel=vel, note=40+i, patch=patch)
             time.sleep(wait)
 
 
