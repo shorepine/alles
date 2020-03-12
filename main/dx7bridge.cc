@@ -45,7 +45,7 @@ extern "C" void render_fm_samples(int16_t * buf, uint16_t len, uint8_t voice) {
 		for(int j=0;j<N;j++) {
 			// TODO -- this clips/crackles at >> 2, the original in msfa. 
 			// their dithering code may be still crossing bounds.
-		    int32_t val = int32_t_buf[j] >> 4;
+		    int32_t val = int32_t_buf[j] >> 3;
 		    int clip_val = val < -(1 << 24) ? 0x8000 : (val >= (1 << 24) ? 0x7fff : (val + delta) >> 9);
 		    delta = (delta + val) & 0x1ff;
 		    buf[count++] = (int16_t) clip_val;

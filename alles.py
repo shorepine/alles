@@ -55,7 +55,7 @@ def sync(count=10, delay_ms=100):
         tic = alles_ms() - start_time
         if((tic - last_sent) > delay_ms):
             time_sent[i] = alles_ms()
-            #print "sending %d at %d" % (i, time_sent[i])
+            print "sending %d at %d" % (i, time_sent[i])
             sock.sendto("s%di%d" % (time_sent[i], i), multicast_group)
             i = i + 1
             last_sent = tic
@@ -64,10 +64,10 @@ def sync(count=10, delay_ms=100):
             if(data[0] == '_'):
                 [_, client_time, sync_index, client_id] = re.split(r'[sic]',data)
                 if(int(sync_index) <= i): # skip old ones from a previous run
+                    print "recvd at %d:  %s %s %s" % (alles_ms(), client_time, sync_index, client_id)
+                    print str(rtt)
                     rtt[int(client_id)] = rtt.get(int(client_id), {})
                     rtt[int(client_id)][int(sync_index)] = alles_ms()-time_sent[int(sync_index)]
-                    #print "recvd at %d:  %s %s %s" % (alles_ms(), client_time, sync_index, client_id)
-                    #print str(rtt)
         except socket.error:
             pass
 
@@ -152,7 +152,7 @@ def complex(speed=0.250, vol=1, client =-1):
             time.sleep(speed)
             tone(voice=2, wave=SINE, amp=0.3*vol, note=50+i, patch=2, client=client)
             time.sleep(speed)
-            tone(voice=2, wave=OFF,client=client)
+            tone(voice=2, wave=SINE, freq = 20, client=client)
             time.sleep(speed)
 
 def off():
