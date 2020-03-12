@@ -112,7 +112,7 @@ def alles_ms():
 
 The first time you send a message the synth uses this to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of both fixed latency and jitter.) Further messages will be accurate message-to-message, but with the fixed latency. 
 
-If you want to update this delta (to correct for drift over time or clock base changes) use the `sync` command. See `alles.py`'s implementation, but sending an `sTIMEiINDEX` message (preferably regularly, e.g. 10 messages once every 100ms) will update the delta and also trigger a response back from each on-line synthesizer. The response looks like `_s65201i4c248`, where s is the time on the client, i is the index it is responding to, and c is the client id. This lets you build a map of not only each booted synthesizer, but also be able to figure the round-trip latency for each one along with the reliability. This is helpful when your synths are spread far apart in space and each may have unique latencies. e.g. here we see we have two synths booted on a busy WiFi network.
+If you want to update this delta (to correct for drift over time or clock base changes) use the `sync` command. See `alles.py`'s implementation, but sending an `sTIMEiINDEX` message will update the delta and also trigger a response back from each on-line synthesizer. The response looks like `_s65201i4c248`, where s is the time on the client, i is the index it is responding to, and c is the client id. This lets you build a map of not only each booted synthesizer, but if you send many messages with different indexes, will also let you figure the round-trip latency for each one along with the reliability. This is helpful when your synths are spread far apart in space and each may have unique latencies. e.g. here we see we have two synths booted on a busy WiFi network.
 
 ```
 >>> alles.sync(count=10)
@@ -173,13 +173,16 @@ You can also use it in Max or similar software (note you have to wrap string com
 
 * douglas repetto
 * dan ellis
-* [MSFA](https://github.com/google/music-synthesizer-for-android) for FM impl
+* [MSFA](https://github.com/google/music-synthesizer-for-android) for their FM impl
+* mark fell
+* kyle mcdonald 
 
 ## TODO
 
 * ~~remove distortion at higher amplitudes for mixed sine waves~~
 * ~~FM~~
-* envelopes / note on/offs
+* envelopes / note on/offs / LFOs
+* karplus-strong 
 * ~~wifi hotspot mode for in-field setup (tbh think it's better to use a dedicated router)~~
 * ~~broadcast UDP for multiples~~
 * ~~dropped packets~~ (although more work can be done here)
