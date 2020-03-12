@@ -96,7 +96,7 @@ void setup_voices() {
     }
 }
 
-// Play an event, now -- tell the audio thread to start making noise
+// Play an event, now -- tell the audio loop to start making noise
 void play_event(struct event e) {
     if(e.midi_note >= 0) { midi_note[e.voice] = e.midi_note; frequency[e.voice] = freq_for_midi_note(e.midi_note); } 
     if(e.wave >= 0) wave[e.voice] = e.wave;
