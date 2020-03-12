@@ -21,17 +21,12 @@ i2s_pin_config_t pin_config = {
     .data_in_num = -1   //Not used
 };
 
-int16_t block[BLOCK_SIZE];
-float step[VOICES];
-uint8_t wave[VOICES];
-int16_t patch[VOICES];
-uint8_t midi_note[VOICES];
-float frequency[VOICES];
-float amplitude[VOICES];
+
 uint16_t ** LUT;
 
 int64_t computed_delta = 0; // can be negative no prob, but usually host is larger # than client
 uint8_t computed_delta_set = 0; // have we set a delta yet?
+uint8_t client_id = 0;
 
 
 struct event {
@@ -42,12 +37,17 @@ struct event {
     int16_t midi_note;
     float amp;
     float freq;
+    float step;
     uint8_t status;
 };
 
 int16_t next_event_write = 0;
+
+// One set of events for the fifo
 struct event events[EVENT_FIFO_LEN];
-uint8_t client_id = 0;
+// And another as multi-channel sequencer
+struct event sequencer[VOICES];
+
 
 float freq_for_midi_note(uint8_t midi_note) {
     return 440.0*pow(2,(midi_note-57.0)/12.0);
@@ -87,27 +87,29 @@ void setup_voices() {
     fm_init();
     // This inits the oscillators to 0
     for(int i=0;i<VOICES;i++) {
-        wave[i] = OFF;
-        step[i] = 0;
-        patch[i] = 0;
-        midi_note[i] = 0;
-        frequency[i] = 0;
-        amplitude[i] = 0;
+        sequencer[i].wave = OFF;
+        sequencer[i].step = 0;
+        sequencer[i].patch = 0;
+        sequencer[i].midi_note = 0;
+        sequencer[i].freq = 0;
+        sequencer[i].amp = 0;
     }
 }
 
 // Play an event, now -- tell the audio loop to start making noise
 void play_event(struct event e) {
-    if(e.midi_note >= 0) { midi_note[e.voice] = e.midi_note; frequency[e.voice] = freq_for_midi_note(e.midi_note); } 
-    if(e.wave >= 0) wave[e.voice] = e.wave;
-    if(e.patch >= 0) patch[e.voice] = e.patch;
-    if(e.freq >= 0) frequency[e.voice] = e.freq;
-    if(e.amp >= 0) amplitude[e.voice] = e.amp;
-    if(wave[e.voice]==FM) {
-        if(midi_note[e.voice]>0) {
-            fm_new_note_number(midi_note[e.voice], 100, patch[e.voice], e.voice);
+    // We could just copy the event to the sequencer, but we also have to trigger things
+    // So let's do this manually.
+    if(e.midi_note >= 0) { sequencer[e.voice].midi_note = e.midi_note; sequencer[e.voice].freq = freq_for_midi_note(e.midi_note); } 
+    if(e.wave >= 0) sequencer[e.voice].wave = e.wave;
+    if(e.patch >= 0) sequencer[e.voice].patch = e.patch;
+    if(e.freq >= 0) sequencer[e.voice].freq = e.freq;
+    if(e.amp >= 0) sequencer[e.voice].amp = e.amp;
+    if(sequencer[e.voice].wave==FM) {
+        if(sequencer[e.voice].midi_note>0) {
+            fm_new_note_number(sequencer[e.voice].midi_note, 100, sequencer[e.voice].patch, e.voice);
         } else {
-            fm_new_note_freq(frequency[e.voice], 100, patch[e.voice], e.voice);
+            fm_new_note_freq(sequencer[e.voice].freq, 100, sequencer[e.voice].patch, e.voice);
         }
     }
 }
@@ -139,37 +141,37 @@ void fill_audio_buffer() {
         // Clear out the accumulator buffer
         for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
         for(uint8_t voice=0;voice<VOICES;voice++) {
-            if(wave[voice]!=OFF) { // don't waste CPU
-                if(wave[voice]==FM) { // FM is special
+            if(sequencer[voice].wave!=OFF) { // don't waste CPU
+                if(sequencer[voice].wave==FM) { // FM is special
                     // we can render into int16 block just fine 
                     render_fm_samples(block, BLOCK_SIZE, voice);
 
                     // but then add it into floatblock
                     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                        floatblock[i] = floatblock[i] + (block[i] * amplitude[voice]);
+                        floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
                     }
-                } else if(wave[voice]==NOISE) { // noise is special, just use esp_random
+                } else if(sequencer[voice].wave==NOISE) { // noise is special, just use esp_random
                    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
                         float sample = (int16_t) ((esp_random() >> 16) - 32768);
-                        floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
+                        floatblock[i] = floatblock[i] + (sample * sequencer[voice].amp);
                     }
                 } else { // all other voices come from a LUT
                     // Choose which LUT we're using, they are different sizes
                     uint32_t lut_size = OTHER_LUT_SIZE;
-                    if(wave[voice]==SINE) lut_size = SINE_LUT_SIZE;
+                    if(sequencer[voice].wave==SINE) lut_size = SINE_LUT_SIZE;
 
-                    float skip = frequency[voice] / 44100.0 * lut_size;
+                    float skip = sequencer[voice].freq / 44100.0 * lut_size;
                     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
                         if(skip >= 1) { // skip compute if frequency is < 3Hz
-                            uint16_t u0 = LUT[wave[voice]][(uint16_t)floor(step[voice])];
-                            uint16_t u1 = LUT[wave[voice]][(uint16_t)(floor(step[voice])+1 % lut_size)];
+                            uint16_t u0 = LUT[sequencer[voice].wave][(uint16_t)floor(sequencer[voice].step)];
+                            uint16_t u1 = LUT[sequencer[voice].wave][(uint16_t)(floor(sequencer[voice].step)+1 % lut_size)];
                             float x0 = (float)u0 - 32768.0;
                             float x1 = (float)u1 - 32768.0;
-                            float frac = step[voice] - floor(step[voice]);
+                            float frac = sequencer[voice].step - floor(sequencer[voice].step);
                             float sample = x0 + ((x1 - x0) * frac);
-                            floatblock[i] = floatblock[i] + (sample * amplitude[voice]);
-                            step[voice] = step[voice] + skip;
-                            if(step[voice] >= lut_size) step[voice] = step[voice] - lut_size;
+                            floatblock[i] = floatblock[i] + (sample * sequencer[voice].amp);
+                            sequencer[voice].step = sequencer[voice].step + skip;
+                            if(sequencer[voice].step >= lut_size) sequencer[voice].step = sequencer[voice].step - lut_size;
                         }
                     }
                 }
