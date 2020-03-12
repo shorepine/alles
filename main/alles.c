@@ -26,7 +26,7 @@ uint16_t ** LUT;
 
 int64_t computed_delta = 0; // can be negative no prob, but usually host is larger # than client
 uint8_t computed_delta_set = 0; // have we set a delta yet?
-uint8_t client_id = 0;
+uint8_t client_id = 0; // last quartet of the ipv4
 
 
 struct event {
@@ -39,13 +39,13 @@ struct event {
     float freq;
     float step;
     uint8_t status;
+    int8_t velocity;
 };
 
 int16_t next_event_write = 0;
-
 // One set of events for the fifo
 struct event events[EVENT_FIFO_LEN];
-// And another as multi-channel sequencer
+// And another as multi-channel sequencer that the scheduler renders into
 struct event sequencer[VOICES];
 
 
@@ -54,6 +54,7 @@ float freq_for_midi_note(uint8_t midi_note) {
 }
 
 void setup_luts() {
+    // Generate the square, sine, saw and triangle LUTs
     LUT = (uint16_t **)malloc(sizeof(uint16_t*)*4);
     uint16_t * square_LUT = (uint16_t*)malloc(sizeof(uint16_t)*OTHER_LUT_SIZE);
     uint16_t * saw_LUT = (uint16_t*)malloc(sizeof(uint16_t)*OTHER_LUT_SIZE);
@@ -83,9 +84,24 @@ void destroy() {
     // TOOD: Destroy FM and all the ram. low-pri, we never get here so ... 
 }
 
+// Create a new default event -- mostly -1 or no change
+struct event default_event() {
+    struct event e;
+    e.status = EMPTY;
+    e.time = 0;
+    e.voice = 0;
+    e.patch = -1;
+    e.wave = -1;
+    e.velocity = -1;
+    e.midi_note = -1;
+    e.amp = -1;
+    e.freq = -1;
+    return e;
+}
+
+// The sequencer object keeps state betweeen voices, whereas events are only deltas/changes
 void setup_voices() {
     fm_init();
-    // This inits the oscillators to 0
     for(int i=0;i<VOICES;i++) {
         sequencer[i].wave = OFF;
         sequencer[i].step = 0;
@@ -93,23 +109,29 @@ void setup_voices() {
         sequencer[i].midi_note = 0;
         sequencer[i].freq = 0;
         sequencer[i].amp = 0;
+        sequencer[i].velocity = 100;
     }
 }
 
 // Play an event, now -- tell the audio loop to start making noise
 void play_event(struct event e) {
-    // We could just copy the event to the sequencer, but we also have to trigger things
-    // So let's do this manually.
     if(e.midi_note >= 0) { sequencer[e.voice].midi_note = e.midi_note; sequencer[e.voice].freq = freq_for_midi_note(e.midi_note); } 
     if(e.wave >= 0) sequencer[e.voice].wave = e.wave;
     if(e.patch >= 0) sequencer[e.voice].patch = e.patch;
+    if(e.velocity >= 0) sequencer[e.voice].velocity = e.velocity;
     if(e.freq >= 0) sequencer[e.voice].freq = e.freq;
     if(e.amp >= 0) sequencer[e.voice].amp = e.amp;
     if(sequencer[e.voice].wave==FM) {
         if(sequencer[e.voice].midi_note>0) {
-            fm_new_note_number(sequencer[e.voice].midi_note, 100, sequencer[e.voice].patch, e.voice);
+            fm_new_note_number(sequencer[e.voice].midi_note, 
+                                sequencer[e.voice].velocity, 
+                                sequencer[e.voice].patch, 
+                                e.voice);
         } else {
-            fm_new_note_freq(sequencer[e.voice].freq, 100, sequencer[e.voice].patch, e.voice);
+            fm_new_note_freq(sequencer[e.voice].freq, 
+                                sequencer[e.voice].velocity, 
+                                sequencer[e.voice].patch, 
+                                e.voice);
         }
     }
 }
@@ -199,19 +221,7 @@ void setup_i2s(void) {
 }
 
 
-// Create a new default event
-struct event default_event() {
-    struct event e;
-    e.status = EMPTY;
-    e.time = 0;
-    e.voice = 0;
-    e.patch = -1;
-    e.wave = -1;
-    e.midi_note = -1;
-    e.amp = -1;
-    e.freq = -1;
-    return e;
-}
+
 
 // deep copy an event to the fifo at index
 // if index < 0, use the write pointer (and incremement it)
@@ -221,6 +231,7 @@ void add_event(struct event e, int16_t index) {
         next_event_write = (next_event_write + 1) % (EVENT_FIFO_LEN);
     }
     events[index].voice = e.voice;
+    events[index].velocity = e.velocity;
     events[index].midi_note = e.midi_note;
     events[index].wave = e.wave;
     events[index].patch = e.patch;
@@ -280,15 +291,16 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
                     computed_delta_set = 1;
                 }
             }
-            if(mode=='c') client = atoi(data_buffer + start); 
-            if(mode=='s') sync = atoi(data_buffer + start); 
-            if(mode=='i') sync_index = atoi(data_buffer + start);
-            if(mode=='v') e.voice=atoi(data_buffer + start);
-            if(mode=='n') e.midi_note=atoi(data_buffer + start);
-            if(mode=='w') e.wave=atoi(data_buffer + start);
-            if(mode=='p') e.patch=atoi(data_buffer + start);
-            if(mode=='f') e.freq=atof(data_buffer + start);
             if(mode=='a') e.amp=atof(data_buffer + start);
+            if(mode=='c') client = atoi(data_buffer + start); 
+            if(mode=='e') e.velocity=atoi(data_buffer + start);
+            if(mode=='f') e.freq=atof(data_buffer + start);
+            if(mode=='i') sync_index = atoi(data_buffer + start);
+            if(mode=='n') e.midi_note=atoi(data_buffer + start);
+            if(mode=='p') e.patch=atoi(data_buffer + start);
+            if(mode=='s') sync = atoi(data_buffer + start); 
+            if(mode=='v') e.voice=atoi(data_buffer + start);
+            if(mode=='w') e.wave=atoi(data_buffer + start);
             mode=b;
             start=c+1;
         }

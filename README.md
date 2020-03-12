@@ -70,6 +70,7 @@ Where
 ```
 a = amplitude, float 0-1 summed over all voices. default 0
 c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_id % (x-255) == 0) for groups, default all clients
+e = velocity, uint 0-127, MIDI velocity for the DX7, default 100
 f = frequency, float 0-22050. default 0
 n = midinote, uint, 0-127 (note that this will also set f). default 0
 p = patch, uint, 0-999, choose a preloaded DX7 patch number for FM waveforms. See patches.h and alles.py. default 0
