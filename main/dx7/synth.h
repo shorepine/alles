@@ -20,6 +20,7 @@
 // This may not be present on MSVC.
 // See http://stackoverflow.com/questions/126279/c99-stdint-h-header-and-ms-visual-studio
 #include <stdint.h>
+#include <stdlib.h>
 
 // TODO(raph): move from fixed to variable N
 #define LG_N 6

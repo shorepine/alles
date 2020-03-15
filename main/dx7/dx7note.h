@@ -27,6 +27,8 @@
 #include "pitchenv.h"
 #include "fm_core.h"
 
+int32_t freq_to_logfreq(float freq);
+
 class Dx7Note {
  public:
   void init(const char patch[128], int midinote, int velocity);

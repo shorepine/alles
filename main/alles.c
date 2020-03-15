@@ -50,7 +50,7 @@ struct event sequencer[VOICES];
 
 
 float freq_for_midi_note(uint8_t midi_note) {
-    return 440.0*pow(2,(midi_note-57.0)/12.0);
+    return 440.0*pow(2,(midi_note-69.0)/12.0);
 }
 
 void setup_luts() {
@@ -62,7 +62,7 @@ void setup_luts() {
 
     for(uint16_t i=0;i<OTHER_LUT_SIZE;i++) {
         if(i<OTHER_LUT_SIZE/2) {
-            square_LUT[i] = 0;
+            square_LUT[i] = 0x0000;
             triangle_LUT[i] = (uint16_t) (((float)i/(float)(OTHER_LUT_SIZE/2.0))*65535.0);
         } else {
             square_LUT[i] = 0xffff;
@@ -77,8 +77,8 @@ void setup_luts() {
 }
 
 void destroy() {
-    free(LUT[SQUARE]);
     free(LUT[SAW]);
+    free(LUT[SQUARE]);
     free(LUT[TRIANGLE]);
     free(LUT);
     // TOOD: Destroy FM and all the ram. low-pri, we never get here so ... 
@@ -167,7 +167,6 @@ void fill_audio_buffer() {
                 if(sequencer[voice].wave==FM) { // FM is special
                     // we can render into int16 block just fine 
                     render_fm_samples(block, BLOCK_SIZE, voice);
-
                     // but then add it into floatblock
                     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
                         floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
@@ -176,6 +175,13 @@ void fill_audio_buffer() {
                    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
                         float sample = (int16_t) ((esp_random() >> 16) - 32768);
                         floatblock[i] = floatblock[i] + (sample * sequencer[voice].amp);
+                    }
+                } else if(sequencer[voice].wave == SAWBL) { 
+                    // we can render into int16 block just fine 
+                    render_bandlimited_saw(block, BLOCK_SIZE, voice, sequencer[voice].freq);
+                    // but then add it into floatblock
+                    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                        floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
                     }
                 } else { // all other voices come from a LUT
                     // Choose which LUT we're using, they are different sizes

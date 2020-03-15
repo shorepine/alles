@@ -9,7 +9,7 @@ local_ip = socket.gethostbyname(socket.gethostname())
 local_ip = '192.168.1.2'
 
 
-[SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF] = range(7)
+[SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, SAWBL, OFF] = range(8)
 
 def setup_sock():
     # Set up the socket for multicast send & receive
@@ -136,7 +136,7 @@ def play_patches(voice=0, wave=FM, amp=0.5 ,forever=True, vel=100, wait=0.750, p
     patch_count = 0
     while (forever or once):
         once=False
-        for i in range(12):
+        for i in range(24):
             patch = patch_count % patch_total
             patch_count = patch_count + 1
             tone(voice=voice, wave=wave, amp=amp, vel=vel, note=40+i, patch=patch)

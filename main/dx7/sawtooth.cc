@@ -16,6 +16,8 @@
 
 #include <math.h>
 #include <cstdio>
+#include <stdlib.h>
+
 #include "module.h"
 #include "sawtooth.h"
 #include "exp2.h"

@@ -77,7 +77,7 @@ p = patch, uint, 0-999, choose a preloaded DX7 patch number for FM waveforms. Se
 s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py, also uses i for sync_index
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can
 v = voice, uint, 0 to 9. default: 0
-w = waveform, uint, 0,1,2,3,4,5,6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF]. default: 0/SINE
+w = waveform, uint, 0 to 7 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, SAWBL, OFF]. SAWBL is bandlimited saw. default: 0/SINE
 ```
 
 Commands are cumulative, state is held per voice. If voice is not given it's assumed to be 0. 

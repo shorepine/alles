@@ -28,13 +28,14 @@
 using namespace std;
 
 int closest_midinote_to_freq(float freq) {
-  return round(12.0*log2(freq/440.))+57;
+  return round(12.0*log2(freq/440.))+69;
 }
 
 int32_t freq_to_logfreq(float freq) {
-  // thank you dan ellis
-  // something in the midi impl has notes (57 == A440) downshifted in freq 2 octaves
-  return (int32_t) (pow(2,24) * log( (freq * 2 * 2 ) / 8.1758 ) / log(2));
+  const int base = 50857777;  // (1 << 24) * (log(440) / log(2) - 69/12)
+  float stepp = 12.0*log2(freq/440.0) + 69.0;
+  const int step = (1 << 24) / 12;
+  return base + step * stepp;
 }
 
 int32_t midinote_to_logfreq(int midinote) {
