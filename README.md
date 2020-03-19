@@ -70,6 +70,7 @@ Where
 ```
 a = amplitude, float 0-1 summed over all voices. default 0
 c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_id % (x-255) == 0) for groups, default all clients
+d = duty cycle, float 0.001-0.999. duty cycle for pulse wave, default 0.5
 e = velocity, uint 0-127, MIDI velocity for the DX7, default 100
 f = frequency, float 0-22050. default 0
 n = midinote, uint, 0-127 (note that this will also set f). default 0
@@ -176,13 +177,14 @@ You can also use it in Max or similar software (note you have to wrap string com
 * [MSFA](https://github.com/google/music-synthesizer-for-android) for their FM impl
 * mark fell
 * kyle mcdonald 
+* blargg for [BlipBuffer](http://slack.net/~ant/libs/audio.html#Blip_Buffer)'s bandlimiting
 
 ## TODO
 
 * ~~remove distortion at higher amplitudes for mixed sine waves~~
 * ~~FM~~
 * envelopes / note on/offs / LFOs
-* bandlimit the square/saw/triangle oscillators 
+* ~~bandlimit the square/saw/triangle oscillators~~
 * karplus-strong 
 * ~~wifi hotspot mode for in-field setup (tbh think it's better to use a dedicated router)~~
 * ~~broadcast UDP for multiples~~
