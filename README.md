@@ -2,9 +2,9 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/alles/master/pics/set.jpg)
 
-Turns an ESP32 & an i2s chip & speaker into a WiFi controlled battery powered 10-voice synthesizer. Supports additive sine, saw, pulse/square, triangle oscillators, a Karplus-Strong string oscillator, and a full FM stage including support for DX7 patches. They're cheap to make ($7 for the ESP, $6 for the I2S amp, speakers from $0.50 up depending on quality). And only a few soldering points. 
+**alles** is a many-speaker distributed synthesizer that responds to control signals over WiFi. Each synth supports up to 10 additive sine, saw, pulse/square, triangle oscillators, Karplus-Strong string oscillators, and a full FM stage including support for DX7 patches. They're cheap to make ($7 for the ESP, $6 for the I2S amp, speakers from $0.50 up depending on quality). And only a few soldering points. 
 
-The synthesizers listen to UDP multicast messages. The idea is you can install a bunch of them throughout a space and make a distributed / spatial version of the [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled as a group or individually from a laptop or phone or etc. 
+The synthesizers listen to UDP multicast messages. The idea is you can install a bunch of them throughout a space and make a distributed / spatial version of the [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled as a group or individually from a laptop or phone or etc. It's pretty fun!
 
 ## Putting it together 
 
