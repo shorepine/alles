@@ -33,7 +33,7 @@ extern "C" void render_blip_saw(int16_t * buf, uint16_t len, uint8_t voice, floa
     	} else {
     		amplitude[voice] = DOWN + (count[voice] * ((UP-DOWN) / period));
     	}
-  		synth.update(i, amplitude[voice]);
+        synth.update(i, amplitude[voice]);
     	count[voice]++;
 	}
 	blipbuf.end_frame(len);
@@ -54,7 +54,7 @@ extern "C" void render_blip_triangle(int16_t * buf, uint16_t len, uint8_t voice,
 	    		amplitude[voice] = UP - ((count[voice]-(period/2)) * ((UP-DOWN) / period * 2));
 	    	}
     	}
-  		synth.update(i, amplitude[voice]);
+        synth.update(i, amplitude[voice]);
     	count[voice]++;
 	}
 	blipbuf.end_frame(len);
@@ -80,7 +80,7 @@ extern "C" void render_blip_pulse(int16_t * buf, uint16_t len, uint8_t voice, fl
     		}
     	}
 
-  		synth.update(i, amplitude[voice]);
+        synth.update(i, amplitude[voice]);
     	count[voice]++;
 	}
 	blipbuf.end_frame(len);
