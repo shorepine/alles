@@ -1,4 +1,3 @@
-//dx7bridge.cc
 #include <stddef.h>
 #include "dx7/synth.h"
 #include "dx7/module.h"
@@ -25,8 +24,7 @@ extern "C" {
 Dx7Note note[VOICES];
 Controllers controllers[VOICES];
 
-
-extern "C" void render_fm_samples(int16_t * buf, uint16_t len, uint8_t voice) {
+extern "C" void render_fm(float * buf, uint16_t len, uint8_t voice, float amp) {
     int32_t int32_t_buf[N];
     uint16_t rounds = len / N;
     uint16_t count = 0;
@@ -47,7 +45,7 @@ extern "C" void render_fm_samples(int16_t * buf, uint16_t len, uint8_t voice) {
 		    int32_t val = int32_t_buf[j] >> 3;
 		    int clip_val = val < -(1 << 24) ? 0x8000 : (val >= (1 << 24) ? 0x7fff : (val + delta) >> 9);
 		    delta = (delta + val) & 0x1ff;
-		    buf[count++] = (int16_t) clip_val;
+		    buf[count++] =  clip_val * amp;
 		}
 	}
 }

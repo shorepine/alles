@@ -38,7 +38,6 @@ struct event {
     float amp;
     float duty;
     float freq;
-    float step;
     uint8_t status;
     int8_t velocity;
 };
@@ -78,10 +77,9 @@ struct event default_event() {
 // The sequencer object keeps state betweeen voices, whereas events are only deltas/changes
 void setup_voices() {
     fm_init();
-    blip_init();
+    oscillators_init();
     for(int i=0;i<VOICES;i++) {
         sequencer[i].wave = OFF;
-        sequencer[i].step = 0;
         sequencer[i].duty = 0.5;
         sequencer[i].patch = 0;
         sequencer[i].midi_note = 0;
@@ -139,48 +137,25 @@ void fill_audio_buffer() {
     // Clear out the accumulator buffer
     for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
     for(uint8_t voice=0;voice<VOICES;voice++) {
-        if(sequencer[voice].wave!=OFF) { // don't waste CPU
-            if(sequencer[voice].wave==FM) {
-                render_fm_samples(block, BLOCK_SIZE, voice);
-                for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                    floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
-                }
-            } else if(sequencer[voice].wave==NOISE) { // noise is special, just use esp_random
-               for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                    float sample = (int16_t) ((esp_random() >> 16) - 32768);
-                    floatblock[i] = floatblock[i] + (sample * sequencer[voice].amp);
-                }
-            } else if(sequencer[voice].wave == SAW) { 
-                render_blip_saw(block, BLOCK_SIZE, voice, sequencer[voice].freq);
-                for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                    floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
-                }
-            } else if(sequencer[voice].wave == PULSE) { 
-                render_blip_pulse(block, BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].duty);
-                for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                    floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
-                }
-            } else if(sequencer[voice].wave == TRIANGLE) { 
-                render_blip_triangle(block, BLOCK_SIZE, voice, sequencer[voice].freq);
-                for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                    floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
-                }
-            } else if(sequencer[voice].wave == SINE) {
-                float skip = sequencer[voice].freq / 44100.0 * SINE_LUT_SIZE;
-                for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                    if(skip >= 1) { // skip compute if frequency is < 3Hz
-                        uint16_t u0 = sine_LUT[(uint16_t)floor(sequencer[voice].step)];
-                        uint16_t u1 = sine_LUT[(uint16_t)(floor(sequencer[voice].step)+1 % SINE_LUT_SIZE)];
-                        float x0 = (float)u0 - 32768.0;
-                        float x1 = (float)u1 - 32768.0;
-                        float frac = sequencer[voice].step - floor(sequencer[voice].step);
-                        float sample = x0 + ((x1 - x0) * frac);
-                        floatblock[i] = floatblock[i] + (sample * sequencer[voice].amp);
-                        sequencer[voice].step = sequencer[voice].step + skip;
-                        if(sequencer[voice].step >= SINE_LUT_SIZE) sequencer[voice].step = sequencer[voice].step - SINE_LUT_SIZE;
-                    }
-                }
-            }
+        switch(sequencer[voice].wave) {
+            case FM:
+                render_fm(floatblock, BLOCK_SIZE, voice, sequencer[voice].amp);
+                break;
+            case NOISE:
+                render_noise(floatblock, BLOCK_SIZE, sequencer[voice].amp);
+                break;
+            case SAW:
+                render_saw(floatblock, BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].amp);
+                break;
+            case PULSE:
+                render_pulse(floatblock, BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].duty, sequencer[voice].amp);
+                break;
+            case TRIANGLE:
+                render_triangle(floatblock, BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].amp);
+                break;                
+            case SINE:
+                render_sine(floatblock, BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].amp);
+                break;
         }
     }
     // Now make it a signed int16 for the i2s

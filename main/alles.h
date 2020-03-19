@@ -42,19 +42,23 @@ extern void mcast_send(char * message, uint16_t len);
 extern void create_multicast_ipv4_socket();
 extern esp_ip4_addr_t s_ip_addr;
 
-// C++ FM synth stuff
+// FM 
 extern void fm_init();
-extern void render_fm_samples(int16_t * buf, uint16_t len, uint8_t voice);
+extern void render_fm(float * buf, uint16_t len, uint8_t voice, float amp);
 extern void fm_new_note_number(uint8_t midi_note, uint8_t velocity, uint16_t patch, uint8_t voice);
 extern void fm_new_note_freq(float freq, uint8_t velocity, uint16_t patch, uint8_t voice);
-extern void blip_init();
-extern void render_blip_pulse(int16_t * buf, uint16_t len, uint8_t voice, float freq, float duty);
-extern void render_blip_saw(int16_t * buf, uint16_t len, uint8_t voice, float freq);
-extern void render_blip_triangle(int16_t * buf, uint16_t len, uint8_t voice, float freq);
+
+// bandlimted oscillators
+extern void oscillators_init();
+extern void render_karplus_strong(float * buf, uint16_t len, uint8_t voice, float freq, float duty, float amp);
+extern void render_sine(float * buf, uint16_t len, uint8_t voice, float freq, float amp);
+extern void render_pulse(float * buf, uint16_t len, uint8_t voice, float freq, float duty, float amp);
+extern void render_saw(float * buf, uint16_t len, uint8_t voice, float freq, float amp);
+extern void render_triangle(float * buf, uint16_t len, uint8_t voice, float freq, float amp);
+extern void render_noise(float *buf, uint16_t len, float amp);
 
 // We like a lot of LUT for sines, but maybe don't need to alloc 16384*4 bytes for a square wave
 #define SINE_LUT_SIZE 16383
-//#define OTHER_LUT_SIZE 1023
 
 #define BLOCK_SIZE 256
 #define VOICES 10 
