@@ -23,9 +23,9 @@ A 5V input (USB battery, USB input, rechargeable batteries direct to power input
 Wire it up like this (I2S -> ESP)
 
 ```
-LRC -> D25 / A1
-BCLK -> D26 / A0
-DIN -> D27 / A5
+LRC -> GPIO25
+BCLK -> GPIO26
+DIN -> GPIO27
 GAIN -> I2S Vin (i jumper this on the I2S board)
 SD -> not connected
 GND -> GND
@@ -95,6 +95,12 @@ w2t7000
 ```
 
 Will set voice 0 (default) to a sine wave (default) at 440Hz amplitude 0.1, then set amplitude of voice 0 to 0.5, then change the waveform to a square but keep everything else the same. Then set voice 1 to an FM synth playing midi note 50 at amplitude 0.2. Then set voice 1's amplitude to 0.4. Then change voice 0 again to a saw wave.
+
+## Testing
+
+If you are not on wifi, you can test the synthesizers by pushing the BOOT button (if using a dev board) or GPIO0 within 2 seconds *after* applying power. Don't press BOOT while applying power, that puts it in a bootloader mode. The synthesizer will run through scales using different waveforms and loudnesses for you to test. 
+
+In normal operation, a small "bleep" noise is made a few seconds after boot to confirm that the synthesizer is ready to receive UDP packets. If you don't hear the bleep, ensure the Wi-Fi authentication is correct.
 
 ## Addressing individual synthesizers
 

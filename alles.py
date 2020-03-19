@@ -130,6 +130,15 @@ def beating_tones(wave=SINE, vol=0.5, cycle_len_ms = 20000, resolution_ms=100):
         if(tic > cycle_len_ms): tic = 0
         time.sleep(resolution_ms / 1000.0)
 
+
+def lfoduty():
+    duty = 0
+    while(True):
+        duty=duty+0.05
+        if(duty > 1): duty = 0
+        tone(voice=0, wave=PULSE, amp=0.1, freq=220+(duty*220), duty=duty)
+        time.sleep(.05)
+
 def test():
     # Plays a test suite
     try:

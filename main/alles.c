@@ -116,87 +116,83 @@ void play_event(struct event e) {
 }
 
 
+// floatblock -- accumulative for mixing, -32767.0 -- 32768.0
+float floatblock[BLOCK_SIZE];
+// block -- used in interim for FM, but also what gets sent to the DAC -- -32767...32768 (wave file, int16 LE)
+int16_t block[BLOCK_SIZE];  
+
 
 void fill_audio_buffer() {
-    // floatblock -- accumulative for mixing, -32767.0 -- 32768.0
-    float floatblock[BLOCK_SIZE];
-    // block -- used in interim for FM, but also what gets sent to the DAC -- -32767...32768 (wave file, int16 LE)
-    int16_t block[BLOCK_SIZE];  
-
-
-    // Go forever
-    while(1) {
-        // Check to see which sounds to play 
-        int64_t sysclock = esp_timer_get_time() / 1000;
-        // We could save some CPU by starting at a read pointer, depends on how big this gets
-        for(uint16_t i=0;i<EVENT_FIFO_LEN;i++) {
-            if(events[i].status == SCHEDULED) {
-                // By now event.time is corrected to our sysclock (from the host)
-                if(sysclock >= events[i].time) {
-                    play_event(events[i]);
-                    events[i].status = PLAYED;
-                }
+    // Check to see which sounds to play 
+    int64_t sysclock = esp_timer_get_time() / 1000;
+    // We could save some CPU by starting at a read pointer, depends on how big this gets
+    for(uint16_t i=0;i<EVENT_FIFO_LEN;i++) {
+        if(events[i].status == SCHEDULED) {
+            // By now event.time is corrected to our sysclock (from the host)
+            if(sysclock >= events[i].time) {
+                play_event(events[i]);
+                events[i].status = PLAYED;
             }
         }
-
-        // Clear out the accumulator buffer
-        for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
-        for(uint8_t voice=0;voice<VOICES;voice++) {
-            if(sequencer[voice].wave!=OFF) { // don't waste CPU
-                if(sequencer[voice].wave==FM) {
-                    render_fm_samples(block, BLOCK_SIZE, voice);
-                    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                        floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
-                    }
-                } else if(sequencer[voice].wave==NOISE) { // noise is special, just use esp_random
-                   for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                        float sample = (int16_t) ((esp_random() >> 16) - 32768);
-                        floatblock[i] = floatblock[i] + (sample * sequencer[voice].amp);
-                    }
-                } else if(sequencer[voice].wave == SAW) { 
-                    render_blip_saw(block, BLOCK_SIZE, voice, sequencer[voice].freq);
-                    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                        floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
-                    }
-                } else if(sequencer[voice].wave == PULSE) { 
-                    render_blip_pulse(block, BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].duty);
-                    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                        floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
-                    }
-                } else if(sequencer[voice].wave == TRIANGLE) { 
-                    render_blip_triangle(block, BLOCK_SIZE, voice, sequencer[voice].freq);
-                    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                        floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
-                    }
-                } else if(sequencer[voice].wave == SINE) {
-                    float skip = sequencer[voice].freq / 44100.0 * SINE_LUT_SIZE;
-                    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-                        if(skip >= 1) { // skip compute if frequency is < 3Hz
-                            uint16_t u0 = sine_LUT[(uint16_t)floor(sequencer[voice].step)];
-                            uint16_t u1 = sine_LUT[(uint16_t)(floor(sequencer[voice].step)+1 % SINE_LUT_SIZE)];
-                            float x0 = (float)u0 - 32768.0;
-                            float x1 = (float)u1 - 32768.0;
-                            float frac = sequencer[voice].step - floor(sequencer[voice].step);
-                            float sample = x0 + ((x1 - x0) * frac);
-                            floatblock[i] = floatblock[i] + (sample * sequencer[voice].amp);
-                            sequencer[voice].step = sequencer[voice].step + skip;
-                            if(sequencer[voice].step >= SINE_LUT_SIZE) sequencer[voice].step = sequencer[voice].step - SINE_LUT_SIZE;
-                        }
-                    }
-                }
-            }
-        }
-        // Now make it a signed int16 for the i2s
-        for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-            // Clip 
-            if(floatblock[i] > 32767) floatblock[i] = 32767;
-            if(floatblock[i] < -32768) floatblock[i] = -32768;
-            block[i] = (int16_t)floatblock[i];
-        }
-        // And write
-        size_t written = 0;
-        i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
     }
+
+    // Clear out the accumulator buffer
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
+    for(uint8_t voice=0;voice<VOICES;voice++) {
+        if(sequencer[voice].wave!=OFF) { // don't waste CPU
+            if(sequencer[voice].wave==FM) {
+                render_fm_samples(block, BLOCK_SIZE, voice);
+                for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                    floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
+                }
+            } else if(sequencer[voice].wave==NOISE) { // noise is special, just use esp_random
+               for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                    float sample = (int16_t) ((esp_random() >> 16) - 32768);
+                    floatblock[i] = floatblock[i] + (sample * sequencer[voice].amp);
+                }
+            } else if(sequencer[voice].wave == SAW) { 
+                render_blip_saw(block, BLOCK_SIZE, voice, sequencer[voice].freq);
+                for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                    floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
+                }
+            } else if(sequencer[voice].wave == PULSE) { 
+                render_blip_pulse(block, BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].duty);
+                for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                    floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
+                }
+            } else if(sequencer[voice].wave == TRIANGLE) { 
+                render_blip_triangle(block, BLOCK_SIZE, voice, sequencer[voice].freq);
+                for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                    floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
+                }
+            } else if(sequencer[voice].wave == SINE) {
+                float skip = sequencer[voice].freq / 44100.0 * SINE_LUT_SIZE;
+                for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                    if(skip >= 1) { // skip compute if frequency is < 3Hz
+                        uint16_t u0 = sine_LUT[(uint16_t)floor(sequencer[voice].step)];
+                        uint16_t u1 = sine_LUT[(uint16_t)(floor(sequencer[voice].step)+1 % SINE_LUT_SIZE)];
+                        float x0 = (float)u0 - 32768.0;
+                        float x1 = (float)u1 - 32768.0;
+                        float frac = sequencer[voice].step - floor(sequencer[voice].step);
+                        float sample = x0 + ((x1 - x0) * frac);
+                        floatblock[i] = floatblock[i] + (sample * sequencer[voice].amp);
+                        sequencer[voice].step = sequencer[voice].step + skip;
+                        if(sequencer[voice].step >= SINE_LUT_SIZE) sequencer[voice].step = sequencer[voice].step - SINE_LUT_SIZE;
+                    }
+                }
+            }
+        }
+    }
+    // Now make it a signed int16 for the i2s
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+        // Clip 
+        if(floatblock[i] > 32767) floatblock[i] = 32767;
+        if(floatblock[i] < -32768) floatblock[i] = -32768;
+        block[i] = (int16_t)floatblock[i];
+    }
+    // And write
+    size_t written = 0;
+    i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
 }
 
 
@@ -327,6 +323,7 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
     }
 }
 
+
 // Schedule a bleep now
 void bleep() {
     struct event e = default_event();
@@ -347,12 +344,51 @@ void bleep() {
 }
 
 
+void scale(uint8_t wave, float vol) {
+    struct event e = default_event();
+    int64_t sysclock = esp_timer_get_time() / 1000;
+    for(uint8_t i=0;i<12;i++) {
+        e.time = sysclock + (i*250);
+        e.wave = wave;
+        e.midi_note = 48+i;
+        e.amp = vol;
+        e.status = SCHEDULED;
+        add_event(e, -1);
+    }
+}
+
+void test_sounds() {
+    scale(SINE, 0.5);
+    int64_t sysclock = esp_timer_get_time() / 1000;
+    uint8_t type = 0;
+    while(1) {
+        fill_audio_buffer();
+        if(esp_timer_get_time() / 1000 - sysclock > 3000) { // 2 seconds
+            sysclock = esp_timer_get_time() / 1000;
+            if(type==0) scale(PULSE, 0.1);
+            if(type==1) scale(TRIANGLE, 0.1);
+            if(type==2) scale(SAW, 0.5);
+            if(type==3) scale(FM, 0.5);
+            if(type==4) scale(SINE, 0.9);
+            if(type==5) scale(PULSE, 0.5);
+            if(type==6) scale(FM, 0.9);
+            if(type==7) scale(NOISE, 0.2);
+            if(type==8) type = 0;
+            type++;
+        }
+
+    }
+}
 
 void app_main() {
     // The flash has get init'd even though we're not using it as some wifi stuff is stored in there
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+
+    gpio_set_direction(GPIO_NUM_0,  GPIO_MODE_INPUT);
+    gpio_pullup_en(GPIO_NUM_0);
 
     /* Print chip information */
     esp_chip_info_t chip_info;
@@ -369,7 +405,16 @@ void app_main() {
 
     printf("Setting up I2S\n");
     setup_i2s();
+    setup_voices();
+    setup_events();
+    printf("oscillators ready\n");
 
+    vTaskDelay(100*2); // wait 3 seconds
+
+    if(!gpio_get_level(GPIO_NUM_0)) {
+        // play a test thing
+        test_sounds();
+    }
     printf("Setting up wifi & multicast listening\n");
     ESP_ERROR_CHECK(wifi_connect());
     create_multicast_ipv4_socket();
@@ -377,9 +422,6 @@ void app_main() {
     xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 5, NULL, 1);
     printf("wifi ready\n");
     client_id =esp_ip4_addr4(&s_ip_addr);
-    setup_voices();
-    setup_events();
-    printf("oscillators ready\n");
     bleep();
 
     // Spin this core forever parsing events and making sounds
