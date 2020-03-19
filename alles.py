@@ -9,7 +9,7 @@ local_ip = socket.gethostbyname(socket.gethostname())
 local_ip = '192.168.1.2'
 
 
-[SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, SAWBL, OFF] = range(8)
+[SINE, PULSE, SAW, TRIANGLE, NOISE, FM, OFF] = range(7)
 
 def setup_sock():
     # Set up the socket for multicast send & receive
@@ -92,11 +92,12 @@ def sync(count=10, delay_ms=100):
     return clients
 
 
-def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, timestamp=-1, client=-1, retries=1):
+def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, timestamp=-1, client=-1, retries=1):
     global sock
     if(timestamp < 0): timestamp = alles_ms()
     m = "t%dv%dw%d" % (timestamp, voice, wave)
     if(amp>=0): m = m + "a%f" % (amp)
+    if(duty>=0): m = m + "d%f" % (duty)
     if(freq>=0): m = m + "f%f" % (freq)
     if(note>=0): m = m + "n%d" % (note)
     if(patch>=0): m = m + "p%d" % (patch)
@@ -129,9 +130,19 @@ def beating_tones(wave=SINE, vol=0.5, cycle_len_ms = 20000, resolution_ms=100):
         if(tic > cycle_len_ms): tic = 0
         time.sleep(resolution_ms / 1000.0)
 
+def test():
+    # Plays a test suite
+    try:
+        while(True):
+            for wave in [SINE, SAW, PULSE, TRIANGLE, FM, NOISE]:
+                for i in range(12):
+                    tone(voice=0, wave=wave, amp=0.1, vel=100, note=40+i, patch=i)
+                    time.sleep(0.5)
+    except KeyboardInterrupt:
+        pass
+    off()
 
-
-def play_patches(voice=0, wave=FM, amp=0.5 ,forever=True, vel=100, wait=0.750, patch_total = 100):
+def play_patches(voice=0, wave=FM, amp=0.5 ,forever=True, vel=100, wait=0.750, duty=0.5, patch_total = 100):
     once = True
     patch_count = 0
     while (forever or once):
@@ -139,7 +150,7 @@ def play_patches(voice=0, wave=FM, amp=0.5 ,forever=True, vel=100, wait=0.750, p
         for i in range(24):
             patch = patch_count % patch_total
             patch_count = patch_count + 1
-            tone(voice=voice, wave=wave, amp=amp, vel=vel, note=40+i, patch=patch)
+            tone(voice=voice, wave=wave, amp=amp, vel=vel, note=40+i, patch=patch, duty=duty)
             time.sleep(wait)
 
 

@@ -22,7 +22,7 @@ i2s_pin_config_t pin_config = {
 };
 
 
-uint16_t ** LUT;
+//uint16_t ** LUT;
 
 int64_t computed_delta = 0; // can be negative no prob, but usually host is larger # than client
 uint8_t computed_delta_set = 0; // have we set a delta yet?
@@ -36,6 +36,7 @@ struct event {
     int16_t patch;
     int16_t midi_note;
     float amp;
+    float duty;
     float freq;
     float step;
     uint8_t status;
@@ -53,34 +54,8 @@ float freq_for_midi_note(uint8_t midi_note) {
     return 440.0*pow(2,(midi_note-69.0)/12.0);
 }
 
-void setup_luts() {
-    // Generate the square, sine, saw and triangle LUTs
-    LUT = (uint16_t **)malloc(sizeof(uint16_t*)*4);
-    uint16_t * square_LUT = (uint16_t*)malloc(sizeof(uint16_t)*OTHER_LUT_SIZE);
-    uint16_t * saw_LUT = (uint16_t*)malloc(sizeof(uint16_t)*OTHER_LUT_SIZE);
-    uint16_t * triangle_LUT = (uint16_t*)malloc(sizeof(uint16_t)*OTHER_LUT_SIZE);
-
-    for(uint16_t i=0;i<OTHER_LUT_SIZE;i++) {
-        if(i<OTHER_LUT_SIZE/2) {
-            square_LUT[i] = 0x0000;
-            triangle_LUT[i] = (uint16_t) (((float)i/(float)(OTHER_LUT_SIZE/2.0))*65535.0);
-        } else {
-            square_LUT[i] = 0xffff;
-            triangle_LUT[i] = 65535 - ((uint16_t) (((float)(i-(OTHER_LUT_SIZE/2.0))/(float)(OTHER_LUT_SIZE/2.0))*65535.0));
-        }
-        saw_LUT[i] = (uint16_t) (((float)i/(float)OTHER_LUT_SIZE)*65535.0);
-    }
-    LUT[SINE] = (uint16_t*)sine_LUT;
-    LUT[SQUARE] = square_LUT;
-    LUT[SAW] = saw_LUT;
-    LUT[TRIANGLE] = triangle_LUT;
-}
 
 void destroy() {
-    free(LUT[SAW]);
-    free(LUT[SQUARE]);
-    free(LUT[TRIANGLE]);
-    free(LUT);
     // TOOD: Destroy FM and all the ram. low-pri, we never get here so ... 
 }
 
@@ -92,6 +67,7 @@ struct event default_event() {
     e.voice = 0;
     e.patch = -1;
     e.wave = -1;
+    e.duty = -1;
     e.velocity = -1;
     e.midi_note = -1;
     e.amp = -1;
@@ -102,9 +78,11 @@ struct event default_event() {
 // The sequencer object keeps state betweeen voices, whereas events are only deltas/changes
 void setup_voices() {
     fm_init();
+    blip_init();
     for(int i=0;i<VOICES;i++) {
         sequencer[i].wave = OFF;
         sequencer[i].step = 0;
+        sequencer[i].duty = 0.5;
         sequencer[i].patch = 0;
         sequencer[i].midi_note = 0;
         sequencer[i].freq = 0;
@@ -118,6 +96,7 @@ void play_event(struct event e) {
     if(e.midi_note >= 0) { sequencer[e.voice].midi_note = e.midi_note; sequencer[e.voice].freq = freq_for_midi_note(e.midi_note); } 
     if(e.wave >= 0) sequencer[e.voice].wave = e.wave;
     if(e.patch >= 0) sequencer[e.voice].patch = e.patch;
+    if(e.duty >= 0) sequencer[e.voice].duty = e.duty;
     if(e.velocity >= 0) sequencer[e.voice].velocity = e.velocity;
     if(e.freq >= 0) sequencer[e.voice].freq = e.freq;
     if(e.amp >= 0) sequencer[e.voice].amp = e.amp;
@@ -164,10 +143,8 @@ void fill_audio_buffer() {
         for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
         for(uint8_t voice=0;voice<VOICES;voice++) {
             if(sequencer[voice].wave!=OFF) { // don't waste CPU
-                if(sequencer[voice].wave==FM) { // FM is special
-                    // we can render into int16 block just fine 
+                if(sequencer[voice].wave==FM) {
                     render_fm_samples(block, BLOCK_SIZE, voice);
-                    // but then add it into floatblock
                     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
                         floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
                     }
@@ -176,30 +153,34 @@ void fill_audio_buffer() {
                         float sample = (int16_t) ((esp_random() >> 16) - 32768);
                         floatblock[i] = floatblock[i] + (sample * sequencer[voice].amp);
                     }
-                } else if(sequencer[voice].wave == SAWBL) { 
-                    // we can render into int16 block just fine 
-                    render_bandlimited_saw(block, BLOCK_SIZE, voice, sequencer[voice].freq);
-                    // but then add it into floatblock
+                } else if(sequencer[voice].wave == SAW) { 
+                    render_blip_saw(block, BLOCK_SIZE, voice, sequencer[voice].freq);
                     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
                         floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
                     }
-                } else { // all other voices come from a LUT
-                    // Choose which LUT we're using, they are different sizes
-                    uint32_t lut_size = OTHER_LUT_SIZE;
-                    if(sequencer[voice].wave==SINE) lut_size = SINE_LUT_SIZE;
-
-                    float skip = sequencer[voice].freq / 44100.0 * lut_size;
+                } else if(sequencer[voice].wave == PULSE) { 
+                    render_blip_pulse(block, BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].duty);
+                    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                        floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
+                    }
+                } else if(sequencer[voice].wave == TRIANGLE) { 
+                    render_blip_triangle(block, BLOCK_SIZE, voice, sequencer[voice].freq);
+                    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+                        floatblock[i] = floatblock[i] + (block[i] * sequencer[voice].amp);
+                    }
+                } else if(sequencer[voice].wave == SINE) {
+                    float skip = sequencer[voice].freq / 44100.0 * SINE_LUT_SIZE;
                     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
                         if(skip >= 1) { // skip compute if frequency is < 3Hz
-                            uint16_t u0 = LUT[sequencer[voice].wave][(uint16_t)floor(sequencer[voice].step)];
-                            uint16_t u1 = LUT[sequencer[voice].wave][(uint16_t)(floor(sequencer[voice].step)+1 % lut_size)];
+                            uint16_t u0 = sine_LUT[(uint16_t)floor(sequencer[voice].step)];
+                            uint16_t u1 = sine_LUT[(uint16_t)(floor(sequencer[voice].step)+1 % SINE_LUT_SIZE)];
                             float x0 = (float)u0 - 32768.0;
                             float x1 = (float)u1 - 32768.0;
                             float frac = sequencer[voice].step - floor(sequencer[voice].step);
                             float sample = x0 + ((x1 - x0) * frac);
                             floatblock[i] = floatblock[i] + (sample * sequencer[voice].amp);
                             sequencer[voice].step = sequencer[voice].step + skip;
-                            if(sequencer[voice].step >= lut_size) sequencer[voice].step = sequencer[voice].step - lut_size;
+                            if(sequencer[voice].step >= SINE_LUT_SIZE) sequencer[voice].step = sequencer[voice].step - SINE_LUT_SIZE;
                         }
                     }
                 }
@@ -238,6 +219,7 @@ void add_event(struct event e, int16_t index) {
     }
     events[index].voice = e.voice;
     events[index].velocity = e.velocity;
+    events[index].duty = e.duty;
     events[index].midi_note = e.midi_note;
     events[index].wave = e.wave;
     events[index].patch = e.patch;
@@ -298,6 +280,7 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
                 }
             }
             if(mode=='a') e.amp=atof(data_buffer + start);
+            if(mode=='d') e.duty=atof(data_buffer + start);
             if(mode=='c') client = atoi(data_buffer + start); 
             if(mode=='e') e.velocity=atoi(data_buffer + start);
             if(mode=='f') e.freq=atof(data_buffer + start);
@@ -394,7 +377,6 @@ void app_main() {
     xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 5, NULL, 1);
     printf("wifi ready\n");
     client_id =esp_ip4_addr4(&s_ip_addr);
-    setup_luts();
     setup_voices();
     setup_events();
     printf("oscillators ready\n");

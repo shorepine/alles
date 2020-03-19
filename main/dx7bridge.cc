@@ -24,31 +24,7 @@ extern "C" {
 // One note/controller object per voice
 Dx7Note note[VOICES];
 Controllers controllers[VOICES];
-Sawtooth sawteeth[VOICES];
 
-
-extern "C" void render_bandlimited_saw(int16_t * buf, uint16_t len, uint8_t voice, float freq) {
-	// use the dx7core to also render a bandlimited saw wave 
-    int32_t int32_t_buf[N];
-    int32_t *obuf[1];
-    obuf[0] = int32_t_buf;
-    uint16_t rounds = len / N;
-    uint16_t count = 0;
-    int32_t control_last[1];
-    control_last[0] = freq_to_logfreq(freq);
-    for(int i=0;i<rounds;i++) {
-	    for(int j=0;j<N;j++) int32_t_buf[j] = 0;
-		sawteeth[voice].process((const int32_t**)0, (const int32_t*)0, control_last, obuf);
-		// Now make an int32 an int16_t, and put it in buf, this is from their wav writer
-	    int32_t delta = 0x100;
-		for(int j=0;j<N;j++) {
-		    int32_t val = int32_t_buf[j] >> 2;
-		    int clip_val = val < -(1 << 24) ? 0x8000 : (val >= (1 << 24) ? 0x7fff : (val + delta) >> 9);
-		    delta = (delta + val) & 0x1ff;
-		    buf[count++] = (int16_t) clip_val;
-		}
-	}
-}
 
 extern "C" void render_fm_samples(int16_t * buf, uint16_t len, uint8_t voice) {
     int32_t int32_t_buf[N];

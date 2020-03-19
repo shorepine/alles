@@ -47,23 +47,24 @@ extern void fm_init();
 extern void render_fm_samples(int16_t * buf, uint16_t len, uint8_t voice);
 extern void fm_new_note_number(uint8_t midi_note, uint8_t velocity, uint16_t patch, uint8_t voice);
 extern void fm_new_note_freq(float freq, uint8_t velocity, uint16_t patch, uint8_t voice);
-extern void render_bandlimited_saw(int16_t * buf, uint16_t len, uint8_t voice, float freq);
-
+extern void blip_init();
+extern void render_blip_pulse(int16_t * buf, uint16_t len, uint8_t voice, float freq, float duty);
+extern void render_blip_saw(int16_t * buf, uint16_t len, uint8_t voice, float freq);
+extern void render_blip_triangle(int16_t * buf, uint16_t len, uint8_t voice, float freq);
 
 // We like a lot of LUT for sines, but maybe don't need to alloc 16384*4 bytes for a square wave
 #define SINE_LUT_SIZE 16383
-#define OTHER_LUT_SIZE 2047
+//#define OTHER_LUT_SIZE 1023
 
 #define BLOCK_SIZE 256
 #define VOICES 10 
 #define SINE 0
-#define SQUARE 1
+#define PULSE 1
 #define SAW 2
 #define TRIANGLE 3
 #define NOISE 4
 #define FM 5
-#define SAWBL 6
-#define OFF 7
+#define OFF 6
 
 #define EVENT_FIFO_LEN 400
 #define EMPTY 0
