@@ -1,9 +1,8 @@
 #include <stddef.h>
 #include "blip/Blip_Buffer.h"
 extern "C" { 
-	#include "test_alles.h"
+	#include "alles.h"
 }
-
 
 static Blip_Buffer blipbuf;
 static Blip_Synth<blip_good_quality,65535> synth;
@@ -11,8 +10,8 @@ static Blip_Synth<blip_good_quality,65535> synth;
 int32_t count[VOICES];
 int32_t count2[VOICES];
 int16_t amplitude[VOICES];
-int16_t UP = 30000; //32767;
-int16_t DOWN = -30000; //32767;
+int16_t UP = 30000; 
+int16_t DOWN = -30000;
 
 
 
