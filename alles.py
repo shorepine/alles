@@ -9,7 +9,7 @@ local_ip = socket.gethostbyname(socket.gethostname())
 local_ip = '192.168.1.2'
 
 
-[SINE, PULSE, SAW, TRIANGLE, NOISE, FM, OFF] = range(7)
+[SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, OFF] = range(8)
 
 def setup_sock():
     # Set up the socket for multicast send & receive
@@ -92,12 +92,13 @@ def sync(count=10, delay_ms=100):
     return clients
 
 
-def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, timestamp=-1, client=-1, retries=1):
+def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=-1, client=-1, retries=1):
     global sock
     if(timestamp < 0): timestamp = alles_ms()
     m = "t%dv%dw%d" % (timestamp, voice, wave)
     if(amp>=0): m = m + "a%f" % (amp)
     if(duty>=0): m = m + "d%f" % (duty)
+    if(feedback>=0): m = m + "b%f" % (feedback)
     if(freq>=0): m = m + "f%f" % (freq)
     if(note>=0): m = m + "n%d" % (note)
     if(patch>=0): m = m + "p%d" % (patch)
@@ -179,10 +180,10 @@ def off():
 	for x in xrange(10):
 		tone(x, amp=0, wave=OFF, freq=0)
 
-def c_major(octave=2,vol=0.2):
-    tone(voice=0,freq=220.5*octave,amp=vol/3.0)
-    tone(voice=1,freq=138.5*octave,amp=vol/3.0)
-    tone(voice=2,freq=164.5*octave,amp=vol/3.0)
+def c_major(octave=2,wave=SINE, vol=0.2):
+    tone(voice=0,freq=220.5*octave,amp=vol/3.0, wave=wave)
+    tone(voice=1,freq=138.5*octave,amp=vol/3.0, wave=wave)
+    tone(voice=2,freq=164.5*octave,amp=vol/3.0, wave=wave)
 
 
 def generate_patches_header(how_many = 1000):

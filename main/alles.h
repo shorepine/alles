@@ -50,12 +50,13 @@ extern void fm_new_note_freq(float freq, uint8_t velocity, uint16_t patch, uint8
 
 // bandlimted oscillators
 extern void oscillators_init();
-extern void render_karplus_strong(float * buf, uint16_t len, uint8_t voice, float freq, float duty, float amp);
+extern void render_ks(float * buf, uint16_t len, uint8_t voice, float freq, float duty, float amp);
 extern void render_sine(float * buf, uint16_t len, uint8_t voice, float freq, float amp);
 extern void render_pulse(float * buf, uint16_t len, uint8_t voice, float freq, float duty, float amp);
 extern void render_saw(float * buf, uint16_t len, uint8_t voice, float freq, float amp);
 extern void render_triangle(float * buf, uint16_t len, uint8_t voice, float freq, float amp);
 extern void render_noise(float *buf, uint16_t len, float amp);
+extern void ks_new_note_freq(float freq, uint8_t voice);
 
 // We like a lot of LUT for sines, but maybe don't need to alloc 16384*4 bytes for a square wave
 #define SINE_LUT_SIZE 16383
@@ -68,7 +69,8 @@ extern void render_noise(float *buf, uint16_t len, float amp);
 #define TRIANGLE 3
 #define NOISE 4
 #define FM 5
-#define OFF 6
+#define KS 6
+#define OFF 7
 
 #define EVENT_FIFO_LEN 400
 #define EMPTY 0

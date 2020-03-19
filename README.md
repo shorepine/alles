@@ -2,7 +2,7 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/alles/master/pics/set.jpg)
 
-Turns an ESP32 & an i2s chip & speaker into a WiFi controlled battery powered 10-voice synthesizer. Supports additive sine, saw, square, triangle oscillators as well as a full FM stage, modeled after the DX7 including support for DX7 patches. They're cheap to make ($7 for the ESP, $6 for the I2S amp, speakers from $0.50 up depending on quality). And only a few soldering points. 
+Turns an ESP32 & an i2s chip & speaker into a WiFi controlled battery powered 10-voice synthesizer. Supports additive sine, saw, pulse/square, triangle oscillators, a Karplus-Strong string oscillator, and a full FM stage including support for DX7 patches. They're cheap to make ($7 for the ESP, $6 for the I2S amp, speakers from $0.50 up depending on quality). And only a few soldering points. 
 
 The synthesizers listen to UDP multicast messages. The idea is you can install a bunch of them throughout a space and make a distributed / spatial version of the [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled as a group or individually from a laptop or phone or etc. 
 
@@ -69,6 +69,7 @@ v0w4f440.0a0.5
 Where
 ```
 a = amplitude, float 0-1 summed over all voices. default 0
+b = feedback, float 0-1 for karplus-strong. default 0.996
 c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_id % (x-255) == 0) for groups, default all clients
 d = duty cycle, float 0.001-0.999. duty cycle for pulse wave, default 0.5
 e = velocity, uint 0-127, MIDI velocity for the DX7, default 100
@@ -78,7 +79,7 @@ p = patch, uint, 0-999, choose a preloaded DX7 patch number for FM waveforms. Se
 s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py, also uses i for sync_index
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can
 v = voice, uint, 0 to 9. default: 0
-w = waveform, uint, 0 to 6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, OFF]. default: 0/SINE
+w = waveform, uint, 0 to 6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, OFF]. default: 0/SINE
 ```
 
 Commands are cumulative, state is held per voice. If voice is not given it's assumed to be 0. 
@@ -191,7 +192,7 @@ You can also use it in Max or similar software (note you have to wrap string com
 * ~~FM~~
 * envelopes / note on/offs / LFOs
 * ~~bandlimit the square/saw/triangle oscillators~~
-* karplus-strong 
+* ~~karplus-strong~~ 
 * ~~wifi hotspot mode for in-field setup (tbh think it's better to use a dedicated router)~~
 * ~~broadcast UDP for multiples~~
 * ~~dropped packets~~ (although more work can be done here)

@@ -1,5 +1,4 @@
 #include "alles.h"
-#include "sineLUT.h"
 
 //i2s configuration
 int i2s_num = 0; // i2s port number
@@ -37,6 +36,7 @@ struct event {
     int16_t midi_note;
     float amp;
     float duty;
+    float feedback;
     float freq;
     uint8_t status;
     int8_t velocity;
@@ -67,6 +67,7 @@ struct event default_event() {
     e.patch = -1;
     e.wave = -1;
     e.duty = -1;
+    e.feedback = -1;
     e.velocity = -1;
     e.midi_note = -1;
     e.amp = -1;
@@ -84,6 +85,7 @@ void setup_voices() {
         sequencer[i].patch = 0;
         sequencer[i].midi_note = 0;
         sequencer[i].freq = 0;
+        sequencer[i].feedback = 0.996;
         sequencer[i].amp = 0;
         sequencer[i].velocity = 100;
     }
@@ -95,9 +97,12 @@ void play_event(struct event e) {
     if(e.wave >= 0) sequencer[e.voice].wave = e.wave;
     if(e.patch >= 0) sequencer[e.voice].patch = e.patch;
     if(e.duty >= 0) sequencer[e.voice].duty = e.duty;
+    if(e.feedback >= 0) sequencer[e.voice].feedback = e.feedback;
     if(e.velocity >= 0) sequencer[e.voice].velocity = e.velocity;
     if(e.freq >= 0) sequencer[e.voice].freq = e.freq;
     if(e.amp >= 0) sequencer[e.voice].amp = e.amp;
+
+    // Triggers / envelopes -- this needs some more thinking
     if(sequencer[e.voice].wave==FM) {
         if(sequencer[e.voice].midi_note>0) {
             fm_new_note_number(sequencer[e.voice].midi_note, 
@@ -110,6 +115,9 @@ void play_event(struct event e) {
                                 sequencer[e.voice].patch, 
                                 e.voice);
         }
+    }
+    if(sequencer[e.voice].wave==KS) {
+        ks_new_note_freq(sequencer[e.voice].freq, e.voice);
     }
 }
 
@@ -156,6 +164,10 @@ void fill_audio_buffer() {
             case SINE:
                 render_sine(floatblock, BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].amp);
                 break;
+            case KS:
+                render_ks(floatblock, BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].feedback, sequencer[voice].amp);
+                break;
+
         }
     }
     // Now make it a signed int16 for the i2s
@@ -191,6 +203,7 @@ void add_event(struct event e, int16_t index) {
     events[index].voice = e.voice;
     events[index].velocity = e.velocity;
     events[index].duty = e.duty;
+    events[index].feedback = e.feedback;
     events[index].midi_note = e.midi_note;
     events[index].wave = e.wave;
     events[index].patch = e.patch;
@@ -251,6 +264,7 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
                 }
             }
             if(mode=='a') e.amp=atof(data_buffer + start);
+            if(mode=='b') e.feedback=atof(data_buffer+start);
             if(mode=='d') e.duty=atof(data_buffer + start);
             if(mode=='c') client = atoi(data_buffer + start); 
             if(mode=='e') e.velocity=atoi(data_buffer + start);
@@ -338,17 +352,19 @@ void test_sounds() {
     uint8_t type = 0;
     while(1) {
         fill_audio_buffer();
-        if(esp_timer_get_time() / 1000 - sysclock > 3000) { // 2 seconds
+        if(esp_timer_get_time() / 1000 - sysclock > 3000) { // 3 seconds
             sysclock = esp_timer_get_time() / 1000;
             if(type==0) scale(PULSE, 0.1);
             if(type==1) scale(TRIANGLE, 0.1);
             if(type==2) scale(SAW, 0.5);
             if(type==3) scale(FM, 0.5);
-            if(type==4) scale(SINE, 0.9);
-            if(type==5) scale(PULSE, 0.5);
-            if(type==6) scale(FM, 0.9);
-            if(type==7) scale(NOISE, 0.2);
-            if(type==8) type = 0;
+            if(type==4) scale(KS, 0.5);
+            if(type==5) scale(SINE, 0.9);
+            if(type==6) scale(PULSE, 0.5);
+            if(type==7) scale(FM, 0.9);
+            if(type==8) scale(NOISE, 0.2);
+            if(type==9) scale(KS, 1);
+            if(type==10) type = 0;
             type++;
         }
 
