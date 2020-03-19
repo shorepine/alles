@@ -8,11 +8,12 @@ The synthesizers listen to UDP multicast messages. The idea is you can install a
 
 ## Putting it together 
 
-currently using
+To make one yourself, you need
 
 * [ESP32 dev board (any one will do, but you want pins broken out)](https://www.amazon.com/gp/product/B07Q576VWZ/) (pack of 2, $7.45 each)
 * [The Adafruit I2S mono amplifier](https://www.adafruit.com/product/3006) ($5.95)
 * [4 ohm speaker, this one is especially nice](https://www.parts-express.com/peerless-by-tymphany-tc6fd00-04-2-full-range-paper-cone-woofer-4-ohm--264-1126?gclid=EAIaIQobChMIwcX3-vXi5wIVgpOzCh0a7gjuEAYYASABEgLwf_D_BwE) ($9.77, but you can save a lot of money here going lower-end if you're ok with the sound quality)
+* A breadboard, custom PCB, or just some hookup wire!
 
 ### Power 
 
