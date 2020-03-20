@@ -137,7 +137,7 @@ def lfoduty():
     while(True):
         duty=duty+0.05
         if(duty > 1): duty = 0
-        tone(voice=0, wave=PULSE, amp=0.1, freq=220+(duty*220), duty=duty)
+        tone(voice=0, wave=KS, amp=0.1, freq=220+(duty*220), duty=duty)
         time.sleep(.05)
 
 def test():
