@@ -6,7 +6,7 @@ i2s_config_t i2s_config = {
      .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
      .sample_rate = SAMPLE_RATE,
      .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, //I2S_CHANNEL_FMT_RIGHT_LEFT,
+     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
      .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB),
      .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1, // high interrupt priority
      .dma_buf_count = 8,
@@ -14,15 +14,14 @@ i2s_config_t i2s_config = {
     };
     
 i2s_pin_config_t pin_config = {
-    .bck_io_num = 26, //this is BCK pin, to "A0" on the adafruit feather 
-    .ws_io_num = 25, //this is LRCK pin, to "A1" on the adafruit feather
-    .data_out_num = 27,//4, // this is DATA output pin, to "A5" on the feather
+    .bck_io_num = 26,   //this is BCK pin 
+    .ws_io_num = 25,    //this is LRCK pin
+    .data_out_num = 27, // this is DIN 
     .data_in_num = -1   //Not used
 };
 
 
-//uint16_t ** LUT;
-
+// Synth globals for timing and client
 int64_t computed_delta = 0; // can be negative no prob, but usually host is larger # than client
 uint8_t computed_delta_set = 0; // have we set a delta yet?
 uint8_t client_id = 0; // last quartet of the ipv4
@@ -55,7 +54,7 @@ float freq_for_midi_note(uint8_t midi_note) {
 
 
 void destroy() {
-    // TOOD: Destroy FM and all the ram. low-pri, we never get here so ... 
+    // TODO: Destroy FM and all the ram. low-pri, we never get here so ... 
 }
 
 // Create a new default event -- mostly -1 or no change
@@ -128,6 +127,7 @@ float floatblock[BLOCK_SIZE];
 int16_t block[BLOCK_SIZE];  
 
 
+// This takes scheduled events and plays them at the right time
 void fill_audio_buffer() {
     // Check to see which sounds to play 
     int64_t sysclock = esp_timer_get_time() / 1000;
@@ -221,9 +221,7 @@ void setup_events() {
 }
 
 void handle_sync(int64_t time, uint8_t index) {
-    // I am called when I get an s message, which comes along with host time
-    // I am normally called N times in a row, probably like 10? with 100ms divisons inbetween
-    // of course, i may miss one, so i'm also called with an index
+    // I am called when I get an s message, which comes along with host time and index
     int64_t sysclock = esp_timer_get_time() / 1000;
     char message[100];
     // Send back sync message with my time and received sync index and my client id
@@ -235,8 +233,7 @@ void handle_sync(int64_t time, uint8_t index) {
 }
 
 
-// A replacement for "parse messages" -- instead of parsing into audio_buffer changes,
-// parse into a FIFO of messages that the sequencer will trigger, neat
+// parse a received UDP message into a FIFO of messages that the sequencer will trigger
 void parse_message_into_events(char * data_buffer, int recv_data) {
     uint8_t mode = 0;
     int64_t sync = -1;
@@ -332,7 +329,7 @@ void bleep() {
     add_event(e, -1);
 }
 
-
+// Plays a scale in the test program
 void scale(uint8_t wave, float vol) {
     struct event e = default_event();
     int64_t sysclock = esp_timer_get_time() / 1000;
@@ -346,6 +343,7 @@ void scale(uint8_t wave, float vol) {
     }
 }
 
+// Run forever playing scales with different oscillators
 void test_sounds() {
     scale(SINE, 0.5);
     int64_t sysclock = esp_timer_get_time() / 1000;
@@ -367,21 +365,18 @@ void test_sounds() {
             if(type==10) type = 0;
             type++;
         }
-
     }
 }
 
 void app_main() {
-    // The flash has get init'd even though we're not using it as some wifi stuff is stored in there
+    // Init flash, network, event loop, GPIO
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-
-
+    // This is the "BOOT" pin on the devboards
     gpio_set_direction(GPIO_NUM_0,  GPIO_MODE_INPUT);
     gpio_pullup_en(GPIO_NUM_0);
 
-    /* Print chip information */
     esp_chip_info_t chip_info;
     esp_chip_info(&chip_info);
     printf("This is ESP32 chip with %d CPU cores, WiFi%s%s, ",
@@ -400,12 +395,14 @@ void app_main() {
     setup_events();
     printf("oscillators ready\n");
 
-    vTaskDelay(100*2); // wait 3 seconds
+    vTaskDelay(100*2); // wait 2 seconds to see if button is pressed
 
     if(!gpio_get_level(GPIO_NUM_0)) {
         // play a test thing
         test_sounds();
     }
+    
+    // Else start the main loop 
     printf("Setting up wifi & multicast listening\n");
     ESP_ERROR_CHECK(wifi_connect());
     create_multicast_ipv4_socket();
