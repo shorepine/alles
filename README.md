@@ -192,11 +192,12 @@ You can also use it in Max or similar software (note you have to wrap string com
 * ~~remove distortion at higher amplitudes for mixed sine waves~~
 * ~~FM~~
 * envelopes / note on/offs / LFOs
+* confirm OSC still works from Max/Pd 
 * ~~bandlimit the square/saw/triangle oscillators~~
 * ~~karplus-strong~~ 
 * ~~wifi hotspot mode for in-field setup (tbh think it's better to use a dedicated router)~~
 * ~~broadcast UDP for multiples~~
-* ~~dropped packets~~ (although more work can be done here)
+* ~~dropped packets~~
 * ~~sync and enumerate across multiple devices~~
 * ~~addresses / communicate to one or groups, like "play this on half / one-quarter / all"~~
 * ~~do what i can about timing / jitter - sync time? timed messages?~~
