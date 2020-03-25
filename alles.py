@@ -160,7 +160,7 @@ def play_patches(voice=0, wave=FM, amp=0.5 ,forever=True, vel=100, wait=0.750, d
         for i in range(24):
             patch = patch_count % patch_total
             patch_count = patch_count + 1
-            tone(voice=voice, wave=wave, amp=amp, vel=vel, note=40+i, patch=patch, duty=duty)
+            tone(voice=i % 10, wave=wave, amp=amp, vel=vel, note=40+i, patch=patch, duty=duty)
             time.sleep(wait)
 
 
@@ -171,7 +171,7 @@ def complex(speed=0.250, vol=1, client =-1):
             time.sleep(speed)
             tone(voice=1, wave=FM, amp=0.4*vol, note=50+i, patch=8, client=client)
             time.sleep(speed)
-            tone(voice=2, wave=SINE, amp=0.3*vol, note=50+i, patch=2, client=client)
+            tone(voice=2, wave=SINE, amp=0.3*vol, note=62+i, patch=2, client=client)
             time.sleep(speed)
             tone(voice=2, wave=SINE, freq = 20, client=client)
             time.sleep(speed)

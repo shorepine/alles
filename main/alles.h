@@ -32,7 +32,7 @@ extern "C" {
 
 #define SAMPLE_RATE 44100
 
-#define MAX_RECEIVE_LEN 96
+#define MAX_RECEIVE_LEN 127
 #define UDP_PORT 3333
 #define MULTICAST_TTL 1
 #define MULTICAST_IPV4_ADDR "232.10.11.12"

@@ -123,7 +123,7 @@ void play_event(struct event e) {
 
 // floatblock -- accumulative for mixing, -32767.0 -- 32768.0
 float floatblock[BLOCK_SIZE];
-// block -- used in interim for FM, but also what gets sent to the DAC -- -32767...32768 (wave file, int16 LE)
+// block -- what gets sent to the DAC -- -32767...32768 (wave file, int16 LE)
 int16_t block[BLOCK_SIZE];  
 
 
@@ -415,7 +415,7 @@ void app_main() {
     create_multicast_ipv4_socket();
     // Pin the UDP task to the 2nd core so the audio / main core runs on its own without getting starved
     xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 5, NULL, 1);
-    printf("wifi ready\n");
+    printf("Wifi ready\n");
     client_id =esp_ip4_addr4(&s_ip_addr);
     printf("Synth running on core %d\n", xPortGetCoreID());
 

@@ -45,7 +45,8 @@ extern "C" void render_fm(float * buf, uint16_t len, uint8_t voice, float amp) {
 		    int32_t val = int32_t_buf[j] >> 3;
 		    int clip_val = val < -(1 << 24) ? 0x8000 : (val >= (1 << 24) ? 0x7fff : (val + delta) >> 9);
 		    delta = (delta + val) & 0x1ff;
-		    buf[count++] =  clip_val * amp;
+		    buf[count] = buf[count] + clip_val * amp;
+		    count++;
 		}
 	}
 }
