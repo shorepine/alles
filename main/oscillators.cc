@@ -14,7 +14,8 @@ float sample[VOICES];
 float UP = 32767; 
 float DOWN = -32767;
 int16_t intbuf[BLOCK_SIZE];
-float kp_buffer[VOICES][588]; // 44100/75 -- 75Hz lowest we can go 
+#define MAX_KP_BUFFER_LEN 802 // 44100/55  -- 55Hz (A1) lowest we can go 
+float kp_buffer[VOICES][MAX_KP_BUFFER_LEN]; 
 
 extern "C" void render_sine(float * buf, uint16_t len, uint8_t voice, float freq, float amp) {
     float skip = freq / 44100.0 * SINE_LUT_SIZE;
@@ -41,14 +42,15 @@ extern "C" void render_noise(float *buf, uint16_t len, float amp) {
 
 // needs a reset
 extern "C" void render_ks(float * buf, uint16_t len, uint8_t voice, float freq, float feedback, float amp) {
-    if(freq < 76) freq = 76; // lowest note we can play
-    uint16_t buflen = floor(SAMPLE_RATE / freq);
-    for(uint16_t i=0;i<len;i++) {
-        uint16_t index = floor(step[voice]);
-        sample[voice] = kp_buffer[voice][index];
-        kp_buffer[voice][index] = (kp_buffer[voice][index] + kp_buffer[voice][(index + 1) % buflen]) * 0.5 * feedback;
-        step[voice] = (index + 1) % buflen;
-        buf[i] = buf[i] + sample[voice] * amp;
+    if(freq >= 55) { // lowest note we can play
+        uint16_t buflen = floor(SAMPLE_RATE / freq);
+        for(uint16_t i=0;i<len;i++) {
+            uint16_t index = floor(step[voice]);
+            sample[voice] = kp_buffer[voice][index];
+            kp_buffer[voice][index] = (kp_buffer[voice][index] + kp_buffer[voice][(index + 1) % buflen]) * 0.5 * feedback;
+            step[voice] = (index + 1) % buflen;
+            buf[i] = buf[i] + sample[voice] * amp;
+        }
     }
 }
 
@@ -115,9 +117,10 @@ extern "C" void render_pulse(float * buf, uint16_t len, uint8_t voice, float fre
 }
 
 extern "C" void ks_new_note_freq(float freq, uint8_t voice) {
-    if(freq < 76) freq = 76; // lowest note we can play
+    if(freq<=0) freq = 1;
     uint16_t buflen = floor(SAMPLE_RATE / freq);
-    // init KP buffer with noise
+    if(buflen > MAX_KP_BUFFER_LEN) buflen = MAX_KP_BUFFER_LEN;
+    // init KP buffer with noise up to max
     for(uint16_t i=0;i<buflen;i++) {
         kp_buffer[voice][i] = ( (int16_t) ((esp_random() >> 16) - 32768) );
     }
