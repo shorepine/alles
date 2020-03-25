@@ -7,6 +7,7 @@
 #include <limits.h>
 #include <string.h>
 #include <stdlib.h>
+#include <cstdio>
 #include <math.h>
 
 /* Copyright (C) 2003-2006 Shay Green. This module is free software; you
@@ -67,6 +68,7 @@ Blip_Buffer::blargg_err_t Blip_Buffer::set_sample_rate( long new_rate, int msec 
 {
 	// start with maximum length that resampled time can represent
 	long new_size = (ULONG_MAX >> BLIP_BUFFER_ACCURACY) - buffer_extra - 64;
+
 	if ( msec != blip_max_length )
 	{
 		long s = (new_rate * (msec + 1) + 999) / 1000;
@@ -74,13 +76,16 @@ Blip_Buffer::blargg_err_t Blip_Buffer::set_sample_rate( long new_rate, int msec 
 			new_size = s;
 		else
 			assert( 0 ); // fails if requested buffer length exceeds limit
+
 	}
 	
 	if ( buffer_size_ != new_size )
 	{
+
 		void* p = realloc( buffer_, (new_size + buffer_extra) * sizeof *buffer_ );
-		if ( !p )
+		if ( !p ) {
 			return "Out of memory";
+		}
 		buffer_ = (buf_t_*) p;
 	}
 	

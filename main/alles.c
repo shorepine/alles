@@ -44,7 +44,7 @@ struct event {
 int16_t next_event_write = 0;
 // One set of events for the fifo
 struct event events[EVENT_FIFO_LEN];
-// And another as multi-channel sequencer that the scheduler renders into
+// And another event per voice as multi-channel sequencer that the scheduler renders into
 struct event sequencer[VOICES];
 
 
@@ -246,13 +246,13 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
 
     // Put a null at the end for atoi
     data_buffer[recv_data] = 0;
-    // Cut the OSC cruft Max etc add
-    //printf("got message ###%s### len %d\n", data_buffer, recv_data);
+
+    // Cut the OSC cruft Max etc add, they put a 0 and then more things after the 0
     int new_recv_data = recv_data; 
     for(int d=0;d<recv_data;d++) { if(data_buffer[d] == 0) { new_recv_data = d; d = recv_data + 1;  } }
     recv_data = new_recv_data;
-    //printf("now message ###%s### len %d\n", data_buffer, recv_data);
 
+    //printf("message ###%s### len %d\n", data_buffer, recv_data);
     // Skip this if the message starts with _ (an ack message for sync)
     if(recv_data>0) if(data_buffer[0]=='_') recv_data = -1;
 
@@ -269,8 +269,8 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
             }
             if(mode=='a') e.amp=atof(data_buffer + start);
             if(mode=='b') e.feedback=atof(data_buffer+start);
-            if(mode=='d') e.duty=atof(data_buffer + start);
             if(mode=='c') client = atoi(data_buffer + start); 
+            if(mode=='d') e.duty=atof(data_buffer + start);
             if(mode=='e') e.velocity=atoi(data_buffer + start);
             if(mode=='f') e.freq=atof(data_buffer + start);
             if(mode=='i') sync_index = atoi(data_buffer + start);

@@ -20,7 +20,7 @@ public:
 	// Set output sample rate and buffer length in milliseconds (1/1000 sec, defaults
 	// to 1/4 second), then clear buffer. Returns NULL on success, otherwise if there
 	// isn't enough memory, returns error without affecting current buffer setup.
-	blargg_err_t set_sample_rate( long samples_per_sec, int msec_length = 1000 / 4 );
+	blargg_err_t set_sample_rate( long samples_per_sec, int msec_length = 6 /* 1000 / 4 */);
 	
 	// Set number of source time units per second
 	void clock_rate( long );

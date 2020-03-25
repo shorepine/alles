@@ -192,7 +192,7 @@ You can also use it in Max or similar software that supports sending UDP packets
 * ~~remove distortion at higher amplitudes for mixed sine waves~~
 * ~~FM~~
 * envelopes / note on/offs / LFOs
-* confirm OSC still works from Max/Pd 
+* ~~confirm UDP still works from Max/Pd~~
 * ~~bandlimit the square/saw/triangle oscillators~~
 * ~~karplus-strong~~ 
 * ~~wifi hotspot mode for in-field setup (tbh think it's better to use a dedicated router)~~
