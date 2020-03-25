@@ -185,6 +185,14 @@ def c_major(octave=2,wave=SINE, vol=0.2):
     tone(voice=1,freq=138.5*octave,amp=vol/3.0, wave=wave)
     tone(voice=2,freq=164.5*octave,amp=vol/3.0, wave=wave)
 
+def many_voices_fast(wave=KS, vol=0.5):
+    # debug the weird underwater effect of many KS voices
+    while 1:
+        for voice in xrange(10):
+            tone(voice=(voice % 10), note=50+voice, amp=vol/10, wave=wave)
+            time.sleep(0.2)
+
+
 
 def generate_patches_header(how_many = 1000):
     # Generate a list of baked-in DX7 patches from our database of 31,000 patches

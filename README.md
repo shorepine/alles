@@ -174,7 +174,7 @@ def c_major(octave=2,vol=0.2):
 
 See `alles.py` for a better example.
 
-You can also use it in Max or similar software (note you have to wrap string commands in quotes in Max, as otherwise it'll assume it's an OSC message.)
+You can also use it in Max or similar software that supports sending UDP packets. Note that for Max, you'll need your host machine to be on the same wifi network as the synths as it has no easy way to set a source IP address like Python does. Max's `cpuclock` object is a great standin for host time. 
 
 ![Max](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/max.png)
 

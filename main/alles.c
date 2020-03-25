@@ -247,11 +247,11 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
     // Put a null at the end for atoi
     data_buffer[recv_data] = 0;
     // Cut the OSC cruft Max etc add
-    printf("got message ###%s### len %d\n", data_buffer, recv_data);
+    //printf("got message ###%s### len %d\n", data_buffer, recv_data);
     int new_recv_data = recv_data; 
     for(int d=0;d<recv_data;d++) { if(data_buffer[d] == 0) { new_recv_data = d; d = recv_data + 1;  } }
     recv_data = new_recv_data;
-    printf("now message ###%s### len %d\n", data_buffer, recv_data);
+    //printf("now message ###%s### len %d\n", data_buffer, recv_data);
 
     // Skip this if the message starts with _ (an ack message for sync)
     if(recv_data>0) if(data_buffer[0]=='_') recv_data = -1;
@@ -417,6 +417,8 @@ void app_main() {
     xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 5, NULL, 1);
     printf("wifi ready\n");
     client_id =esp_ip4_addr4(&s_ip_addr);
+    printf("Synth running on core %d\n", xPortGetCoreID());
+
     bleep();
 
     // Spin this core forever parsing events and making sounds

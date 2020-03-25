@@ -146,6 +146,7 @@ void mcast_send(char * message, uint16_t len) {
 
 void mcast_listen_task(void *pvParameters)
 {
+    printf("I am listening on core %d\n",xPortGetCoreID());
     while (1) {
 
         if (sock < 0) ESP_LOGE(TAG, "Failed to create IPv4 multicast socket");
