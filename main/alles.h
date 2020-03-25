@@ -50,6 +50,7 @@ extern void fm_new_note_freq(float freq, uint8_t velocity, uint16_t patch, uint8
 
 // bandlimted oscillators
 extern void oscillators_init();
+extern void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) ;
 extern void render_ks(float * buf, uint16_t len, uint8_t voice, float freq, float duty, float amp);
 extern void render_sine(float * buf, uint16_t len, uint8_t voice, float freq, float amp);
 extern void render_pulse(float * buf, uint16_t len, uint8_t voice, float freq, float duty, float amp);

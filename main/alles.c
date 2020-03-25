@@ -170,13 +170,9 @@ void fill_audio_buffer() {
 
         }
     }
-    // Now make it a signed int16 for the i2s
-    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        // Clip 
-        if(floatblock[i] > 32767) floatblock[i] = 32767;
-        if(floatblock[i] < -32768) floatblock[i] = -32768;
-        block[i] = (int16_t)floatblock[i];
-    }
+    // Bandlimt the buffer all at once
+    blip_the_buffer(floatblock, block, BLOCK_SIZE);
+
     // And write
     size_t written = 0;
     i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);

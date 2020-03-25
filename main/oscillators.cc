@@ -1,7 +1,7 @@
 #include "blip/Blip_Buffer.h"
 
 extern "C" { 
-	#include "alles.h"
+    #include "alles.h"
     #include "sineLUT.h"
 }
 
@@ -16,6 +16,19 @@ float DOWN = -16384;
 int16_t intbuf[BLOCK_SIZE];
 #define MAX_KS_BUFFER_LEN 802 // 44100/55  -- 55Hz (A1) lowest we can go for KS
 float ks_buffer[VOICES][MAX_KS_BUFFER_LEN]; 
+
+
+// Use the Blip_Buffer library to bandlimit signals
+extern "C" void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) {
+    for(uint16_t i=0;i<len;i++) {
+        // Clip first
+        if(ibuf[i]>32767) ibuf[i]=32767;
+        if(ibuf[i]<-32768) ibuf[i]=-32768;
+        synth.update(i, ibuf[i]);
+    }
+    blipbuf.end_frame(len);
+    blipbuf.read_samples(obuf, len, 0);
+}
 
 extern "C" void render_sine(float * buf, uint16_t len, uint8_t voice, float freq, float amp) {
     float skip = freq / 44100.0 * SINE_LUT_SIZE;
@@ -40,7 +53,6 @@ extern "C" void render_noise(float *buf, uint16_t len, float amp) {
     }
 }
 
-// needs a reset
 extern "C" void render_ks(float * buf, uint16_t len, uint8_t voice, float freq, float feedback, float amp) {
     if(freq >= 55) { // lowest note we can play
         uint16_t buflen = floor(SAMPLE_RATE / freq);
@@ -57,39 +69,33 @@ extern "C" void render_ks(float * buf, uint16_t len, uint8_t voice, float freq, 
 extern "C" void render_saw(float * buf, uint16_t len, uint8_t voice, float freq, float amp) {
     float period = 1. / (freq/(float)SAMPLE_RATE);
     for(uint16_t i=0;i<len;i++) {
-    	if(step[voice] >= period || step[voice] == 0) {
-    		sample[voice] = DOWN;
-    		step[voice] = 0; // reset the period counter
-    	} else {
-    		sample[voice] = DOWN + (step[voice] * ((UP-DOWN) / period));
-    	}
-        synth.update(i, sample[voice]*amp);
-    	step[voice]++;
-	}
-	blipbuf.end_frame(len);
-	blipbuf.read_samples( intbuf, len, 0);
-    for(int16_t i=0;i<len;i++) buf[i] = buf[i] + intbuf[i];
+        if(step[voice] >= period || step[voice] == 0) {
+            sample[voice] = DOWN;
+            step[voice] = 0; // reset the period counter
+        } else {
+            sample[voice] = DOWN + (step[voice] * ((UP-DOWN) / period));
+        }
+        buf[i] = buf[i] + sample[voice] * amp;
+        step[voice]++;
+    }
 }
 
 extern "C" void render_triangle(float * buf, uint16_t len, uint8_t voice, float freq, float amp) {
     float period = 1. / (freq/(float)SAMPLE_RATE);
     for(uint16_t i=0;i<len;i++) {
-    	if(step[voice] >= period || step[voice] == 0) {
-    		sample[voice] = DOWN;
-    		step[voice] = 0; // reset the period counter
-    	} else {
-    		if(step[voice] < (period/2.0)) {
-	    		sample[voice] = DOWN + (step[voice] * ((UP-DOWN) / period * 2));
-	    	} else {
-	    		sample[voice] = UP - ((step[voice]-(period/2)) * ((UP-DOWN) / period * 2));
-	    	}
-    	}
-        synth.update(i, sample[voice]*amp);
-    	step[voice]++;
-	}
-	blipbuf.end_frame(len);
-	blipbuf.read_samples( intbuf, len, 0);
-    for(int16_t i=0;i<len;i++) buf[i] = buf[i] + intbuf[i];
+        if(step[voice] >= period || step[voice] == 0) {
+            sample[voice] = DOWN;
+            step[voice] = 0; // reset the period counter
+        } else {
+            if(step[voice] < (period/2.0)) {
+                sample[voice] = DOWN + (step[voice] * ((UP-DOWN) / period * 2));
+            } else {
+                sample[voice] = UP - ((step[voice]-(period/2)) * ((UP-DOWN) / period * 2));
+            }
+        }
+        buf[i] = buf[i] + sample[voice] * amp;
+        step[voice]++;
+    }
 }
 
 
@@ -98,22 +104,19 @@ extern "C" void render_pulse(float * buf, uint16_t len, uint8_t voice, float fre
     float period = 1. / (freq/(float)SAMPLE_RATE);
     float period2 = duty * period; // if duty is 0.5, square wave
     for(uint16_t i=0;i<len;i++) {
-    	if(step[voice] >= period || step[voice] == 0)  {
-    		sample[voice] = UP;
-    		substep[voice] = 0; // start the duty cycle counter
+        if(step[voice] >= period || step[voice] == 0)  {
+            sample[voice] = UP;
+            substep[voice] = 0; // start the duty cycle counter
             step[voice] = 0;
-    	} 
-    	if(sample[voice] == UP) {
-    		if(substep[voice]++ > period2) {
-    			sample[voice] = DOWN;
+        } 
+        if(sample[voice] == UP) {
+            if(substep[voice]++ > period2) {
+                sample[voice] = DOWN;
             }
         }
-        synth.update(i, sample[voice] * amp);
+        buf[i] = buf[i] + sample[voice] * amp;
         step[voice]++;
     }
-    blipbuf.end_frame(len);
-    blipbuf.read_samples( intbuf, len, 0);
-    for(int16_t i=0;i<len;i++) buf[i] = buf[i] + intbuf[i];
 }
 
 extern "C" void ks_new_note_freq(float freq, uint8_t voice) {
@@ -128,13 +131,13 @@ extern "C" void ks_new_note_freq(float freq, uint8_t voice) {
 
 extern "C" void oscillators_init(void) {
     // 6ms buffer
-	if ( blipbuf.set_sample_rate( SAMPLE_RATE ) )
-		exit( EXIT_FAILURE );
-	blipbuf.clock_rate( blipbuf.sample_rate() );
-	blipbuf.bass_freq( 0 ); // makes waveforms perfectly flat
-	synth.volume(1);
-	synth.output(&blipbuf);
-	for(uint8_t voice=0;voice<VOICES;voice++) { 
+    if ( blipbuf.set_sample_rate( SAMPLE_RATE ) )
+        exit( EXIT_FAILURE );
+    blipbuf.clock_rate( blipbuf.sample_rate() );
+    blipbuf.bass_freq( 0 ); // makes waveforms perfectly flat
+    synth.volume(1);
+    synth.output(&blipbuf);
+    for(uint8_t voice=0;voice<VOICES;voice++) { 
         sample[voice] = DOWN; step[voice] = 0; substep[voice] =0; 
     }
 
