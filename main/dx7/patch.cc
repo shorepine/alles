@@ -57,7 +57,7 @@ int clamped =0 ;
 int file_clamped =0 ;
 
 char clamp(char byte, int pos, char max) {
-	if(byte > max || byte < 0) {
+	if(byte > max) {
 		clamped++;
 		//printf("file %d clamped %d pos %d was %d is %d\n", file_clamped, clamped, pos, byte, max);
 		return max;
