@@ -20,7 +20,6 @@
 #include <math.h>
 #include "synth.h"
 #include "freqlut.h"
-#include "patch.h"
 #include "exp2.h"
 #include "controllers.h"
 #include "dx7note.h"
