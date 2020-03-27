@@ -32,7 +32,7 @@ extern "C" void render_fm(float * buf, uint16_t len, uint8_t voice, float amp) {
     for(int i=0;i<rounds;i++) {
         // this computes "N" (which is 64) samples
 
-        // Important -- clear out this first -- note.compute is accumulative (maybe use this for mixing?)
+        // Important -- clear out this first -- note.compute is accumulative
         for(int j=0;j<N;j++) int32_t_buf[j] = 0;
 
         note[voice].compute(int32_t_buf, 0, 0, &controllers[voice]);
@@ -41,7 +41,6 @@ extern "C" void render_fm(float * buf, uint16_t len, uint8_t voice, float amp) {
         int32_t delta = 0x100;
         for(int j=0;j<N;j++) {
             // TODO -- this clips/crackles at >> 2, the original in msfa. 
-            // their dithering code may be still crossing bounds.
             int32_t val = int32_t_buf[j] >> 3;
             int clip_val = val < -(1 << 24) ? 0x8000 : (val >= (1 << 24) ? 0x7fff : (val + delta) >> 9);
             delta = (delta + val) & 0x1ff;

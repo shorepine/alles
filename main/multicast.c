@@ -41,11 +41,11 @@ uint8_t computed_delta_set = 0; // have we set a delta yet?
 
 int64_t last_ping_time = PING_TIME_MS; // do the first ping at 10s in to wait for other synths to announce themselves
 
-static int socket_add_ipv4_multicast_group(bool assign_source_if)
-{
+static int socket_add_ipv4_multicast_group(bool assign_source_if) {
     struct ip_mreq imreq = { 0 };
     struct in_addr iaddr = { 0 };
     int err = 0;
+
     // Configure source interface
     esp_netif_ip_info_t ip_info = { 0 };
     err = esp_netif_get_ip_info(get_example_netif(), &ip_info);
@@ -120,7 +120,6 @@ void create_multicast_ipv4_socket(void) {
     err = socket_add_ipv4_multicast_group(true);
 
     // All set, socket is configured for sending and receiving
-    //close(sock);
 }
 
 // Send a multicast message 
@@ -152,7 +151,7 @@ void mcast_send(char * message, uint16_t len) {
 }
 
 void update_map(uint8_t client, uint8_t ipv4, int64_t time) {
-    // I'm called when I get a sync response (or a regular ping packet?)
+    // I'm called when I get a sync response or a regular ping packet
     // I update a map of booted devices.
 
     //printf("[%d %d] Got a sync response client %d ipv4 %d time %lld\n",  ipv4_quartet, client_id, client , ipv4, time);

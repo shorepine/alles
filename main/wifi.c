@@ -1,12 +1,3 @@
-/* Common functions for protocol examples, to establish Wi-Fi or Ethernet connection.
-
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
- */
-
 #include <string.h>
 #include "wifi.h"
 #include "sdkconfig.h"
@@ -37,15 +28,10 @@ static esp_netif_t *s_example_esp_netif = NULL;
 
 static const char *TAG = "wifi_connect";
 
-/* set up connection, Wi-Fi or Ethernet */
 static void start(void);
-
-/* tear down connection, release resources */
 static void stop(void);
 
-static void on_got_ip(void *arg, esp_event_base_t event_base,
-                      int32_t event_id, void *event_data)
-{
+static void on_got_ip(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     ESP_LOGI(TAG, "Got IP event!");
     ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
     memcpy(&s_ip_addr, &event->ip_info.ip, sizeof(s_ip_addr));
@@ -53,8 +39,7 @@ static void on_got_ip(void *arg, esp_event_base_t event_base,
 }
 
 
-esp_err_t wifi_connect(void)
-{
+esp_err_t wifi_connect(void) {
     if (s_connect_event_group != NULL) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -68,8 +53,7 @@ esp_err_t wifi_connect(void)
     return ESP_OK;
 }
 
-esp_err_t wifi_disconnect(void)
-{
+esp_err_t wifi_disconnect(void) {
     if (s_connect_event_group == NULL) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -82,9 +66,7 @@ esp_err_t wifi_disconnect(void)
 }
 
 
-static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
-                               int32_t event_id, void *event_data)
-{
+static void on_wifi_disconnect(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect...");
     esp_err_t err = esp_wifi_connect();
     if (err == ESP_ERR_WIFI_NOT_STARTED) {
@@ -94,8 +76,7 @@ static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
 }
 
 
-static void start(void)
-{
+static void start(void) {
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
@@ -129,8 +110,7 @@ static void start(void)
     s_connection_name = WIFI_SSID;
 }
 
-static void stop(void)
-{
+static void stop(void) {
     ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &on_wifi_disconnect));
     ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, &on_got_ip));
     esp_err_t err = esp_wifi_stop();
@@ -145,7 +125,6 @@ static void stop(void)
 }
 
 
-esp_netif_t *get_example_netif(void)
-{
+esp_netif_t *get_example_netif(void) {
     return s_example_esp_netif;
 }

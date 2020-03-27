@@ -1,7 +1,6 @@
 idf_component_register(SRCS alles.c
 							wifi.c
 							multicast.c
-							stdin_out.c
 							oscillators.cc
 							fm.cc
 							blip/Blip_Buffer.cpp
