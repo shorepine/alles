@@ -28,10 +28,16 @@ static const char *V4TAG = "mcast-ipv4";
 int sock= -1;
 
 extern void parse_message_into_events(char * data_buffer, int recv_data);
-extern void update_map(uint8_t client, uint8_t ipv4, int64_t time);
+extern esp_ip4_addr_t s_ip_addr;
 
-extern uint8_t ipv4_quartet;
-extern int8_t client_id;
+int8_t ipv4_quartet;
+int16_t client_id;
+int64_t clocks[255];
+int64_t ping_times[255];
+uint8_t alive = 1;
+int64_t computed_delta = 0; // can be negative no prob, but usually host is larger # than client
+uint8_t computed_delta_set = 0; // have we set a delta yet?
+
 
 int64_t last_ping_time = PING_TIME_MS; // do the first ping at 10s in to wait for other synths to announce themselves
 
@@ -83,8 +89,7 @@ static int socket_add_ipv4_multicast_group(bool assign_source_if)
     return err;
 }
 
-void create_multicast_ipv4_socket(void)
-{
+void create_multicast_ipv4_socket(void) {
     struct sockaddr_in saddr = { 0 };
     sock = -1;
     int err = 0;
@@ -115,14 +120,10 @@ void create_multicast_ipv4_socket(void)
     err = socket_add_ipv4_multicast_group(true);
 
     // All set, socket is configured for sending and receiving
-
-
     //close(sock);
 }
 
 // Send a multicast message 
-// Needs a socket -- can i use the existing one or does it cross a thread boundary? unclear 
-// could also create a new socket
 void mcast_send(char * message, uint16_t len) {
     char addrbuf[32] = { 0 };
     struct addrinfo hints = {
@@ -150,17 +151,70 @@ void mcast_send(char * message, uint16_t len) {
     }
 }
 
+void update_map(uint8_t client, uint8_t ipv4, int64_t time) {
+    // I'm called when I get a sync response (or a regular ping packet?)
+    // I update a map of booted devices.
+    // i guess if i never call sync my client id is my ipv4 # 
+    // if you do call it the ones with the largest sysclock get the lowest numbers, right, it's just a sort greatest->least
+    // and client id becomes the index in that sort
+    //printf("[%d %d] Got a sync response client %d ipv4 %d time %lld\n",  ipv4_quartet, client_id, client , ipv4, time);
+    clocks[ipv4] = time;
+    int64_t my_sysclock = (esp_timer_get_time() / 1000) + 1; // we add one here to avoid local race conditions
+    ping_times[ipv4] = my_sysclock;
+
+    // Now I basically see what index I would be in the list of booted synths (clocks[i] > 0)
+    // And I set my client_id to that index
+    uint8_t my_new_client_id = 255;
+    alive = 0;
+    for(uint8_t i=0;i<255;i++) {
+        if(clocks[i] > 0) { 
+            if(my_sysclock < (ping_times[i] + (PING_TIME_MS * 2))) { // alive
+                //printf("[%d %d] Checking my time %lld against ipv4 %d's of %lld, client_id now %d ping_time[%d] = %lld\n", 
+                //    ipv4_quartet, client_id, my_sysclock, i, clocks[i], my_new_client_id, i, ping_times[i]);
+                alive++;
+            } else {
+                printf("[ipv4 %d client %d] clock %d is dead, ping time was %lld time now is %lld.\n", ipv4_quartet, client_id, i, ping_times[i], my_sysclock);
+                clocks[i] = 0;
+                ping_times[i] = 0;
+            }
+        }
+        if(my_sysclock > clocks[i]) my_new_client_id--;
+    }
+    if(client_id != my_new_client_id) {
+        printf("[ipv4 %d client %d] Updating my client_id to %d. %d alive\n", ipv4_quartet, client_id, my_new_client_id, alive);
+        client_id = my_new_client_id;
+    }
+    //printf("%d devices online\n", alive);
+}
+
+void handle_sync(int64_t time, int8_t index) {
+    // I am called when I get an s message, which comes along with host time and index
+    int64_t sysclock = esp_timer_get_time() / 1000;
+    char message[100];
+    // Before I send, i want to update the map locally
+    update_map(client_id, ipv4_quartet, sysclock);
+    // Send back sync message with my time and received sync index and my client id
+    sprintf(message, "_s%lldi%dc%dr%d", sysclock, index, client_id, ipv4_quartet);
+    mcast_send(message, strlen(message));
+    // Update computed delta (i could average these out, but I don't think that'll help too much)
+    computed_delta = time - sysclock;
+    computed_delta_set = 1;
+}
+
 void ping(int64_t sysclock) {
     char message[100];
-    printf("[%d %d] pinging with %lld\n", ipv4_quartet, client_id, sysclock);
+    //printf("[%d %d] pinging with %lld\n", ipv4_quartet, client_id, sysclock);
     sprintf(message, "_s%lldi-1c%dr%d", sysclock, client_id, ipv4_quartet);
     update_map(client_id, ipv4_quartet, sysclock);
     mcast_send(message, strlen(message));
     last_ping_time = sysclock;
 }
 
-void mcast_listen_task(void *pvParameters)
-{
+void mcast_listen_task(void *pvParameters) {
+    ipv4_quartet = esp_ip4_addr4(&s_ip_addr);
+    client_id = -1; // for now
+    for(uint8_t i=0;i<255;i++) { clocks[i] = 0; ping_times[i] = 0; }
+
     printf("Network listening running on core %d\n",xPortGetCoreID());
     while (1) {
 
@@ -194,8 +248,6 @@ void mcast_listen_task(void *pvParameters)
                 if (FD_ISSET(sock, &rfds)) {
                     // Incoming datagram received
                     char recvbuf[MAX_RECEIVE_LEN];
-                    //char raddr_name[32] = { 0 };
-
                     struct sockaddr_in6 raddr; // Large enough for both IPv4 or IPv6
                     socklen_t socklen = sizeof(raddr);
                     int len = recvfrom(sock, recvbuf, sizeof(recvbuf)-1, 0,
@@ -205,15 +257,7 @@ void mcast_listen_task(void *pvParameters)
                         err = -1;
                         break;
                     }
-
-                    // Get the sender's address as a string
-                    //if (raddr.sin6_family == PF_INET) {
-                    //    inet_ntoa_r(((struct sockaddr_in *)&raddr)->sin_addr.s_addr,
-                    //                raddr_name, sizeof(raddr_name)-1);
-                    //}
                     parse_message_into_events(recvbuf, len);
-                    //ESP_LOGI(TAG, "received %d bytes from %s:", len, raddr_name);
-                    //ESP_LOGI(TAG, "%s", recvbuf);
                 }
             }
             // Do a ping every so often

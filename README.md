@@ -2,9 +2,9 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/alles/master/pics/set.jpg)
 
-**alles** is a many-speaker distributed synthesizer that responds to control signals over WiFi. Each synth supports up to 10 additive sine, saw, pulse/square, noise and triangle oscillators, a Karplus-Strong string implementation, and a full FM stage including support for DX7 patches. They're cheap to make ($7 for the microcontroller, $6 for the amplifier, speakers from $0.50 up depending on quality). And very easy to put together with hookup wire or only a few soldering points. 
+**alles** is a many-speaker distributed mesh synthesizer that responds to control signals over WiFi. Each synth supports up to 10 additive sine, saw, pulse/square, noise and triangle oscillators, a Karplus-Strong string implementation, and a full FM stage including support for DX7 patches. They're cheap to make ($7 for the microcontroller, $6 for the amplifier, speakers from $0.50 up depending on quality). And very easy to put together with hookup wire or only a few soldering points. 
 
-The synthesizers listen to UDP multicast messages. The original idea was to install a bunch of them throughout a space and make a distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled as a group or individually from a laptop or phone or etc. But you can just treat them as dozens / hundreds of individual synthesizers and do whatever you want with them. It's pretty fun!
+The synthesizers form a mesh and listen to UDP multicast messages. The original idea was to install a bunch of them throughout a space and make a distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled as a group or individually from a laptop or phone or etc. But you can just treat them as dozens / hundreds of individual synthesizers and do whatever you want with them. It's pretty fun!
 
 ## Putting it together 
 
@@ -108,7 +108,7 @@ In normal operation, a small "bleep" noise is made a few seconds after boot to c
 
 By default, a message is played by all booted synthesizers. But you can address them individually or in groups using the `client` parameter.
 
-The synthesizers form a mesh that self-identify who is running. They get auto-addressed `client_id`s starting at 0 through 255. The first synth to be booted in the mesh gets `0`, then `1`, and so on. If a synth is shut off or otherwise no longer sends a heartbeat signal to the mesh, the `client_ids` will reform so that they are always contiguous. 
+The synthesizers form a mesh that self-identify who is running. They get auto-addressed `client_id`s starting at 0 through 255. The first synth to be booted in the mesh gets `0`, then `1`, and so on. If a synth is shut off or otherwise no longer sends a heartbeat signal to the mesh, the `client_ids` will reform so that they are always contiguous. A synth may take 10-20 seconds to join the mesh and get assigned a `client_id` after booting, but it will immediately receive messages sent to all synths. 
 
 The `client` parameter wraps around given the number of booted synthesizers to make it easy on the composer. If you have 6 booted synths, a `client` of 0 only reaches the first synth, `1` only reaches the 2nd synth, and a client of `7` reaches the 2nd synth (`7 % 6 = 1`). 
 
@@ -163,10 +163,9 @@ If you're in a place where you can't control your network, you can mitigate reli
 Simple Python example:
 
 ```
-import socket, struct
+import socket
 multicast_group = ('232.10.11.12', 3333)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, struct.pack('b', 1))
 
 def tone(voice=0, type=0, amp=0.1, freq=0):
     sock.sendto("v%dw%da%ff%f" % (voice, type, amp, freq), multicast_group)

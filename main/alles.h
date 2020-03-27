@@ -41,7 +41,12 @@ extern "C" {
 extern void mcast_listen_task(void *pvParameters);
 extern void mcast_send(char * message, uint16_t len);
 extern void create_multicast_ipv4_socket();
-extern esp_ip4_addr_t s_ip_addr;
+extern void update_map(uint8_t client, uint8_t ipv4, int64_t time);
+extern void handle_sync(int64_t time, int8_t index);
+extern uint8_t alive;
+extern int64_t computed_delta; // can be negative no prob, but usually host is larger # than client
+extern uint8_t computed_delta_set; // have we set a delta yet?
+extern int16_t client_id;
 
 // FM 
 extern void fm_init();
