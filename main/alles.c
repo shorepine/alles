@@ -1,3 +1,8 @@
+// Alles multicast synthesizer
+// Brian Whitman
+// brian@variogr.am
+
+
 #include "alles.h"
 
 //i2s configuration
@@ -24,8 +29,8 @@ i2s_pin_config_t pin_config = {
 // Synth globals for timing and client
 int64_t computed_delta = 0; // can be negative no prob, but usually host is larger # than client
 uint8_t computed_delta_set = 0; // have we set a delta yet?
-uint8_t client_id = 0; // last quartet of the ipv4
-
+uint8_t ipv4_quartet = 0; // last quartet of the ipv4
+int16_t client_id = -1; // my client_id
 
 struct event {
     uint64_t time;
@@ -47,6 +52,7 @@ struct event events[EVENT_FIFO_LEN];
 // And another event per voice as multi-channel sequencer that the scheduler renders into
 struct event sequencer[VOICES];
 
+void ping(int64_t sysclock);
 
 float freq_for_midi_note(uint8_t midi_note) {
     return 440.0*pow(2,(midi_note-69.0)/12.0);
@@ -131,6 +137,7 @@ int16_t block[BLOCK_SIZE];
 void fill_audio_buffer() {
     // Check to see which sounds to play 
     int64_t sysclock = esp_timer_get_time() / 1000;
+    
     // We could save some CPU by starting at a read pointer, depends on how big this gets
     for(uint16_t i=0;i<EVENT_FIFO_LEN;i++) {
         if(events[i].status == SCHEDULED) {
@@ -216,12 +223,55 @@ void setup_events() {
     }
 }
 
-void handle_sync(int64_t time, uint8_t index) {
+int64_t clocks[255];
+int64_t ping_times[255];
+uint8_t alive = 1;
+
+
+void update_map(uint8_t client, uint8_t ipv4, int64_t time) {
+    // I'm called when I get a sync response (or a regular ping packet?)
+    // I update a map of booted devices.
+    // i guess if i never call sync my client id is my ipv4 # 
+    // if you do call it the ones with the largest sysclock get the lowest numbers, right, it's just a sort greatest->least
+    // and client id becomes the index in that sort
+    //printf("[%d %d] Got a sync response client %d ipv4 %d time %lld\n",  ipv4_quartet, client_id, client , ipv4, time);
+    clocks[ipv4] = time;
+    int64_t my_sysclock = (esp_timer_get_time() / 1000) + 1; // we add one here to avoid local race conditions
+    ping_times[ipv4] = my_sysclock;
+
+    // Now I basically see what index I would be in the list of booted synths (clocks[i] > 0)
+    // And I set my client_id to that index
+    uint8_t my_new_client_id = 255;
+    alive = 0;
+    for(uint8_t i=0;i<255;i++) {
+        if(clocks[i] > 0) { 
+            if(my_sysclock < (ping_times[i] + (PING_TIME_MS * 2))) { // alive
+                //printf("[%d %d] Checking my time %lld against ipv4 %d's of %lld, client_id now %d ping_time[%d] = %lld\n", 
+                //    ipv4_quartet, client_id, my_sysclock, i, clocks[i], my_new_client_id, i, ping_times[i]);
+                alive++;
+            } else {
+                //printf("[%d %d] clock %d is dead, ping time was %lld time now is %lld\n", ipv4_quartet, client_id, i, ping_times[i], my_sysclock);
+                clocks[i] = 0;
+                ping_times[i] = 0;
+            }
+        }
+        if(my_sysclock > clocks[i]) my_new_client_id--;
+    }
+    if(client_id != my_new_client_id) {
+        //printf("[%d %d] Updating my client_id to %d\n", ipv4_quartet, client_id, my_new_client_id);
+        client_id = my_new_client_id;
+    }
+    //printf("%d devices online\n", alive);
+}
+
+void handle_sync(int64_t time, int8_t index) {
     // I am called when I get an s message, which comes along with host time and index
     int64_t sysclock = esp_timer_get_time() / 1000;
     char message[100];
+    // Before I send, i want to update the map locally
+    update_map(client_id, ipv4_quartet, sysclock);
     // Send back sync message with my time and received sync index and my client id
-    sprintf(message, "_s%lldi%dc%d", sysclock, index, client_id);
+    sprintf(message, "_s%lldi%dc%dr%d", sysclock, index, client_id, ipv4_quartet);
     mcast_send(message, strlen(message));
     // Update computed delta (i could average these out, but I don't think that'll help too much)
     computed_delta = time - sysclock;
@@ -229,17 +279,21 @@ void handle_sync(int64_t time, uint8_t index) {
 }
 
 
+
+
+
 // parse a received UDP message into a FIFO of messages that the sequencer will trigger
 void parse_message_into_events(char * data_buffer, int recv_data) {
     uint8_t mode = 0;
     int64_t sync = -1;
     int8_t sync_index = -1;
+    int8_t ipv4 = 0;
     int16_t client = -1;
     uint16_t start = 0;
     uint16_t c = 0;
     struct event e = default_event();
     int64_t sysclock = esp_timer_get_time() / 1000;
-
+    uint8_t sync_response = 0;
     // Put a null at the end for atoi
     data_buffer[recv_data] = 0;
 
@@ -249,11 +303,10 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
     recv_data = new_recv_data;
 
     //printf("message ###%s### len %d\n", data_buffer, recv_data);
-    // Skip this if the message starts with _ (an ack message for sync)
-    if(recv_data>0) if(data_buffer[0]=='_') recv_data = -1;
 
     while(c < recv_data+1) {
         uint8_t b = data_buffer[c];
+        if(b == '_' && c==0) sync_response = 1;
         if(b >= 'a' || b <= 'z' || b == 0) {  // new mode or end
             if(mode=='t') {
                 e.time=atoi(data_buffer + start);
@@ -272,6 +325,7 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
             if(mode=='i') sync_index = atoi(data_buffer + start);
             if(mode=='n') e.midi_note=atoi(data_buffer + start);
             if(mode=='p') e.patch=atoi(data_buffer + start);
+            if(mode=='r') ipv4=atoi(data_buffer + start);
             if(mode=='s') sync = atoi(data_buffer + start); 
             if(mode=='v') e.voice=atoi(data_buffer + start);
             if(mode=='w') e.wave=atoi(data_buffer + start);
@@ -279,6 +333,10 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
             start=c+1;
         }
         c++;
+    }
+    if(sync_response) {
+        update_map(client, ipv4, sync);
+        recv_data = 0; // don't need to do the rest
     }
     // Only do this if we got some data
     if(recv_data >0) {
@@ -300,6 +358,12 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
             // But wait, they specified, so don't assume
             if(client >= 0) {
                 for_me = 0;
+                if(client <= 255) {
+                    // If they gave an individual client ID check that it exists
+                    if(client >= alive) {
+                        client = client % alive;
+                    } 
+                }
                 // It's actually precisely for me
                 if(client == client_id) for_me = 1;
                 if(client > 255) {
@@ -376,45 +440,34 @@ void app_main() {
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-    // This is the "BOOT" pin on the devboards
+
+    // This is the "BOOT" pin on the devboards -- GPIO0
     gpio_set_direction(GPIO_NUM_0,  GPIO_MODE_INPUT);
     gpio_pullup_en(GPIO_NUM_0);
 
-    esp_chip_info_t chip_info;
-    esp_chip_info(&chip_info);
-    printf("This is ESP32 chip with %d CPU cores, WiFi%s%s, ",
-            chip_info.cores,
-            (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
-            (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
-
-    printf("silicon revision %d, ", chip_info.revision);
-
-    printf("%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024),
-            (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
-
-    printf("Setting up I2S\n");
     setup_i2s();
     setup_voices();
     setup_events();
-    printf("oscillators ready\n");
 
     vTaskDelay(100*2); // wait 2 seconds to see if button is pressed
 
     if(!gpio_get_level(GPIO_NUM_0)) {
-        // play a test thing
+        // play a test thing forever if the button was pressed
         test_sounds();
     }
     
-    // Else start the main loop 
-    printf("Setting up wifi & multicast listening\n");
+    // else start the main loop 
     ESP_ERROR_CHECK(wifi_connect());
     create_multicast_ipv4_socket();
+
     // Pin the UDP task to the 2nd core so the audio / main core runs on its own without getting starved
     xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 5, NULL, 1);
-    printf("Wifi ready\n");
-    client_id =esp_ip4_addr4(&s_ip_addr);
-    printf("Synth running on core %d\n", xPortGetCoreID());
+    ipv4_quartet = esp_ip4_addr4(&s_ip_addr);
 
+    for(uint8_t i=0;i<255;i++) { clocks[i] = 0; ping_times[i] = 0; }
+    client_id = -1; // for now
+
+    printf("Synth running on core %d\n", xPortGetCoreID());
     bleep();
 
     // Spin this core forever parsing events and making sounds

@@ -106,9 +106,15 @@ In normal operation, a small "bleep" noise is made a few seconds after boot to c
 
 ## Addressing individual synthesizers
 
-By default, a UDP multicast message reaches all booted synthesizers at once (see below for timing info.) If you want to address a single synth, or half or a quarter of them, use the `client` parameter. Keeping `client` off sends a message to all synths. Setting `client` to a number between 0 and 255 will only reach the synthesizer with that client ID. Client ID is simply the last octet of its IPV4 address. To learn which client IDs are online, use the `sync` command and see `alles.py`'s implementation.
+By default, a message is played by all booted synthesizers. But you can address them individually or in groups using the `client` parameter.
+
+The synthesizers form a mesh that self-identify who is running. They get auto-addressed `client_id`s starting at 0 through 255. The first synth to be booted in the mesh gets `0`, then `1`, and so on. If a synth is shut off or otherwise no longer sends a heartbeat signal to the mesh, the `client_ids` will reform so that they are always contiguous. 
+
+The `client` parameter wraps around given the number of booted synthesizers to make it easy on the composer. If you have 6 booted synths, a `client` of 0 only reaches the first synth, `1` only reaches the 2nd synth, and a client of `7` reaches the 2nd synth (`7 % 6 = 1`). 
 
 Setting `client` to a number greater than 255 allows you to address groups. For example, a `client` of 257 performs the following check on each booted synthesizer: `my_client_id % (client-255) == 0`. This would only address every other synthesizer. A `client` of 259 would address every fourth synthesizer, and so on.
+
+You can read the heartbeat messages on your host if you want to enumerate the synthesizers locally, see `sync` below. 
 
 ## Timing & latency & sync
 
@@ -121,7 +127,7 @@ def alles_ms():
 
 The first time you send a message the synth uses this to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of both fixed latency and jitter.) Further messages will be accurate message-to-message, but with the fixed latency. 
 
-If you want to update this delta (to correct for drift over time or clock base changes) use the `sync` command. See `alles.py`'s implementation, but sending an `sTIMEiINDEX` message will update the delta and also trigger a response back from each on-line synthesizer. The response looks like `_s65201i4c248`, where s is the time on the client, i is the index it is responding to, and c is the client id. This lets you build a map of not only each booted synthesizer, but if you send many messages with different indexes, will also let you figure the round-trip latency for each one along with the reliability. This is helpful when your synths are spread far apart in space and each may have unique latencies. e.g. here we see we have two synths booted on a busy WiFi network.
+If you want to update this delta (to correct for drift over time or clock base changes) use the `sync` command. See `alles.py`'s implementation, but sending an `sTIMEiINDEX` message will update the delta and also trigger an immediate response back from each on-line synthesizer. The response looks like `_s65201i4c248`, where s is the time on the client, i is the index it is responding to, and c is the client id. This lets you build a map of not only each booted synthesizer, but if you send many messages with different indexes, will also let you figure the round-trip latency for each one along with the reliability. This is helpful when your synths are spread far apart in space and each may have unique latencies. e.g. here we see we have two synths booted on a busy WiFi network.
 
 ```
 >>> alles.sync(count=10)
@@ -191,6 +197,8 @@ You can also use it in Max or similar software that supports sending UDP packets
 
 * ~~remove distortion at higher amplitudes for mixed sine waves~~
 * ~~FM~~
+* ~~should synths self-identify to each other? would make it easier to use in Max~~
+* see what you can do about wide swings of UDP latency on the netgear router 
 * envelopes / note on/offs / LFOs
 * ~~confirm UDP still works from Max/Pd~~
 * ~~bandlimit the square/saw/triangle oscillators~~

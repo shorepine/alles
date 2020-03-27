@@ -36,6 +36,7 @@ extern "C" {
 #define UDP_PORT 3333
 #define MULTICAST_TTL 1
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
+#define PING_TIME_MS 10000
 
 extern void mcast_listen_task(void *pvParameters);
 extern void mcast_send(char * message, uint16_t len);
@@ -59,7 +60,6 @@ extern void render_triangle(float * buf, uint16_t len, uint8_t voice, float freq
 extern void render_noise(float *buf, uint16_t len, float amp);
 extern void ks_new_note_freq(float freq, uint8_t voice);
 
-// We like a lot of LUT for sines, but maybe don't need to alloc 16384*4 bytes for a square wave
 #define SINE_LUT_SIZE 16383
 
 #define BLOCK_SIZE 256

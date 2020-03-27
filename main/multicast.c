@@ -28,6 +28,12 @@ static const char *V4TAG = "mcast-ipv4";
 int sock= -1;
 
 extern void parse_message_into_events(char * data_buffer, int recv_data);
+extern void update_map(uint8_t client, uint8_t ipv4, int64_t time);
+
+extern uint8_t ipv4_quartet;
+extern int8_t client_id;
+
+int64_t last_ping_time = PING_TIME_MS; // do the first ping at 10s in to wait for other synths to announce themselves
 
 static int socket_add_ipv4_multicast_group(bool assign_source_if)
 {
@@ -144,9 +150,18 @@ void mcast_send(char * message, uint16_t len) {
     }
 }
 
+void ping(int64_t sysclock) {
+    char message[100];
+    printf("[%d %d] pinging with %lld\n", ipv4_quartet, client_id, sysclock);
+    sprintf(message, "_s%lldi-1c%dr%d", sysclock, client_id, ipv4_quartet);
+    update_map(client_id, ipv4_quartet, sysclock);
+    mcast_send(message, strlen(message));
+    last_ping_time = sysclock;
+}
+
 void mcast_listen_task(void *pvParameters)
 {
-    printf("I am listening on core %d\n",xPortGetCoreID());
+    printf("Network listening running on core %d\n",xPortGetCoreID());
     while (1) {
 
         if (sock < 0) ESP_LOGE(TAG, "Failed to create IPv4 multicast socket");
@@ -201,9 +216,9 @@ void mcast_listen_task(void *pvParameters)
                     //ESP_LOGI(TAG, "%s", recvbuf);
                 }
             }
-            // Try to delay 1ms here
-            //vTaskDelay( 1 / portTICK_PERIOD_MS );
-
+            // Do a ping every so often
+            int64_t sysclock = esp_timer_get_time() / 1000;
+            if(sysclock > (last_ping_time+PING_TIME_MS)) ping(sysclock);
         }
 
         ESP_LOGE(TAG, "Shutting down socket and restarting...");

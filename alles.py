@@ -46,6 +46,7 @@ def sync(count=10, delay_ms=100):
     global sock
     # Sends sync packets to all the listeners so they can correct / get the time
     clients = {}
+    client_map = {}
     start_time = alles_ms()
     last_sent = 0
     time_sent = {}
@@ -62,12 +63,13 @@ def sync(count=10, delay_ms=100):
         try:
             data, address = sock.recvfrom(1024)
             if(data[0] == '_'):
-                [_, client_time, sync_index, client_id] = re.split(r'[sic]',data)
+                [_, client_time, sync_index, client_id, ipv4] = re.split(r'[sicr]',data)
                 if(int(sync_index) <= i): # skip old ones from a previous run
-                    #print "recvd at %d:  %s %s %s" % (alles_ms(), client_time, sync_index, client_id)
-                    #print str(rtt)
-                    rtt[int(client_id)] = rtt.get(int(client_id), {})
-                    rtt[int(client_id)][int(sync_index)] = alles_ms()-time_sent[int(sync_index)]
+                    #print "recvd at %d:  %s %s %s %s" % (alles_ms(), client_time, sync_index, client_id, ipv4)
+                    if(int(sync_index) >= 0):
+                        client_map[int(ipv4)] = client_id
+                        rtt[int(ipv4)] = rtt.get(int(ipv4), {})
+                        rtt[int(ipv4)][int(sync_index)] = alles_ms()-time_sent[int(sync_index)]
         except socket.error:
             pass
 
@@ -77,17 +79,18 @@ def sync(count=10, delay_ms=100):
             break
 
     # Compute average rtt in ms and reliability (number of rt packets we got)
-    for client in rtt.keys():
+    for ipv4 in rtt.keys():
         hit = 0
         total_rtt_ms = 0
         for i in range(count):
-            ms = rtt[client].get(i, None)
+            ms = rtt[ipv4].get(i, None)
             if ms is not None:
                 total_rtt_ms = total_rtt_ms + ms
                 hit = hit + 1
-        clients[client] = {}
-        clients[client]["reliability"] = float(hit)/float(count)
-        clients[client]["avg_rtt"] = float(total_rtt_ms) / float(hit)
+        clients[client_map[ipv4]] = {}
+        clients[client_map[ipv4]]["reliability"] = float(hit)/float(count)
+        clients[client_map[ipv4]]["avg_rtt"] = float(total_rtt_ms) / float(hit)
+        clients[client_map[ipv4]]["ipv4"] = ipv4
     # Return this as a map for future use
     return clients
 
@@ -102,7 +105,7 @@ def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1
     if(freq>=0): m = m + "f%f" % (freq)
     if(note>=0): m = m + "n%d" % (note)
     if(patch>=0): m = m + "p%d" % (patch)
-    if(client>0): m = m + "c%d" % (client)
+    if(client>=0): m = m + "c%d" % (client)
     if(vel>=0): m = m + "e%d" % (vel)
     for x in range(retries):
         sock.sendto(m, multicast_group)
@@ -151,6 +154,20 @@ def test():
     except KeyboardInterrupt:
         pass
     off()
+
+def circle(wave=KS, amp=0.5, clients=6):
+    i = 0
+    warble=-40
+    direction =1
+    while 1:
+        tone(voice=0,wave=wave, freq=440+warble, amp=amp, client=i)
+        i = (i + 1) % clients
+        warble = warble + direction
+        if warble > 40:
+            direction = -1
+        if warble < -40:
+            direction = 1
+        time.sleep(0.25)
 
 def play_patches(voice=0, wave=FM, amp=0.5 ,forever=True, vel=100, wait=0.750, duty=0.5, patch_total = 100):
     once = True
