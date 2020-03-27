@@ -154,9 +154,7 @@ void mcast_send(char * message, uint16_t len) {
 void update_map(uint8_t client, uint8_t ipv4, int64_t time) {
     // I'm called when I get a sync response (or a regular ping packet?)
     // I update a map of booted devices.
-    // i guess if i never call sync my client id is my ipv4 # 
-    // if you do call it the ones with the largest sysclock get the lowest numbers, right, it's just a sort greatest->least
-    // and client id becomes the index in that sort
+
     //printf("[%d %d] Got a sync response client %d ipv4 %d time %lld\n",  ipv4_quartet, client_id, client , ipv4, time);
     clocks[ipv4] = time;
     int64_t my_sysclock = (esp_timer_get_time() / 1000) + 1; // we add one here to avoid local race conditions

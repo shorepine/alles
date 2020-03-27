@@ -272,6 +272,7 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
         c++;
     }
     if(sync_response) {
+        // If this is a sync response, let's update our local map of who is booted
         update_map(client, ipv4, sync);
         recv_data = 0; // don't need to do the rest
     }
@@ -297,9 +298,11 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
                 for_me = 0;
                 if(client <= 255) {
                     // If they gave an individual client ID check that it exists
-                    if(client >= alive) {
-                        client = client % alive;
-                    } 
+                    if(alive>0) { // alive may get to 0 in a bad situation, and will reboot the box here div0
+                        if(client >= alive) {
+                            client = client % alive;
+                        } 
+                    }
                 }
                 // It's actually precisely for me
                 if(client == client_id) for_me = 1;
