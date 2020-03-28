@@ -2,4 +2,6 @@ build/
 auth.h
 .DS_Store
 *.pyc
+sdkconfig.ci
+sdkconfig.old
 
