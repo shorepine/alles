@@ -1,2 +1,2 @@
-scp build/alles.bin canopy.local:esp/alles/build/
-ssh canopy.local "cd esp/alles; ./flash.sh"
+scp build/alles.bin 192.168.86.20:esp/alles/build/
+ssh 192.168.86.20 "cd esp/alles; ./flash.sh"

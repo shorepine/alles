@@ -50,20 +50,20 @@ extern int16_t client_id;
 
 // FM 
 extern void fm_init();
-extern void render_fm(float * buf, uint16_t len, uint8_t voice, float amp);
-extern void fm_new_note_number(uint8_t midi_note, uint8_t velocity, uint16_t patch, uint8_t voice);
-extern void fm_new_note_freq(float freq, uint8_t velocity, uint16_t patch, uint8_t voice);
+extern void render_fm(float * buf, uint8_t voice); 
+extern void fm_new_note_number(uint8_t voice);
+extern void fm_new_note_freq(uint8_t voice);
 
 // bandlimted oscillators
 extern void oscillators_init();
 extern void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) ;
-extern void render_ks(float * buf, uint16_t len, uint8_t voice, float freq, float duty, float amp);
-extern void render_sine(float * buf, uint16_t len, uint8_t voice, float freq, float amp);
-extern void render_pulse(float * buf, uint16_t len, uint8_t voice, float freq, float duty, float amp);
-extern void render_saw(float * buf, uint16_t len, uint8_t voice, float freq, float amp);
-extern void render_triangle(float * buf, uint16_t len, uint8_t voice, float freq, float amp);
-extern void render_noise(float *buf, uint16_t len, float amp);
-extern void ks_new_note_freq(float freq, uint8_t voice);
+extern void render_ks(float * buf, uint8_t voice); 
+extern void render_sine(float * buf, uint8_t voice); 
+extern void render_pulse(float * buf, uint8_t voice); 
+extern void render_saw(float * buf, uint8_t voice); 
+extern void render_triangle(float * buf, uint8_t voice); 
+extern void render_noise(float * buf, uint8_t voice); 
+extern void ks_new_note_freq(uint8_t voice); 
 
 #define SINE_LUT_SIZE 16383
 
@@ -84,6 +84,27 @@ extern void ks_new_note_freq(float freq, uint8_t voice);
 #define PLAYED 2
 #define LATENCY_MS 500
 #define MAX_MS_DRIFT 2500
+
+#define UP    16383
+#define DOWN -16384
+
+struct event {
+    uint64_t time;
+    int16_t voice;
+    int16_t wave;
+    int16_t patch;
+    int16_t midi_note;
+    float amp;
+    float duty;
+    float feedback;
+    float freq;
+    uint8_t status;
+    int8_t velocity;
+    float step;
+    float substep;
+    float sample;
+
+};
 
 #ifdef __cplusplus
 }

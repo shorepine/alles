@@ -4,19 +4,6 @@
 #include "alles.h"
 
 
-struct event {
-    uint64_t time;
-    int16_t voice;
-    int16_t wave;
-    int16_t patch;
-    int16_t midi_note;
-    float amp;
-    float duty;
-    float feedback;
-    float freq;
-    uint8_t status;
-    int8_t velocity;
-};
 
 int i2s_num = 0; // i2s port number
 int16_t next_event_write = 0;
@@ -41,6 +28,9 @@ struct event default_event() {
     e.status = EMPTY;
     e.time = 0;
     e.voice = 0;
+    e.step = 0;
+    e.substep = 0;
+    e.sample = DOWN;
     e.patch = -1;
     e.wave = -1;
     e.duty = -1;
@@ -70,6 +60,9 @@ void add_event(struct event e, int16_t index) {
     events[index].amp = e.amp;
     events[index].time = e.time;
     events[index].status = e.status;
+    events[index].sample = e.sample;
+    events[index].step = e.step;
+    events[index].substep = e.substep;
 }
 
 // The sequencer object keeps state betweeen voices, whereas events are only deltas/changes
@@ -77,6 +70,7 @@ void setup_voices() {
     fm_init();
     oscillators_init();
     for(int i=0;i<VOICES;i++) {
+        sequencer[i].voice = i; // self-reference to make updating oscillators easier
         sequencer[i].wave = OFF;
         sequencer[i].duty = 0.5;
         sequencer[i].patch = 0;
@@ -85,6 +79,9 @@ void setup_voices() {
         sequencer[i].feedback = 0.996;
         sequencer[i].amp = 0;
         sequencer[i].velocity = 100;
+        sequencer[i].step = 0;
+        sequencer[i].sample = DOWN;
+        sequencer[i].substep = 0;
     }
 
     // Fill the FIFO with default events, as the audio thread reads from it immediately
@@ -108,19 +105,13 @@ void play_event(struct event e) {
     // Triggers / envelopes -- this needs some more thinking
     if(sequencer[e.voice].wave==FM) {
         if(sequencer[e.voice].midi_note>0) {
-            fm_new_note_number(sequencer[e.voice].midi_note, 
-                                sequencer[e.voice].velocity, 
-                                sequencer[e.voice].patch, 
-                                e.voice);
+            fm_new_note_number(e.voice);
         } else {
-            fm_new_note_freq(sequencer[e.voice].freq, 
-                                sequencer[e.voice].velocity, 
-                                sequencer[e.voice].patch, 
-                                e.voice);
+            fm_new_note_freq(e.voice); 
         }
     }
     if(sequencer[e.voice].wave==KS) {
-        ks_new_note_freq(sequencer[e.voice].freq, e.voice);
+        ks_new_note_freq(e.voice);
     }
 }
 
@@ -152,25 +143,25 @@ void fill_audio_buffer() {
     for(uint8_t voice=0;voice<VOICES;voice++) {
         switch(sequencer[voice].wave) {
             case FM:
-                render_fm(floatblock, BLOCK_SIZE, voice, sequencer[voice].amp);
+                render_fm(floatblock, voice); //BLOCK_SIZE, voice, sequencer[voice].amp);
                 break;
             case NOISE:
-                render_noise(floatblock, BLOCK_SIZE, sequencer[voice].amp);
+                render_noise(floatblock, voice); //BLOCK_SIZE, sequencer[voice].amp);
                 break;
             case SAW:
-                render_saw(floatblock, BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].amp);
+                render_saw(floatblock, voice); //BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].amp);
                 break;
             case PULSE:
-                render_pulse(floatblock, BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].duty, sequencer[voice].amp);
+                render_pulse(floatblock, voice); //BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].duty, sequencer[voice].amp);
                 break;
             case TRIANGLE:
-                render_triangle(floatblock, BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].amp);
+                render_triangle(floatblock, voice); //BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].amp);
                 break;                
             case SINE:
-                render_sine(floatblock, BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].amp);
+                render_sine(floatblock, voice); //BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].amp);
                 break;
             case KS:
-                render_ks(floatblock, BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].feedback, sequencer[voice].amp);
+                render_ks(floatblock, voice); //BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].feedback, sequencer[voice].amp);
                 break;
 
         }
