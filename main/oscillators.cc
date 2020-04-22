@@ -28,8 +28,7 @@ extern "C" void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) {
     blipbuf.read_samples(obuf, len, 0);
 }
 
-//extern "C" void render_sine(float * buf, uint16_t len, uint8_t voice, float freq, float amp) {
-extern "C" void render_sine(float * buf, uint8_t voice) { //uint16_t len, uint8_t voice, float freq, float amp) {
+extern "C" void render_sine(float * buf, uint8_t voice) { 
     float skip = sequencer[voice].freq / 44100.0 * SINE_LUT_SIZE;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         if(skip >= 1) { // skip compute if frequency is < 3Hz
@@ -46,14 +45,12 @@ extern "C" void render_sine(float * buf, uint8_t voice) { //uint16_t len, uint8_
     }
 }
 
-//extern "C" void render_noise(float *buf, uint16_t len, float amp) {
 extern "C" void render_noise(float *buf, uint8_t voice) {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         buf[i] = buf[i] + ( (int16_t) ((esp_random() >> 16) - 32768) * sequencer[voice].amp);
     }
 }
 
-//extern "C" void render_ks(float * buf, uint16_t len, uint8_t voice, float freq, float feedback, float amp) {
 extern "C" void render_ks(float * buf, uint8_t voice) {
     if(sequencer[voice].freq >= 55) { // lowest note we can play
         uint16_t buflen = floor(SAMPLE_RATE / sequencer[voice].freq);
@@ -67,7 +64,6 @@ extern "C" void render_ks(float * buf, uint8_t voice) {
     }
 }
 
-//extern "C" void render_saw(float * buf, uint16_t len, uint8_t voice, float freq, float amp) {
 extern "C" void render_saw(float * buf, uint8_t voice) {
     float period = 1. / (sequencer[voice].freq/(float)SAMPLE_RATE);
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -82,7 +78,6 @@ extern "C" void render_saw(float * buf, uint8_t voice) {
     }
 }
 
-//extern "C" void render_triangle(float * buf, uint16_t len, uint8_t voice, float freq, float amp) {
 extern "C" void render_triangle(float * buf, uint8_t voice) {
     float period = 1. / (sequencer[voice].freq/(float)SAMPLE_RATE);
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -102,7 +97,6 @@ extern "C" void render_triangle(float * buf, uint8_t voice) {
 }
 
 
-//extern "C" void render_pulse(float * buf, uint16_t len, uint8_t voice, float freq, float duty, float amp) {
 extern "C" void render_pulse(float * buf, uint8_t voice) {
     if(sequencer[voice].duty < 0.001 || sequencer[voice].duty > 0.999) sequencer[voice].duty = 0.5;
     float period = 1. / (sequencer[voice].freq/(float)SAMPLE_RATE);
@@ -123,7 +117,6 @@ extern "C" void render_pulse(float * buf, uint8_t voice) {
     }
 }
 
-//extern "C" void ks_new_note_freq(float freq, uint8_t voice) {
 extern "C" void ks_new_note_freq(uint8_t voice) {
     if(sequencer[voice].freq<=0) sequencer[voice].freq = 1;
     uint16_t buflen = floor(SAMPLE_RATE / sequencer[voice].freq);
