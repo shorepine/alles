@@ -10,7 +10,7 @@ int16_t next_event_write = 0;
 // One set of events for the fifo
 struct event events[EVENT_FIFO_LEN];
 // And another event per voice as multi-channel sequencer that the scheduler renders into
-struct event sequencer[VOICES];
+struct event seq[VOICES];
 
 
 float freq_for_midi_note(uint8_t midi_note) {
@@ -70,18 +70,18 @@ void setup_voices() {
     fm_init();
     oscillators_init();
     for(int i=0;i<VOICES;i++) {
-        sequencer[i].voice = i; // self-reference to make updating oscillators easier
-        sequencer[i].wave = OFF;
-        sequencer[i].duty = 0.5;
-        sequencer[i].patch = 0;
-        sequencer[i].midi_note = 0;
-        sequencer[i].freq = 0;
-        sequencer[i].feedback = 0.996;
-        sequencer[i].amp = 0;
-        sequencer[i].velocity = 100;
-        sequencer[i].step = 0;
-        sequencer[i].sample = DOWN;
-        sequencer[i].substep = 0;
+        seq[i].voice = i; // self-reference to make updating oscillators easier
+        seq[i].wave = OFF;
+        seq[i].duty = 0.5;
+        seq[i].patch = 0;
+        seq[i].midi_note = 0;
+        seq[i].freq = 0;
+        seq[i].feedback = 0.996;
+        seq[i].amp = 0;
+        seq[i].velocity = 100;
+        seq[i].step = 0;
+        seq[i].sample = DOWN;
+        seq[i].substep = 0;
     }
 
     // Fill the FIFO with default events, as the audio thread reads from it immediately
@@ -93,24 +93,24 @@ void setup_voices() {
 
 // Play an event, now -- tell the audio loop to start making noise
 void play_event(struct event e) {
-    if(e.midi_note >= 0) { sequencer[e.voice].midi_note = e.midi_note; sequencer[e.voice].freq = freq_for_midi_note(e.midi_note); } 
-    if(e.wave >= 0) sequencer[e.voice].wave = e.wave;
-    if(e.patch >= 0) sequencer[e.voice].patch = e.patch;
-    if(e.duty >= 0) sequencer[e.voice].duty = e.duty;
-    if(e.feedback >= 0) sequencer[e.voice].feedback = e.feedback;
-    if(e.velocity >= 0) sequencer[e.voice].velocity = e.velocity;
-    if(e.freq >= 0) sequencer[e.voice].freq = e.freq;
-    if(e.amp >= 0) sequencer[e.voice].amp = e.amp;
+    if(e.midi_note >= 0) { seq[e.voice].midi_note = e.midi_note; seq[e.voice].freq = freq_for_midi_note(e.midi_note); } 
+    if(e.wave >= 0) seq[e.voice].wave = e.wave;
+    if(e.patch >= 0) seq[e.voice].patch = e.patch;
+    if(e.duty >= 0) seq[e.voice].duty = e.duty;
+    if(e.feedback >= 0) seq[e.voice].feedback = e.feedback;
+    if(e.velocity >= 0) seq[e.voice].velocity = e.velocity;
+    if(e.freq >= 0) seq[e.voice].freq = e.freq;
+    if(e.amp >= 0) seq[e.voice].amp = e.amp;
 
     // Triggers / envelopes -- this needs some more thinking
-    if(sequencer[e.voice].wave==FM) {
-        if(sequencer[e.voice].midi_note>0) {
+    if(seq[e.voice].wave==FM) {
+        if(seq[e.voice].midi_note>0) {
             fm_new_note_number(e.voice);
         } else {
             fm_new_note_freq(e.voice); 
         }
     }
-    if(sequencer[e.voice].wave==KS) {
+    if(seq[e.voice].wave==KS) {
         ks_new_note_freq(e.voice);
     }
 }
@@ -141,32 +141,32 @@ void fill_audio_buffer() {
     // Clear out the accumulator buffer
     for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
     for(uint8_t voice=0;voice<VOICES;voice++) {
-        switch(sequencer[voice].wave) {
+        switch(seq[voice].wave) {
             case FM:
-                render_fm(floatblock, voice); //BLOCK_SIZE, voice, sequencer[voice].amp);
+                render_fm(floatblock, voice); 
                 break;
             case NOISE:
-                render_noise(floatblock, voice); //BLOCK_SIZE, sequencer[voice].amp);
+                render_noise(floatblock, voice);
                 break;
             case SAW:
-                render_saw(floatblock, voice); //BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].amp);
+                render_saw(floatblock, voice);
                 break;
             case PULSE:
-                render_pulse(floatblock, voice); //BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].duty, sequencer[voice].amp);
+                render_pulse(floatblock, voice); 
                 break;
             case TRIANGLE:
-                render_triangle(floatblock, voice); //BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].amp);
+                render_triangle(floatblock, voice);
                 break;                
             case SINE:
-                render_sine(floatblock, voice); //BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].amp);
+                render_sine(floatblock, voice);
                 break;
             case KS:
-                render_ks(floatblock, voice); //BLOCK_SIZE, voice, sequencer[voice].freq, sequencer[voice].feedback, sequencer[voice].amp);
+                render_ks(floatblock, voice); 
                 break;
 
         }
     }
-    // Bandlimt the buffer all at once
+    // Bandlimit the buffer all at once
     blip_the_buffer(floatblock, block, BLOCK_SIZE);
 
     // And write

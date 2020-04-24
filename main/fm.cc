@@ -21,7 +21,7 @@ extern "C" {
 // One note/controller object per voice
 Dx7Note note[VOICES];
 Controllers controllers[VOICES];
-extern struct event sequencer[VOICES];
+extern struct event seq[VOICES];
 
 extern "C" void render_fm(float * buf, uint8_t voice) {
     int32_t int32_t_buf[N];
@@ -43,19 +43,19 @@ extern "C" void render_fm(float * buf, uint8_t voice) {
             int32_t val = int32_t_buf[j] >> 3;
             int clip_val = val < -(1 << 24) ? 0x8000 : (val >= (1 << 24) ? 0x7fff : (val + delta) >> 9);
             delta = (delta + val) & 0x1ff;
-            buf[count] = buf[count] + clip_val * sequencer[voice].amp;
+            buf[count] = buf[count] + clip_val * seq[voice].amp;
             count++;
         }
     }
 }
 
 extern "C" void fm_new_note_freq(uint8_t voice) {
-    note[voice].init_with_freq(patches+(sequencer[voice].patch*156), sequencer[voice].freq, sequencer[voice].velocity);
+    note[voice].init_with_freq(patches+(seq[voice].patch*156), seq[voice].freq, seq[voice].velocity);
     controllers[voice].values_[kControllerPitch] = 0x2000; // pitch wheel
 
 }
 extern "C" void fm_new_note_number(uint8_t voice) {
-    note[voice].init(patches+(sequencer[voice].patch*156), sequencer[voice].midi_note, sequencer[voice].velocity);
+    note[voice].init(patches+(seq[voice].patch*156), seq[voice].midi_note, seq[voice].velocity);
     controllers[voice].values_[kControllerPitch] = 0x2000; // pitch wheel
 }
 
