@@ -42,27 +42,23 @@ struct event default_event() {
     return e;
 }
 
-// deep copy an event to the fifo at index
-// if index < 0, use the write pointer (and incremement it)
-void add_event(struct event e, int16_t index) { 
-    if(index < 0) { 
-        index = next_event_write;
-        next_event_write = (next_event_write + 1) % (EVENT_FIFO_LEN);
-    }
-    events[index].voice = e.voice;
-    events[index].velocity = e.velocity;
-    events[index].duty = e.duty;
-    events[index].feedback = e.feedback;
-    events[index].midi_note = e.midi_note;
-    events[index].wave = e.wave;
-    events[index].patch = e.patch;
-    events[index].freq = e.freq;
-    events[index].amp = e.amp;
-    events[index].time = e.time;
-    events[index].status = e.status;
-    events[index].sample = e.sample;
-    events[index].step = e.step;
-    events[index].substep = e.substep;
+// deep copy an event to the fifo
+void add_event(struct event e) { 
+    events[next_event_write].voice = e.voice;
+    events[next_event_write].velocity = e.velocity;
+    events[next_event_write].duty = e.duty;
+    events[next_event_write].feedback = e.feedback;
+    events[next_event_write].midi_note = e.midi_note;
+    events[next_event_write].wave = e.wave;
+    events[next_event_write].patch = e.patch;
+    events[next_event_write].freq = e.freq;
+    events[next_event_write].amp = e.amp;
+    events[next_event_write].time = e.time;
+    events[next_event_write].status = e.status;
+    events[next_event_write].sample = e.sample;
+    events[next_event_write].step = e.step;
+    events[next_event_write].substep = e.substep;
+    next_event_write = (next_event_write + 1) % (EVENT_FIFO_LEN);
 }
 
 // The sequencer object keeps state betweeen voices, whereas events are only deltas/changes
@@ -86,7 +82,7 @@ void setup_voices() {
 
     // Fill the FIFO with default events, as the audio thread reads from it immediately
     for(int i=0;i<EVENT_FIFO_LEN;i++) {
-        add_event(default_event(), i);
+        add_event(default_event());
     }
 }
 
@@ -294,7 +290,7 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
                     if(client_id % (client-255) == 0) for_me = 1;
                 }
             }
-            if(for_me) add_event(e, -1);
+            if(for_me) add_event(e);
         }
     }
 }
@@ -309,14 +305,14 @@ void bleep() {
     e.freq = 220;
     e.amp = 0.75;
     e.status = SCHEDULED;
-    add_event(e, -1);
+    add_event(e);
     e.time = sysclock + 150;
     e.freq = 440;
-    add_event(e, -1);
+    add_event(e);
     e.time = sysclock + 300;
     e.amp = 0;
     e.freq = 0;
-    add_event(e, -1);
+    add_event(e);
 }
 
 // Plays a scale in the test program
@@ -329,7 +325,7 @@ void scale(uint8_t wave, float vol) {
         e.midi_note = 48+i;
         e.amp = vol;
         e.status = SCHEDULED;
-        add_event(e, -1);
+        add_event(e);
     }
 }
 
