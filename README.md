@@ -183,6 +183,11 @@ You can also use it in Max or similar software that supports sending UDP packets
 
 ![Max](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/max.png)
 
+## Optional MIDI support
+
+Still in progress, but you can now control Alles through MIDI. Wire one of your synths to a MIDI in jack, and use standard MIDI programs / DAWs to control the entire mesh. The directly connected synth will broadcast the messages out to the rest of the mesh. Spec still in progress, but wire it up with an optisolated MIDI input signal on GPIO 19. Use bank and program changes to set patches, and channel 0 (channel 1 if there's no channel 0 in your DAW) addresses all synths, and the rest of the channels up to 16 address that individual synth. 
+
+
 ## THANK YOU TO
 
 * douglas repetto
