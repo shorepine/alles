@@ -386,10 +386,10 @@ void app_main() {
     create_multicast_ipv4_socket();
 
     // Pin the UDP task to the 2nd core so the audio / main core runs on its own without getting starved
-    xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 5, NULL, 1);
+    xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 2, NULL, 1);
     
     // And the MIDI task to another process on the 2nd core
-    xTaskCreatePinnedToCore(&read_midi, "read_midi_task", 4096, NULL, 5, NULL, 1);
+    xTaskCreatePinnedToCore(&read_midi, "read_midi_task", 4096, NULL, 1, NULL, 1);
 
     printf("Synth running on core %d\n", xPortGetCoreID());
     bleep();
