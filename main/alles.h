@@ -66,10 +66,15 @@ extern void render_triangle(float * buf, uint8_t voice);
 extern void render_noise(float * buf, uint8_t voice); 
 extern void ks_new_note_freq(uint8_t voice); 
 
+// MIDI
+extern void setup_midi();
+extern void read_midi();
+
 #define SINE_LUT_SIZE 16383
 
 #define BLOCK_SIZE 256
 #define VOICES 10 
+#define CHANNELS 2
 #define SINE 0
 #define PULSE 1
 #define SAW 2

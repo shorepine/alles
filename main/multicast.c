@@ -28,6 +28,8 @@ static const char *V4TAG = "mcast-ipv4";
 int sock= -1;
 
 extern void parse_message_into_events(char * data_buffer, int recv_data);
+extern void read_midi();
+
 extern esp_ip4_addr_t s_ip_addr;
 
 int8_t ipv4_quartet;

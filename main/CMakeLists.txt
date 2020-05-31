@@ -3,6 +3,7 @@ idf_component_register(SRCS alles.c
 							multicast.c
 							oscillators.cc
 							fm.cc
+							midi.c
 							blip/Blip_Buffer.cpp
 							dx7/dx7note.cc
 							dx7/env.cc
