@@ -115,6 +115,13 @@ void create_multicast_ipv4_socket(void) {
         ESP_LOGE(V4TAG, "Failed to set IP_MULTICAST_TTL. Error %d", errno);
     }
 
+    uint8_t loopback_val = 1;
+    err = setsockopt(sock, IPPROTO_IP, IP_MULTICAST_LOOP,
+                     &loopback_val, sizeof(uint8_t));
+    if (err < 0) {
+        ESP_LOGE(V4TAG, "Failed to set IP_MULTICAST_LOOP. Error %d", errno);
+    }
+
     // this is also a listening socket, so add it to the multicast
     // group for listening...
     err = socket_add_ipv4_multicast_group(true);

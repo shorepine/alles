@@ -197,6 +197,15 @@ void setup_i2s(void) {
 }
 
 
+void serialize_event(struct event e, uint16_t client) {
+    // take an event and make it a string and send it to everyone!
+    char message[MAX_RECEIVE_LEN];
+    // Maybe only send the ones that are non-default? think
+    sprintf(message, "a%fb%fc%dd%fe%df%fn%dp%dv%dw%dt%lld", 
+        e.amp, e.feedback, client, e.duty, e.velocity, e.freq, e.midi_note, e.patch, e.voice, e.wave, e.time );
+    //printf("Sending message %s to everyone\n", message);
+    mcast_send(message, strlen(message));
+}
 
 // parse a received UDP message into a FIFO of messages that the sequencer will trigger
 void parse_message_into_events(char * data_buffer, int recv_data) {
@@ -348,10 +357,104 @@ void test_sounds() {
             if(type==7) scale(FM, 0.9);
             if(type==8) scale(NOISE, 0.2);
             if(type==9) scale(KS, 1);
-            if(type==10) type = 0;
             type++;
+            if(type==10) type = 0;
         }
     }
+}
+
+// midi spec
+// one device can have a midi port optionally
+// it can act as a broadcast channel (and also play its own audio)
+// meaning, i send a message like channel 1, program 23, then note on, channel 1, etc 
+// channel == booted ID
+// program == sound -- SINE, SQUARE, SAW, TRIANGLE, NOISE, KS, FM0, FM1 -- maybe do banks for FM? 
+// right bank 0 is default set here ^
+// bank 1 is FM bank 0 and so on 
+
+
+QueueHandle_t uart_queue;
+uint8_t midi_voice = 0;
+uint8_t program_bank = 0;
+uint8_t program = 0;
+void read_midi() {
+    const int uart_num = UART_NUM_2;
+    uint8_t data[128];
+    int length = 0;
+    ESP_ERROR_CHECK(uart_get_buffered_data_len(uart_num, (size_t*)&length));
+    length = uart_read_bytes(uart_num, data, length, 100);
+    for(uint16_t byte=0;byte<length;byte++) {
+        if(byte+1 < length) { // ensure this message has at least one byte after
+            uint8_t channel = data[byte] & 0x0F;
+            uint8_t message = data[byte] & 0xF0;
+            uint8_t data1 = data[byte+1];
+            if(message == 0x90) {
+                uint8_t data2 = data[byte+2];
+                struct event e = default_event();
+                e.time = esp_timer_get_time() / 1000; // play "now" (use this guy as master clock)
+                if(program_bank > 0) {
+                    e.wave = FM;
+                    e.patch = ((program_bank-1) * 128) + program;
+                } else {
+                    e.wave = program;
+                }
+                e.voice = midi_voice;
+                e.midi_note = data1;
+                e.velocity = data2;
+                e.amp = 0.2;
+                // We serialize it and send it over the wire
+                if(channel==0) {
+                    serialize_event(e, 256); // send to everyone booted
+                } else {
+                    serialize_event(e, channel-1); // send to just the one specified
+                }
+                // Just iterate the voice for polyphony 
+                midi_voice = (midi_voice+1) % VOICES;
+                byte = byte + 2;
+            } else if(message == 0x80) {
+                // note off
+                uint8_t data2 = data[byte+2];
+                byte = byte + 2;
+            } else if(message == 0xC0) {
+                // program change -- if bank is > 0 it's FM, and patch = ((prgram_bank-1) * 128) + program
+                program = data1;
+                printf("Program is %d/%d\n", program_bank, program);
+                byte = byte + 1;
+            } else if(message == 0xB0) {
+                // control change
+                uint8_t data2 = data[byte+2];
+                if(data1 == 0x00) { // bank select
+                    program_bank = data2;
+                    printf("Program is %d/%d\n", program_bank, program);
+                }
+                byte = byte + 2;
+            }
+        } else {
+            // Some other midi message, or garbage, I will skip this for now
+        }
+    }            
+}
+
+void setup_midi() {
+    // Setup UART2 to listen for MIDI messages 
+    const int uart_num = UART_NUM_2;
+    uart_config_t uart_config = {
+        .baud_rate = 31250,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+    };
+
+    // Configure UART parameters
+    ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));
+    // TX, RX, CTS/RTS -- Only care about RX here, pin 19 for now
+    ESP_ERROR_CHECK(uart_set_pin(UART_NUM_2, 18, 19, 21, 5));
+
+    const int uart_buffer_size = (1024 * 2);
+    // Install UART driver using an event queue here
+    ESP_ERROR_CHECK(uart_driver_install(UART_NUM_2, uart_buffer_size, \
+                                          uart_buffer_size, 10, &uart_queue, 0));
 }
 
 void app_main() {
@@ -366,6 +469,7 @@ void app_main() {
 
     setup_i2s();
     setup_voices();
+    setup_midi();
 
     vTaskDelay(100*2); // wait 2 seconds to see if button is pressed
     // play a test thing forever if the button was pressed
@@ -382,7 +486,7 @@ void app_main() {
     bleep();
 
     // Spin this core forever parsing events and making sounds
-    while(1) fill_audio_buffer();
+    while(1) { read_midi(); fill_audio_buffer(); }
     
     // We will never get here but just in case
     destroy();

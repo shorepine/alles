@@ -23,6 +23,7 @@ extern "C" {
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_err.h"
+#include "driver/uart.h"
 
 #include "driver/i2s.h"
 #include "nvs_flash.h"
