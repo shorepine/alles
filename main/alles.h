@@ -75,6 +75,7 @@ extern void read_midi();
 #define BLOCK_SIZE 256
 #define VOICES 10 
 #define CHANNELS 2
+#define NUM_WAVES 8
 #define SINE 0
 #define PULSE 1
 #define SAW 2

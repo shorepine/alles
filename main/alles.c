@@ -377,7 +377,7 @@ void app_main() {
     setup_voices();
     setup_midi();
 
-    vTaskDelay(100*2); // wait 2 seconds to see if button is pressed
+    vTaskDelay(2000 / portTICK_PERIOD_MS); // wait 2 seconds to see if button is pressed
     // play a test thing forever if the button was pressed
     if(!gpio_get_level(GPIO_NUM_0)) test_sounds();
     

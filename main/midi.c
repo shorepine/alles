@@ -1,6 +1,3 @@
-// Alles multicast synthesizer
-// Brian Whitman
-// brian@variogr.am
 #include "alles.h"
 
 // midi spec
@@ -27,6 +24,10 @@ void read_midi() {
     uint8_t data[128];
     size_t length = 0;
     while(1) {
+        // Sleep 5ms to wait to get more MIDI data and avoid starving audio thread
+        // I increased RTOS clock rate from 100hz to 500hz to go down to a 5ms delay here
+        // https://www.esp32.com/viewtopic.php?t=7554
+        vTaskDelay(5 / portTICK_PERIOD_MS);
         ESP_ERROR_CHECK(uart_get_buffered_data_len(uart_num, (size_t*)&length));
         if(length) {
             length = uart_read_bytes(uart_num, data, length, 100);
@@ -68,10 +69,10 @@ void read_midi() {
                         // assume this is the new envelope command we keep putting off-- like "$e30a0" where e is an event number 
                         for(uint8_t v=0;v<VOICES;v++) {
                             if(note_map[v] == data1) {
-                                struct event e= default_event();
+                                struct event e = default_event();
                                 e.amp = 0;
                                 e.voice = v;
-                                e.velocity = data2; // note off velocity, not used
+                                e.velocity = data2; // note off velocity, not used... yet
                                 serialize_event(e, 256);
                             }
                         }
@@ -82,9 +83,15 @@ void read_midi() {
                     } else if(message == 0xB0) {
                         // control change
                         uint8_t data2 = data[byte+2];
-                        if(data1 == 0x00) { // bank select for program change
+                        
+                        // Bank select for program change
+                        if(data1 == 0x00) { 
                             program_bank = data2;
                         }
+                        // feedback
+                        // duty cycle
+                        // pitch bend (?) 
+                        // amplitude / volume
                         byte = byte + 2;
                     }
                 } else {
