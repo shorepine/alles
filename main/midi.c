@@ -4,9 +4,11 @@
 // one device can have a midi port optionally
 // it can act as a broadcast channel (and also play its own audio)
 // meaning, i send a message like channel 1, program 23, then note on, channel 1, etc 
-// channel == booted ID
+// channel == booted ID. channel 0 is all synths. channel 1 is only ID = 0, and so on
+// if people really want to address more than 16 synths over MIDI make a 2nd control bank
+// but i assume bigger meshes are controlled via UDP only in practice 
 // program == sound -- SINE, SQUARE, SAW, TRIANGLE, NOISE, (FM), KS
-// right bank 0 is default set here ^
+// bank 0 is default set here ^
 // bank 1 is FM bank 0 and so on 
 
 extern void serialize_event(struct event e, uint16_t client);
@@ -39,6 +41,9 @@ void read_midi() {
                     if(message == 0x90) {
                         uint8_t data2 = data[byte+2];
                         struct event e = default_event();
+                        
+                        // TODO -- using another hosts' clock interferes with this one
+
                         e.time = esp_timer_get_time() / 1000; // play "now" (use this guy as master clock)
                         // select wave type -- if bank is > 0 it's FM, and patch = ((program_bank-1) * 128) + program
                         if(program_bank > 0) {

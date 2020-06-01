@@ -203,12 +203,11 @@ void serialize_event(struct event e, uint16_t client) {
     // Maybe only send the ones that are non-default? think
     sprintf(message, "a%fb%fc%dd%fe%df%fn%dp%dv%dw%dt%lld", 
         e.amp, e.feedback, client, e.duty, e.velocity, e.freq, e.midi_note, e.patch, e.voice, e.wave, e.time );
-    //printf("Sending message %s to everyone\n", message);
     mcast_send(message, strlen(message));
 }
 
-// parse a received UDP message into a FIFO of messages that the sequencer will trigger
-void parse_message_into_events(char * data_buffer, int recv_data) {
+// parse a received event string and add event to queue
+void deserialize_event(char * message, uint16_t length) {
     uint8_t mode = 0;
     int64_t sync = -1;
     int8_t sync_index = -1;
@@ -220,40 +219,40 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
     int64_t sysclock = esp_timer_get_time() / 1000;
     uint8_t sync_response = 0;
     // Put a null at the end for atoi
-    data_buffer[recv_data] = 0;
+    message[length] = 0;
 
     // Cut the OSC cruft Max etc add, they put a 0 and then more things after the 0
-    int new_recv_data = recv_data; 
-    for(int d=0;d<recv_data;d++) { if(data_buffer[d] == 0) { new_recv_data = d; d = recv_data + 1;  } }
-    recv_data = new_recv_data;
+    int new_length = length; 
+    for(int d=0;d<length;d++) { if(message[d] == 0) { new_length = d; d = length + 1;  } }
+    length = new_length;
 
     //printf("message ###%s### len %d\n", data_buffer, recv_data);
 
-    while(c < recv_data+1) {
-        uint8_t b = data_buffer[c];
+    while(c < length+1) {
+        uint8_t b = message[c];
         if(b == '_' && c==0) sync_response = 1;
         if(b >= 'a' || b <= 'z' || b == 0) {  // new mode or end
             if(mode=='t') {
-                e.time=atoi(data_buffer + start);
+                e.time=atoi(message + start);
                 // if we haven't yet synced our times, do it now
                 if(!computed_delta_set) {
                     computed_delta = e.time - sysclock;
                     computed_delta_set = 1;
                 }
             }
-            if(mode=='a') e.amp=atof(data_buffer + start);
-            if(mode=='b') e.feedback=atof(data_buffer+start);
-            if(mode=='c') client = atoi(data_buffer + start); 
-            if(mode=='d') e.duty=atof(data_buffer + start);
-            if(mode=='e') e.velocity=atoi(data_buffer + start);
-            if(mode=='f') e.freq=atof(data_buffer + start);
-            if(mode=='i') sync_index = atoi(data_buffer + start);
-            if(mode=='n') e.midi_note=atoi(data_buffer + start);
-            if(mode=='p') e.patch=atoi(data_buffer + start);
-            if(mode=='r') ipv4=atoi(data_buffer + start);
-            if(mode=='s') sync = atoi(data_buffer + start); 
-            if(mode=='v') e.voice=atoi(data_buffer + start);
-            if(mode=='w') e.wave=atoi(data_buffer + start);
+            if(mode=='a') e.amp=atof(message + start);
+            if(mode=='b') e.feedback=atof(message+start);
+            if(mode=='c') client = atoi(message + start); 
+            if(mode=='d') e.duty=atof(message + start);
+            if(mode=='e') e.velocity=atoi(message + start);
+            if(mode=='f') e.freq=atof(message + start);
+            if(mode=='i') sync_index = atoi(message + start);
+            if(mode=='n') e.midi_note=atoi(message + start);
+            if(mode=='p') e.patch=atoi(message + start);
+            if(mode=='r') ipv4=atoi(message + start);
+            if(mode=='s') sync = atoi(message + start); 
+            if(mode=='v') e.voice=atoi(message + start);
+            if(mode=='w') e.wave=atoi(message + start);
             mode=b;
             start=c+1;
         }
@@ -262,10 +261,10 @@ void parse_message_into_events(char * data_buffer, int recv_data) {
     if(sync_response) {
         // If this is a sync response, let's update our local map of who is booted
         update_map(client, ipv4, sync);
-        recv_data = 0; // don't need to do the rest
+        length = 0; // don't need to do the rest
     }
     // Only do this if we got some data
-    if(recv_data >0) {
+    if(length >0) {
         // Now adjust time in some useful way:
         // if we have a delta & got a time in this message, use it schedule it properly
         if(computed_delta_set && e.time > 0) {
