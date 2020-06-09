@@ -168,6 +168,9 @@ void fill_audio_buffer() {
     // And write
     size_t written = 0;
     i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
+    if(written != BLOCK_SIZE*2) {
+        printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*2);
+    }
 }
 
 
@@ -377,8 +380,13 @@ void app_main() {
     setup_midi();
 
     vTaskDelay(2000 / portTICK_PERIOD_MS); // wait 2 seconds to see if button is pressed
-    // play a test thing forever if the button was pressed
-    if(!gpio_get_level(GPIO_NUM_0)) test_sounds();
+    // Play a test sound and enter immediate mode.
+    if(!gpio_get_level(GPIO_NUM_0)) { 
+        immediate_mode = 1;
+        xTaskCreatePinnedToCore(&read_midi, "read_midi_task", 4096, NULL, 1, NULL, 1);
+        scale(KS, 0.5);
+        while(1) { fill_audio_buffer(); } 
+    }
     
     // else start the main loop 
     ESP_ERROR_CHECK(wifi_connect());

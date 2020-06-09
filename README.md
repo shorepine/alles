@@ -100,7 +100,7 @@ Will set voice 0 (default) to a sine wave (default) at 440Hz amplitude 0.1, then
 
 ## Testing
 
-If you are not on wifi, you can test the synthesizers by pushing the BOOT button (if using a dev board) or GPIO0 within 2 seconds *after* applying power. Don't press BOOT while applying power, that puts it in a bootloader mode. The synthesizer will run through scales using different waveforms and loudnesses for you to test. 
+If you are not on wifi, you can test the synthesizers by pushing the BOOT button (if using a dev board) or GPIO0 within 2 seconds *after* applying power. Don't press BOOT while applying power, that puts it in a bootloader mode. The synthesizer will run through a scale and enter immediate mode (see MIDI detail below.)
 
 In normal operation, a small "bleep" noise is made a few seconds after boot to confirm that the synthesizer is ready to receive UDP packets. If you don't hear the bleep, ensure the Wi-Fi authentication is correct.
 
@@ -185,7 +185,20 @@ You can also use it in Max or similar software that supports sending UDP packets
 
 ## Optional MIDI support
 
-Still in progress, but you can now control Alles through MIDI. Wire one of your synths to a MIDI in jack, and use standard MIDI programs / DAWs to control the entire mesh. The directly connected synth will broadcast the messages out to the rest of the mesh. Spec still in progress, but wire it up with an optisolated MIDI input signal on GPIO 19. Use bank and program changes to set patches, and channel 0 (channel 1 if there's no channel 0 in your DAW) addresses all synths, and the rest of the channels up to 16 address that individual synth. 
+*Still in progress*, but you can now control Alles through MIDI. 
+
+Wire one of your synths to a MIDI in jack, and use standard MIDI programs / DAWs to control the entire mesh. The directly connected synth can broadcast the messages out to the rest of the mesh in sync. Or, if you want, you can control one synth directly via MIDI in "immediate mode", where there is no mesh/network and no latency. 
+
+Put the MIDI input on GPIO 19. 
+
+DAWs may start MIDI messages with 0, or 1, so to avoid confusion, I'm using 1 addressing below. In Ableton Live, for example, a Pgm Change of Bank 1 is the first available bank. 
+
+`CHANNEL: 1-16`: sets which synth ID in the mesh you want to send the message to. `1` sends the message to all synths, and `2-16`sends the message to only that ID, minus 1. So to send a message to only the first booted synth, use the second channel.
+
+`"Pgm Change Bank"`: set to "Bank 1" and then use `PROGRAM CHANGE` messages to set the tone. Bank `1` and `PGM` 1 is a sine wave, 2 is a square, and so on like the `w` parameter above. `Bank 2` and onwards are the FM patches. `Bank 2` and `PGM 1` is the first FM patch. `Bank 2 PGM 2` is the second patch. `BANK X PGM Y` is the `(128*(X-1) + (Y-1))` patch. 
+
+MIDI messages will have the default latency added to allow for sync between all your synths. If you want to directly control a synth, and disable the mesh, hold down the `BOOT` button like in the Testing section above. This will disable wifi and immediately play each MIDI message on the connected synth. 
+
 
 
 ## THANK YOU TO

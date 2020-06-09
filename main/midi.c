@@ -12,6 +12,8 @@
 // bank 1 is FM bank 0 and so on 
 
 extern void serialize_event(struct event e, uint16_t client);
+extern void play_event(struct event e);
+
 extern struct event default_event();
 
 QueueHandle_t uart_queue;
@@ -19,6 +21,7 @@ uint8_t midi_voice = 0;
 uint8_t program_bank = 0;
 uint8_t program = 0;
 uint8_t note_map[VOICES];
+uint8_t immediate_mode = 0;
 
 void read_midi() {
     printf("MIDI running on core %d\n", xPortGetCoreID());
@@ -58,10 +61,12 @@ void read_midi() {
                         e.amp = 0.2; // TODO -- how will volume work 
                         // serialize it and send it over UDP to everyone
                         note_map[midi_voice] = data1;
-                        if(channel==0) {
-                            serialize_event(e, 256); // send to everyone booted
-                        } else {
-                            serialize_event(e, channel-1); // send to just the one specified
+                        if(immediate_mode) { play_event(e); } else {
+                            if(channel==0) {
+                                serialize_event(e, 256); // send to everyone booted
+                            } else {
+                                serialize_event(e, channel-1); // send to just the one specified
+                            }
                         }
                         // Just iterate the voice for polyphony. for now
                         midi_voice = (midi_voice+1) % VOICES;
@@ -78,7 +83,7 @@ void read_midi() {
                                 e.amp = 0;
                                 e.voice = v;
                                 e.velocity = data2; // note off velocity, not used... yet
-                                serialize_event(e, 256);
+                                if(immediate_mode) { play_event(e); } else { serialize_event(e, 256); }
                             }
                         }
                         

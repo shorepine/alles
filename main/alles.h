@@ -48,6 +48,7 @@ extern uint8_t alive;
 extern int64_t computed_delta; // can be negative no prob, but usually host is larger # than client
 extern uint8_t computed_delta_set; // have we set a delta yet?
 extern int16_t client_id;
+extern uint8_t immediate_mode;
 
 // FM 
 extern void fm_init();
