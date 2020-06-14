@@ -58,7 +58,7 @@ void read_midi() {
                         e.voice = midi_voice;
                         e.midi_note = data1;
                         e.velocity = data2;
-                        e.amp = 0.2; // TODO -- how will volume work 
+                        e.amp = 0.1; // TODO -- how will volume work 
                         // serialize it and send it over UDP to everyone
                         note_map[midi_voice] = data1;
                         if(immediate_mode) { play_event(e); } else {

@@ -4,7 +4,9 @@
 
 **alles** is a many-speaker distributed mesh synthesizer that responds to control signals over WiFi. Each synth supports up to 10 additive sine, saw, pulse/square, noise and triangle oscillators, a Karplus-Strong string implementation, and a full FM stage including support for DX7 patches. They're cheap to make ($7 for the microcontroller, $6 for the amplifier, speakers from $0.50 up depending on quality). And very easy to put together with hookup wire or only a few soldering points. 
 
-The synthesizers form a mesh and listen to UDP multicast messages. The original idea was to install a bunch of them throughout a space and make a distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled as a group or individually from a laptop or phone or etc. But you can just treat them as dozens / hundreds of individual synthesizers and do whatever you want with them. It's pretty fun!
+The synthesizers form a mesh and listen to UDP multicast messages. You can control the mesh from a host computer from any programming language or environments like Max or Pd. You can also wire one synth up to MIDI and use any MIDI software or controller; the directly connected synth will broadcast to the rest of the mesh for you. 
+
+The original idea was to install a bunch of them throughout a space and make a distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled as a group or individually from a laptop or phone or etc. But you can just treat them as dozens / hundreds of individual synthesizers and do whatever you want with them. It's pretty fun!
 
 ## Putting it together 
 
@@ -12,7 +14,7 @@ To make one yourself, you need
 
 * [ESP32 dev board (any one will do, but you want pins broken out)](https://www.amazon.com/gp/product/B07Q576VWZ/) (pack of 2, $7.45 each)
 * [The Adafruit I2S mono amplifier](https://www.adafruit.com/product/3006) ($5.95)
-* [4 ohm speaker, this one is especially nice](https://www.parts-express.com/peerless-by-tymphany-tc6fd00-04-2-full-range-paper-cone-woofer-4-ohm--264-1126?gclid=EAIaIQobChMIwcX3-vXi5wIVgpOzCh0a7gjuEAYYASABEgLwf_D_BwE) ($9.77, but you can save a lot of money here going lower-end if you're ok with the sound quality)
+* [4 ohm speaker, this one is especially nice](https://www.parts-express.com/peerless-by-tymphany-tc6fd00-04-2-full-range-paper-cone-woofer-4-ohm--264-1126?gclid=EAIaIQobChMIwcX3-vXi5wIVgpOzCh0a7gjuEAYYASABEgLwf_D_BwE) ($9.77, but you can save a lot of money here going lower-end if you're ok with the sound quality). I also like speakers with prebuilt cases, like [these bookshelf speakers](https://www.amazon.com/Pyle-PCB3BK-100-Watt-Bookshelf-Speakers/dp/B000MCGF1O/ref=sr_1_1?dchild=1&keywords=pyle+home+speaker&qid=1592156929&s=electronics&sr=1-1).
 * A breadboard, custom PCB, or just some hookup wire!
 
 ### Power 
@@ -189,15 +191,15 @@ You can also use it in Max or similar software that supports sending UDP packets
 
 Wire one of your synths to a MIDI in jack, and use standard MIDI programs / DAWs to control the entire mesh. The directly connected synth can broadcast the messages out to the rest of the mesh in sync. Or, if you want, you can control one synth directly via MIDI in "immediate mode", where there is no mesh/network and no latency. 
 
-Put the MIDI input on GPIO 19. 
+Put the MIDI input on GPIO 19. You could use a pre-built [MIDI breakout](https://www.sparkfun.com/products/12898) to make it easier to wire up. I've found 3.3V from the ESP32 is fine to power the MIDI in circuit. 
 
 DAWs may start MIDI messages with 0, or 1, so to avoid confusion, I'm using 1 addressing below. In Ableton Live, for example, a Pgm Change of Bank 1 is the first available bank. 
 
 `CHANNEL: 1-16`: sets which synth ID in the mesh you want to send the message to. `1` sends the message to all synths, and `2-16`sends the message to only that ID, minus 1. So to send a message to only the first booted synth, use the second channel.
 
-`"Pgm Change Bank"`: set to "Bank 1" and then use `PROGRAM CHANGE` messages to set the tone. Bank `1` and `PGM` 1 is a sine wave, 2 is a square, and so on like the `w` parameter above. `Bank 2` and onwards are the FM patches. `Bank 2` and `PGM 1` is the first FM patch. `Bank 2 PGM 2` is the second patch. `BANK X PGM Y` is the `(128*(X-1) + (Y-1))` patch. 
+`"Pgm Change Bank"`: set to "Bank 1" and then use `PROGRAM CHANGE` messages to set the tone. Bank `1` and `PGM` 1 is a sine wave, 2 is a square, and so on like the `w` parameter above. `Bank 2` and onwards are the FM patches. `Bank 2` and `PGM 1` is the first FM patch. `Bank 2 PGM 2` is the second patch. `BANK X PGM Y` is the `(128*(X-2) + (Y-1))` patch. 
 
-MIDI messages will have the default latency added to allow for sync between all your synths. If you want to directly control a synth, and disable the mesh, hold down the `BOOT` button like in the Testing section above. This will disable wifi and immediately play each MIDI message on the connected synth. 
+MIDI messages will have the default latency added to allow for sync between all your synths. If you want to directly control a synth, and disable the mesh, hold down the `BOOT` button after applying power like in the Testing section above. This will disable wifi and immediately play each MIDI message on the connected synth. 
 
 
 
