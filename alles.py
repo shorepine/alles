@@ -6,7 +6,7 @@ multicast_group = ('232.10.11.12', 3333)
 local_ip = socket.gethostbyname(socket.gethostname())
 
 # But override this if you are using multiple network interfaces, for example a dedicated router to control the synths
-local_ip = '192.168.1.2'
+#local_ip = '192.168.1.2'
 
 
 [SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, OFF] = range(8)
