@@ -4,6 +4,8 @@ idf_component_register(SRCS alles.c
 							oscillators.cc
 							fm.cc
 							midi.c
+							ip5306.c
+							master_i2c.c
 							blip/Blip_Buffer.cpp
 							dx7/dx7note.cc
 							dx7/env.cc

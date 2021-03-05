@@ -39,6 +39,23 @@ extern "C" {
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
 #define PING_TIME_MS 10000
 
+
+#define CONFIG_I2C_SDA_GPIO 18
+#define CONFIG_I2C_SCL_GPIO 5
+#define CONFIG_I2C_FREQ_KHZ 100
+
+#define CONFIG_I2S_LRCLK 25
+#define CONFIG_I2S_BCLK 26
+#define CONFIG_I2S_DIN 27
+
+#define LED_STATUS 4
+#define BUTTON_EXTRA 16
+#define BUTTON_WIFI 17
+#define BUTTON_MIDI 0
+
+#define MIDI_IN 19
+
+
 extern void mcast_listen_task(void *pvParameters);
 extern void mcast_send(char * message, uint16_t len);
 extern void create_multicast_ipv4_socket();
