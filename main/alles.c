@@ -2,9 +2,12 @@
 // Brian Whitman
 // brian@variogr.am
 #include "alles.h"
+// Keep this on if you are using the blinkinlabs board
+#define ALLES_V1_BOARD
 
 
 
+uint8_t battery_status = 0;
 int i2s_num = 0; // i2s port number
 int16_t next_event_write = 0;
 // One set of events for the fifo
@@ -62,7 +65,7 @@ void add_event(struct event e) {
 }
 
 // The sequencer object keeps state betweeen voices, whereas events are only deltas/changes
-void setup_voices() {
+esp_err_t setup_voices() {
     fm_init();
     oscillators_init();
     for(int i=0;i<VOICES;i++) {
@@ -84,6 +87,7 @@ void setup_voices() {
     for(int i=0;i<EVENT_FIFO_LEN;i++) {
         add_event(default_event());
     }
+    return ESP_OK;
 }
 
 
@@ -192,11 +196,12 @@ i2s_pin_config_t pin_config = {
     .data_out_num = 27, // this is DIN 
     .data_in_num = -1   //Not used
 };
-void setup_i2s(void) {
+esp_err_t setup_i2s(void) {
   //initialize i2s with configurations above
   i2s_driver_install((i2s_port_t)i2s_num, &i2s_config, 0, NULL);
   i2s_set_pin((i2s_port_t)i2s_num, &pin_config);
   i2s_set_sample_rates((i2s_port_t)i2s_num, SAMPLE_RATE);
+  return ESP_OK;
 }
 
 
@@ -365,20 +370,125 @@ void test_sounds() {
     }
 }
 
+
+#ifdef ALLES_V1_BOARD
+#include"ip5306.h"
+#include "master_i2c.h"
+
+TimerHandle_t ip5306_monitor_timer = NULL;
+
+// Periodic task to poll the ip5306 for the battery charge and button states.
+// Intented to be run from a low-priority timer at 1-2 Hz
+void ip5306_monitor() {
+    esp_err_t ret;
+
+    //ip5306_check_reg_changes();
+    //ip5306_try_write_regs();
+
+    // Check if the power button was pressed
+    /*
+    int buttons;
+    ret = ip5306_button_press_get(&buttons);
+    if(ret!= ESP_OK) {
+        printf("Error reading button press\n");
+        return;
+    }
+
+    if(buttons & BUTTON_LONG_PRESS) {
+        const uint32_t button = BUTTON_POWER_LONG;
+        xQueueSend(gpio_evt_queue, &button, 0);
+    }
+    if(buttons & BUTTON_SHORT_PRESS) {
+        const uint32_t button = BUTTON_POWER_SHORT;
+        xQueueSend(gpio_evt_queue, &button, 0);
+    }
+    */
+    // Update the battery charge state
+    ip5306_charge_state_t charge_state;
+
+    ret = ip5306_charge_state_get(&charge_state);
+    if(ret != ESP_OK) {
+        printf("Error reading battery charge state\n");
+        return;
+    }
+
+    switch(charge_state) {
+    case CHARGE_STATE_CHARGED:
+        //status_led_set_state(STATUS_LED_CHARGED);
+        printf("charged\n");
+        break;
+    case CHARGE_STATE_CHARGING:
+        //status_led_set_state(STATUS_LED_CHARGING);
+         printf("charging\n");
+       break;
+    case CHARGE_STATE_DISCHARGING:
+        //status_led_set_state(STATUS_LED_DISCHARGING);
+        printf("discharging\n");
+        break;
+    case CHARGE_STATE_DISCHARGING_LOW_BAT:
+        //status_led_set_state(STATUS_LED_LOW_BATTERY);
+        printf("low batt\n");
+        break;
+    }
+
+    ip5306_battery_voltage_t battery_voltage;
+
+    ret = ip5306_battery_voltage_get(&battery_voltage);
+    if(ret != ESP_OK) {
+        printf("Error getting battery voltage\n");
+        return;
+    } else {
+        battery_status = battery_voltage + 1; // keep it 0 if no status
+    }
+
+}
+
+#endif
+
+
+void check_init(esp_err_t (*fn)(), char *name) {
+    printf("Starting %s: ", name);
+
+    const esp_err_t ret = (*fn)();
+    if(ret != ESP_OK) {
+        printf("[ERROR:%i (%s)]\n", ret, esp_err_to_name(ret));
+        return;
+    }
+
+    printf("[OK]\n");
+}
+
 void app_main() {
     // Init flash, network, event loop, GPIO
-    ESP_ERROR_CHECK(nvs_flash_init());
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    check_init(&nvs_flash_init, "Flash");
+    check_init(&esp_netif_init, "Netif");
+    check_init(&esp_event_loop_create_default, "Event");
 
+
+    check_init(&setup_i2s, "i2s");
+    check_init(&setup_voices, "voices");
+    check_init(&setup_midi, "midi");
+
+#ifdef ALLES_V1_BOARD
+    // Do the blinkinlabs board setup
+    check_init(&master_i2c_init, "master_i2c"); // Used by ip5306
+    check_init(&ip5306_init, "ip5306");         // Battery monitor
+    //check_init(&buttons_init, "buttons");       // For hardware buttons
+    //check_init(&status_led_init, "status_led"); // LEDC driver for status LED
+
+    ip5306_monitor_timer = xTimerCreate(
+        "ip5306_monitor",
+        pdMS_TO_TICKS(500),
+        pdTRUE,
+        NULL,
+        ip5306_monitor);
+    xTimerStart(ip5306_monitor_timer, 0);
+
+#else
+    // Do the protoboard / devboard setup
     // This is the "BOOT" pin on the devboards -- GPIO0
     gpio_set_direction(GPIO_NUM_0,  GPIO_MODE_INPUT);
     gpio_pullup_en(GPIO_NUM_0);
-
-    setup_i2s();
-    setup_voices();
-    setup_midi();
-
     vTaskDelay(2000 / portTICK_PERIOD_MS); // wait 2 seconds to see if button is pressed
     // Play a test sound and enter immediate mode.
     if(!gpio_get_level(GPIO_NUM_0)) { 
@@ -387,8 +497,10 @@ void app_main() {
         scale(KS, 0.5);
         while(1) { fill_audio_buffer(); } 
     }
+#endif
+
     
-    // else start the main loop 
+    // start the main loop 
     ESP_ERROR_CHECK(wifi_connect());
     create_multicast_ipv4_socket();
 

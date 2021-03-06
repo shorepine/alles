@@ -112,7 +112,7 @@ void read_midi() {
     } // end loop forever
 }
 
-void setup_midi() {
+esp_err_t setup_midi() {
     // Setup UART2 to listen for MIDI messages 
     const int uart_num = UART_NUM_2;
     uart_config_t uart_config = {
@@ -136,5 +136,6 @@ void setup_midi() {
     // Install UART driver using an event queue here
     ESP_ERROR_CHECK(uart_driver_install(UART_NUM_2, uart_buffer_size, \
                                           uart_buffer_size, 10, &uart_queue, 0));
+    return ESP_OK;
 }
 

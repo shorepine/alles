@@ -85,7 +85,7 @@ extern void render_noise(float * buf, uint8_t voice);
 extern void ks_new_note_freq(uint8_t voice); 
 
 // MIDI
-extern void setup_midi();
+extern esp_err_t setup_midi();
 extern void read_midi();
 
 #define SINE_LUT_SIZE 16383

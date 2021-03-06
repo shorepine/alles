@@ -51,6 +51,7 @@ def sync(count=10, delay_ms=100):
     # Sends sync packets to all the listeners so they can correct / get the time
     clients = {}
     client_map = {}
+    battery_map = {}
     start_time = alles_ms()
     last_sent = 0
     time_sent = {}
@@ -69,11 +70,15 @@ def sync(count=10, delay_ms=100):
             data, address = sock.recvfrom(1024)
             data = data.decode('ascii')
             if(data[0] == '_'):
-                [_, client_time, sync_index, client_id, ipv4] = re.split(r'[sicr]',data)
+                try:
+                    [_, client_time, sync_index, client_id, ipv4, battery] = re.split(r'[sicrt]',data)
+                except ValueError:
+                    print("What! %s" % (data))
                 if(int(sync_index) <= i): # skip old ones from a previous run
                     #print ("recvd at %d:  %s %s %s %s" % (alles_ms(), client_time, sync_index, client_id, ipv4))
                     if(int(sync_index) >= 0):
                         client_map[int(ipv4)] = client_id
+                        battery_map[int(ipv4)] = battery
                         rtt[int(ipv4)] = rtt.get(int(ipv4), {})
                         rtt[int(ipv4)][int(sync_index)] = alles_ms()-time_sent[int(sync_index)]
         except socket.error:
@@ -97,6 +102,7 @@ def sync(count=10, delay_ms=100):
         clients[client_map[ipv4]]["reliability"] = float(hit)/float(count)
         clients[client_map[ipv4]]["avg_rtt"] = float(total_rtt_ms) / float(hit)
         clients[client_map[ipv4]]["ipv4"] = ipv4
+        clients[client_map[ipv4]]["battery"] = battery_map[ipv4]
     # Return this as a map for future use
     return clients
 
