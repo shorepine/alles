@@ -2,12 +2,18 @@
 // Brian Whitman
 // brian@variogr.am
 #include "alles.h"
+
 // Keep this on if you are using the blinkinlabs board
 #define ALLES_V1_BOARD
 
+#ifdef ALLES_V1_BOARD
+#include "blinkinlabs/blinkinlabs.h"
+#endif
 
 
-uint8_t battery_status = 0;
+
+extern uint8_t battery_status;
+extern TimerHandle_t ip5306_monitor_timer;
 int i2s_num = 0; // i2s port number
 int16_t next_event_write = 0;
 // One set of events for the fifo
@@ -371,81 +377,6 @@ void test_sounds() {
 }
 
 
-#ifdef ALLES_V1_BOARD
-#include"ip5306.h"
-#include "master_i2c.h"
-
-TimerHandle_t ip5306_monitor_timer = NULL;
-
-// Periodic task to poll the ip5306 for the battery charge and button states.
-// Intented to be run from a low-priority timer at 1-2 Hz
-void ip5306_monitor() {
-    esp_err_t ret;
-
-    //ip5306_check_reg_changes();
-    //ip5306_try_write_regs();
-
-    // Check if the power button was pressed
-    /*
-    int buttons;
-    ret = ip5306_button_press_get(&buttons);
-    if(ret!= ESP_OK) {
-        printf("Error reading button press\n");
-        return;
-    }
-
-    if(buttons & BUTTON_LONG_PRESS) {
-        const uint32_t button = BUTTON_POWER_LONG;
-        xQueueSend(gpio_evt_queue, &button, 0);
-    }
-    if(buttons & BUTTON_SHORT_PRESS) {
-        const uint32_t button = BUTTON_POWER_SHORT;
-        xQueueSend(gpio_evt_queue, &button, 0);
-    }
-    */
-    // Update the battery charge state
-    ip5306_charge_state_t charge_state;
-
-    ret = ip5306_charge_state_get(&charge_state);
-    if(ret != ESP_OK) {
-        printf("Error reading battery charge state\n");
-        return;
-    }
-
-    switch(charge_state) {
-    case CHARGE_STATE_CHARGED:
-        //status_led_set_state(STATUS_LED_CHARGED);
-        printf("charged\n");
-        break;
-    case CHARGE_STATE_CHARGING:
-        //status_led_set_state(STATUS_LED_CHARGING);
-         printf("charging\n");
-       break;
-    case CHARGE_STATE_DISCHARGING:
-        //status_led_set_state(STATUS_LED_DISCHARGING);
-        printf("discharging\n");
-        break;
-    case CHARGE_STATE_DISCHARGING_LOW_BAT:
-        //status_led_set_state(STATUS_LED_LOW_BATTERY);
-        printf("low batt\n");
-        break;
-    }
-
-    ip5306_battery_voltage_t battery_voltage;
-
-    ret = ip5306_battery_voltage_get(&battery_voltage);
-    if(ret != ESP_OK) {
-        printf("Error getting battery voltage\n");
-        return;
-    } else {
-        battery_status = battery_voltage + 1; // keep it 0 if no status
-    }
-
-}
-
-#endif
-
-
 void check_init(esp_err_t (*fn)(), char *name) {
     printf("Starting %s: ", name);
 
@@ -473,8 +404,8 @@ void app_main() {
     // Do the blinkinlabs board setup
     check_init(&master_i2c_init, "master_i2c"); // Used by ip5306
     check_init(&ip5306_init, "ip5306");         // Battery monitor
-    //check_init(&buttons_init, "buttons");       // For hardware buttons
-    //check_init(&status_led_init, "status_led"); // LEDC driver for status LED
+    check_init(&buttons_init, "buttons");       // For hardware buttons
+    check_init(&status_led_init, "status_led"); // LEDC driver for status LED
 
     ip5306_monitor_timer = xTimerCreate(
         "ip5306_monitor",

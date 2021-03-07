@@ -21,11 +21,10 @@
     SOFTWARE.
 */
 
-#include "alles.h"
 #include "master_i2c.h"
 #include <driver/i2c.h>
 #include <freertos/FreeRTOS.h>
-
+#include "blinkinlabs.h"
 
 #define ACK_CHECK_EN 0x1 //!< I2C master will check ack from slave
 #define ACK_CHECK_DIS 0x0 //!< I2C master will not check ack from slave

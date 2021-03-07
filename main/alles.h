@@ -40,9 +40,7 @@ extern "C" {
 #define PING_TIME_MS 10000
 
 
-#define CONFIG_I2C_SDA_GPIO 18
-#define CONFIG_I2C_SCL_GPIO 5
-#define CONFIG_I2C_FREQ_KHZ 100
+
 
 #define CONFIG_I2S_LRCLK 25
 #define CONFIG_I2S_BCLK 26
