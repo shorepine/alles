@@ -10,7 +10,7 @@
 #define ESP_INTR_FLAG_DEFAULT 0
 
 static xQueueHandle gpio_evt_queue = NULL;
-uint8_t battery_status = 0;
+uint8_t battery_mask = 0;
 
 // Called whenever a button press triggers a GPIO interrupt
 static void IRAM_ATTR gpio_isr_handler(void* arg) {
@@ -210,18 +210,24 @@ void ip5306_monitor() {
         printf("Error reading battery charge state\n");
         return;
     }
+    
+    battery_mask = 0;
 
     switch(charge_state) {
     case CHARGE_STATE_CHARGED:
+        battery_mask = battery_mask | BATTERY_STATE_CHARGED;
         status_led_set_state(STATUS_LED_CHARGED);
         break;
     case CHARGE_STATE_CHARGING:
+        battery_mask = battery_mask | BATTERY_STATE_CHARGING;
         status_led_set_state(STATUS_LED_CHARGING);
         break;
     case CHARGE_STATE_DISCHARGING:
+        battery_mask = battery_mask | BATTERY_STATE_DISCHARGING;
         status_led_set_state(STATUS_LED_DISCHARGING);
         break;
     case CHARGE_STATE_DISCHARGING_LOW_BAT:
+        battery_mask = battery_mask | BATTERY_STATE_LOW;
         status_led_set_state(STATUS_LED_LOW_BATTERY);
         break;
     }
@@ -233,7 +239,10 @@ void ip5306_monitor() {
         printf("Error getting battery voltage\n");
         return;
     } else {
-        battery_status = battery_voltage + 1; // keep it 0 if no status
+        if(battery_voltage == BATTERY_OVER_395) battery_mask = battery_mask | BATTERY_VOLTAGE_4;
+        if(battery_voltage == BATTERY_38_395) battery_mask = battery_mask | BATTERY_VOLTAGE_3;
+        if(battery_voltage == BATTERY_36_38) battery_mask = battery_mask | BATTERY_VOLTAGE_2;
+        if(battery_voltage == BATTERY_33_36) battery_mask = battery_mask | BATTERY_VOLTAGE_1;
     }
 
 }

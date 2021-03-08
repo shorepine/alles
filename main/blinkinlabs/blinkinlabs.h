@@ -24,6 +24,17 @@
 #define BUTTON_WIFI 17
 #define BUTTON_MIDI 0
 
+#define BATTERY_STATE_CHARGING 0x01
+#define BATTERY_STATE_CHARGED 0x02
+#define BATTERY_STATE_DISCHARGING 0x04
+#define BATTERY_STATE_LOW 0x08
+#define BATTERY_VOLTAGE_4 0x10
+#define BATTERY_VOLTAGE_3 0x20
+#define BATTERY_VOLTAGE_2 0x40
+#define BATTERY_VOLTAGE_1 0x80
+
+
+
 typedef enum {
     STATUS_LED_CHARGED,     // Constant on
     STATUS_LED_CHARGING,    // 50% duty cycle, 1hz frequency

@@ -6,7 +6,7 @@ multicast_group = ('232.10.11.12', 3333)
 local_ip = socket.gethostbyname(socket.gethostname())
 
 # But override this if you are using multiple network interfaces, for example a dedicated router to control the synths
-#local_ip = '192.168.1.2'
+local_ip = '192.168.1.10'
 
 
 [SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, OFF] = range(8)
@@ -44,6 +44,29 @@ def shutdown_sock():
 def alles_ms():
     # Timestamp to send over to synths for global sync
     return int((datetime.datetime.utcnow() - datetime.datetime(2020, 2, 18)).total_seconds() * 1000)
+
+
+#define BATTERY_STATE_CHARGING 0x01
+#define BATTERY_STATE_CHARGED 0x02
+#define BATTERY_STATE_DISCHARGING 0x04
+#define BATTERY_STATE_LOW 0x08
+#define BATTERY_VOLTAGE_4 0x10
+#define BATTERY_VOLTAGE_3 0x20
+#define BATTERY_VOLTAGE_2 0x40
+#define BATTERY_VOLTAGE_1 0x80
+
+def decode_battery_mask(mask):
+    state = ""
+    level = 0
+    if (mask & 0x01): state = "charging"
+    if (mask & 0x02): state = "charged"
+    if (mask & 0x04): state = "discharging"
+    if (mask & 0x08): state = "low"
+    if (mask & 0x10): level = 4
+    if (mask & 0x20): level = 3 
+    if (mask & 0x40): level = 2
+    if (mask & 0x80): level = 1
+    return(state, level)
 
 
 def sync(count=10, delay_ms=100):
@@ -102,7 +125,7 @@ def sync(count=10, delay_ms=100):
         clients[client_map[ipv4]]["reliability"] = float(hit)/float(count)
         clients[client_map[ipv4]]["avg_rtt"] = float(total_rtt_ms) / float(hit)
         clients[client_map[ipv4]]["ipv4"] = ipv4
-        clients[client_map[ipv4]]["battery"] = battery_map[ipv4]
+        clients[client_map[ipv4]]["battery"] = decode_battery_mask(int(battery_map[ipv4]))
     # Return this as a map for future use
     return clients
 
