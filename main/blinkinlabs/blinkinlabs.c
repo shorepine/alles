@@ -216,19 +216,19 @@ void ip5306_monitor() {
     switch(charge_state) {
     case CHARGE_STATE_CHARGED:
         battery_mask = battery_mask | BATTERY_STATE_CHARGED;
-        status_led_set_state(STATUS_LED_CHARGED);
+        //status_led_set_state(STATUS_LED_CHARGED);
         break;
     case CHARGE_STATE_CHARGING:
         battery_mask = battery_mask | BATTERY_STATE_CHARGING;
-        status_led_set_state(STATUS_LED_CHARGING);
+        //status_led_set_state(STATUS_LED_CHARGING);
         break;
     case CHARGE_STATE_DISCHARGING:
         battery_mask = battery_mask | BATTERY_STATE_DISCHARGING;
-        status_led_set_state(STATUS_LED_DISCHARGING);
+        //status_led_set_state(STATUS_LED_DISCHARGING);
         break;
     case CHARGE_STATE_DISCHARGING_LOW_BAT:
         battery_mask = battery_mask | BATTERY_STATE_LOW;
-        status_led_set_state(STATUS_LED_LOW_BATTERY);
+        //status_led_set_state(STATUS_LED_LOW_BATTERY);
         break;
     }
 

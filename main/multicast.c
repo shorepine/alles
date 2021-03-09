@@ -218,6 +218,11 @@ void ping(int64_t sysclock) {
 }
 
 void mcast_listen_task(void *pvParameters) {
+    struct timeval tv = {
+        .tv_sec = 2,
+        .tv_usec = 0,
+    };
+    
     ipv4_quartet = esp_ip4_addr4(&s_ip_addr);
     client_id = -1; // for now
     for(uint8_t i=0;i<255;i++) { clocks[i] = 0; ping_times[i] = 0; }
@@ -237,10 +242,6 @@ void mcast_listen_task(void *pvParameters) {
         // Loop waiting for UDP received, and sending UDP packets if we don't see any.
         int err = 1;
         while (err > 0) {
-            struct timeval tv = {
-                .tv_sec = 2,
-                .tv_usec = 0,
-            };
             fd_set rfds;
             FD_ZERO(&rfds);
             FD_SET(sock, &rfds);

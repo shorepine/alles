@@ -405,7 +405,7 @@ void app_main() {
     check_init(&master_i2c_init, "master_i2c"); // Used by ip5306
     check_init(&ip5306_init, "ip5306");         // Battery monitor
     check_init(&buttons_init, "buttons");       // For hardware buttons
-    check_init(&status_led_init, "status_led"); // LEDC driver for status LED
+    //check_init(&status_led_init, "status_led"); // LEDC driver for status LED
 
     ip5306_monitor_timer = xTimerCreate(
         "ip5306_monitor",
@@ -445,7 +445,9 @@ void app_main() {
     bleep();
 
     // Spin this core forever parsing events and making sounds
-    while(1) {  fill_audio_buffer(); }
+    while(1) {  
+        fill_audio_buffer(); 
+    }
     
     // We will never get here but just in case
     destroy();

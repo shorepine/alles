@@ -105,7 +105,7 @@ extern void read_midi();
 #define EMPTY 0
 #define SCHEDULED 1
 #define PLAYED 2
-#define LATENCY_MS 500
+#define LATENCY_MS 1000
 #define MAX_MS_DRIFT 2500
 
 #define UP    16383

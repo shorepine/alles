@@ -8,7 +8,7 @@ local_ip = socket.gethostbyname(socket.gethostname())
 # But override this if you are using multiple network interfaces, for example a dedicated router to control the synths
 local_ip = '192.168.1.10'
 
-
+ALLES_LATENCY_MS = 1000
 [SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, OFF] = range(8)
 
 def setup_sock():
@@ -43,17 +43,11 @@ def shutdown_sock():
 
 def alles_ms():
     # Timestamp to send over to synths for global sync
-    return int((datetime.datetime.utcnow() - datetime.datetime(2020, 2, 18)).total_seconds() * 1000)
+    # This is a suggestion. I use ms since today started. 
+    # Be careful that you don't let this get too big, it won't be parsed on the other end.
+    d = datetime.datetime.now()
+    return int((datetime.datetime.utcnow() - datetime.datetime(d.year, d.month, d.day)).total_seconds()*1000)
 
-
-#define BATTERY_STATE_CHARGING 0x01
-#define BATTERY_STATE_CHARGED 0x02
-#define BATTERY_STATE_DISCHARGING 0x04
-#define BATTERY_STATE_LOW 0x08
-#define BATTERY_VOLTAGE_4 0x10
-#define BATTERY_VOLTAGE_3 0x20
-#define BATTERY_VOLTAGE_2 0x40
-#define BATTERY_VOLTAGE_1 0x80
 
 def decode_battery_mask(mask):
     state = ""
@@ -107,8 +101,8 @@ def sync(count=10, delay_ms=100):
         except socket.error:
             pass
 
-        # Wait for at least 500ms (client latency) to get any straggling UDP packets back 
-        delay_period = 1 + (500 / delay_ms)
+        # Wait for at least (client latency) to get any straggling UDP packets back 
+        delay_period = 1 + (ALLES_LATENCY_MS / delay_ms)
         if((i-delay_period) > count):
             break
     print (str(rtt))
@@ -123,7 +117,7 @@ def sync(count=10, delay_ms=100):
                 hit = hit + 1
         clients[client_map[ipv4]] = {}
         clients[client_map[ipv4]]["reliability"] = float(hit)/float(count)
-        clients[client_map[ipv4]]["avg_rtt"] = float(total_rtt_ms) / float(hit)
+        clients[client_map[ipv4]]["avg_rtt"] = float(total_rtt_ms) / float(hit) # todo compute std.dev
         clients[client_map[ipv4]]["ipv4"] = ipv4
         clients[client_map[ipv4]]["battery"] = decode_battery_mask(int(battery_map[ipv4]))
     # Return this as a map for future use
@@ -167,6 +161,20 @@ def beating_tones(wave=SINE, vol=0.5, cycle_len_ms = 20000, resolution_ms=100):
         tic = tic + resolution_ms
         if(tic > cycle_len_ms): tic = 0
         time.sleep(resolution_ms / 1000.0)
+
+def battery_test():
+    tic = time.time()
+    clients = 1
+    try:
+        while clients:
+            print("Been %d seconds" % (str(time.time()-tic)))
+            clients = len(sync().keys())
+            complex(loops=1)
+            off()
+            time.sleep(60)
+    except KeyboardInterrupt:
+            pass
+    print("Took %d seconds to stop" %(time.time() - tic))
 
 
 def lfoduty():
@@ -215,8 +223,8 @@ def play_patches(voice=0, wave=FM, amp=0.5 ,forever=True, vel=100, wait=0.750, d
             time.sleep(wait)
 
 
-def complex(speed=0.250, vol=1, client =-1):
-    while 1:
+def complex(speed=0.250, vol=1, client =-1, loops=-1):
+    while(loops != 0): # -1 means forever 
         for i in [0,2,4,5, 0, 4, 0, 2]:
             tone(voice=0, wave=FM, amp=0.5*vol, note=50+i, patch=15, client=client)
             time.sleep(speed)
@@ -226,6 +234,7 @@ def complex(speed=0.250, vol=1, client =-1):
             time.sleep(speed)
             tone(voice=2, wave=SINE, freq = 20, client=client)
             time.sleep(speed)
+        loops = loops - 1
 
 def off():
 	for x in range(10):
