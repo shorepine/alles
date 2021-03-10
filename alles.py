@@ -167,9 +167,10 @@ def battery_test():
     clients = 1
     try:
         while clients:
-            print("Been %d seconds" % (str(time.time()-tic)))
+            print("Been %d seconds" % (time.time()-tic))
             clients = len(sync().keys())
             complex(loops=1)
+            time.sleep(1)
             off()
             time.sleep(60)
     except KeyboardInterrupt:

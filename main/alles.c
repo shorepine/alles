@@ -247,7 +247,7 @@ void deserialize_event(char * message, uint16_t length) {
         if(b == '_' && c==0) sync_response = 1;
         if(b >= 'a' || b <= 'z' || b == 0) {  // new mode or end
             if(mode=='t') {
-                e.time=atoi(message + start);
+                e.time=atol(message + start);
                 // if we haven't yet synced our times, do it now
                 if(!computed_delta_set) {
                     computed_delta = e.time - sysclock;
@@ -264,7 +264,7 @@ void deserialize_event(char * message, uint16_t length) {
             if(mode=='n') e.midi_note=atoi(message + start);
             if(mode=='p') e.patch=atoi(message + start);
             if(mode=='r') ipv4=atoi(message + start);
-            if(mode=='s') sync = atoi(message + start); 
+            if(mode=='s') sync = atol(message + start); 
             if(mode=='v') e.voice=atoi(message + start);
             if(mode=='w') e.wave=atoi(message + start);
             mode=b;

@@ -80,7 +80,7 @@ f = frequency, float 0-22050. default 0
 n = midinote, uint, 0-127 (note that this will also set f). default 0
 p = patch, uint, 0-999, choose a preloaded DX7 patch number for FM waveforms. See patches.h and alles.py. default 0
 s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py, also uses i for sync_index
-t = time, int64: ms since some fixed start point on your host. you should always give this if you can
+t = time, int64: ms since some fixed start point on your host. you should always give this if you can.
 v = voice, uint, 0 to 9. default: 0
 w = waveform, uint, 0 to 6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, OFF]. default: 0/SINE
 ```
