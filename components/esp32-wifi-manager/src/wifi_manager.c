@@ -934,7 +934,11 @@ void wifi_manager( void * pvParameters ){
 	};
 	
 	// TODO -- here, add the mac address 8 character hex at the end of the ssid
-	memcpy(ap_config.ap.ssid, wifi_settings.ap_ssid , sizeof(wifi_settings.ap_ssid));
+	uint8_t mac[6];
+	char hexmac[7+32];
+	esp_efuse_mac_get_default(mac);
+	sprintf(hexmac, "%s-%02x%02x%02x", wifi_settings.ap_ssid, mac[3],mac[4],mac[5]);
+	memcpy(ap_config.ap.ssid, hexmac , sizeof(hexmac));
 
 	/* if the password lenght is under 8 char which is the minium for WPA2, the access point starts as open */
 	if(strlen( (char*)wifi_settings.ap_pwd) < WPA2_MINIMUM_PASSWORD_LENGTH){
@@ -978,7 +982,6 @@ void wifi_manager( void * pvParameters ){
 		.show_hidden = true
 	};
 
-	printf("calling LOAD AND RESTORE\n");
 	/* enqueue first event: load previous config */
 	wifi_manager_send_message(WM_ORDER_LOAD_AND_RESTORE_STA, NULL);
 

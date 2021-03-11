@@ -57,6 +57,7 @@ extern "C" {
 // Button handlers
 void wifi_reconfigure();
 void start_immediate_mode();
+extern wifi_config_t* wifi_manager_config_sta ;
 
 extern void mcast_listen_task(void *pvParameters);
 extern void mcast_send(char * message, uint16_t len);

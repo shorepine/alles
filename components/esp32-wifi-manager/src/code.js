@@ -114,7 +114,7 @@ docReady(async function () {
     false
   );
 
-  gel("ok-credits").addEventListener(
+/*  gel("ok-credits").addEventListener(
     "click",
     () => {
       gel("credits").style.display = "none";
@@ -132,7 +132,7 @@ docReady(async function () {
     },
     false
   );
-
+*/
   gel("ok-connect").addEventListener(
     "click",
     () => {

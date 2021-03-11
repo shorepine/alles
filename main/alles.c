@@ -407,38 +407,25 @@ void cb_connection_ok(void *pvParameter){
     wifi_manager_started_ok = 1;
 }
 
-extern wifi_config_t* wifi_manager_config_sta ;
 void wifi_reconfigure() {
-    
-    // todo -- stop synth
+     printf("reconfigure wifi");
 
-    //wifi_manager_disconnect_async();
-    printf("reconfigure wifi");
-    //xEventGroupClearBits(wifi_manager_event_group, WIFI_MANAGER_REQUEST_DISCONNECT_BIT);
+    /* erase configuration */
+    if(wifi_manager_config_sta){
+        memset(wifi_manager_config_sta, 0x00, sizeof(wifi_config_t));
+    }
 
-                    /* erase configuration */
-                    if(wifi_manager_config_sta){
-                        memset(wifi_manager_config_sta, 0x00, sizeof(wifi_config_t));
-                    }
+    /* regenerate json status */
+    if(wifi_manager_lock_json_buffer( portMAX_DELAY )){
+        wifi_manager_generate_ip_info_json( UPDATE_USER_DISCONNECT );
+        wifi_manager_unlock_json_buffer();
+    }
 
-                    /* regenerate json status */
-                    if(wifi_manager_lock_json_buffer( portMAX_DELAY )){
-                        wifi_manager_generate_ip_info_json( UPDATE_USER_DISCONNECT );
-                        wifi_manager_unlock_json_buffer();
-                    }
+    /* save NVS memory */
+    wifi_manager_save_sta_config();
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
-                    /* save NVS memory */
-                    wifi_manager_save_sta_config();
-                    vTaskDelay(100 / portTICK_PERIOD_MS);
-                    esp_restart();
-                    /* start SoftAP */
-                    //wifi_manager_send_message(WM_ORDER_START_AP, NULL);
-    // spin for a few -- it will restart if connected to a new one
-    while(1) {
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-    };
-
-    //wifi_manager_destroy();
+    esp_restart();
 
 }
 
@@ -452,8 +439,6 @@ void start_immediate_mode() {
 }
 
 void app_main() {
-    // Init flash, network, event loop, GPIO
-
     // todo -- start buttons / event loop first
     wifi_manager_start();
 
@@ -463,9 +448,8 @@ void app_main() {
     while(!wifi_manager_started_ok) {
         vTaskDelay(100 / portTICK_PERIOD_MS);
     };
-    printf("Stopping captive portal\n");
-    
-    http_app_stop();
+    uint8_t captive_on = 1;
+    int64_t tic = esp_timer_get_time() / 1000;
 
 
     //check_init(&nvs_flash_init, "Flash");
@@ -504,11 +488,6 @@ void app_main() {
     }
 #endif
 
-    
-    // start the main loop 
-    //ESP_ERROR_CHECK(wifi_connect());
-
-
    
     create_multicast_ipv4_socket();
 
@@ -524,6 +503,13 @@ void app_main() {
     // Spin this core forever parsing events and making sounds
     while(1) {  
         fill_audio_buffer(); 
+        int64_t sysclock = esp_timer_get_time() / 1000;
+        if((sysclock-tic) > 10000 && captive_on) {
+            // Stop the captive portal after 10s from boot, we don't need it anymore
+            printf("Stopping captive portal");
+            http_app_stop();
+            captive_on = 0;
+        }
     }
     
     // We will never get here but just in case
