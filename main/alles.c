@@ -53,21 +53,26 @@ struct event default_event() {
 
 // deep copy an event to the fifo
 void add_event(struct event e) { 
-    events[next_event_write].voice = e.voice;
-    events[next_event_write].velocity = e.velocity;
-    events[next_event_write].duty = e.duty;
-    events[next_event_write].feedback = e.feedback;
-    events[next_event_write].midi_note = e.midi_note;
-    events[next_event_write].wave = e.wave;
-    events[next_event_write].patch = e.patch;
-    events[next_event_write].freq = e.freq;
-    events[next_event_write].amp = e.amp;
-    events[next_event_write].time = e.time;
-    events[next_event_write].status = e.status;
-    events[next_event_write].sample = e.sample;
-    events[next_event_write].step = e.step;
-    events[next_event_write].substep = e.substep;
-    next_event_write = (next_event_write + 1) % (EVENT_FIFO_LEN);
+    if(events[next_event_write].status == SCHEDULED) {
+        // We should drop these messages, the queue is full
+        printf("queue (size %d) is full at index %d, skipping\n", EVENT_FIFO_LEN, next_event_write);
+    } else {
+        events[next_event_write].voice = e.voice;
+        events[next_event_write].velocity = e.velocity;
+        events[next_event_write].duty = e.duty;
+        events[next_event_write].feedback = e.feedback;
+        events[next_event_write].midi_note = e.midi_note;
+        events[next_event_write].wave = e.wave;
+        events[next_event_write].patch = e.patch;
+        events[next_event_write].freq = e.freq;
+        events[next_event_write].amp = e.amp;
+        events[next_event_write].time = e.time;
+        events[next_event_write].status = e.status;
+        events[next_event_write].sample = e.sample;
+        events[next_event_write].step = e.step;
+        events[next_event_write].substep = e.substep;
+        next_event_write = (next_event_write + 1) % (EVENT_FIFO_LEN);
+    }
 }
 
 // The sequencer object keeps state betweeen voices, whereas events are only deltas/changes
@@ -225,7 +230,7 @@ void deserialize_event(char * message, uint16_t length) {
     uint8_t mode = 0;
     int64_t sync = -1;
     int8_t sync_index = -1;
-    int8_t ipv4 = 0;
+    uint8_t ipv4 = 0; // lol i had this as an int8 jeez 
     int16_t client = -1;
     uint16_t start = 0;
     uint16_t c = 0;
@@ -240,7 +245,8 @@ void deserialize_event(char * message, uint16_t length) {
     for(int d=0;d<length;d++) { if(message[d] == 0) { new_length = d; d = length + 1;  } }
     length = new_length;
 
-    //printf("message ###%s### len %d\n", data_buffer, recv_data);
+    // Debug
+    //printf("message ###%s### len %d\n", message, length);
 
     while(c < length+1) {
         uint8_t b = message[c];
@@ -388,12 +394,83 @@ void check_init(esp_err_t (*fn)(), char *name) {
 
     printf("[OK]\n");
 }
+static const char TAG[] = "main";
+uint8_t wifi_manager_started_ok = 0;
+void cb_connection_ok(void *pvParameter){
+    ip_event_got_ip_t* param = (ip_event_got_ip_t*)pvParameter;
+
+    /* transform IP to human readable string */
+    char str_ip[16];
+    esp_ip4addr_ntoa(&param->ip_info.ip, str_ip, IP4ADDR_STRLEN_MAX);
+
+    ESP_LOGI(TAG, "I have a connection and my IP is %s!", str_ip);
+    wifi_manager_started_ok = 1;
+}
+
+extern wifi_config_t* wifi_manager_config_sta ;
+void wifi_reconfigure() {
+    
+    // todo -- stop synth
+
+    //wifi_manager_disconnect_async();
+    printf("reconfigure wifi");
+    //xEventGroupClearBits(wifi_manager_event_group, WIFI_MANAGER_REQUEST_DISCONNECT_BIT);
+
+                    /* erase configuration */
+                    if(wifi_manager_config_sta){
+                        memset(wifi_manager_config_sta, 0x00, sizeof(wifi_config_t));
+                    }
+
+                    /* regenerate json status */
+                    if(wifi_manager_lock_json_buffer( portMAX_DELAY )){
+                        wifi_manager_generate_ip_info_json( UPDATE_USER_DISCONNECT );
+                        wifi_manager_unlock_json_buffer();
+                    }
+
+                    /* save NVS memory */
+                    wifi_manager_save_sta_config();
+                    vTaskDelay(100 / portTICK_PERIOD_MS);
+                    esp_restart();
+                    /* start SoftAP */
+                    //wifi_manager_send_message(WM_ORDER_START_AP, NULL);
+    // spin for a few -- it will restart if connected to a new one
+    while(1) {
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    };
+
+    //wifi_manager_destroy();
+
+}
+
+void start_immediate_mode() {
+    // TOOD -- tearn down wifi 
+    printf("immediate mode");
+    immediate_mode = 1;
+    xTaskCreatePinnedToCore(&read_midi, "read_midi_task", 4096, NULL, 1, NULL, 1);
+    scale(KS, 0.5);
+    while(1) { fill_audio_buffer(); } 
+}
 
 void app_main() {
     // Init flash, network, event loop, GPIO
-    check_init(&nvs_flash_init, "Flash");
-    check_init(&esp_netif_init, "Netif");
-    check_init(&esp_event_loop_create_default, "Event");
+
+    // todo -- start buttons / event loop first
+    wifi_manager_start();
+
+    /* register a callback as an example to how you can integrate your code with the wifi manager */
+    wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_connection_ok);
+
+    while(!wifi_manager_started_ok) {
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    };
+    printf("Stopping captive portal\n");
+    
+    http_app_stop();
+
+
+    //check_init(&nvs_flash_init, "Flash");
+    //check_init(&esp_netif_init, "Netif");
+    //check_init(&esp_event_loop_create_default, "Event");
 
 
     check_init(&setup_i2s, "i2s");
@@ -423,16 +500,16 @@ void app_main() {
     vTaskDelay(2000 / portTICK_PERIOD_MS); // wait 2 seconds to see if button is pressed
     // Play a test sound and enter immediate mode.
     if(!gpio_get_level(GPIO_NUM_0)) { 
-        immediate_mode = 1;
-        xTaskCreatePinnedToCore(&read_midi, "read_midi_task", 4096, NULL, 1, NULL, 1);
-        scale(KS, 0.5);
-        while(1) { fill_audio_buffer(); } 
+        immediate_mode();
     }
 #endif
 
     
     // start the main loop 
-    ESP_ERROR_CHECK(wifi_connect());
+    //ESP_ERROR_CHECK(wifi_connect());
+
+
+   
     create_multicast_ipv4_socket();
 
     // Pin the UDP task to the 2nd core so the audio / main core runs on its own without getting starved

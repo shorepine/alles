@@ -29,11 +29,11 @@ int sock= -1;
 
 extern void deserialize_event(char * message, uint16_t length);
 
-extern esp_ip4_addr_t s_ip_addr;
+extern esp_ip4_addr_t wifi_manager_ip4;
 extern uint8_t battery_mask;
 
 
-int8_t ipv4_quartet;
+uint8_t ipv4_quartet;
 int16_t client_id;
 int64_t clocks[255];
 int64_t ping_times[255];
@@ -51,7 +51,7 @@ static int socket_add_ipv4_multicast_group(bool assign_source_if) {
 
     // Configure source interface
     esp_netif_ip_info_t ip_info = { 0 };
-    err = esp_netif_get_ip_info(get_example_netif(), &ip_info);
+    err = esp_netif_get_ip_info(wifi_manager_get_esp_netif_sta(), &ip_info);
     if (err != ESP_OK) {
         ESP_LOGE(V4TAG, "Failed to get IP address info. Error 0x%x", err);
         goto err;
@@ -201,7 +201,7 @@ void handle_sync(int64_t time, int8_t index) {
     // Before I send, i want to update the map locally
     update_map(client_id, ipv4_quartet, sysclock);
     // Send back sync message with my time and received sync index and my client id & battery status (if any)
-    sprintf(message, "_s%lldi%dc%dr%dt%d", sysclock, index, client_id, ipv4_quartet, battery_mask);
+    sprintf(message, "_s%lldi%dc%dr%dy%d", sysclock, index, client_id, ipv4_quartet, battery_mask);
     mcast_send(message, strlen(message));
     // Update computed delta (i could average these out, but I don't think that'll help too much)
     computed_delta = time - sysclock;
@@ -211,7 +211,7 @@ void handle_sync(int64_t time, int8_t index) {
 void ping(int64_t sysclock) {
     char message[100];
     //printf("[%d %d] pinging with %lld\n", ipv4_quartet, client_id, sysclock);
-    sprintf(message, "_s%lldi-1c%dr%dt%d", sysclock, client_id, ipv4_quartet, battery_mask);
+    sprintf(message, "_s%lldi-1c%dr%dy%d", sysclock, client_id, ipv4_quartet, battery_mask);
     update_map(client_id, ipv4_quartet, sysclock);
     mcast_send(message, strlen(message));
     last_ping_time = sysclock;
@@ -223,7 +223,7 @@ void mcast_listen_task(void *pvParameters) {
         .tv_usec = 0,
     };
     
-    ipv4_quartet = esp_ip4_addr4(&s_ip_addr);
+    ipv4_quartet = esp_ip4_addr4(&wifi_manager_ip4);
     client_id = -1; // for now
     for(uint8_t i=0;i<255;i++) { clocks[i] = 0; ping_times[i] = 0; }
 

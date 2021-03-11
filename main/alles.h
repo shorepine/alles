@@ -28,7 +28,8 @@ extern "C" {
 #include "driver/i2s.h"
 #include "nvs_flash.h"
 #include "lwip/netdb.h"
-
+#include "wifi_manager.h"
+#include "http_app.h"
 #include "wifi.h"
 
 #define SAMPLE_RATE 44100
@@ -53,6 +54,10 @@ extern "C" {
 
 #define MIDI_IN 19
 
+
+// Button handlers
+void wifi_reconfigure();
+void start_immediate_mode();
 
 extern void mcast_listen_task(void *pvParameters);
 extern void mcast_send(char * message, uint16_t len);

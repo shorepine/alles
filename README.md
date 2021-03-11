@@ -53,17 +53,13 @@ Fritzing file in the `pcbs` folder of this repository, and [it's here on Aisler]
 
 Setup esp-idf: http://esp-idf.readthedocs.io/en/latest/get-started/
 
-Make sure to add an auth.h in the main/ folder with 
-```
-#define WIFI_SSID "your ssid"
-#define WIFI_PASS "your password"
-```
-
 Just run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board after setup.
 
 ## Using it
 
-Send commands via UDP in ASCII delimited by a character, like
+On first boot, each synth will create a captive wifi network called `alles-synth-X` where X is some ID of the synth. Join it, and you should get redirected to a captive wifi setup page. If not, go to http://192.168.1.1 in your browser. Once you tell the synth what your wifi SSID and password are, it will reboot. You only need to do that once per synth.
+
+Alles responds to commands via UDP in ASCII delimited by a character, like
 
 ```
 v0w4f440.0a0.5
@@ -98,7 +94,7 @@ v10.4t7000
 w2t7000
 ```
 
-Will set voice 0 (default) to a sine wave (default) at 440Hz amplitude 0.1, then set amplitude of voice 0 to 0.5, then change the waveform to a square but keep everything else the same. Then set voice 1 to an FM synth playing midi note 50 at amplitude 0.2. Then set voice 1's amplitude to 0.4. Then change voice 0 again to a saw wave.
+Will set voice 0 (default) to a sine wave (default) at 440Hz amplitude 0.1 at timestamp 4.5s, then set amplitude of voice 0 to 0.5 100ms later, then change the waveform to a square but keep everything else the same. Then set voice 1 to an FM synth playing midi note 50 at amplitude 0.2. Then set voice 1's amplitude to 0.4. Then change voice 0 again to a saw wave.
 
 ## Testing
 

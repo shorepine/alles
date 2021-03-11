@@ -6,7 +6,7 @@ multicast_group = ('232.10.11.12', 3333)
 local_ip = socket.gethostbyname(socket.gethostname())
 
 # But override this if you are using multiple network interfaces, for example a dedicated router to control the synths
-local_ip = '192.168.1.10'
+local_ip = '192.168.1.2'
 
 ALLES_LATENCY_MS = 1000
 [SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, OFF] = range(8)
@@ -44,7 +44,7 @@ def shutdown_sock():
 def alles_ms():
     # Timestamp to send over to synths for global sync
     # This is a suggestion. I use ms since today started. 
-    # Be careful that you don't let this get too big, it won't be parsed on the other end.
+    # Be careful that you don't let this get too big, 
     d = datetime.datetime.now()
     return int((datetime.datetime.utcnow() - datetime.datetime(d.year, d.month, d.day)).total_seconds()*1000)
 
@@ -88,13 +88,14 @@ def sync(count=10, delay_ms=100):
             data = data.decode('ascii')
             if(data[0] == '_'):
                 try:
-                    [_, client_time, sync_index, client_id, ipv4, battery] = re.split(r'[sicrt]',data)
+                    [_, client_time, sync_index, client_id, ipv4, battery] = re.split(r'[sicry]',data)
                 except ValueError:
                     print("What! %s" % (data))
                 if(int(sync_index) <= i): # skip old ones from a previous run
                     #print ("recvd at %d:  %s %s %s %s" % (alles_ms(), client_time, sync_index, client_id, ipv4))
+                    # ping sets client index to -1, so make sure this is a sync response 
                     if(int(sync_index) >= 0):
-                        client_map[int(ipv4)] = client_id
+                        client_map[int(ipv4)] = int(client_id)
                         battery_map[int(ipv4)] = battery
                         rtt[int(ipv4)] = rtt.get(int(ipv4), {})
                         rtt[int(ipv4)][int(sync_index)] = alles_ms()-time_sent[int(sync_index)]
@@ -151,12 +152,8 @@ def beating_tones(wave=SINE, vol=0.5, cycle_len_ms = 20000, resolution_ms=100):
             distance = float(tic) / cycle_len_ms # 0 - 1
             base_freq = start_f + (distance * (end_f-start_f))
             freq = base_freq
-            #freq =  (offset * i) + base_freq
             if(freq > end_f): freq = freq - (end_f - start_f)
-            #print "%d %f" % (i, freq)
             tone(wave=wave, client=client_id, amp=vol, freq=freq, retries=1)
-            #if(beat % 4 == 0):
-            #    tone(voice=1, wave=FM, amp=0.5*vol, note=50+i, patch=8, client=client_id, retries=1)
         beat = beat + 1
         tic = tic + resolution_ms
         if(tic > cycle_len_ms): tic = 0

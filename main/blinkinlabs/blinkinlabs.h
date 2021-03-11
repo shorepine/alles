@@ -46,3 +46,5 @@ esp_err_t buttons_init();
 esp_err_t status_led_init();
 void status_led_set_state(status_led_state_t state);
 void ip5306_monitor();
+extern void wifi_reconfigure();
+extern void start_immediate_mode();
