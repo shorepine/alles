@@ -57,7 +57,7 @@ Just run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board 
 
 ## Using it
 
-On first boot, each synth will create a captive wifi network called `alles-synth-X` where X is some ID of the synth. Join it, and you should get redirected to a captive wifi setup page. If not, go to http://192.168.1.1 in your browser. Once you tell the synth what your wifi SSID and password are, it will reboot. You only need to do that once per synth.
+On first boot, each synth will create a captive wifi network called `alles-synth-X` where X is some ID of the synth. Join it, and you should get redirected to a captive wifi setup page. If not, go to `http://10.10.0.1` in your browser. Once you tell each synth what the wifi SSID and password you want it to join are, it will reboot. You only need to do that once per synth.
 
 Alles responds to commands via UDP in ASCII delimited by a character, like
 
@@ -116,7 +116,7 @@ You can read the heartbeat messages on your host if you want to enumerate the sy
 
 ## Timing & latency & sync
 
-WiFi, UDP multicast, distance, microcontrollers with bad antennas: all of these are in the way of doing anything close to "real time" control from your host. A message you send from a laptop will arrive between 5ms and 200ms to the connected speakers, and it'll change each time. That's definitely noticeable. We mitigate this by setting a global latency, right now 500ms, and by allowing any host to send along a `time` parameter of when the host expects the sound to play. `time` can be anything, but I'd suggest using the number of milliseconds since the "alles epoch", e.g.
+WiFi, UDP multicast, distance, microcontrollers with bad antennas: all of these are in the way of doing anything close to "real time" control from your host. A message you send from a laptop will arrive between 5ms and 200ms to the connected speakers, and it'll change each time. That's definitely noticeable. We mitigate this by setting a global latency, right now 1000ms, and by allowing any host to send along a `time` parameter of when the host expects the sound to play. `time` can be anything, but I'd suggest using the number of milliseconds since the "alles epoch", e.g.
 
 ```
 def alles_ms():
@@ -205,6 +205,7 @@ MIDI messages will have the default latency added to allow for sync between all 
 * dan ellis
 * [MSFA](https://github.com/google/music-synthesizer-for-android) for their FM impl
 * mark fell
+* [esp32 WiFi Manager](https://github.com/tonyp7/esp32-wifi-manager)
 * kyle mcdonald 
 * blargg for [BlipBuffer](http://slack.net/~ant/libs/audio.html#Blip_Buffer)'s bandlimiting
 
@@ -213,7 +214,7 @@ MIDI messages will have the default latency added to allow for sync between all 
 * ~~remove distortion at higher amplitudes for mixed sine waves~~
 * ~~FM~~
 * ~~should synths self-identify to each other? would make it easier to use in Max~~
-* see what you can do about wide swings of UDP latency on the netgear router 
+* ~~see what you can do about wide swings of UDP latency on the netgear router~~
 * envelopes / note on/offs / LFOs
 * ~~confirm UDP still works from Max/Pd~~
 * ~~bandlimit the square/saw/triangle oscillators~~
@@ -224,7 +225,7 @@ MIDI messages will have the default latency added to allow for sync between all 
 * ~~sync and enumerate across multiple devices~~
 * ~~addresses / communicate to one or groups, like "play this on half / one-quarter / all"~~
 * ~~do what i can about timing / jitter - sync time? timed messages?~~
-* case / battery setup
+* ~~case / battery setup~~
 * ~~overloading the volume (I think only on FM) crashes~~
 * ~~UDP message clicks~~
 

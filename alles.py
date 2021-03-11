@@ -43,8 +43,7 @@ def shutdown_sock():
 
 def alles_ms():
     # Timestamp to send over to synths for global sync
-    # This is a suggestion. I use ms since today started. 
-    # Be careful that you don't let this get too big, 
+    # This is a suggestion. I use ms since today started
     d = datetime.datetime.now()
     return int((datetime.datetime.utcnow() - datetime.datetime(d.year, d.month, d.day)).total_seconds()*1000)
 

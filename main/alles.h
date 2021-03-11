@@ -30,7 +30,8 @@ extern "C" {
 #include "lwip/netdb.h"
 #include "wifi_manager.h"
 #include "http_app.h"
-
+#include "buttons.h"
+    
 #define SAMPLE_RATE 44100
 
 #define MAX_RECEIVE_LEN 127
@@ -47,10 +48,6 @@ extern "C" {
 #define CONFIG_I2S_DIN 27
 
 #define LED_STATUS 4
-#define BUTTON_EXTRA 16
-#define BUTTON_WIFI 17
-#define BUTTON_MIDI 0
-
 #define MIDI_IN 19
 
 

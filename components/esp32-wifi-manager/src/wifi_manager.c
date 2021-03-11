@@ -904,7 +904,8 @@ void wifi_manager( void * pvParameters ){
 	ESP_ERROR_CHECK(esp_netif_init());
 
 	/* event loop for the wifi driver */
-	ESP_ERROR_CHECK(esp_event_loop_create_default());
+	// This is already set up by the board on boot
+	//ESP_ERROR_CHECK(esp_event_loop_create_default());
 
 	esp_netif_sta = esp_netif_create_default_wifi_sta();
 	esp_netif_ap = esp_netif_create_default_wifi_ap();

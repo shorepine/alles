@@ -195,7 +195,7 @@ i2s_config_t i2s_config = {
      .sample_rate = SAMPLE_RATE,
      .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
      .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
-     .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB),
+     .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_STAND_I2S),
      .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1, // high interrupt priority
      .dma_buf_count = 8,
      .dma_buf_len = 64   //Interrupt level 1
@@ -438,8 +438,32 @@ void start_immediate_mode() {
     while(1) { fill_audio_buffer(); } 
 }
 
+
+// yeah for common use path, should be
+// (1) start gpio / buttons 
+// (2) start i2s / audio
+// (3) start wifi. 
+//      while wifi is starting, make sure to check for buttons
+//      we could also play a "searching for wifi" repeating tone
+//      do we know the difference between "trying to join saved wifi" and "captive portal is waiting for you"?? 
+// (4) either during wifi startup or after:
+//      if MIDI button is hit, shutdown wifi and go into immediate mode
+//      if config button is hit, delete wifi NVRAM and reboot
+//      if power long press, go into deep sleep (off)
+
+// how is this different for the protoboard version
+// no buttons (except for BOOT0 / MIDI), so let's use that for MIDI/immediate mode
+// power they can do with the battery
+
+
+
 void app_main() {
-    // todo -- start buttons / event loop first
+    check_init(&esp_event_loop_create_default, "Event");
+    check_init(&setup_i2s, "i2s");
+    check_init(&setup_voices, "voices");
+    check_init(&setup_midi, "midi");
+    check_init(&buttons_init, "buttons"); // only one button for the protoboard, 4 for the blinkinlabs
+
     wifi_manager_start();
 
     /* register a callback as an example to how you can integrate your code with the wifi manager */
@@ -452,20 +476,10 @@ void app_main() {
     int64_t tic = esp_timer_get_time() / 1000;
 
 
-    //check_init(&nvs_flash_init, "Flash");
-    //check_init(&esp_netif_init, "Netif");
-    //check_init(&esp_event_loop_create_default, "Event");
-
-
-    check_init(&setup_i2s, "i2s");
-    check_init(&setup_voices, "voices");
-    check_init(&setup_midi, "midi");
-
 #ifdef ALLES_V1_BOARD
     // Do the blinkinlabs board setup
     check_init(&master_i2c_init, "master_i2c"); // Used by ip5306
     check_init(&ip5306_init, "ip5306");         // Battery monitor
-    check_init(&buttons_init, "buttons");       // For hardware buttons
     //check_init(&status_led_init, "status_led"); // LEDC driver for status LED
 
     ip5306_monitor_timer = xTimerCreate(
@@ -476,18 +490,7 @@ void app_main() {
         ip5306_monitor);
     xTimerStart(ip5306_monitor_timer, 0);
 
-#else
-    // Do the protoboard / devboard setup
-    // This is the "BOOT" pin on the devboards -- GPIO0
-    gpio_set_direction(GPIO_NUM_0,  GPIO_MODE_INPUT);
-    gpio_pullup_en(GPIO_NUM_0);
-    vTaskDelay(2000 / portTICK_PERIOD_MS); // wait 2 seconds to see if button is pressed
-    // Play a test sound and enter immediate mode.
-    if(!gpio_get_level(GPIO_NUM_0)) { 
-        immediate_mode();
-    }
 #endif
-
    
     create_multicast_ipv4_socket();
 
@@ -503,13 +506,22 @@ void app_main() {
     // Spin this core forever parsing events and making sounds
     while(1) {  
         fill_audio_buffer(); 
+
+#ifdef ALLES_V1_BOARD
+        // Kill the captive portal after 10s only when running on the blinkinlabs board
+        // The protoboard method does not have enough buttons to reconfigure wifi, so if you're using that
+        // we want you to be able to go to http://esp-ip-addr/ and change the wifi per board
+        // But we don't need the CPU hit if we have an extra button to do it for us
+        // TODO, see what this does if i leave it on all the time. may not be a big issue 
+        // (We can't kill it immediately because the wifi config checks it to see when it's done adding a new ssid/pass)
         int64_t sysclock = esp_timer_get_time() / 1000;
         if((sysclock-tic) > 10000 && captive_on) {
             // Stop the captive portal after 10s from boot, we don't need it anymore
-            printf("Stopping captive portal");
+            printf("Stopping captive portal\n");
             http_app_stop();
             captive_on = 0;
         }
+#endif
     }
     
     // We will never get here but just in case

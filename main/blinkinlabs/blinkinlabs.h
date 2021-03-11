@@ -15,14 +15,13 @@
 #include "master_i2c.h"
 #include "driver/i2s.h"
 #include "driver/ledc.h"
+#include "../buttons.h"
 
 #define CONFIG_I2C_SDA_GPIO 18
 #define CONFIG_I2C_SCL_GPIO 5
 #define CONFIG_I2C_FREQ_KHZ 100
 #define LED_STATUS 4
-#define BUTTON_EXTRA 16
-#define BUTTON_WIFI 17
-#define BUTTON_MIDI 0
+
 
 #define BATTERY_STATE_CHARGING 0x01
 #define BATTERY_STATE_CHARGED 0x02
@@ -42,7 +41,6 @@ typedef enum {
     STATUS_LED_LOW_BATTERY, // 10% duty cycle, 2hz frequency
 } status_led_state_t;
 
-esp_err_t buttons_init();
 esp_err_t status_led_init();
 void status_led_set_state(status_led_state_t state);
 void ip5306_monitor();

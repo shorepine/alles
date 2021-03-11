@@ -3,6 +3,7 @@ idf_component_register(SRCS alles.c
 							oscillators.cc
 							fm.cc
 							midi.c
+							buttons.c
 							blinkinlabs/ip5306.c
 							blinkinlabs/master_i2c.c
 							blinkinlabs/blinkinlabs.c
