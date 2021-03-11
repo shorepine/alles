@@ -1,5 +1,4 @@
 idf_component_register(SRCS alles.c
-							wifi.c
 							multicast.c
 							oscillators.cc
 							fm.cc

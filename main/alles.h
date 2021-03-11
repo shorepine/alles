@@ -30,7 +30,6 @@ extern "C" {
 #include "lwip/netdb.h"
 #include "wifi_manager.h"
 #include "http_app.h"
-#include "wifi.h"
 
 #define SAMPLE_RATE 44100
 
