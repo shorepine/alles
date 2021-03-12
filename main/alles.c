@@ -429,14 +429,6 @@ void wifi_reconfigure() {
 
 }
 
-void start_immediate_mode() {
-    // TOOD -- tearn down wifi 
-    printf("immediate mode");
-    immediate_mode = 1;
-    xTaskCreatePinnedToCore(&read_midi, "read_midi_task", 4096, NULL, 1, NULL, 1);
-    scale(KS, 0.5);
-    while(1) { fill_audio_buffer(); } 
-}
 
 
 // yeah for common use path, should be
@@ -447,15 +439,12 @@ void start_immediate_mode() {
 //      we could also play a "searching for wifi" repeating tone
 //      do we know the difference between "trying to join saved wifi" and "captive portal is waiting for you"?? 
 // (4) either during wifi startup or after:
-//      if MIDI button is hit, shutdown wifi and go into immediate mode
 //      if config button is hit, delete wifi NVRAM and reboot
 //      if power long press, go into deep sleep (off)
-
+// if in deep sleep wait for power button
 // how is this different for the protoboard version
-// no buttons (except for BOOT0 / MIDI), so let's use that for MIDI/immediate mode
+// no buttons (except for BOOT0 / MIDI)?? use that for wifi 
 // power they can do with the battery
-
-
 
 void app_main() {
     check_init(&esp_event_loop_create_default, "Event");

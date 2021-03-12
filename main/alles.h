@@ -31,7 +31,7 @@ extern "C" {
 #include "wifi_manager.h"
 #include "http_app.h"
 #include "buttons.h"
-    
+
 #define SAMPLE_RATE 44100
 
 #define MAX_RECEIVE_LEN 127
@@ -53,7 +53,6 @@ extern "C" {
 
 // Button handlers
 void wifi_reconfigure();
-void start_immediate_mode();
 extern wifi_config_t* wifi_manager_config_sta ;
 
 extern void mcast_listen_task(void *pvParameters);
@@ -65,7 +64,6 @@ extern uint8_t alive;
 extern int64_t computed_delta; // can be negative no prob, but usually host is larger # than client
 extern uint8_t computed_delta_set; // have we set a delta yet?
 extern int16_t client_id;
-extern uint8_t immediate_mode;
 
 // FM 
 extern void fm_init();

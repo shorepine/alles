@@ -96,10 +96,6 @@ w2t7000
 
 Will set voice 0 (default) to a sine wave (default) at 440Hz amplitude 0.1 at timestamp 4.5s, then set amplitude of voice 0 to 0.5 100ms later, then change the waveform to a square but keep everything else the same. Then set voice 1 to an FM synth playing midi note 50 at amplitude 0.2. Then set voice 1's amplitude to 0.4. Then change voice 0 again to a saw wave.
 
-## Testing
-
-If you are not on wifi, you can test the synthesizers by pushing the BOOT button (if using a dev board) or GPIO0 within 2 seconds *after* applying power. Don't press BOOT while applying power, that puts it in a bootloader mode. The synthesizer will run through a scale and enter immediate mode (see MIDI detail below.)
-
 In normal operation, a small "bleep" noise is made a few seconds after boot to confirm that the synthesizer is ready to receive UDP packets. If you don't hear the bleep, ensure the Wi-Fi authentication is correct.
 
 ## Addressing individual synthesizers
@@ -185,7 +181,7 @@ You can also use it in Max or similar software that supports sending UDP packets
 
 *Still in progress*, but you can now control Alles through MIDI. 
 
-Wire one of your synths to a MIDI in jack, and use standard MIDI programs / DAWs to control the entire mesh. The directly connected synth can broadcast the messages out to the rest of the mesh in sync. Or, if you want, you can control one synth directly via MIDI in "immediate mode", where there is no mesh/network and no latency. 
+Wire one of your synths to a MIDI in jack, and use standard MIDI programs / DAWs to control the entire mesh. The directly connected synth can broadcast the messages out to the rest of the mesh in sync. 
 
 Put the MIDI input on GPIO 19. You could use a pre-built [MIDI breakout](https://www.sparkfun.com/products/12898) to make it easier to wire up. I've found 3.3V from the ESP32 is fine to power the MIDI in circuit. 
 
@@ -195,7 +191,7 @@ DAWs may start MIDI messages with 0, or 1, so to avoid confusion, I'm using 1 ad
 
 `"Pgm Change Bank"`: set to "Bank 1" and then use `PROGRAM CHANGE` messages to set the tone. Bank `1` and `PGM` 1 is a sine wave, 2 is a square, and so on like the `w` parameter above. `Bank 2` and onwards are the FM patches. `Bank 2` and `PGM 1` is the first FM patch. `Bank 2 PGM 2` is the second patch. `BANK X PGM Y` is the `(128*(X-2) + (Y-1))` patch. 
 
-MIDI messages will have the default latency added to allow for sync between all your synths. If you want to directly control a synth, and disable the mesh, hold down the `BOOT` button after applying power like in the Testing section above. This will disable wifi and immediately play each MIDI message on the connected synth. 
+MIDI messages will have the default latency added to allow for sync between all your synths.
 
 
 
