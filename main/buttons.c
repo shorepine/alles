@@ -95,6 +95,7 @@ esp_err_t buttons_init() {
 
 #ifdef ALLES_V1_BOARD
     //hook isr handler for specific gpio pin
+    esp_sleep_enable_ext0_wakeup(BUTTON_MIDI, 0);
     ret = gpio_isr_handler_add(BUTTON_EXTRA, gpio_isr_handler, (void*) BUTTON_EXTRA);
     if(ret != ESP_OK)
         return ret;

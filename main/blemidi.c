@@ -826,6 +826,45 @@ static void gatts_event_handler(esp_gatts_cb_event_t event,
   } while (0);
 }
 
+int32_t blemidi_deinit() {
+    esp_err_t status = esp_ble_gatts_app_unregister(midi_profile_tab[PROFILE_APP_IDX].gatts_if);
+    if (status != ESP_OK) {
+        printf("esp_ble_gatts_app_unregister status=%d\n", status);
+        return false;
+    }
+
+    status = esp_bluedroid_disable();
+    if (status != ESP_OK) {
+        printf("esp_bluedroid_disable status=%d\n", status);
+        return false;
+    }
+
+    status = esp_bluedroid_deinit();
+    if (status != ESP_OK) {
+        printf("esp_bluedroid_deinit status=%d\n", status);
+        return false;
+    }
+
+    status = esp_bt_controller_disable();
+    if (status != ESP_OK) {
+        printf("esp_bt_controller_disable status=%d\n", status);
+        return false;
+    }
+
+    status = esp_bt_controller_deinit();
+    if (status != ESP_OK) {
+        printf("esp_bt_controller_deinit status=%d\n", status);
+        return false;
+    }
+
+    status = esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
+    if (status != ESP_OK) {
+        printf("esp_bt_controller_mem_release status=%d\n", status);
+        return false;
+    }
+    return true;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Initializes the BLE MIDI Server
 ////////////////////////////////////////////////////////////////////////////////////////////////////

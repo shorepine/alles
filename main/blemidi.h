@@ -55,6 +55,7 @@ extern "C" {
  * required in your application.
  */
 extern int32_t blemidi_init(void *callback_midi_message_received);
+extern int32_t blemidi_deinit();
 
 /**
  * @brief Sends a BLE MIDI message

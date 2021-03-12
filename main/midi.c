@@ -113,7 +113,10 @@ TaskHandle_t read_midi_uart_task = NULL;
 
 void midi_deinit() {
     // Shutdown blemidi somehow?
+    blemidi_deinit();
     vTaskDelete(read_midi_uart_task);
+
+
 }
 void midi_init() {
     // Setup UART2 and BLE to listen for MIDI messages 
