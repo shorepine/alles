@@ -39,6 +39,15 @@ extern "C" {
 #define PING_TIME_MS 10000
 
 
+
+#define BUTTON_EXTRA 16
+#define BUTTON_WIFI 17
+#define BUTTON_MIDI 0
+#define BUTTON_POWER_SHORT 100  // Button state from IP5306
+#define BUTTON_POWER_LONG 101   // Button state from IP5306
+#define ESP_INTR_FLAG_DEFAULT 0
+
+
 #define CONFIG_I2S_LRCLK 25
 #define CONFIG_I2S_BCLK 26
 #define CONFIG_I2S_DIN 27

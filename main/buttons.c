@@ -11,12 +11,6 @@
 #include "esp_spi_flash.h"
 #include "alles.h"
 
-#define BUTTON_EXTRA 16
-#define BUTTON_WIFI 17
-#define BUTTON_MIDI 0
-#define BUTTON_POWER_SHORT 100  // Button state from IP5306
-#define BUTTON_POWER_LONG 101   // Button state from IP5306
-#define ESP_INTR_FLAG_DEFAULT 0
 
 static xQueueHandle gpio_evt_queue = NULL;
 

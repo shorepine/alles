@@ -15,7 +15,7 @@
 #include "master_i2c.h"
 #include "driver/i2s.h"
 #include "driver/ledc.h"
-#include "../buttons.h"
+#include "../alles.h"
 
 #define CONFIG_I2C_SDA_GPIO 18
 #define CONFIG_I2C_SCL_GPIO 5
