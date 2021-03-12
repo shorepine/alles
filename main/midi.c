@@ -95,7 +95,7 @@ void read_midi_uart() {
     uint8_t data[128];
     size_t length = 0;
     while(1) {
-        // Sleep 5ms to wait to get more MIDI data and avoid starving audio thread
+        // Sleep 5ms to wait to get more MIDI data and avoid starving other threads
         // I increased RTOS clock rate from 100hz to 500hz to go down to a 5ms delay here
         // https://www.esp32.com/viewtopic.php?t=7554
         vTaskDelay(5 / portTICK_PERIOD_MS);
@@ -109,9 +109,14 @@ void read_midi_uart() {
     } // end loop forever
 }
 
+TaskHandle_t read_midi_uart_task = NULL;
 
-void setup_midi() {
-    // Setup UART2 to listen for MIDI messages 
+void midi_deinit() {
+    // Shutdown blemidi somehow?
+    vTaskDelete(read_midi_uart_task);
+}
+void midi_init() {
+    // Setup UART2 and BLE to listen for MIDI messages 
     const int uart_num = UART_NUM_2;
     uart_config_t uart_config = {
         .baud_rate = 31250,
@@ -135,7 +140,7 @@ void setup_midi() {
     ESP_ERROR_CHECK(uart_driver_install(UART_NUM_2, uart_buffer_size, \
                                           uart_buffer_size, 10, &uart_queue, 0));
 
-    xTaskCreatePinnedToCore(&read_midi_uart, "read_midi_task", 4096, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(&read_midi_uart, "read_midi_task", 4096, NULL, 1, &read_midi_uart_task, 1);
 
     int status = blemidi_init(callback_midi_message_received);
     if( status < 0 ) {

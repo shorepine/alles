@@ -21,6 +21,25 @@ void bleep() {
     add_event(e);
 }
 
+void debleep() {
+    struct event e = default_event();
+    int64_t sysclock = esp_timer_get_time() / 1000;
+    e.time = sysclock;
+    e.wave = SINE;
+    e.freq = 440;
+    e.amp = 0.75;
+    e.status = SCHEDULED;
+    add_event(e);
+    e.time = sysclock + 150;
+    e.freq = 220;
+    add_event(e);
+    e.time = sysclock + 300;
+    e.amp = 0;
+    e.freq = 0;
+    add_event(e);
+}
+
+
 // Plays a short scale 
 void scale(uint8_t wave, float vol) {
     struct event e = default_event();

@@ -23,6 +23,7 @@ extern "C" {
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_err.h"
+#include "esp_sleep.h"
 #include "driver/uart.h"
 
 #include "driver/i2s.h"
@@ -83,6 +84,7 @@ void add_event(struct event e);
 
 // Sounds
 extern void bleep();
+extern void debleep();
 extern void scale(uint8_t wave, float vol);
 
 
@@ -124,7 +126,9 @@ extern void render_noise(float * buf, uint8_t voice);
 extern void ks_new_note_freq(uint8_t voice); 
 
 // MIDI
-extern void setup_midi();
+extern void midi_init();
+extern void midi_deinit();
+
 extern void read_midi();
 
 #define SINE_LUT_SIZE 16383

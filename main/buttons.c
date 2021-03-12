@@ -12,8 +12,8 @@
 #include "alles.h"
 
 
-static xQueueHandle gpio_evt_queue = NULL;
-
+xQueueHandle gpio_evt_queue = NULL;
+extern uint8_t running;
 
 // Called whenever a button press triggers a GPIO interrupt
 static void IRAM_ATTR gpio_isr_handler(void* arg) {
@@ -51,6 +51,7 @@ static void gpio_task_example(void* arg) {
                 break;
             case BUTTON_POWER_LONG:
                 printf("power long\n");
+                running = 0;
                 break;
             }
 

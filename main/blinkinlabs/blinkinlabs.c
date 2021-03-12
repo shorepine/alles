@@ -5,7 +5,6 @@
 
 
 uint8_t battery_mask = 0;
-static xQueueHandle gpio_evt_queue = NULL;
 
 
 //============ Status LED =====================================================
@@ -88,6 +87,7 @@ esp_err_t status_led_init() {
 
 TimerHandle_t ip5306_monitor_timer = NULL;
 
+extern xQueueHandle gpio_evt_queue;
 
 // Periodic task to poll the ip5306 for the battery charge and button states.
 // Intented to be run from a low-priority timer at 1-2 Hz
@@ -103,10 +103,12 @@ void ip5306_monitor() {
     }
 
     if(buttons & BUTTON_LONG_PRESS) {
+        printf("button long\n");
         const uint32_t button = BUTTON_POWER_LONG;
         xQueueSend(gpio_evt_queue, &button, 0);
     }
     if(buttons & BUTTON_SHORT_PRESS) {
+        printf("button short\n");
         const uint32_t button = BUTTON_POWER_SHORT;
         xQueueSend(gpio_evt_queue, &button, 0);
     }

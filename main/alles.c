@@ -21,15 +21,17 @@ struct event events[EVENT_FIFO_LEN];
 struct event seq[VOICES];
 
 uint8_t midi_mode = 0;
+uint8_t running = 1;
+
+static const char TAG[] = "main";
+uint8_t wifi_manager_started_ok = 0;
+
 
 float freq_for_midi_note(uint8_t midi_note) {
     return 440.0*pow(2,(midi_note-69.0)/12.0);
 }
 
 
-void destroy() {
-    // TODO: Destroy FM and all the ram. low-pri, we never get here so ... 
-}
 
 // Create a new default event -- mostly -1 or no change
 struct event default_event() {
@@ -134,57 +136,64 @@ int16_t block[BLOCK_SIZE];
 
 
 // This takes scheduled events and plays them at the right time
-void fill_audio_buffer() {
-    // Check to see which sounds to play 
-    int64_t sysclock = esp_timer_get_time() / 1000;
-    
-    // We could save some CPU by starting at a read pointer, depends on how big this gets
-    for(uint16_t i=0;i<EVENT_FIFO_LEN;i++) {
-        if(events[i].status == SCHEDULED) {
-            // By now event.time is corrected to our sysclock (from the host)
-            if(sysclock >= events[i].time) {
-                play_event(events[i]);
-                events[i].status = PLAYED;
+void fill_audio_buffer(float seconds) {
+    // if seconds < 0, just do this once, but otherwise, compute iterations
+    uint16_t iterations = 1;
+    if(seconds > 0) {
+        iterations = ((seconds * SAMPLE_RATE) / BLOCK_SIZE)+1;
+    }
+    for(uint16_t iter=0;iter<iterations;iter++) {
+        // Check to see which sounds to play 
+        int64_t sysclock = esp_timer_get_time() / 1000;
+        
+        // We could save some CPU by starting at a read pointer, depends on how big this gets
+        for(uint16_t i=0;i<EVENT_FIFO_LEN;i++) {
+            if(events[i].status == SCHEDULED) {
+                // By now event.time is corrected to our sysclock (from the host)
+                if(sysclock >= events[i].time) {
+                    play_event(events[i]);
+                    events[i].status = PLAYED;
+                }
             }
         }
-    }
 
-    // Clear out the accumulator buffer
-    for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
-    for(uint8_t voice=0;voice<VOICES;voice++) {
-        switch(seq[voice].wave) {
-            case FM:
-                render_fm(floatblock, voice); 
-                break;
-            case NOISE:
-                render_noise(floatblock, voice);
-                break;
-            case SAW:
-                render_saw(floatblock, voice);
-                break;
-            case PULSE:
-                render_pulse(floatblock, voice); 
-                break;
-            case TRIANGLE:
-                render_triangle(floatblock, voice);
-                break;                
-            case SINE:
-                render_sine(floatblock, voice);
-                break;
-            case KS:
-                render_ks(floatblock, voice); 
-                break;
+        // Clear out the accumulator buffer
+        for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
+        for(uint8_t voice=0;voice<VOICES;voice++) {
+            switch(seq[voice].wave) {
+                case FM:
+                    render_fm(floatblock, voice); 
+                    break;
+                case NOISE:
+                    render_noise(floatblock, voice);
+                    break;
+                case SAW:
+                    render_saw(floatblock, voice);
+                    break;
+                case PULSE:
+                    render_pulse(floatblock, voice); 
+                    break;
+                case TRIANGLE:
+                    render_triangle(floatblock, voice);
+                    break;                
+                case SINE:
+                    render_sine(floatblock, voice);
+                    break;
+                case KS:
+                    render_ks(floatblock, voice); 
+                    break;
 
+            }
         }
-    }
-    // Bandlimit the buffer all at once
-    blip_the_buffer(floatblock, block, BLOCK_SIZE);
+        // Bandlimit the buffer all at once
+        blip_the_buffer(floatblock, block, BLOCK_SIZE);
 
-    // And write
-    size_t written = 0;
-    i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
-    if(written != BLOCK_SIZE*2) {
-        printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*2);
+        // And write
+        size_t written = 0;
+        i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
+        if(written != BLOCK_SIZE*2) {
+            printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*2);
+        }
     }
 }
 
@@ -202,11 +211,12 @@ i2s_config_t i2s_config = {
     };
     
 i2s_pin_config_t pin_config = {
-    .bck_io_num = 26,   //this is BCK pin 
-    .ws_io_num = 25,    //this is LRCK pin
-    .data_out_num = 27, // this is DIN 
+    .bck_io_num = CONFIG_I2S_BCLK,   // this is BCK pin 
+    .ws_io_num = CONFIG_I2S_LRCLK,   // this is LRCK pin
+    .data_out_num = CONFIG_I2S_DIN,  // this is DIN 
     .data_in_num = -1   //Not used
 };
+
 esp_err_t setup_i2s(void) {
   //initialize i2s with configurations above
   i2s_driver_install((i2s_port_t)i2s_num, &i2s_config, 0, NULL);
@@ -216,14 +226,15 @@ esp_err_t setup_i2s(void) {
 }
 
 
+// take an event and make it a string and send it to everyone!
 void serialize_event(struct event e, uint16_t client) {
-    // take an event and make it a string and send it to everyone!
     char message[MAX_RECEIVE_LEN];
     // Maybe only send the ones that are non-default? think
     sprintf(message, "a%fb%fc%dd%fe%df%fn%dp%dv%dw%dt%lld", 
         e.amp, e.feedback, client, e.duty, e.velocity, e.freq, e.midi_note, e.patch, e.voice, e.wave, e.time );
     mcast_send(message, strlen(message));
 }
+
 
 // parse a received event string and add event to queue
 void deserialize_event(char * message, uint16_t length) {
@@ -325,21 +336,19 @@ void deserialize_event(char * message, uint16_t length) {
 
 void check_init(esp_err_t (*fn)(), char *name) {
     printf("Starting %s: ", name);
-
     const esp_err_t ret = (*fn)();
     if(ret != ESP_OK) {
         printf("[ERROR:%i (%s)]\n", ret, esp_err_to_name(ret));
         return;
     }
-
     printf("[OK]\n");
 }
-static const char TAG[] = "main";
-uint8_t wifi_manager_started_ok = 0;
+
+
+// callback to let us know when we have wifi set up ok.
 void cb_connection_ok(void *pvParameter){
     ip_event_got_ip_t* param = (ip_event_got_ip_t*)pvParameter;
 
-    /* transform IP to human readable string */
     char str_ip[16];
     esp_ip4addr_ntoa(&param->ip_info.ip, str_ip, IP4ADDR_STRLEN_MAX);
 
@@ -347,30 +356,28 @@ void cb_connection_ok(void *pvParameter){
     wifi_manager_started_ok = 1;
 }
 
+
+// Called when the WIFI button is hit. Deletes the saved SSID/pass and restarts into the captive portal
 void wifi_reconfigure() {
      printf("reconfigure wifi\n");
 
-    /* erase configuration */
     if(wifi_manager_config_sta){
         memset(wifi_manager_config_sta, 0x00, sizeof(wifi_config_t));
     }
 
-    /* regenerate json status */
     if(wifi_manager_lock_json_buffer( portMAX_DELAY )){
         wifi_manager_generate_ip_info_json( UPDATE_USER_DISCONNECT );
         wifi_manager_unlock_json_buffer();
     }
 
-    /* save NVS memory */
     wifi_manager_save_sta_config();
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
     esp_restart();
-
 }
 
 
-
+// Called when the MIDI button is hit. Toggle between MIDI on and off mode
 void toggle_midi() {
     if(midi_mode) { 
         // turn off midi
@@ -381,28 +388,11 @@ void toggle_midi() {
         // turn on midi
         midi_mode = 1;
         fm_deinit(); // have to free RAM to start the BLE stack
-        setup_midi();
-        // Stop the oscillators? maybe
+        midi_init();
     }
 }
 
 
-
-
-// yeah for common use path, should be
-// (1) start gpio / buttons 
-// (2) start i2s / audio
-// (3) start wifi. 
-//      while wifi is starting, make sure to check for buttons
-//      we could also play a "searching for wifi" repeating tone
-//      do we know the difference between "trying to join saved wifi" and "captive portal is waiting for you"?? 
-// (4) either during wifi startup or after:
-//      if config button is hit, delete wifi NVRAM and reboot
-//      if power long press, go into deep sleep (off)
-// if in deep sleep wait for power button
-// how is this different for the protoboard version
-// no buttons except for BOOT0 ?? use that for wifi 
-// power they can do with the battery
 
 void app_main() {
     check_init(&esp_event_loop_create_default, "Event");
@@ -424,9 +414,10 @@ void app_main() {
 
 
 #ifdef ALLES_V1_BOARD
-    // Do the blinkinlabs board setup
+    // Do the blinkinlabs board setup -- battery & LEDs & extra buttons
     check_init(&master_i2c_init, "master_i2c"); // Used by ip5306
     check_init(&ip5306_init, "ip5306");         // Battery monitor
+    // We are not using the LEDs and probably should remove them
     //check_init(&status_led_init, "status_led"); // LEDC driver for status LED
 
     ip5306_monitor_timer = xTimerCreate(
@@ -436,35 +427,31 @@ void app_main() {
         NULL,
         ip5306_monitor);
     xTimerStart(ip5306_monitor_timer, 0);
-
 #endif
-   
+
     create_multicast_ipv4_socket();
 
     // Pin the UDP task to the 2nd core so the audio / main core runs on its own without getting starved
-    xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 2, NULL, 1);
+    TaskHandle_t multicast_handle = NULL;
+    xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 2, &multicast_handle, 1);
     
-
-    // Separate out fm_init();
+    // Allocate the FM RAM after the captive portal HTTP server is passed, as you can't have both at once
     fm_init();
     printf("Synth running on core %d\n", xPortGetCoreID());
+
+    // Schedule a "turning on" sound
     bleep();
 
-    // Spin this core forever parsing events and making sounds
-    while(1) {
+    // Spin this core until the power off button is pressed, parsing events and making sounds
+    while(running) {
+        // Only emit sounds if MIDI is not on
         if(!midi_mode) {
-            fill_audio_buffer(); 
+            fill_audio_buffer(-1); 
         } else {
             vTaskDelay(10 / portTICK_PERIOD_MS);
         }
-
-#ifdef ALLES_V1_BOARD
-        // Kill the captive portal after 10s only when running on the blinkinlabs board
-        // The protoboard method does not have enough buttons to reconfigure wifi, so if you're using that
-        // we want you to be able to go to http://esp-ip-addr/ and change the wifi per board
-        // But we don't need the CPU hit if we have an extra button to do it for us
-        // TODO, see what this does if i leave it on all the time. may not be a big issue 
-        // (We can't kill it immediately because the wifi config checks it to see when it's done adding a new ssid/pass)
+        // Kill the http server after 10s
+        // we can't kill it immediately because the wifi config checks it to see when it's done adding a new ssid/pass
         int64_t sysclock = esp_timer_get_time() / 1000;
         if((sysclock-tic) > 10000 && captive_on) {
             // Stop the captive portal after 10s from boot, we don't need it anymore
@@ -472,12 +459,27 @@ void app_main() {
             http_app_stop();
             captive_on = 0;
         }
-#endif
     }
-    
-    // We will never get here but just in case
-    destroy();
 
+    // If we're here, the power off button was pressed (long hold on power.) 
+    // The idea here is we go into a low power deep sleep mode waiting for a GPIO pin to turn us back on
+    // The battery can still charge during this, but let's turn off audio, wifi, multicast, midi 
 
+    // Play a "turning off" sound
+    debleep();
+    fill_audio_buffer(1.0);
+
+#ifdef ALLES_V1_BOARD
+    // Enable the low-current shutdown mode of the battery IC.
+    // Apparently after 8s it will stop providing power from the battery
+    ip5306_auto_poweroff_enable();
+#endif
+    // Stop mulitcast listening, wifi, midi
+    vTaskDelete(multicast_handle);
+    esp_wifi_stop();
+    if(midi_mode) midi_deinit();
+
+    // Go into deep_sleep
+    esp_deep_sleep_start();
 }
 
