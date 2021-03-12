@@ -207,6 +207,9 @@ MIDI messages will have the default latency added to allow for sync between all 
 
 ## TODO
 
+* 
+* power button
+* wifi setup should ask for default power saving / latency
 * ~~remove distortion at higher amplitudes for mixed sine waves~~
 * ~~FM~~
 * ~~should synths self-identify to each other? would make it easier to use in Max~~

@@ -30,17 +30,13 @@ extern "C" {
 #include "lwip/netdb.h"
 #include "wifi_manager.h"
 #include "http_app.h"
-#include "buttons.h"
 
 #define SAMPLE_RATE 44100
-
 #define MAX_RECEIVE_LEN 127
 #define UDP_PORT 3333
 #define MULTICAST_TTL 1
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
 #define PING_TIME_MS 10000
-
-
 
 
 #define CONFIG_I2S_LRCLK 25
@@ -51,10 +47,40 @@ extern "C" {
 #define MIDI_IN 19
 
 
+// Events
+struct event {
+    uint64_t time;
+    int16_t voice;
+    int16_t wave;
+    int16_t patch;
+    int16_t midi_note;
+    float amp;
+    float duty;
+    float feedback;
+    float freq;
+    uint8_t status;
+    int8_t velocity;
+    float step;
+    float substep;
+    float sample;
+
+};
+
+struct event default_event();
+void add_event(struct event e);
+
+
+// Sounds
+extern void bleep();
+extern void scale(uint8_t wave, float vol);
+
+
 // Button handlers
 void wifi_reconfigure();
-extern wifi_config_t* wifi_manager_config_sta ;
+extern esp_err_t buttons_init();
 
+// wifi and multicast
+extern wifi_config_t* wifi_manager_config_sta ;
 extern void mcast_listen_task(void *pvParameters);
 extern void mcast_send(char * message, uint16_t len);
 extern void create_multicast_ipv4_socket();
@@ -111,23 +137,6 @@ extern void read_midi();
 #define UP    16383
 #define DOWN -16384
 
-struct event {
-    uint64_t time;
-    int16_t voice;
-    int16_t wave;
-    int16_t patch;
-    int16_t midi_note;
-    float amp;
-    float duty;
-    float feedback;
-    float freq;
-    uint8_t status;
-    int8_t velocity;
-    float step;
-    float substep;
-    float sample;
-
-};
 
 #ifdef __cplusplus
 }

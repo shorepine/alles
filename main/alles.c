@@ -324,64 +324,6 @@ void deserialize_event(char * message, uint16_t length) {
 }
 
 
-// Schedule a bleep now
-void bleep() {
-    struct event e = default_event();
-    int64_t sysclock = esp_timer_get_time() / 1000;
-    e.time = sysclock;
-    e.wave = SINE;
-    e.freq = 220;
-    e.amp = 0.75;
-    e.status = SCHEDULED;
-    add_event(e);
-    e.time = sysclock + 150;
-    e.freq = 440;
-    add_event(e);
-    e.time = sysclock + 300;
-    e.amp = 0;
-    e.freq = 0;
-    add_event(e);
-}
-
-// Plays a scale in the test program
-void scale(uint8_t wave, float vol) {
-    struct event e = default_event();
-    int64_t sysclock = esp_timer_get_time() / 1000;
-    for(uint8_t i=0;i<12;i++) {
-        e.time = sysclock + (i*250);
-        e.wave = wave;
-        e.midi_note = 48+i;
-        e.amp = vol;
-        e.status = SCHEDULED;
-        add_event(e);
-    }
-}
-
-// Run forever playing scales with different oscillators
-void test_sounds() {
-    scale(SINE, 0.5);
-    int64_t sysclock = esp_timer_get_time() / 1000;
-    uint8_t type = 0;
-    while(1) {
-        fill_audio_buffer();
-        if(esp_timer_get_time() / 1000 - sysclock > 3000) { // 3 seconds
-            sysclock = esp_timer_get_time() / 1000;
-            if(type==0) scale(PULSE, 0.1);
-            if(type==1) scale(TRIANGLE, 0.1);
-            if(type==2) scale(SAW, 0.5);
-            if(type==3) scale(FM, 0.5);
-            if(type==4) scale(KS, 0.5);
-            if(type==5) scale(SINE, 0.9);
-            if(type==6) scale(PULSE, 0.5);
-            if(type==7) scale(FM, 0.9);
-            if(type==8) scale(NOISE, 0.2);
-            if(type==9) scale(KS, 1);
-            type++;
-            if(type==10) type = 0;
-        }
-    }
-}
-
 
 void check_init(esp_err_t (*fn)(), char *name) {
     printf("Starting %s: ", name);
@@ -443,7 +385,7 @@ void wifi_reconfigure() {
 //      if power long press, go into deep sleep (off)
 // if in deep sleep wait for power button
 // how is this different for the protoboard version
-// no buttons (except for BOOT0 / MIDI)?? use that for wifi 
+// no buttons except for BOOT0 ?? use that for wifi 
 // power they can do with the battery
 
 void app_main() {
