@@ -16,6 +16,7 @@
 
 class Freqlut {
  public:
+  static void deinit();
   static void init(double sample_rate);
   static int32_t lookup(int32_t logfreq);
 };

@@ -68,10 +68,12 @@ extern "C" void fm_init(void) {
     Log2::init();
 }
 
-extern "C" void fm_destroy(void) {
-    // Not sure i need to worry about this too much, but for good hygiene  
-    // Probably do a lot here
-}
+extern "C" void fm_deinit(void) {
+    Log2::deinit();
+    Exp2::deinit();
+    Sawtooth::deinit();
+    Freqlut::deinit();
+} 
 
 
 

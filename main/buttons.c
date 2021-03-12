@@ -35,6 +35,7 @@ static void gpio_task_example(void* arg) {
             switch(io_num) {
             case BUTTON_EXTRA: 
                 printf("extra pushed\n");
+                esp_restart();
                 break;
             case BUTTON_WIFI: 
                 // WIFI config mode
@@ -43,6 +44,7 @@ static void gpio_task_example(void* arg) {
                 break;
             case BUTTON_MIDI: 
                 printf("midi pushed\n");
+                toggle_midi();
                 break;
             case BUTTON_POWER_SHORT:
                 printf("power short\n");

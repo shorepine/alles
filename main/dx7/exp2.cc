@@ -24,6 +24,12 @@
 //int32_t exp2tab[EXP2_N_SAMPLES << 1];
 int32_t * exp2tab;
 
+void Exp2::deinit() {
+  printf("destroying exp2\n");
+  free(exp2tab);
+  printf("destroyed exp2\n");
+}
+
 void Exp2::init() {
   //TODO free this 
   exp2tab = (int32_t*) malloc(sizeof(int32_t)*(EXP2_N_SAMPLES<<1));
@@ -46,6 +52,11 @@ static double dtanh(double y) {
   return 1 - y * y;
 }
 
+void Tanh::deinit() {
+  printf("destroying tanh\n");
+  free(tanhtab);
+  printf("destroyed tanh\n");
+}
 void Tanh::init() {
   //TOOD free this
   tanhtab = (int32_t*) malloc(sizeof(int32_t)* (TANH_N_SAMPLES<<1));

@@ -34,6 +34,12 @@
 //int32_t lut[N_SAMPLES + 1];
 int32_t *lut;
 
+
+void Freqlut::deinit() {
+  free(lut);
+}
+
+
 void Freqlut::init(double sample_rate) {
   //TODO free
   lut = (int32_t*)malloc(sizeof(int32_t)*(N_SAMPLES+1));

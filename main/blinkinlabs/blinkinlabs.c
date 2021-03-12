@@ -88,6 +88,7 @@ esp_err_t status_led_init() {
 
 TimerHandle_t ip5306_monitor_timer = NULL;
 
+
 // Periodic task to poll the ip5306 for the battery charge and button states.
 // Intented to be run from a low-priority timer at 1-2 Hz
 void ip5306_monitor() {
@@ -124,19 +125,15 @@ void ip5306_monitor() {
     switch(charge_state) {
     case CHARGE_STATE_CHARGED:
         battery_mask = battery_mask | BATTERY_STATE_CHARGED;
-        //status_led_set_state(STATUS_LED_CHARGED);
         break;
     case CHARGE_STATE_CHARGING:
         battery_mask = battery_mask | BATTERY_STATE_CHARGING;
-        //status_led_set_state(STATUS_LED_CHARGING);
         break;
     case CHARGE_STATE_DISCHARGING:
         battery_mask = battery_mask | BATTERY_STATE_DISCHARGING;
-        //status_led_set_state(STATUS_LED_DISCHARGING);
         break;
     case CHARGE_STATE_DISCHARGING_LOW_BAT:
         battery_mask = battery_mask | BATTERY_STATE_LOW;
-        //status_led_set_state(STATUS_LED_LOW_BATTERY);
         break;
     }
 

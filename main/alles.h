@@ -15,7 +15,7 @@ extern "C" {
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include "freertos/event_groups.h"
-
+#include "esp_wifi.h"
 #include "esp_system.h"
 #include "esp_spi_flash.h"
 #include "esp_intr_alloc.h"
@@ -30,6 +30,7 @@ extern "C" {
 #include "lwip/netdb.h"
 #include "wifi_manager.h"
 #include "http_app.h"
+#include "blemidi.h"
 
 #define SAMPLE_RATE 44100
 #define MAX_RECEIVE_LEN 127
@@ -38,6 +39,7 @@ extern "C" {
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
 #define PING_TIME_MS 10000
 
+#define ALLES_V1_BOARD 1
 
 
 #define BUTTON_EXTRA 16
@@ -86,6 +88,7 @@ extern void scale(uint8_t wave, float vol);
 
 // Button handlers
 void wifi_reconfigure();
+void toggle_midi();
 extern esp_err_t buttons_init();
 
 // wifi and multicast
@@ -100,8 +103,11 @@ extern int64_t computed_delta; // can be negative no prob, but usually host is l
 extern uint8_t computed_delta_set; // have we set a delta yet?
 extern int16_t client_id;
 
+
+
 // FM 
 extern void fm_init();
+extern void fm_deinit();
 extern void render_fm(float * buf, uint8_t voice); 
 extern void fm_new_note_number(uint8_t voice);
 extern void fm_new_note_freq(uint8_t voice);
@@ -118,7 +124,7 @@ extern void render_noise(float * buf, uint8_t voice);
 extern void ks_new_note_freq(uint8_t voice); 
 
 // MIDI
-extern esp_err_t setup_midi();
+extern void setup_midi();
 extern void read_midi();
 
 #define SINE_LUT_SIZE 16383

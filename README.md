@@ -204,12 +204,14 @@ MIDI messages will have the default latency added to allow for sync between all 
 * [esp32 WiFi Manager](https://github.com/tonyp7/esp32-wifi-manager)
 * kyle mcdonald 
 * blargg for [BlipBuffer](http://slack.net/~ant/libs/audio.html#Blip_Buffer)'s bandlimiting
+* [BLE-MIDI-IDF](https://github.com/mathiasbredholt/blemidi-idf)
+
 
 ## TODO
 
-* 
+* ~~see if BLE midi works~~
 * power button
-* wifi setup should ask for default power saving / latency
+* ~~wifi setup should ask for default power saving / latency -- no for now~~
 * ~~remove distortion at higher amplitudes for mixed sine waves~~
 * ~~FM~~
 * ~~should synths self-identify to each other? would make it easier to use in Max~~
@@ -218,7 +220,7 @@ MIDI messages will have the default latency added to allow for sync between all 
 * ~~confirm UDP still works from Max/Pd~~
 * ~~bandlimit the square/saw/triangle oscillators~~
 * ~~karplus-strong~~ 
-* ~~wifi hotspot mode for in-field setup (tbh think it's better to use a dedicated router)~~
+* ~~wifi hotspot mode for in-field setup~~
 * ~~broadcast UDP for multiples~~
 * ~~dropped packets~~
 * ~~sync and enumerate across multiple devices~~

@@ -22,6 +22,9 @@
 //int32_t log2tab[LOG2_N_SAMPLES << 1];
 int32_t *log2tab;
 
+void Log2::deinit() {
+  free(log2tab);
+}
 void Log2::init() {
   //TODO free
   log2tab = (int32_t*)malloc(sizeof(int32_t)*(LOG2_N_SAMPLES << 1));

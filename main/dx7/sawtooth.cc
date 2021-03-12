@@ -54,6 +54,15 @@ int32_t ** sawtooth;
 
 int32_t sawtooth_freq_off;
 
+void Sawtooth::deinit() {
+  printf("Destroying sawtooth\n");
+  for(int i=0;i<N_SLICES;i++) {
+    free(sawtooth[i]);
+  }
+  free(sawtooth);
+  printf("Done destroying sawtooth\n");
+}
+
 void Sawtooth::init(double sample_rate) {
   //TODO: free
   sawtooth = (int32_t**)malloc(sizeof(int32_t*)*N_SLICES);

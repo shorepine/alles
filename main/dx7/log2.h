@@ -17,7 +17,7 @@
 class Log2 {
  public:
   Log2();
-
+  static void deinit();
   static void init();
 
   // Q24 in, Q24 out

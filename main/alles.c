@@ -4,7 +4,6 @@
 #include "alles.h"
 
 // Keep this on if you are using the blinkinlabs board
-#define ALLES_V1_BOARD
 
 #ifdef ALLES_V1_BOARD
 #include "blinkinlabs/blinkinlabs.h"
@@ -21,6 +20,7 @@ struct event events[EVENT_FIFO_LEN];
 // And another event per voice as multi-channel sequencer that the scheduler renders into
 struct event seq[VOICES];
 
+uint8_t midi_mode = 0;
 
 float freq_for_midi_note(uint8_t midi_note) {
     return 440.0*pow(2,(midi_note-69.0)/12.0);
@@ -77,7 +77,7 @@ void add_event(struct event e) {
 
 // The sequencer object keeps state betweeen voices, whereas events are only deltas/changes
 esp_err_t setup_voices() {
-    fm_init();
+    // FM init happens later for mem reason
     oscillators_init();
     for(int i=0;i<VOICES;i++) {
         seq[i].voice = i; // self-reference to make updating oscillators easier
@@ -323,8 +323,6 @@ void deserialize_event(char * message, uint16_t length) {
     }
 }
 
-
-
 void check_init(esp_err_t (*fn)(), char *name) {
     printf("Starting %s: ", name);
 
@@ -350,7 +348,7 @@ void cb_connection_ok(void *pvParameter){
 }
 
 void wifi_reconfigure() {
-     printf("reconfigure wifi");
+     printf("reconfigure wifi\n");
 
     /* erase configuration */
     if(wifi_manager_config_sta){
@@ -373,6 +371,24 @@ void wifi_reconfigure() {
 
 
 
+void toggle_midi() {
+    if(midi_mode) { 
+        // turn off midi
+        midi_mode = 0;
+        // just restart, easier that way
+        esp_restart();
+    } else {
+        // turn on midi
+        midi_mode = 1;
+        fm_deinit(); // have to free RAM to start the BLE stack
+        setup_midi();
+        // Stop the oscillators? maybe
+    }
+}
+
+
+
+
 // yeah for common use path, should be
 // (1) start gpio / buttons 
 // (2) start i2s / audio
@@ -392,7 +408,6 @@ void app_main() {
     check_init(&esp_event_loop_create_default, "Event");
     check_init(&setup_i2s, "i2s");
     check_init(&setup_voices, "voices");
-    check_init(&setup_midi, "midi");
     check_init(&buttons_init, "buttons"); // only one button for the protoboard, 4 for the blinkinlabs
 
     wifi_manager_start();
@@ -403,6 +418,7 @@ void app_main() {
     while(!wifi_manager_started_ok) {
         vTaskDelay(100 / portTICK_PERIOD_MS);
     };
+
     uint8_t captive_on = 1;
     int64_t tic = esp_timer_get_time() / 1000;
 
@@ -428,15 +444,19 @@ void app_main() {
     // Pin the UDP task to the 2nd core so the audio / main core runs on its own without getting starved
     xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 2, NULL, 1);
     
-    // And the MIDI task to another process on the 2nd core
-    xTaskCreatePinnedToCore(&read_midi, "read_midi_task", 4096, NULL, 1, NULL, 1);
 
+    // Separate out fm_init();
+    fm_init();
     printf("Synth running on core %d\n", xPortGetCoreID());
     bleep();
 
     // Spin this core forever parsing events and making sounds
-    while(1) {  
-        fill_audio_buffer(); 
+    while(1) {
+        if(!midi_mode) {
+            fill_audio_buffer(); 
+        } else {
+            vTaskDelay(10 / portTICK_PERIOD_MS);
+        }
 
 #ifdef ALLES_V1_BOARD
         // Kill the captive portal after 10s only when running on the blinkinlabs board
