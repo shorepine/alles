@@ -2,7 +2,7 @@
 
 // midi spec
 // one device can have a midi port optionally
-// it can act as a broadcast channel (and also play its own audio)
+// it can act as a broadcast channel 
 // meaning, i send a message like channel 1, program 23, then note on, channel 1, etc 
 // channel == booted ID. channel 0 is all synths. channel 1 is only ID = 0, and so on
 // if people really want to address more than 16 synths over MIDI make a 2nd control bank
@@ -12,7 +12,6 @@
 // bank 1 is FM bank 0 and so on 
 
 extern void serialize_event(struct event e, uint16_t client);
-extern void play_event(struct event e);
 extern struct event default_event();
 
 QueueHandle_t uart_queue;
@@ -112,12 +111,10 @@ void read_midi_uart() {
 TaskHandle_t read_midi_uart_task = NULL;
 
 void midi_deinit() {
-    // Shutdown blemidi somehow?
     blemidi_deinit();
     vTaskDelete(read_midi_uart_task);
-
-
 }
+
 void midi_init() {
     // Setup UART2 and BLE to listen for MIDI messages 
     const int uart_num = UART_NUM_2;

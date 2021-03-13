@@ -3,34 +3,37 @@
 // brian@variogr.am
 #include "alles.h"
 
-// Keep this on if you are using the blinkinlabs board
-
-#ifdef ALLES_V1_BOARD
-#include "blinkinlabs/blinkinlabs.h"
-#endif
 
 
 
-extern uint8_t battery_status;
-extern TimerHandle_t ip5306_monitor_timer;
-int i2s_num = 0; // i2s port number
+// Global state for events 
+// Pointer to next event
 int16_t next_event_write = 0;
 // One set of events for the fifo
 struct event events[EVENT_FIFO_LEN];
 // And another event per voice as multi-channel sequencer that the scheduler renders into
 struct event seq[VOICES];
 
+// Global state for mode
 uint8_t midi_mode = 0;
 uint8_t running = 1;
+uint8_t wifi_manager_started_ok = 0;
+
 
 static const char TAG[] = "main";
-uint8_t wifi_manager_started_ok = 0;
+
+// Button event
+extern xQueueHandle gpio_evt_queue;
+
+// Battery status for V1
+#if(ALLES_V1_BOARD)
+    uint8_t battery_mask = 0;
+#endif
 
 
 float freq_for_midi_note(uint8_t midi_note) {
     return 440.0*pow(2,(midi_note-69.0)/12.0);
 }
-
 
 
 // Create a new default event -- mostly -1 or no change
@@ -190,7 +193,7 @@ void fill_audio_buffer(float seconds) {
 
         // And write
         size_t written = 0;
-        i2s_write((i2s_port_t)i2s_num, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
+        i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
         if(written != BLOCK_SIZE*2) {
             printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*2);
         }
@@ -217,14 +220,13 @@ i2s_pin_config_t pin_config = {
     .data_in_num = -1   //Not used
 };
 
+// Setup I2S
 esp_err_t setup_i2s(void) {
-  //initialize i2s with configurations above
-  i2s_driver_install((i2s_port_t)i2s_num, &i2s_config, 0, NULL);
-  i2s_set_pin((i2s_port_t)i2s_num, &pin_config);
-  i2s_set_sample_rates((i2s_port_t)i2s_num, SAMPLE_RATE);
-  return ESP_OK;
+    i2s_driver_install((i2s_port_t)CONFIG_I2S_NUM, &i2s_config, 0, NULL);
+    i2s_set_pin((i2s_port_t)CONFIG_I2S_NUM, &pin_config);
+    i2s_set_sample_rates((i2s_port_t)CONFIG_I2S_NUM, SAMPLE_RATE);
+    return ESP_OK;
 }
-
 
 // take an event and make it a string and send it to everyone!
 void serialize_event(struct event e, uint16_t client) {
@@ -393,6 +395,74 @@ void toggle_midi() {
 }
 
 
+#if(ALLES_V1_BOARD)
+
+// Periodic task to poll the ip5306 for the battery charge and button states.
+// Intented to be run from a low-priority timer at 1-2 Hz
+void ip5306_monitor() {
+    esp_err_t ret;
+
+    // Check if the power button was pressed
+    int buttons;
+    ret = ip5306_button_press_get(&buttons);
+    if(ret!= ESP_OK) {
+        printf("Error reading button press\n");
+        return;
+    }
+
+    if(buttons & BUTTON_LONG_PRESS) {
+        printf("button long\n");
+        const uint32_t button = BUTTON_POWER_LONG;
+        xQueueSend(gpio_evt_queue, &button, 0);
+    }
+    if(buttons & BUTTON_SHORT_PRESS) {
+        printf("button short\n");
+        const uint32_t button = BUTTON_POWER_SHORT;
+        xQueueSend(gpio_evt_queue, &button, 0);
+    }
+
+    // Update the battery charge state
+    ip5306_charge_state_t charge_state;
+
+    ret = ip5306_charge_state_get(&charge_state);
+    if(ret != ESP_OK) {
+        printf("Error reading battery charge state\n");
+        return;
+    }
+    
+    battery_mask = 0;
+
+    switch(charge_state) {
+    case CHARGE_STATE_CHARGED:
+        battery_mask = battery_mask | BATTERY_STATE_CHARGED;
+        break;
+    case CHARGE_STATE_CHARGING:
+        battery_mask = battery_mask | BATTERY_STATE_CHARGING;
+        break;
+    case CHARGE_STATE_DISCHARGING:
+        battery_mask = battery_mask | BATTERY_STATE_DISCHARGING;
+        break;
+    case CHARGE_STATE_DISCHARGING_LOW_BAT:
+        battery_mask = battery_mask | BATTERY_STATE_LOW;
+        break;
+    }
+
+    ip5306_battery_voltage_t battery_voltage;
+
+    ret = ip5306_battery_voltage_get(&battery_voltage);
+    if(ret != ESP_OK) {
+        printf("Error getting battery voltage\n");
+        return;
+    } else {
+        if(battery_voltage == BATTERY_OVER_395) battery_mask = battery_mask | BATTERY_VOLTAGE_4;
+        if(battery_voltage == BATTERY_38_395) battery_mask = battery_mask | BATTERY_VOLTAGE_3;
+        if(battery_voltage == BATTERY_36_38) battery_mask = battery_mask | BATTERY_VOLTAGE_2;
+        if(battery_voltage == BATTERY_33_36) battery_mask = battery_mask | BATTERY_VOLTAGE_1;
+    }
+
+}
+#endif
+
 
 void app_main() {
     check_init(&esp_event_loop_create_default, "Event");
@@ -414,13 +484,11 @@ void app_main() {
 
 
 #ifdef ALLES_V1_BOARD
-    // Do the blinkinlabs board setup -- battery & LEDs & extra buttons
+    // Do the blinkinlabs battery setup
     check_init(&master_i2c_init, "master_i2c"); // Used by ip5306
     check_init(&ip5306_init, "ip5306");         // Battery monitor
-    // We are not using the LEDs and probably should remove them
-    //check_init(&status_led_init, "status_led"); // LEDC driver for status LED
 
-    ip5306_monitor_timer = xTimerCreate(
+    TimerHandle_t ip5306_monitor_timer =xTimerCreate(
         "ip5306_monitor",
         pdMS_TO_TICKS(500),
         pdTRUE,
@@ -457,6 +525,7 @@ void app_main() {
             // Stop the captive portal after 10s from boot, we don't need it anymore
             printf("Stopping captive portal\n");
             http_app_stop();
+            wifi_manager_destroy();
             captive_on = 0;
         }
     }

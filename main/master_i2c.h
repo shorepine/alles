@@ -26,6 +26,10 @@
 #include <stdint.h>
 #include <esp_err.h>
 
+#define CONFIG_I2C_SDA_GPIO 18
+#define CONFIG_I2C_SCL_GPIO 5
+#define CONFIG_I2C_FREQ_KHZ 100
+
 //! @defgroup master_i2c Master I2C driver
 //!
 //! @brief Thread-safe Master I2C driver

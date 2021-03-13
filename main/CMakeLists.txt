@@ -6,9 +6,8 @@ idf_component_register(SRCS alles.c
 							midi.c
 							buttons.c
 							sounds.c
-							blinkinlabs/ip5306.c
-							blinkinlabs/master_i2c.c
-							blinkinlabs/blinkinlabs.c
+							ip5306.c
+							master_i2c.c
 							blip/Blip_Buffer.cpp
 							dx7/dx7note.cc
 							dx7/env.cc
