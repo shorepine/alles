@@ -28,7 +28,7 @@ static void IRAM_ATTR gpio_isr_handler(void* arg) {
 
 // Low-pritority task to handle button events. Blocks on events received through
 // the gpio_evt_queue.
-static void gpio_task_example(void* arg) {
+static void gpio_task(void* arg) {
     uint32_t io_num;
     while(true) {
         if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
@@ -46,6 +46,7 @@ static void gpio_task_example(void* arg) {
                 printf("midi pushed\n");
                 toggle_midi();
                 break;
+#if(ALLES_V1_BOARD)
             case BUTTON_POWER_SHORT:
                 printf("power short\n");
                 break;
@@ -53,6 +54,7 @@ static void gpio_task_example(void* arg) {
                 printf("power long\n");
                 running = 0;
                 break;
+#endif
             }
 
             // Ignore any other button presses that come in for the next 100ms
@@ -85,7 +87,7 @@ esp_err_t buttons_init() {
         return ESP_ERR_NO_MEM;
 
     //start gpio task
-    if(xTaskCreate(gpio_task_example, "gpio_task_example", 2048, NULL, 10, NULL) != pdPASS)
+    if(xTaskCreate(gpio_task, "gpio_task", 2048, NULL, 10, NULL) != pdPASS)
         return ESP_ERR_NO_MEM;
 
     //install gpio isr service
@@ -93,7 +95,7 @@ esp_err_t buttons_init() {
     if(ret != ESP_OK)
         return ret;
 
-#ifdef ALLES_V1_BOARD
+#if(ALLES_V1_BOARD)
     //hook isr handler for specific gpio pin
     esp_sleep_enable_ext0_wakeup(BUTTON_MIDI, 0);
     ret = gpio_isr_handler_add(BUTTON_EXTRA, gpio_isr_handler, (void*) BUTTON_EXTRA);

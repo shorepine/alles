@@ -49,7 +49,7 @@ def alles_ms():
 
 
 def decode_battery_mask(mask):
-    state = ""
+    state = "unknown"
     level = 0
     if (mask & 0x01): state = "charging"
     if (mask & 0x02): state = "charged"

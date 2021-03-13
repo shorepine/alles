@@ -25,10 +25,8 @@ static const char TAG[] = "main";
 // Button event
 extern xQueueHandle gpio_evt_queue;
 
-// Battery status for V1
-#if(ALLES_V1_BOARD)
-    uint8_t battery_mask = 0;
-#endif
+// Battery status for V1 board. If no v1 board, will stay at 0
+uint8_t battery_mask = 0;
 
 
 float freq_for_midi_note(uint8_t midi_note) {
@@ -483,7 +481,7 @@ void app_main() {
     int64_t tic = esp_timer_get_time() / 1000;
 
 
-#ifdef ALLES_V1_BOARD
+#if(ALLES_V1_BOARD)
     // Do the blinkinlabs battery setup
     check_init(&master_i2c_init, "master_i2c"); // Used by ip5306
     check_init(&ip5306_init, "ip5306");         // Battery monitor
@@ -538,7 +536,7 @@ void app_main() {
     debleep();
     fill_audio_buffer(1.0);
 
-#ifdef ALLES_V1_BOARD
+#if(ALLES_V1_BOARD)
     // Enable the low-current shutdown mode of the battery IC.
     // Apparently after 8s it will stop providing power from the battery
     ip5306_auto_poweroff_enable();
