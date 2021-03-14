@@ -301,7 +301,17 @@ void deserialize_event(char * message, uint16_t length) {
         // Now adjust time in some useful way:
         // if we have a delta & got a time in this message, use it schedule it properly
         if(computed_delta_set && e.time > 0) {
+
+            //e.time = (e.time - computed_delta) + LATENCY_MS;
+            // OK, so check for potentially negative numbers here (or really big numbers-syslclock) 
+            int64_t potential_time = (e.time - computed_delta) + LATENCY_MS;
+            if(potential_time < 0 || potential_time > sysclock + LATENCY_MS + MAX_DRIFT_MS) {
+                printf("recomputing time base: message came in with %lld, mine is %lld, computed delta was %lld\n", e.time, sysclock, computed_delta);
+                computed_delta = e.time - sysclock;
+                printf("computed delta now %lld\n", computed_delta);
+            }
             e.time = (e.time - computed_delta) + LATENCY_MS;
+
         } else { // else play it asap 
             e.time = sysclock + LATENCY_MS;
         }

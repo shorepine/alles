@@ -24,7 +24,7 @@ uint8_t note_map[VOICES];
 // TODO don't schedule notes to me, or ignore them 
 void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t midi_status, uint8_t *remaining_message, size_t len) {
     // uart is 1 if this came in through uart, 0 if ble
-    //printf("got midi message source %d ts %d status %d -- ", source, timestamp, midi_status);
+    printf("got midi message source %d ts %d status %d -- ", source, timestamp, midi_status);
     for(int i=0;i<len;i++) printf("%d ", remaining_message[i]);
     printf("\n");
     uint8_t channel = midi_status & 0x0F;
@@ -70,13 +70,22 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
             }
                         
         } else if(message == 0xC0) { // program change 
+            printf("program change, it is %d\n", data1);
             program = data1;
         } else if(message == 0xB0) {
             // control change
             uint8_t data2 = remaining_message[1];
+            // not working yet, getting
+            /*
+                            got midi message source 1 ts 9694 status 176 -- 0 0 176 32 3 192 6 
+                bank change, it is 0
+                got midi message source 1 ts 23114 status 176 -- 0 0 176 32 4 192 6 
+                bank change, it is 0
+                */
             // Bank select for program change
             if(data1 == 0x00) { 
                 program_bank = data2;
+                printf("bank change, it is %d\n", data2);
             }
             // feedback
             // duty cycle
@@ -102,6 +111,8 @@ void read_midi_uart() {
         if(length) {
             length = uart_read_bytes(uart_num, data, length, 100);
             if(length > 1) {
+                // oh. the bug here i need to statefully read from the uart, not just throw everything i get at once.
+                // if i do a program / bank change logic pro emits B0 00 00 B0 20 03 C0 5 - thats's coarse/fine bank 3 program 5
                 callback_midi_message_received(1,esp_timer_get_time() / 1000, data[0], data+1, length-1);
             }
         }  // end was there any bytes at all 

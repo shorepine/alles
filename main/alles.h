@@ -45,6 +45,7 @@ extern "C" {
 #define MULTICAST_TTL 1      // hops multicast packets can take
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
 #define PING_TIME_MS 10000   // ms between boards pinging each other
+#define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
 #define ALLES_V1_BOARD 1     // set if using the blinkinlabs v1 board to enable battery state / charging
 
 #define DEVBOARD 0
