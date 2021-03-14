@@ -210,7 +210,7 @@ MIDI messages will have the default latency added to allow for sync between all 
 ## TODO
 
 * ~~see if BLE midi works~~
-* power button
+* ~~power button~~
 * ~~wifi setup should ask for default power saving / latency -- no for now~~
 * ~~remove distortion at higher amplitudes for mixed sine waves~~
 * ~~FM~~
@@ -229,6 +229,7 @@ MIDI messages will have the default latency added to allow for sync between all 
 * ~~case / battery setup~~
 * ~~overloading the volume (I think only on FM) crashes~~
 * ~~UDP message clicks~~
+* BT / app based config instead of captive portal (later)
 
 
 

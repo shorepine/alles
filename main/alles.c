@@ -15,6 +15,8 @@ struct event events[EVENT_FIFO_LEN];
 struct event seq[VOICES];
 
 // Global state for mode
+// assume blinkinlabs for now
+uint8_t board_level = ALLES_BOARD_V1;
 uint8_t midi_mode = 0;
 uint8_t running = 1;
 uint8_t wifi_manager_started_ok = 0;
@@ -334,14 +336,15 @@ void deserialize_event(char * message, uint16_t length) {
     }
 }
 
-void check_init(esp_err_t (*fn)(), char *name) {
+int8_t check_init(esp_err_t (*fn)(), char *name) {
     printf("Starting %s: ", name);
     const esp_err_t ret = (*fn)();
     if(ret != ESP_OK) {
         printf("[ERROR:%i (%s)]\n", ret, esp_err_to_name(ret));
-        return;
+        return -1;
     }
     printf("[OK]\n");
+    return 0;
 }
 
 
@@ -392,8 +395,6 @@ void toggle_midi() {
     }
 }
 
-
-#if(ALLES_V1_BOARD)
 
 // Periodic task to poll the ip5306 for the battery charge and button states.
 // Intented to be run from a low-priority timer at 1-2 Hz
@@ -459,7 +460,6 @@ void ip5306_monitor() {
     }
 
 }
-#endif
 
 
 void app_main() {
@@ -481,19 +481,20 @@ void app_main() {
     int64_t tic = esp_timer_get_time() / 1000;
 
 
-#if(ALLES_V1_BOARD)
     // Do the blinkinlabs battery setup
-    check_init(&master_i2c_init, "master_i2c"); // Used by ip5306
-    check_init(&ip5306_init, "ip5306");         // Battery monitor
-
-    TimerHandle_t ip5306_monitor_timer =xTimerCreate(
-        "ip5306_monitor",
-        pdMS_TO_TICKS(500),
-        pdTRUE,
-        NULL,
-        ip5306_monitor);
-    xTimerStart(ip5306_monitor_timer, 0);
-#endif
+    check_init(&master_i2c_init, "master_i2c");
+    
+    // if ip5306 init fails, we don't have blinkinlabs board, set board level to 0
+    if(check_init(&ip5306_init, "ip5306")) board_level = DEVBOARD; 
+    if(board_level == ALLES_BOARD_V1) {
+        TimerHandle_t ip5306_monitor_timer =xTimerCreate(
+            "ip5306_monitor",
+            pdMS_TO_TICKS(500),
+            pdTRUE,
+            NULL,
+            ip5306_monitor);
+        xTimerStart(ip5306_monitor_timer, 0);
+    }
 
     create_multicast_ipv4_socket();
 

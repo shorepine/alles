@@ -47,21 +47,22 @@ extern "C" {
 #define PING_TIME_MS 10000   // ms between boards pinging each other
 #define ALLES_V1_BOARD 1     // set if using the blinkinlabs v1 board to enable battery state / charging
 
+#define DEVBOARD 0
+#define ALLES_BOARD_V1 1
+#define ALLES_BOARD_V2 2
 
-#if(ALLES_V1_BOARD)
-    #include "ip5306.h"
-    #include "master_i2c.h"
-    #define BATTERY_STATE_CHARGING 0x01
-    #define BATTERY_STATE_CHARGED 0x02
-    #define BATTERY_STATE_DISCHARGING 0x04
-    #define BATTERY_STATE_LOW 0x08
-    #define BATTERY_VOLTAGE_4 0x10
-    #define BATTERY_VOLTAGE_3 0x20
-    #define BATTERY_VOLTAGE_2 0x40
-    #define BATTERY_VOLTAGE_1 0x80
-    #define BUTTON_POWER_SHORT 100  // Button state from IP5306
-    #define BUTTON_POWER_LONG 101   // Button state from IP5306
-#endif
+#include "ip5306.h"
+#include "master_i2c.h"
+#define BATTERY_STATE_CHARGING 0x01
+#define BATTERY_STATE_CHARGED 0x02
+#define BATTERY_STATE_DISCHARGING 0x04
+#define BATTERY_STATE_LOW 0x08
+#define BATTERY_VOLTAGE_4 0x10
+#define BATTERY_VOLTAGE_3 0x20
+#define BATTERY_VOLTAGE_2 0x40
+#define BATTERY_VOLTAGE_1 0x80
+#define BUTTON_POWER_SHORT 100  // Button state from IP5306
+#define BUTTON_POWER_LONG 101   // Button state from IP5306
 
 // Buttons set on the blinkinlabs board, by default only MIDI on most prototype boards
 #define BUTTON_EXTRA 16
