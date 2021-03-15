@@ -367,7 +367,7 @@ int32_t IRAM_ATTR blemidi_send_message(uint8_t blemidi_port, uint8_t *stream,
 
 int32_t blemidi_receive_packet(uint8_t blemidi_port, uint8_t *stream,
                                       size_t len,
-                                      void *_callback_midi_message_received, uint8_t uart) {
+                                      void *_callback_midi_message_received) {
   void (*callback_midi_message_received)(
       uint8_t blemidi_port, uint16_t timestamp, uint8_t midi_status,
       uint8_t * remaining_message, size_t len, size_t continued_sysex_pos) =
@@ -379,6 +379,10 @@ int32_t blemidi_receive_packet(uint8_t blemidi_port, uint8_t *stream,
            "receive_packet blemidi_port=%d, len=%d, stream:", blemidi_port,
            len);
   esp_log_buffer_hex(BLEMIDI_TAG, stream, len);
+
+  //printf("got message %d len port %d ", len, blemidi_port);
+  //for(int i=0;i<len;i++) { printf("%02x ", stream[i]); }
+  //printf("\n");
 
   // detect continued SysEx
   uint8_t continued_sysex = 0;
@@ -442,17 +446,18 @@ int32_t blemidi_receive_packet(uint8_t blemidi_port, uint8_t *stream,
 
       while (pos < len) {
         if (!(stream[pos] & 0x80)) {
-          if (!continued_sysex) {
-            ESP_LOGE(BLEMIDI_TAG, "missing timestampLow in parsed message");
-            return -3;
-          }
+          // I think this was a bug in the blemidi parser -- this would ignore running status commands
+          //if (!continued_sysex) {
+          //  ESP_LOGE(BLEMIDI_TAG, "missing timestampLow in parsed message");
+          //  return -3;
+          //}
         } else {
           timestamp &= ~0x7f;
           timestamp |= stream[pos++] & 0x7f;
           continued_sysex = 0;
           blemidi_continued_sysex_pos[blemidi_port] = 0;
           // mega hack, sorry, just skip the inter-message timestamps expected by BLE MIDI 
-          if(uart && pos > 2) pos--;
+          if(blemidi_port==1 && pos > 2) pos--;
         }
         if (stream[pos] & 0x80) {
           midi_status = stream[pos++];
@@ -711,7 +716,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
        #endif
                          blemidi_receive_packet(0, param->write.value,
                          param->write.len,
-                         blemidi_callback_midi_message_received, 0);
+                         blemidi_callback_midi_message_received);
                        }
                    } else {
                        /* handle prepare write */

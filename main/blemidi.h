@@ -43,13 +43,13 @@ extern "C" {
 
 #define BLEMIDI_DEVICE_NAME "Alles MIDI"
 #define BLEMIDI_TAG "BLEMIDI"
-#define BLEMIDI_NUM_PORTS 1
+#define BLEMIDI_NUM_PORTS 2
 #define BLEMIDI_OUTBUFFER_FLUSH_MS 30
 
 
 int32_t blemidi_receive_packet(uint8_t blemidi_port, uint8_t *stream,
                                       size_t len,
-                                      void *_callback_midi_message_received, uint8_t uart);
+                                      void *_callback_midi_message_received);
 
 
 /**

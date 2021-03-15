@@ -118,7 +118,7 @@ void read_midi_uart() {
                 data2[0] = 0xC0;
                 data2[1] = 0x80;
                 for(int i=0;i<length;i++) data2[2+i] = data[i];
-                int32_t err = blemidi_receive_packet(0, data2, length+2, callback_midi_message_received, 1);
+                int32_t err = blemidi_receive_packet(1, data2, length+2, callback_midi_message_received);
                 if(err) printf("UART midi parse err %d\n", err);
             }
         }  // end was there any bytes at all 
