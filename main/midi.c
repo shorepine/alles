@@ -24,15 +24,16 @@ uint8_t note_map[VOICES];
 // TODO don't schedule notes to me, or ignore them 
 void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t midi_status, uint8_t *remaining_message, size_t len) {
     // uart is 1 if this came in through uart, 0 if ble
-    printf("got midi message source %d ts %d status %d -- ", source, timestamp, midi_status);
-    for(int i=0;i<len;i++) printf("%d ", remaining_message[i]);
-    printf("\n");
+    //printf("got midi message source %d: status %02x -- ", source, midi_status);
+    //for(int i=0;i<len;i++) printf("%02x ", remaining_message[i]);
+    //printf("\n");
     uint8_t channel = midi_status & 0x0F;
     uint8_t message = midi_status & 0xF0;
     if(len > 0) {
         uint8_t data1 = remaining_message[0];
         if(message == 0x90) {  // note on 
             uint8_t data2 = remaining_message[1];
+            printf("note on channel %d note %d velocity %d\n", channel, data1, data2);
             struct event e = default_event();
             e.time = esp_timer_get_time() / 1000; // looks like BLE timestamp rolls over within 10s
             if(program_bank > 0) {
@@ -56,6 +57,7 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
         } else if (message == 0x80) { 
             // note off
             uint8_t data2 = remaining_message[1];
+            printf("note off channel %d note %d\n", channel, data1);
             // for now, only handle broadcast note offs... will have to refactor if i go down this path farther
             // assume this is the new envelope command we keep putting off-- like "$e30a0" where e is an event number 
             for(uint8_t v=0;v<VOICES;v++) {
@@ -70,22 +72,20 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
             }
                         
         } else if(message == 0xC0) { // program change 
-            printf("program change, it is %d\n", data1);
+            printf("program change channel %d to %d\n", channel, data1);
             program = data1;
         } else if(message == 0xB0) {
             // control change
             uint8_t data2 = remaining_message[1];
-            // not working yet, getting
-            /*
-                            got midi message source 1 ts 9694 status 176 -- 0 0 176 32 3 192 6 
-                bank change, it is 0
-                got midi message source 1 ts 23114 status 176 -- 0 0 176 32 4 192 6 
-                bank change, it is 0
-                */
+            if(data1 == 0x20) { // fine mode for bank change, logic uses this
+                program_bank = data2;
+                printf("bank change fine channel %d to %d\n", channel, data2);
+            }
             // Bank select for program change
             if(data1 == 0x00) { 
+                // if this is 0 because we're using coarse/fine, the fine will immediate overwrite it, nbd
                 program_bank = data2;
-                printf("bank change, it is %d\n", data2);
+                printf("bank change coarse channel %d to %d\n", channel, data2);
             }
             // feedback
             // duty cycle
@@ -101,6 +101,7 @@ void read_midi_uart() {
     printf("UART MIDI running on core %d\n", xPortGetCoreID());
     const int uart_num = UART_NUM_2;
     uint8_t data[128];
+    uint8_t data2[128];
     size_t length = 0;
     while(1) {
         // Sleep 5ms to wait to get more MIDI data and avoid starving other threads
@@ -110,10 +111,15 @@ void read_midi_uart() {
         ESP_ERROR_CHECK(uart_get_buffered_data_len(uart_num, (size_t*)&length));
         if(length) {
             length = uart_read_bytes(uart_num, data, length, 100);
-            if(length > 1) {
-                // oh. the bug here i need to statefully read from the uart, not just throw everything i get at once.
-                // if i do a program / bank change logic pro emits B0 00 00 B0 20 03 C0 5 - thats's coarse/fine bank 3 program 5
-                callback_midi_message_received(1,esp_timer_get_time() / 1000, data[0], data+1, length-1);
+            if(length) {
+                // Even though we got this over UART, re-use the BLEMIDI parser -- it works and no need to have two
+                // Probably will cause problems if you use two at once, but just don't do that
+                // Add the expected 0 timestamp header
+                data2[0] = 0xC0;
+                data2[1] = 0x80;
+                for(int i=0;i<length;i++) data2[2+i] = data[i];
+                int32_t err = blemidi_receive_packet(0, data2, length+2, callback_midi_message_received, 1);
+                if(err) printf("UART midi parse err %d\n", err);
             }
         }  // end was there any bytes at all 
     } // end loop forever
