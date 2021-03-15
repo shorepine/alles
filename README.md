@@ -4,7 +4,7 @@
 
 **alles** is a many-speaker distributed mesh synthesizer that responds to control signals over WiFi. Each synth supports up to 10 additive sine, saw, pulse/square, noise and triangle oscillators, a Karplus-Strong string implementation, and a full FM stage including support for DX7 patches. They're cheap to make ($7 for the microcontroller, $6 for the amplifier, speakers from $0.50 up depending on quality). And very easy to put together with hookup wire or only a few soldering points. 
 
-The synthesizers form a mesh and listen to UDP multicast messages. You can control the mesh from a host computer from any programming language or environments like Max or Pd. You can also wire one synth up to MIDI and use any MIDI software or controller; the directly connected synth will broadcast to the rest of the mesh for you. 
+The synthesizers form a mesh and listen to UDP multicast messages. You can control the mesh from a host computer from any programming language or environments like Max or Pd. You can also wire one synth up to MIDI or MIDI over Bluetooth, and use any MIDI software or controller; the directly connected synth will broadcast to the rest of the mesh for you. 
 
 The original idea was to install a bunch of them throughout a space and make a distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled as a group or individually from a laptop or phone or etc. But you can just treat them as dozens / hundreds of individual synthesizers and do whatever you want with them. It's pretty fun!
 
@@ -177,19 +177,23 @@ You can also use it in Max or similar software that supports sending UDP packets
 
 ![Max](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/max.png)
 
-## Optional MIDI support
+## MIDI support
 
-*Still in progress*, but you can now control Alles through MIDI. 
+If you'd rather not use UDP, you can also control Alles through MIDI, either wired or over Bluetooth. You can use standard MIDI programs / DAWs to control the entire mesh. The MIDI connected synth will broadcast the messages out to the rest of the mesh in sync. 
 
-Wire one of your synths to a MIDI in jack, and use standard MIDI programs / DAWs to control the entire mesh. The directly connected synth can broadcast the messages out to the rest of the mesh in sync. 
+Use the MIDI toggle button on the Alles V1 PCB to enter MIDI mode. If using a devboard, use the GPIO0 button. The synth will stop making sound until you press the MIDI button again or reboot it and will only listen for MIDI messages and broadcast those out to the rest of the mesh.
 
-Put the MIDI input on GPIO 19. You could use a pre-built [MIDI breakout](https://www.sparkfun.com/products/12898) to make it easier to wire up. I've found 3.3V from the ESP32 is fine to power the MIDI in circuit. 
+To use BLE MIDI: On a Mac, open Audio MIDI Setup, then show MIDI Studio, then the Bluetooth button, and connect to "Alles MIDI." The Alles MIDI port will show in all your MIDI capable software.
+
+To use hardwired MIDI: I recommend using a pre-built MIDI breakout with the support hardware -- like this one from [Sparkfun](https://www.sparkfun.com/products/12898) or [Adafruit](https://www.adafruit.com/product/4740) to make it easier to wire up. Connect 3.3V, GND and MIDI to either the devboard (GPIO 19) or the Alles V1 PCB (MIDI header.)
 
 DAWs may start MIDI messages with 0, or 1, so to avoid confusion, I'm using 1 addressing below. In Ableton Live, for example, a Pgm Change of Bank 1 is the first available bank. 
 
 `CHANNEL: 1-16`: sets which synth ID in the mesh you want to send the message to. `1` sends the message to all synths, and `2-16`sends the message to only that ID, minus 1. So to send a message to only the first booted synth, use the second channel.
 
 `"Pgm Change Bank"`: set to "Bank 1" and then use `PROGRAM CHANGE` messages to set the tone. Bank `1` and `PGM` 1 is a sine wave, 2 is a square, and so on like the `w` parameter above. `Bank 2` and onwards are the FM patches. `Bank 2` and `PGM 1` is the first FM patch. `Bank 2 PGM 2` is the second patch. `BANK X PGM Y` is the `(128*(X-2) + (Y-1))` patch. 
+
+Currently supported are program / bank changes and note on / offs. Will be adding more CCs soon.
 
 MIDI messages will have the default latency added to allow for sync between all your synths.
 
