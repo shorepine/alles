@@ -16,14 +16,17 @@ extern struct event default_event();
 
 QueueHandle_t uart_queue;
 uint8_t midi_voice = 0;
-uint8_t program_bank = 0;
-uint8_t program = 0;
-uint8_t note_map[VOICES];
+#define CHANNELS 16
+uint8_t program_bank[CHANNELS];
+uint8_t program[CHANNELS];
+//uint8_t note_map[VOICES];
 
 
 // TODO don't schedule notes to me, or ignore them 
+// TODO this synth should not get a client ID 
+
 void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t midi_status, uint8_t *remaining_message, size_t len) {
-    // uart is 1 if this came in through uart, 0 if ble
+    // source is 1 if this came in through uart, 0 if ble
     //printf("got midi message source %d: status %02x -- ", source, midi_status);
     //for(int i=0;i<len;i++) printf("%02x ", remaining_message[i]);
     //printf("\n");
@@ -33,58 +36,61 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
         uint8_t data1 = remaining_message[0];
         if(message == 0x90) {  // note on 
             uint8_t data2 = remaining_message[1];
-            printf("note on channel %d note %d velocity %d\n", channel, data1, data2);
+            //printf("note on channel %d note %d velocity %d\n", channel, data1, data2);
             struct event e = default_event();
             e.time = esp_timer_get_time() / 1000; // looks like BLE timestamp rolls over within 10s
-            if(program_bank > 0) {
+            if(program_bank[channel] > 0) {
                 e.wave = FM;
-                e.patch = ((program_bank-1) * 128) + program;
+                e.patch = ((program_bank[channel]-1) * 128) + program[channel];
             } else {
-                e.wave = program;
+                e.wave = program[channel];
             }
-            e.voice = midi_voice;
+            e.voice = 0; // midi_voice;
             e.midi_note = data1;
             e.velocity = data2;
             e.amp = 0.1; // for now
-            note_map[midi_voice] = data1;
+            //note_map[midi_voice] = data1;
             if(channel == 0) {
                 serialize_event(e,256);
             } else {
                 serialize_event(e, channel - 1);
             }
-            midi_voice = (midi_voice + 1) % (VOICES);
+            //midi_voice = (midi_voice + 1) % (VOICES);
 
         } else if (message == 0x80) { 
             // note off
-            uint8_t data2 = remaining_message[1];
-            printf("note off channel %d note %d\n", channel, data1);
+            //uint8_t data2 = remaining_message[1];
+            //printf("note off channel %d note %d\n", channel, data1);
             // for now, only handle broadcast note offs... will have to refactor if i go down this path farther
             // assume this is the new envelope command we keep putting off-- like "$e30a0" where e is an event number 
-            for(uint8_t v=0;v<VOICES;v++) {
-                if(note_map[v] == data1) {
+
+            //for(uint8_t v=0;v<VOICES;v++) {
+             //   if(note_map[v] == data1) {
+            /*
                     struct event e = default_event();
                     e.amp = 0;
-                    e.voice = v;
+                    e.voice = 0;
                     e.time = esp_timer_get_time() / 1000;
                     e.velocity = data2; // note off velocity, not used... yet
                     serialize_event(e, 256);
-                }
-            }
+                    */
+              //  }
+           // }
                         
         } else if(message == 0xC0) { // program change 
             printf("program change channel %d to %d\n", channel, data1);
-            program = data1;
+            program[channel] = data1;
         } else if(message == 0xB0) {
             // control change
             uint8_t data2 = remaining_message[1];
             if(data1 == 0x20) { // fine mode for bank change, logic uses this
-                program_bank = data2;
+                program_bank[channel] = data2;
                 printf("bank change fine channel %d to %d\n", channel, data2);
             }
             // Bank select for program change
             if(data1 == 0x00) { 
                 // if this is 0 because we're using coarse/fine, the fine will immediate overwrite it, nbd
-                program_bank = data2;
+                program_bank[channel] = data2;
                 printf("bank change coarse channel %d to %d\n", channel, data2);
             }
             // feedback
@@ -144,8 +150,12 @@ void midi_init() {
         .rx_flow_ctrl_thresh = 122,
     };
 
-    for(uint8_t v=0;v<VOICES;v++) {
-        note_map[v] = 0;
+//    for(uint8_t v=0;v<VOICES;v++) {
+//        note_map[v] = 0;
+//    }
+    for(uint8_t c=0;c<CHANNELS;c++) {
+        program_bank[c] = 0;
+        program[c] = 0;
     }
     // Configure UART parameters
     ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));
