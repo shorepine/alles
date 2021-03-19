@@ -67,17 +67,20 @@ v0w4f440.0a0.5
 
 Where
 ```
-a = amplitude, float 0-1 summed over all voices. default 0
+a = amplitude, float 0-1 per voice. default 1
 b = feedback, float 0-1 for karplus-strong. default 0.996
 c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_id % (x-255) == 0) for groups, default all clients
 d = duty cycle, float 0.001-0.999. duty cycle for pulse wave, default 0.5
 e = velocity, uint 0-127, MIDI velocity for the DX7, default 100
 f = frequency, float 0-22050. default 0
 n = midinote, uint, 0-127 (note that this will also set f). default 0
+O = off. turn off all voices 
 p = patch, uint, 0-999, choose a preloaded DX7 patch number for FM waveforms. See patches.h and alles.py. default 0
-s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py, also uses i for sync_index
+R = restart. soft reboot the synth 
+s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py, also uses i for sync_index and y for battery
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can.
 v = voice, uint, 0 to 9. default: 0
+V = volume, float 0-1 (but can be over 1 for overdrive). volume knob for the speaker. default 0.25
 w = waveform, uint, 0 to 6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, OFF]. default: 0/SINE
 ```
 

@@ -6,21 +6,24 @@ extern "C" {
 }
 
 static Blip_Buffer blipbuf;
-static Blip_Synth<blip_good_quality,65535> synth;
+// 10 voices * -32767 to 32767
+static Blip_Synth<blip_good_quality,655350> synth;
 
 
 #define MAX_KS_BUFFER_LEN 802 // 44100/55  -- 55Hz (A1) lowest we can go for KS
-float ks_buffer[VOICES][MAX_KS_BUFFER_LEN]; 
+float ** ks_buffer; 
 
 
-extern struct event seq[VOICES];
+extern struct event *seq;
+extern float volume; // grab the volume for this synth
 
 // Use the Blip_Buffer library to bandlimit signals
 extern "C" void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) {
+    // OK, now we've got a bunch of 16-bit floats all added up in ibuf
+    // we want some non-linear curve scaling those #s into -32767 to +32767
+    // blipbuf may do this for me
+    synth.volume(volume);
     for(uint16_t i=0;i<len;i++) {
-        // Clip first
-        if(ibuf[i]>32767) ibuf[i]=32767;
-        if(ibuf[i]<-32768) ibuf[i]=-32768;
         synth.update(i, ibuf[i]);
     }
     blipbuf.end_frame(len);
@@ -132,9 +135,17 @@ extern "C" void oscillators_init(void) {
         exit( EXIT_FAILURE );
     blipbuf.clock_rate( blipbuf.sample_rate() );
     blipbuf.bass_freq( 0 ); // makes waveforms perfectly flat
-    synth.volume(1);
+    synth.volume(volume);
     synth.output(&blipbuf);
+    ks_buffer = (float**) malloc(sizeof(float*)*VOICES);
+    for(int i=0;i<VOICES;i++) ks_buffer[i] = (float*)malloc(sizeof(float)*MAX_KS_BUFFER_LEN); 
 }
+
+extern "C" void oscillators_deinit(void) {
+    for(int i=0;i<VOICES;i++) free(ks_buffer[i]);
+    free(ks_buffer);
+}
+
 
 
 

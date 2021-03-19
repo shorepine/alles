@@ -124,7 +124,7 @@ def sync(count=10, delay_ms=100):
     return clients
 
 
-def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=-1, client=-1, retries=1):
+def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=-1, client=-1, retries=1, volume=-1):
     global sock
     if(timestamp < 0): timestamp = alles_ms()
     m = "t%dv%dw%d" % (timestamp, voice, wave)
@@ -136,6 +136,7 @@ def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1
     if(patch>=0): m = m + "p%d" % (patch)
     if(client>=0): m = m + "c%d" % (client)
     if(vel>=0): m = m + "e%d" % (vel)
+    if(volume>=0): m = m + "V%f" % (volume)
     for x in range(retries):
         sock.sendto(m.encode('ascii'), multicast_group)
 
@@ -220,22 +221,36 @@ def play_patches(voice=0, wave=FM, amp=0.5 ,forever=True, vel=100, wait=0.750, d
             time.sleep(wait)
 
 
+def polyphony():
+    voice = 0
+    note = 0
+    while(1):
+        tone(voice=voice, wave=FM, patch=note, note=50+note, client = -1)
+        time.sleep(0.5)
+        voice =(voice + 1) % 9
+        note =(note + 1) % 24
+
 def complex(speed=0.250, vol=1, client =-1, loops=-1):
     while(loops != 0): # -1 means forever 
         for i in [0,2,4,5, 0, 4, 0, 2]:
-            tone(voice=0, wave=FM, amp=0.5*vol, note=50+i, patch=15, client=client)
+            tone(voice=0, wave=FM, note=50+i, patch=15, client=client)
             time.sleep(speed)
-            tone(voice=1, wave=FM, amp=0.4*vol, note=50+i, patch=8, client=client)
+            tone(voice=1, wave=FM, note=50+i, patch=8, client=client)
             time.sleep(speed)
-            tone(voice=2, wave=SINE, amp=0.3*vol, note=62+i, patch=2, client=client)
+            tone(voice=2, wave=SINE, note=62+i, patch=2, client=client)
             time.sleep(speed)
             tone(voice=2, wave=SINE, freq = 20, client=client)
             time.sleep(speed)
+            print("hi")
         loops = loops - 1
 
-def off():
-	for x in range(10):
-		tone(x, amp=0, wave=OFF, freq=0)
+def reset():
+    # Turn off amp per voice and back on again with no wave
+    for x in range(10):
+        tone(x, amp=1, wave=OFF, freq=0)
+
+def volume(volume, client = -1):
+    tone(0, client=client, volume=volume)
 
 def c_major(octave=2,wave=SINE, vol=0.2):
     tone(voice=0,freq=220.5*octave,amp=vol/3.0, wave=wave)
