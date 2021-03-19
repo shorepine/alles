@@ -21,7 +21,7 @@ extern "C" {
 // One note/controller object per voice
 Dx7Note note[VOICES];
 Controllers controllers[VOICES];
-extern struct event seq[VOICES];
+extern struct event *seq;
 
 extern "C" void render_fm(float * buf, uint8_t voice) {
     int32_t int32_t_buf[N];

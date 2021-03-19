@@ -95,6 +95,7 @@ struct event {
     float step;
     float substep;
     float sample;
+    float volume;
 
 };
 struct event default_event();
@@ -104,7 +105,7 @@ void add_event(struct event e);
 // Sounds
 extern void bleep();
 extern void debleep();
-extern void scale(uint8_t wave, float vol);
+extern void scale(uint8_t wave);
 
 
 // Button handlers

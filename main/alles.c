@@ -10,16 +10,22 @@
 // Pointer to next event
 int16_t next_event_write = 0;
 // One set of events for the fifo
-struct event events[EVENT_FIFO_LEN];
+struct event * events;
 // And another event per voice as multi-channel sequencer that the scheduler renders into
-struct event seq[VOICES];
+struct event * seq;
+
+// floatblock -- accumulative for mixing, -32767.0 -- 32768.0
+float * floatblock;
+// block -- what gets sent to the DAC -- -32767...32768 (wave file, int16 LE)
+int16_t * block;
 
 // Global state for mode
-// assume blinkinlabs for now
+// assume blinkinlabs for now. gets turned off in init if power chip isn't there
 uint8_t board_level = ALLES_BOARD_V1;
 uint8_t midi_mode = 0;
 uint8_t running = 1;
 uint8_t wifi_manager_started_ok = 0;
+float volume = 0.5;
 
 
 static const char TAG[] = "main";
@@ -51,8 +57,9 @@ struct event default_event() {
     e.feedback = -1;
     e.velocity = -1;
     e.midi_note = -1;
-    e.amp = -1;
+    e.amp = 1;
     e.freq = -1;
+    e.volume = -1;
     return e;
 }
 
@@ -64,6 +71,7 @@ void add_event(struct event e) {
     } else {
         events[next_event_write].voice = e.voice;
         events[next_event_write].velocity = e.velocity;
+        events[next_event_write].volume = e.volume;
         events[next_event_write].duty = e.duty;
         events[next_event_write].feedback = e.feedback;
         events[next_event_write].midi_note = e.midi_note;
@@ -80,10 +88,16 @@ void add_event(struct event e) {
     }
 }
 
+
 // The sequencer object keeps state betweeen voices, whereas events are only deltas/changes
-esp_err_t setup_voices() {
+esp_err_t voices_init() {
     // FM init happens later for mem reason
     oscillators_init();
+    events = (struct event*) malloc(sizeof(struct event) * EVENT_FIFO_LEN);
+    seq = (struct event*) malloc(sizeof(struct event) * VOICES);
+    floatblock = (float*) malloc(sizeof(float) * BLOCK_SIZE);
+    block = (int16_t *) malloc(sizeof(int16_t) * BLOCK_SIZE);
+
     for(int i=0;i<VOICES;i++) {
         seq[i].voice = i; // self-reference to make updating oscillators easier
         seq[i].wave = OFF;
@@ -92,7 +106,8 @@ esp_err_t setup_voices() {
         seq[i].midi_note = 0;
         seq[i].freq = 0;
         seq[i].feedback = 0.996;
-        seq[i].amp = 0;
+        seq[i].amp = 1;
+        seq[i].volume = 0;
         seq[i].velocity = 100;
         seq[i].step = 0;
         seq[i].sample = DOWN;
@@ -101,11 +116,22 @@ esp_err_t setup_voices() {
 
     // Fill the FIFO with default events, as the audio thread reads from it immediately
     for(int i=0;i<EVENT_FIFO_LEN;i++) {
+        // First clear out the malloc'd events so it doesn't seem like the queue is full
+        events[i].status = EMPTY;
+    }
+    for(int i=0;i<EVENT_FIFO_LEN;i++) {
         add_event(default_event());
     }
     return ESP_OK;
 }
 
+
+void voices_deinit() {
+    free(block);
+    free(floatblock);
+    free(seq);
+    free(events);
+}
 
 // Play an event, now -- tell the audio loop to start making noise
 void play_event(struct event e) {
@@ -117,6 +143,9 @@ void play_event(struct event e) {
     if(e.velocity >= 0) seq[e.voice].velocity = e.velocity;
     if(e.freq >= 0) seq[e.voice].freq = e.freq;
     if(e.amp >= 0) seq[e.voice].amp = e.amp;
+
+    // For volume (and later off, reset, etc) just make the change, no need to update the per-voice sequencer
+    if(e.volume >= 0) volume = e.volume; 
 
     // Triggers / envelopes -- this needs some more thinking
     if(seq[e.voice].wave==FM) {
@@ -132,10 +161,19 @@ void play_event(struct event e) {
 }
 
 
-// floatblock -- accumulative for mixing, -32767.0 -- 32768.0
-float floatblock[BLOCK_SIZE];
-// block -- what gets sent to the DAC -- -32767...32768 (wave file, int16 LE)
-int16_t block[BLOCK_SIZE];  
+
+
+
+// let's refactor mixing a little bit.
+// all voices render into a float32 (or int32??) buffer
+// a big one, all at the same volume. 
+// and we mix down per speaker at a common volume
+// right the issue here is that a sin wave is < noisy than a square...
+// so how could you mix them
+
+// ok, we keep a for amp per voice, but default is 1 / unity
+// we then have a v / volume that works per synth
+
 
 
 // This takes scheduled events and plays them at the right time
@@ -264,7 +302,7 @@ void deserialize_event(char * message, uint16_t length) {
     while(c < length+1) {
         uint8_t b = message[c];
         if(b == '_' && c==0) sync_response = 1;
-        if(b >= 'a' || b <= 'z' || b == 0) {  // new mode or end
+        if( ((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')) || b == 0) {  // new mode or end
             if(mode=='t') {
                 e.time=atol(message + start);
                 // if we haven't yet synced our times, do it now
@@ -285,6 +323,7 @@ void deserialize_event(char * message, uint16_t length) {
             if(mode=='r') ipv4=atoi(message + start);
             if(mode=='s') sync = atol(message + start); 
             if(mode=='v') e.voice=atoi(message + start);
+            if(mode=='V') volume = atof(message + start);
             if(mode=='w') e.wave=atoi(message + start);
             mode=b;
             start=c+1;
@@ -401,6 +440,7 @@ void toggle_midi() {
         // turn on midi
         midi_mode = 1;
         fm_deinit(); // have to free RAM to start the BLE stack
+        voices_deinit();
         midi_init();
     }
 }
@@ -475,7 +515,7 @@ void ip5306_monitor() {
 void app_main() {
     check_init(&esp_event_loop_create_default, "Event");
     check_init(&setup_i2s, "i2s");
-    check_init(&setup_voices, "voices");
+    check_init(&voices_init, "voices");
     check_init(&buttons_init, "buttons"); // only one button for the protoboard, 4 for the blinkinlabs
 
     wifi_manager_start();
