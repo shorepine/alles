@@ -13,8 +13,7 @@
 
 
 xQueueHandle gpio_evt_queue = NULL;
-extern uint8_t running;
-extern uint8_t board_level; 
+extern struct state global;
 
 // Called whenever a button press triggers a GPIO interrupt
 static void IRAM_ATTR gpio_isr_handler(void* arg) {
@@ -52,7 +51,7 @@ static void gpio_task(void* arg) {
                 break;
             case BUTTON_POWER_LONG:
                 printf("power long\n");
-                if(board_level == ALLES_BOARD_V1) running = 0;
+                if(global.board_level == ALLES_BOARD_V1) global.running = 0;
                 break;
             }
 
@@ -94,7 +93,7 @@ esp_err_t buttons_init() {
     if(ret != ESP_OK)
         return ret;
 
-    if(board_level == ALLES_BOARD_V1) {
+    if(global.board_level == ALLES_BOARD_V1) {
         //hook isr handler for specific gpio pin
         esp_sleep_enable_ext0_wakeup(BUTTON_MIDI, 0);
         ret = gpio_isr_handler_add(BUTTON_EXTRA, gpio_isr_handler, (void*) BUTTON_EXTRA);

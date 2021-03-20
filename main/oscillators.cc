@@ -15,14 +15,14 @@ float ** ks_buffer;
 
 
 extern struct event *seq;
-extern float volume; // grab the volume for this synth
+extern struct state global; 
 
 // Use the Blip_Buffer library to bandlimit signals
 extern "C" void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) {
     // OK, now we've got a bunch of 16-bit floats all added up in ibuf
     // we want some non-linear curve scaling those #s into -32767 to +32767
     // blipbuf may do this for me
-    synth.volume(volume);
+    synth.volume(global.volume);
     for(uint16_t i=0;i<len;i++) {
         synth.update(i, ibuf[i]);
     }
@@ -135,7 +135,7 @@ extern "C" void oscillators_init(void) {
         exit( EXIT_FAILURE );
     blipbuf.clock_rate( blipbuf.sample_rate() );
     blipbuf.bass_freq( 0 ); // makes waveforms perfectly flat
-    synth.volume(volume);
+    synth.volume(global.volume);
     synth.output(&blipbuf);
     ks_buffer = (float**) malloc(sizeof(float*)*VOICES);
     for(int i=0;i<VOICES;i++) ks_buffer[i] = (float*)malloc(sizeof(float)*MAX_KS_BUFFER_LEN); 

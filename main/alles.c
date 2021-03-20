@@ -5,10 +5,8 @@
 
 
 
-
-// Global state for events 
-// Pointer to next event
-int16_t next_event_write = 0;
+// Global state 
+struct state global;
 // One set of events for the fifo
 struct event * events;
 // And another event per voice as multi-channel sequencer that the scheduler renders into
@@ -19,14 +17,18 @@ float * floatblock;
 // block -- what gets sent to the DAC -- -32767...32768 (wave file, int16 LE)
 int16_t * block;
 
-// Global state for mode
-// assume blinkinlabs for now. gets turned off in init if power chip isn't there
-uint8_t board_level = ALLES_BOARD_V1;
-uint8_t midi_mode = 0;
-uint8_t running = 1;
-uint8_t wifi_manager_started_ok = 0;
-float volume = 0.5;
 
+esp_err_t global_init() {
+    global.next_event_write = 0;
+    global.board_level = ALLES_BOARD_V1;
+    global.midi_mode = 0;
+    global.running = 1;
+    global.wifi_manager_started_ok = 0;
+    global.volume = 0.5;
+    global.resonance = 0.7;
+    global.filter_freq = 0;
+    return ESP_OK;
+}
 
 static const char TAG[] = "main";
 
@@ -60,31 +62,36 @@ struct event default_event() {
     e.amp = 1;
     e.freq = -1;
     e.volume = -1;
+    e.filter_freq = -1;
+    e.resonance = -1;
     return e;
 }
 
 // deep copy an event to the fifo
 void add_event(struct event e) { 
-    if(events[next_event_write].status == SCHEDULED) {
+    int16_t ew = global.next_event_write;
+    if(events[ew].status == SCHEDULED) {
         // We should drop these messages, the queue is full
-        printf("queue (size %d) is full at index %d, skipping\n", EVENT_FIFO_LEN, next_event_write);
+        printf("queue (size %d) is full at index %d, skipping\n", EVENT_FIFO_LEN, ew);
     } else {
-        events[next_event_write].voice = e.voice;
-        events[next_event_write].velocity = e.velocity;
-        events[next_event_write].volume = e.volume;
-        events[next_event_write].duty = e.duty;
-        events[next_event_write].feedback = e.feedback;
-        events[next_event_write].midi_note = e.midi_note;
-        events[next_event_write].wave = e.wave;
-        events[next_event_write].patch = e.patch;
-        events[next_event_write].freq = e.freq;
-        events[next_event_write].amp = e.amp;
-        events[next_event_write].time = e.time;
-        events[next_event_write].status = e.status;
-        events[next_event_write].sample = e.sample;
-        events[next_event_write].step = e.step;
-        events[next_event_write].substep = e.substep;
-        next_event_write = (next_event_write + 1) % (EVENT_FIFO_LEN);
+        events[ew].voice = e.voice;
+        events[ew].velocity = e.velocity;
+        events[ew].volume = e.volume;
+        events[ew].filter_freq = e.filter_freq;
+        events[ew].resonance = e.resonance;
+        events[ew].duty = e.duty;
+        events[ew].feedback = e.feedback;
+        events[ew].midi_note = e.midi_note;
+        events[ew].wave = e.wave;
+        events[ew].patch = e.patch;
+        events[ew].freq = e.freq;
+        events[ew].amp = e.amp;
+        events[ew].time = e.time;
+        events[ew].status = e.status;
+        events[ew].sample = e.sample;
+        events[ew].step = e.step;
+        events[ew].substep = e.substep;
+        global.next_event_write = (ew + 1) % (EVENT_FIFO_LEN);
     }
 }
 
@@ -93,6 +100,7 @@ void add_event(struct event e) {
 esp_err_t voices_init() {
     // FM init happens later for mem reason
     oscillators_init();
+    filters_init();
     events = (struct event*) malloc(sizeof(struct event) * EVENT_FIFO_LEN);
     seq = (struct event*) malloc(sizeof(struct event) * VOICES);
     floatblock = (float*) malloc(sizeof(float) * BLOCK_SIZE);
@@ -108,6 +116,8 @@ esp_err_t voices_init() {
         seq[i].feedback = 0.996;
         seq[i].amp = 1;
         seq[i].volume = 0;
+        seq[i].filter_freq = 0;
+        seq[i].resonance = 0.7;
         seq[i].velocity = 100;
         seq[i].step = 0;
         seq[i].sample = DOWN;
@@ -131,6 +141,8 @@ void voices_deinit() {
     free(floatblock);
     free(seq);
     free(events);
+    oscillators_deinit();
+    filters_deinit();
 }
 
 // Play an event, now -- tell the audio loop to start making noise
@@ -145,7 +157,9 @@ void play_event(struct event e) {
     if(e.amp >= 0) seq[e.voice].amp = e.amp;
 
     // For volume (and later off, reset, etc) just make the change, no need to update the per-voice sequencer
-    if(e.volume >= 0) volume = e.volume; 
+    if(e.volume >= 0) global.volume = e.volume; 
+    if(e.filter_freq >= 0) { global.filter_freq = e.filter_freq; filter_update(); }
+    if(e.resonance >= 0) { global.resonance = e.resonance; filter_update(); }
 
     // Triggers / envelopes -- this needs some more thinking
     if(seq[e.voice].wave==FM) {
@@ -226,8 +240,16 @@ void fill_audio_buffer(float seconds) {
 
             }
         }
+
+
+        // If filtering is on, filter the bandlimited signal
+        if(global.filter_freq > 0) {
+            filter_process(floatblock);
+        }
+
         // Bandlimit the buffer all at once
         blip_the_buffer(floatblock, block, BLOCK_SIZE);
+
 
         // And write
         size_t written = 0;
@@ -317,13 +339,15 @@ void deserialize_event(char * message, uint16_t length) {
             if(mode=='d') e.duty=atof(message + start);
             if(mode=='e') e.velocity=atoi(message + start);
             if(mode=='f') e.freq=atof(message + start);
+            if(mode=='F') e.filter_freq=atof(message + start);
             if(mode=='i') sync_index = atoi(message + start);
             if(mode=='n') e.midi_note=atoi(message + start);
             if(mode=='p') e.patch=atoi(message + start);
             if(mode=='r') ipv4=atoi(message + start);
+            if(mode=='R') e.resonance=atof(message + start);
             if(mode=='s') sync = atol(message + start); 
             if(mode=='v') e.voice=atoi(message + start);
-            if(mode=='V') volume = atof(message + start);
+            if(mode=='V') e.volume = atof(message + start);
             if(mode=='w') e.wave=atoi(message + start);
             mode=b;
             start=c+1;
@@ -405,7 +429,7 @@ void cb_connection_ok(void *pvParameter){
     esp_ip4addr_ntoa(&param->ip_info.ip, str_ip, IP4ADDR_STRLEN_MAX);
 
     ESP_LOGI(TAG, "I have a connection and my IP is %s!", str_ip);
-    wifi_manager_started_ok = 1;
+    global.wifi_manager_started_ok = 1;
 }
 
 
@@ -431,14 +455,14 @@ void wifi_reconfigure() {
 
 // Called when the MIDI button is hit. Toggle between MIDI on and off mode
 void toggle_midi() {
-    if(midi_mode) { 
+    if(global.midi_mode) { 
         // turn off midi
-        midi_mode = 0;
+        global.midi_mode = 0;
         // just restart, easier that way
         esp_restart();
     } else {
         // turn on midi
-        midi_mode = 1;
+        global.midi_mode = 1;
         fm_deinit(); // have to free RAM to start the BLE stack
         voices_deinit();
         midi_init();
@@ -513,6 +537,7 @@ void ip5306_monitor() {
 
 
 void app_main() {
+    check_init(&global_init, "global state");
     check_init(&esp_event_loop_create_default, "Event");
     check_init(&setup_i2s, "i2s");
     check_init(&voices_init, "voices");
@@ -523,7 +548,7 @@ void app_main() {
     /* register a callback as an example to how you can integrate your code with the wifi manager */
     wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_connection_ok);
 
-    while(!wifi_manager_started_ok) {
+    while(!global.wifi_manager_started_ok) {
         vTaskDelay(100 / portTICK_PERIOD_MS);
     };
 
@@ -535,8 +560,8 @@ void app_main() {
     check_init(&master_i2c_init, "master_i2c");
     
     // if ip5306 init fails, we don't have blinkinlabs board, set board level to 0
-    if(check_init(&ip5306_init, "ip5306")) board_level = DEVBOARD; 
-    if(board_level == ALLES_BOARD_V1) {
+    if(check_init(&ip5306_init, "ip5306")) global.board_level = DEVBOARD; 
+    if(global.board_level == ALLES_BOARD_V1) {
         TimerHandle_t ip5306_monitor_timer =xTimerCreate(
             "ip5306_monitor",
             pdMS_TO_TICKS(500),
@@ -560,9 +585,9 @@ void app_main() {
     bleep();
 
     // Spin this core until the power off button is pressed, parsing events and making sounds
-    while(running) {
+    while(global.running) {
         // Only emit sounds if MIDI is not on
-        if(!midi_mode) {
+        if(!global.midi_mode) {
             fill_audio_buffer(-1); 
         } else {
             vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -595,7 +620,7 @@ void app_main() {
     // Stop mulitcast listening, wifi, midi
     vTaskDelete(multicast_handle);
     esp_wifi_stop();
-    if(midi_mode) midi_deinit();
+    if(global.midi_mode) midi_deinit();
 
     // Go into deep_sleep
     esp_deep_sleep_start();

@@ -124,7 +124,7 @@ def sync(count=10, delay_ms=100):
     return clients
 
 
-def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=-1, client=-1, retries=1, volume=-1):
+def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=-1, client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1):
     global sock
     if(timestamp < 0): timestamp = alles_ms()
     m = "t%dv%dw%d" % (timestamp, voice, wave)
@@ -137,6 +137,8 @@ def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1
     if(client>=0): m = m + "c%d" % (client)
     if(vel>=0): m = m + "e%d" % (vel)
     if(volume>=0): m = m + "V%f" % (volume)
+    if(resonance>=0): m = m + "R%f" % (resonance)
+    if(filter_freq>=0): m = m + "F%f" % (filter_freq)
     for x in range(retries):
         sock.sendto(m.encode('ascii'), multicast_group)
 
@@ -230,6 +232,19 @@ def polyphony():
         voice =(voice + 1) % 9
         note =(note + 1) % 24
 
+
+def sweep(speed=0.250, res=0.5, loops = -1):
+    start = 100
+    end = 2000
+    cur = 0
+    while(loops != 0):
+        for i in [0, 1, 2, 3, 4, 5, 6, 7]:
+            cur = (cur + 100) % end
+            filter(cur, res)
+            tone(voice=0,wave=FM, note=50+i, patch = 15)
+            time.sleep(speed)
+
+
 def complex(speed=0.250, vol=1, client =-1, loops=-1):
     while(loops != 0): # -1 means forever 
         for i in [0,2,4,5, 0, 4, 0, 2]:
@@ -241,16 +256,18 @@ def complex(speed=0.250, vol=1, client =-1, loops=-1):
             time.sleep(speed)
             tone(voice=2, wave=SINE, freq = 20, client=client)
             time.sleep(speed)
-            print("hi")
         loops = loops - 1
 
 def reset():
     # Turn off amp per voice and back on again with no wave
     for x in range(10):
-        tone(x, amp=1, wave=OFF, freq=0)
+        tone(x, amp=1, wave=OFF, freq=0, filter_freq = 0)
 
 def volume(volume, client = -1):
     tone(0, client=client, volume=volume)
+
+def filter(center, q, client = -1):
+    tone(0, filter_freq = center, resonance = q, client = client)
 
 def c_major(octave=2,wave=SINE, vol=0.2):
     tone(voice=0,freq=220.5*octave,amp=vol/3.0, wave=wave)

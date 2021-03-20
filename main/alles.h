@@ -96,10 +96,26 @@ struct event {
     float substep;
     float sample;
     float volume;
+    float filter_freq;
+    float resonance;
 
 };
 struct event default_event();
 void add_event(struct event e);
+
+
+
+// global synth state
+struct state {
+    float volume;
+    float resonance;
+    float filter_freq;
+    int16_t next_event_write;
+    uint8_t board_level;
+    uint8_t midi_mode;
+    uint8_t running;
+    uint8_t wifi_manager_started_ok;
+};
 
 
 // Sounds
@@ -135,6 +151,7 @@ extern void fm_new_note_freq(uint8_t voice);
 
 // bandlimted oscillators
 extern void oscillators_init();
+extern void oscillators_deinit();
 extern void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) ;
 extern void render_ks(float * buf, uint8_t voice); 
 extern void render_sine(float * buf, uint8_t voice); 
@@ -143,6 +160,12 @@ extern void render_saw(float * buf, uint8_t voice);
 extern void render_triangle(float * buf, uint8_t voice); 
 extern void render_noise(float * buf, uint8_t voice); 
 extern void ks_new_note_freq(uint8_t voice); 
+
+// filters
+extern void filters_init();
+extern void filters_deinit();
+extern void filter_update();
+extern void filter_process(float * block);
 
 // MIDI
 extern void midi_init();
