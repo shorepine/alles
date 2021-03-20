@@ -233,15 +233,16 @@ def polyphony():
         note =(note + 1) % 24
 
 
-def sweep(speed=0.250, res=0.5, loops = -1):
-    start = 100
+def sweep(speed=0.100, res=0.5, loops = -1):
     end = 2000
     cur = 0
     while(loops != 0):
-        for i in [0, 1, 2, 3, 4, 5, 6, 7]:
+        for i in [0, 1, 4, 5, 1, 3, 4, 5]:
             cur = (cur + 100) % end
             filter(cur, res)
-            tone(voice=0,wave=FM, note=50+i, patch = 15)
+            tone(voice=0,wave=PULSE, note=50+i, duty=0.50)
+            tone(voice=1,wave=PULSE, note=50+12+i, duty=0.25)
+            tone(voice=2,wave=PULSE, note=50+6+i, duty=0.90)
             time.sleep(speed)
 
 
