@@ -197,10 +197,12 @@ extern void ks_note_off(uint8_t voice);
 extern void filters_init();
 extern void filters_deinit();
 extern void filter_process(float * block);
+extern void filter_update();
+extern void filter_process_ints(int16_t * block);
 
 // envelopes
-extern void adsr_modify(uint8_t voice);
-extern void lfo_modify(uint8_t voice);
+extern float compute_adsr_scale(uint8_t voice);
+extern float compute_lfo_scale(uint8_t voice);
 
 // MIDI
 extern void midi_init();

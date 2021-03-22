@@ -77,15 +77,14 @@ extern struct mod_state mglobal;
 // Yeah, ok. ADSRs & LFOs happpen at BLOCK_SIZE resolution for now. not per sample. 
 // can update to ADSRs per sample later after i hear it
 
-void lfo_modify(uint8_t voice) {
-
+float compute_lfo_scale(uint8_t voice) {
+	return 1;
 }
 
-void adsr_modify(uint8_t voice) {
+float compute_adsr_scale(uint8_t voice) {
+	// get the scale out of a voice
 	int64_t sysclock = esp_timer_get_time() / 1000;
 	float scale = 1.0; // the overall ratio to modify the thing
-
-
 
 	if(seq[voice].adsr_on_clock >= 0) { 
 		// figure out where we are in the curve
@@ -115,18 +114,7 @@ void adsr_modify(uint8_t voice) {
 	} else {
 		// Nothing. scale = 1
 	}
-
 	if(scale < 0) scale = 0;
-
-	if(seq[voice].adsr_target == TARGET_AMP) {
-		mseq[voice].amp = mseq[voice].amp * scale;
-		//printf("target %d env [%d %d %f %d], clock %lld note_on %lld note_off %lld scale %f\n",
-		//	seq[voice].adsr_target, seq[voice].adsr_a, seq[voice].adsr_d, seq[voice].adsr_s, seq[voice].adsr_r, sysclock, seq[voice].adsr_on_clock, seq[voice].adsr_off_clock, scale);
-	}
-	if(seq[voice].adsr_target == TARGET_DUTY) mseq[voice].duty = mseq[voice].duty * scale;
-	if(seq[voice].adsr_target == TARGET_FREQ) mseq[voice].freq = mseq[voice].freq * scale;
-	if(seq[voice].adsr_target == TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq * scale;
-	if(seq[voice].adsr_target == TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
-
-
+	return scale;
 }
+

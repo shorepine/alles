@@ -214,8 +214,8 @@ void play_event(struct event e) {
 
     // For volume (and later off, reset, etc) just make the change, no need to update the per-voice sequencer
     if(e.volume >= 0) global.volume = e.volume; 
-    if(e.filter_freq >= 0) { global.filter_freq = e.filter_freq; }
-    if(e.resonance >= 0) { global.resonance = e.resonance;  }
+    if(e.filter_freq >= 0) global.filter_freq = e.filter_freq; 
+    if(e.resonance >= 0) global.resonance = e.resonance; 
 
     // Triggers / envelopes 
     // the only way to make FM or KS noises is to use note ons (send velocity)
@@ -284,19 +284,29 @@ void fill_audio_buffer(float seconds) {
 
         // Clear out the accumulator buffer
         for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
+
+        mglobal.resonance = global.resonance;
+        mglobal.filter_freq = global.filter_freq;
+
         for(uint8_t voice=0;voice<VOICES;voice++) {
  
             // Copy all the mseq variables
             mseq[voice].amp = seq[voice].amp;
             mseq[voice].duty = seq[voice].duty;
             mseq[voice].freq = seq[voice].freq;
-            mglobal.filter_freq = global.filter_freq;
-            mglobal.resonance = global.resonance;
 
-            // Modify the mseq & mglobal if the ADSR is running
-            adsr_modify(voice);
-            // Same for LFO
-            lfo_modify(voice);
+            // Modify the mseq if you need to
+            float scale = compute_adsr_scale(voice);
+            if(scale < 1) {
+                if(seq[voice].adsr_target == TARGET_AMP) mseq[voice].amp = mseq[voice].amp * scale;
+                if(seq[voice].adsr_target == TARGET_DUTY) mseq[voice].duty = mseq[voice].duty * scale;
+                if(seq[voice].adsr_target == TARGET_FREQ) mseq[voice].freq = mseq[voice].freq * scale;
+                // In practice you probably only have one voice doing these, but if you have two they'll get double scaled
+                if(seq[voice].adsr_target == TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq * scale;
+                if(seq[voice].adsr_target == TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
+            }
+            scale = compute_lfo_scale(voice); // TBD
+
 
             switch(seq[voice].wave) {
                 case FM:
@@ -325,13 +335,14 @@ void fill_audio_buffer(float seconds) {
         }
 
 
-        // If filtering is on, filter the mixed signal before bandlimiting
-        if(mglobal.filter_freq > 0) {
-            filter_process(floatblock);
-        }
-
         // Bandlimit the buffer all at once
         blip_the_buffer(floatblock, block, BLOCK_SIZE);
+
+        // If filtering is on, filter the mixed signal before bandlimiting
+        if(mglobal.filter_freq > 0) {
+            filter_update();
+            filter_process_ints(block);
+        }
 
 
         // And write
@@ -424,7 +435,7 @@ void deserialize_event(char * message, uint16_t length) {
     length = new_length;
 
     // Debug
-    printf("message ###%s### len %d\n", message, length);
+    //printf("message ###%s### len %d\n", message, length);
 
     while(c < length+1) {
         uint8_t b = message[c];
