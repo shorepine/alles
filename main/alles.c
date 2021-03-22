@@ -298,12 +298,12 @@ void fill_audio_buffer(float seconds) {
             // Modify the mseq if you need to
             float scale = compute_adsr_scale(voice);
             if(scale < 1) {
-                if(seq[voice].adsr_target == TARGET_AMP) mseq[voice].amp = mseq[voice].amp * scale;
-                if(seq[voice].adsr_target == TARGET_DUTY) mseq[voice].duty = mseq[voice].duty * scale;
-                if(seq[voice].adsr_target == TARGET_FREQ) mseq[voice].freq = mseq[voice].freq * scale;
+                if(seq[voice].adsr_target & TARGET_AMP) mseq[voice].amp = mseq[voice].amp * scale;
+                if(seq[voice].adsr_target & TARGET_DUTY) mseq[voice].duty = mseq[voice].duty * scale;
+                if(seq[voice].adsr_target & TARGET_FREQ) mseq[voice].freq = mseq[voice].freq * scale;
                 // In practice you probably only have one voice doing these, but if you have two they'll get double scaled
-                if(seq[voice].adsr_target == TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq * scale;
-                if(seq[voice].adsr_target == TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
+                if(seq[voice].adsr_target & TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq * scale;
+                if(seq[voice].adsr_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
             }
             scale = compute_lfo_scale(voice); // TBD
 

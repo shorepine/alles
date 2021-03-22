@@ -81,9 +81,9 @@ extern "C" {
 
 #define TARGET_AMP 1
 #define TARGET_DUTY 2
-#define TARGET_FREQ 3
-#define TARGET_FILTER_FREQ 4
-#define TARGET_RESONANCE 5
+#define TARGET_FREQ 4
+#define TARGET_FILTER_FREQ 8
+#define TARGET_RESONANCE 16
 
 // Events
 struct event {

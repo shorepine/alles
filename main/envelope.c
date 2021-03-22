@@ -66,6 +66,15 @@ I guess you can have more than one L per voice
 yeah it's -- do envelopes lead or not is the deign q, it's the same thing i think
 
 
+ok, need to think about multiples here
+a voice always has an ADSR attached. by default it's 0,0,1,0.
+you can change ADSR with a envelope command: v0L0,0,0.5,0 etc
+ADSR can control up to 5 things with a bitmask - 1 + 2 + 4 + 8 + 16, filter+amp is 9
+T0 means none
+but do you ever want to remove an amp envelope? Oh yes, you would.. sure - if it's a constant tone but with env for filters
+OK, that should work for T
+
+
 
 */
 
