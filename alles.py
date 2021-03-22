@@ -124,10 +124,12 @@ def sync(count=10, delay_ms=100):
     return clients
 
 
-def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=-1, client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1):
+def tone(voice=0, wave=-1, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=-1, \
+        client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, target=-1):
     global sock
     if(timestamp < 0): timestamp = alles_ms()
-    m = "t%dv%dw%d" % (timestamp, voice, wave)
+    m = "t%dv%d" % (timestamp, voice)
+    if(wave>=0): m = m + "w%d" % (wave)
     if(amp>=0): m = m + "a%f" % (amp)
     if(duty>=0): m = m + "d%f" % (duty)
     if(feedback>=0): m = m + "b%f" % (feedback)
@@ -135,10 +137,12 @@ def tone(voice=0, wave=SINE, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1
     if(note>=0): m = m + "n%d" % (note)
     if(patch>=0): m = m + "p%d" % (patch)
     if(client>=0): m = m + "c%d" % (client)
-    if(vel>=0): m = m + "e%d" % (vel)
+    if(vel>=0): m = m + "l%d" % (vel)
     if(volume>=0): m = m + "V%f" % (volume)
     if(resonance>=0): m = m + "R%f" % (resonance)
     if(filter_freq>=0): m = m + "F%f" % (filter_freq)
+    if(envelope is not None): m = m +"A%s" %(envelope)
+    if(target>=0): m = m + "T%d" % (target)
     for x in range(retries):
         sock.sendto(m.encode('ascii'), multicast_group)
 
@@ -249,14 +253,21 @@ def sweep(speed=0.100, res=0.5, loops = -1):
 def complex(speed=0.250, vol=1, client =-1, loops=-1):
     while(loops != 0): # -1 means forever 
         for i in [0,2,4,5, 0, 4, 0, 2]:
-            tone(voice=0, wave=FM, note=50+i, patch=15, client=client)
+
+            tone(voice=0, wave=FM, note=50+i, patch=15, vel=100, client=client)
             time.sleep(speed)
-            tone(voice=1, wave=FM, note=50+i, patch=8, client=client)
+            tone(voice=0, vel=0, client=client) # note off
+
+            tone(voice=1, wave=KS, note=50+i, patch=8, vel=100,client=client)
             time.sleep(speed)
-            tone(voice=2, wave=SINE, note=62+i, patch=2, client=client)
+            tone(voice=1, vel=0, client=client) # note off
+
+            tone(voice=2, wave=SINE, note=62+i, client=client)
             time.sleep(speed)
+
             tone(voice=2, wave=SINE, freq = 20, client=client)
             time.sleep(speed)
+
         loops = loops - 1
 
 def reset():

@@ -15,6 +15,7 @@ float ** ks_buffer;
 
 
 extern struct event *seq;
+extern struct mod_event *mseq; // the seq that is being modified by LFOs & envelopes
 extern struct state global; 
 
 // Use the Blip_Buffer library to bandlimit signals
@@ -31,7 +32,8 @@ extern "C" void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) {
 }
 
 extern "C" void render_sine(float * buf, uint8_t voice) { 
-    float skip = seq[voice].freq / 44100.0 * SINE_LUT_SIZE;
+    //printf("rendering sine amp is %f\n", mseq[voice].amp);
+    float skip = mseq[voice].freq / 44100.0 * SINE_LUT_SIZE;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         if(skip >= 1) { // skip compute if frequency is < 3Hz
             uint16_t u0 = sine_LUT[(uint16_t)floor(seq[voice].step)];
@@ -40,7 +42,7 @@ extern "C" void render_sine(float * buf, uint8_t voice) {
             float x1 = (float)u1 - 32768.0;
             float frac = seq[voice].step - floor(seq[voice].step);
             float sample = x0 + ((x1 - x0) * frac);
-            buf[i] = buf[i] + (sample * seq[voice].amp);
+            buf[i] = buf[i] + (sample * mseq[voice].amp);
             seq[voice].step = seq[voice].step + skip;
             if(seq[voice].step >= SINE_LUT_SIZE) seq[voice].step = seq[voice].step - SINE_LUT_SIZE;
         }
@@ -49,25 +51,25 @@ extern "C" void render_sine(float * buf, uint8_t voice) {
 
 extern "C" void render_noise(float *buf, uint8_t voice) {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        buf[i] = buf[i] + ( (int16_t) ((esp_random() >> 16) - 32768) * seq[voice].amp);
+        buf[i] = buf[i] + ( (int16_t) ((esp_random() >> 16) - 32768) * mseq[voice].amp);
     }
 }
 
 extern "C" void render_ks(float * buf, uint8_t voice) {
-    if(seq[voice].freq >= 55) { // lowest note we can play
-        uint16_t buflen = floor(SAMPLE_RATE / seq[voice].freq);
+    if(mseq[voice].freq >= 55) { // lowest note we can play
+        uint16_t buflen = floor(SAMPLE_RATE / mseq[voice].freq);
         for(uint16_t i=0;i<BLOCK_SIZE;i++) {
             uint16_t index = floor(seq[voice].step);
             seq[voice].sample = ks_buffer[voice][index];
             ks_buffer[voice][index] = (ks_buffer[voice][index] + ks_buffer[voice][(index + 1) % buflen]) * 0.5 * seq[voice].feedback;
             seq[voice].step = (index + 1) % buflen;
-            buf[i] = buf[i] + seq[voice].sample * seq[voice].amp;
+            buf[i] = buf[i] + seq[voice].sample * mseq[voice].amp;
         }
     }
 }
 
 extern "C" void render_saw(float * buf, uint8_t voice) {
-    float period = 1. / (seq[voice].freq/(float)SAMPLE_RATE);
+    float period = 1. / (mseq[voice].freq/(float)SAMPLE_RATE);
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         if(seq[voice].step >= period || seq[voice].step == 0) {
             seq[voice].sample = DOWN;
@@ -75,13 +77,13 @@ extern "C" void render_saw(float * buf, uint8_t voice) {
         } else {
             seq[voice].sample = DOWN + (seq[voice].step * ((UP-DOWN) / period));
         }
-        buf[i] = buf[i] + seq[voice].sample * seq[voice].amp;
+        buf[i] = buf[i] + seq[voice].sample * mseq[voice].amp;
         seq[voice].step++;
     }
 }
 
 extern "C" void render_triangle(float * buf, uint8_t voice) {
-    float period = 1. / (seq[voice].freq/(float)SAMPLE_RATE);
+    float period = 1. / (mseq[voice].freq/(float)SAMPLE_RATE);
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         if(seq[voice].step >= period || seq[voice].step == 0) {
             seq[voice].sample = DOWN;
@@ -93,16 +95,16 @@ extern "C" void render_triangle(float * buf, uint8_t voice) {
                 seq[voice].sample = UP - ((seq[voice].step-(period/2)) * ((UP-DOWN) / period * 2));
             }
         }
-        buf[i] = buf[i] + seq[voice].sample * seq[voice].amp;
+        buf[i] = buf[i] + seq[voice].sample * mseq[voice].amp;
         seq[voice].step++;
     }
 }
 
 
 extern "C" void render_pulse(float * buf, uint8_t voice) {
-    if(seq[voice].duty < 0.001 || seq[voice].duty > 0.999) seq[voice].duty = 0.5;
-    float period = 1. / (seq[voice].freq/(float)SAMPLE_RATE);
-    float period2 = seq[voice].duty * period; // if duty is 0.5, square wave
+    if(mseq[voice].duty < 0.001 || mseq[voice].duty > 0.999) mseq[voice].duty = 0.5;
+    float period = 1. / (mseq[voice].freq/(float)SAMPLE_RATE);
+    float period2 = mseq[voice].duty * period; // if duty is 0.5, square wave
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         if(seq[voice].step >= period || seq[voice].step == 0)  {
             seq[voice].sample = UP;
@@ -114,20 +116,25 @@ extern "C" void render_pulse(float * buf, uint8_t voice) {
                 seq[voice].sample = DOWN;
             }
         }
-        buf[i] = buf[i] + seq[voice].sample * seq[voice].amp;
+        buf[i] = buf[i] + seq[voice].sample * mseq[voice].amp;
         seq[voice].step++;
     }
 }
 
-extern "C" void ks_new_note_freq(uint8_t voice) {
-    if(seq[voice].freq<=0) seq[voice].freq = 1;
-    uint16_t buflen = floor(SAMPLE_RATE / seq[voice].freq);
+extern "C" void ks_note_on(uint8_t voice) {
+    if(mseq[voice].freq<=0) mseq[voice].freq = 1;
+    uint16_t buflen = floor(SAMPLE_RATE / mseq[voice].freq);
     if(buflen > MAX_KS_BUFFER_LEN) buflen = MAX_KS_BUFFER_LEN;
     // init KS buffer with noise up to max
     for(uint16_t i=0;i<buflen;i++) {
         ks_buffer[voice][i] = ( (int16_t) ((esp_random() >> 16) - 32768) );
     }
 }
+
+extern "C" void ks_note_off(uint8_t voice) {
+    mseq[voice].amp = 0;
+}
+
 
 extern "C" void oscillators_init(void) {
     // 6ms buffer

@@ -7,10 +7,14 @@
 
 // Global state 
 struct state global;
+struct mod_state mglobal;
+
 // One set of events for the fifo
 struct event * events;
 // And another event per voice as multi-channel sequencer that the scheduler renders into
 struct event * seq;
+// The things per voice that LFOs & envelopes can change
+struct mod_event * mseq;
 
 // floatblock -- accumulative for mixing, -32767.0 -- 32768.0
 float * floatblock;
@@ -64,6 +68,17 @@ struct event default_event() {
     e.volume = -1;
     e.filter_freq = -1;
     e.resonance = -1;
+
+    e.lfo_source = -1;
+    e.lfo_target = -1;
+    e.adsr_target = -1;
+    e.adsr_on_clock = -1;
+    e.adsr_off_clock = -1;
+    e.adsr_a = -1;
+    e.adsr_d = -1;
+    e.adsr_s = -1;
+    e.adsr_r = -1;
+
     return e;
 }
 
@@ -91,6 +106,17 @@ void add_event(struct event e) {
         events[ew].sample = e.sample;
         events[ew].step = e.step;
         events[ew].substep = e.substep;
+      
+        events[ew].lfo_source = e.lfo_source;
+        events[ew].lfo_target = e.lfo_target;
+        events[ew].adsr_target = e.adsr_target;
+        events[ew].adsr_on_clock = e.adsr_on_clock;
+        events[ew].adsr_off_clock = e.adsr_off_clock;
+        events[ew].adsr_a = e.adsr_a;
+        events[ew].adsr_d = e.adsr_d;
+        events[ew].adsr_s = e.adsr_s;
+        events[ew].adsr_r = e.adsr_r;
+
         global.next_event_write = (ew + 1) % (EVENT_FIFO_LEN);
     }
 }
@@ -103,6 +129,7 @@ esp_err_t voices_init() {
     filters_init();
     events = (struct event*) malloc(sizeof(struct event) * EVENT_FIFO_LEN);
     seq = (struct event*) malloc(sizeof(struct event) * VOICES);
+    mseq = (struct mod_event*) malloc(sizeof(struct mod_event) * VOICES);
     floatblock = (float*) malloc(sizeof(float) * BLOCK_SIZE);
     block = (int16_t *) malloc(sizeof(int16_t) * BLOCK_SIZE);
 
@@ -122,6 +149,17 @@ esp_err_t voices_init() {
         seq[i].step = 0;
         seq[i].sample = DOWN;
         seq[i].substep = 0;
+ 
+        seq[i].lfo_source = -1;
+        seq[i].lfo_target = -1;
+        seq[i].adsr_target = -1;
+        seq[i].adsr_on_clock = -1;
+        seq[i].adsr_off_clock = -1;
+        seq[i].adsr_a = 50;
+        seq[i].adsr_d = 200;
+        seq[i].adsr_s = .5;
+        seq[i].adsr_r = 25;
+
     }
 
     // Fill the FIFO with default events, as the audio thread reads from it immediately
@@ -135,7 +173,19 @@ esp_err_t voices_init() {
     return ESP_OK;
 }
 
+void debug_voices() {
+    // print out all the voice data
 
+    printf("global: filter %f resonance %f volume %f\n", global.filter_freq, global.resonance, global.volume);
+    printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
+    for(uint8_t i=0;i<VOICES;i++) {
+        printf("voice %d: amp %f wave %d freq %f duty %f target %d velocity %d E: %d,%d,%2.2f,%d step %f \n",
+            i, seq[i].amp, seq[i].wave, seq[i].freq, seq[i].duty, seq[i].adsr_target, seq[i].velocity,
+            seq[i].adsr_a, seq[i].adsr_d, seq[i].adsr_s, seq[i].adsr_r, seq[i].step);
+        printf("mod voice %d: amp: %f, freq %f duty %f\n",
+            i, mseq[i].amp, mseq[i].freq, mseq[i].duty);
+    }
+}
 void voices_deinit() {
     free(block);
     free(floatblock);
@@ -152,26 +202,46 @@ void play_event(struct event e) {
     if(e.patch >= 0) seq[e.voice].patch = e.patch;
     if(e.duty >= 0) seq[e.voice].duty = e.duty;
     if(e.feedback >= 0) seq[e.voice].feedback = e.feedback;
-    if(e.velocity >= 0) seq[e.voice].velocity = e.velocity;
+    //if(e.velocity >= 0) seq[e.voice].velocity = e.velocity;
     if(e.freq >= 0) seq[e.voice].freq = e.freq;
     if(e.amp >= 0) seq[e.voice].amp = e.amp;
+    
+    if(e.adsr_target >= 0) seq[e.voice].adsr_target = e.adsr_target;
+    if(e.adsr_a >= 0) seq[e.voice].adsr_a = e.adsr_a;
+    if(e.adsr_d >= 0) seq[e.voice].adsr_d = e.adsr_d;
+    if(e.adsr_s >= 0) seq[e.voice].adsr_s = e.adsr_s;
+    if(e.adsr_r >= 0) seq[e.voice].adsr_r = e.adsr_r;
 
     // For volume (and later off, reset, etc) just make the change, no need to update the per-voice sequencer
     if(e.volume >= 0) global.volume = e.volume; 
-    if(e.filter_freq >= 0) { global.filter_freq = e.filter_freq; filter_update(); }
-    if(e.resonance >= 0) { global.resonance = e.resonance; filter_update(); }
+    if(e.filter_freq >= 0) { global.filter_freq = e.filter_freq; }
+    if(e.resonance >= 0) { global.resonance = e.resonance;  }
 
-    // Triggers / envelopes -- this needs some more thinking
-    if(seq[e.voice].wave==FM) {
-        if(seq[e.voice].midi_note>0) {
-            fm_new_note_number(e.voice);
-        } else {
-            fm_new_note_freq(e.voice); 
+    // Triggers / envelopes 
+    // the only way to make FM or KS noises is to use note ons (send velocity)
+    // you can play oscillators without note ons, but if you send velocity > 0 it will trigger ADSR & (LFO if set)
+
+    if(e.velocity>0 ) {
+        seq[e.voice].velocity = e.velocity;
+        // Take care of FM & KS first -- no special treatment for ADSR/LFO (although KS could use one? unclear)
+        if(seq[e.voice].wave==FM) { fm_note_on(e.voice); } 
+        else if(seq[e.voice].wave==KS) { ks_note_on(e.voice); } 
+        else {
+            // an oscillator voice came in with a note on.
+            // I think i just start the ADSR clock
+            seq[e.voice].adsr_on_clock = esp_timer_get_time() / 1000;
+        }
+    } else if(seq[e.voice].velocity > 0 && e.velocity == 0) { // new note off 
+        seq[e.voice].velocity = e.velocity;
+        if(seq[e.voice].wave==FM) { fm_note_off(e.voice); }
+        else if(seq[e.voice].wave==KS) { ks_note_off(e.voice); }
+        else {
+            // osc voice note off
+            seq[e.voice].adsr_on_clock = -1;
+            seq[e.voice].adsr_off_clock = esp_timer_get_time() / 1000;
         }
     }
-    if(seq[e.voice].wave==KS) {
-        ks_new_note_freq(e.voice);
-    }
+
 }
 
 
@@ -215,6 +285,19 @@ void fill_audio_buffer(float seconds) {
         // Clear out the accumulator buffer
         for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
         for(uint8_t voice=0;voice<VOICES;voice++) {
+ 
+            // Copy all the mseq variables
+            mseq[voice].amp = seq[voice].amp;
+            mseq[voice].duty = seq[voice].duty;
+            mseq[voice].freq = seq[voice].freq;
+            mglobal.filter_freq = global.filter_freq;
+            mglobal.resonance = global.resonance;
+
+            // Modify the mseq & mglobal if the ADSR is running
+            adsr_modify(voice);
+            // Same for LFO
+            lfo_modify(voice);
+
             switch(seq[voice].wave) {
                 case FM:
                     render_fm(floatblock, voice); 
@@ -242,8 +325,8 @@ void fill_audio_buffer(float seconds) {
         }
 
 
-        // If filtering is on, filter the bandlimited signal
-        if(global.filter_freq > 0) {
+        // If filtering is on, filter the mixed signal before bandlimiting
+        if(mglobal.filter_freq > 0) {
             filter_process(floatblock);
         }
 
@@ -297,6 +380,26 @@ void serialize_event(struct event e, uint16_t client) {
     mcast_send(message, strlen(message));
 }
 
+void parse_adsr(struct event * e, char* message) {
+    uint8_t idx = 0;
+    uint8_t c = 0;
+    // Change only the ones i received
+    while(message[c] != 0 && c < MAX_RECEIVE_LEN) {
+        if(message[c]!=',') {
+            if(idx==0) {
+                e->adsr_a = atoi(message+c);
+            } else if(idx == 1) {
+                e->adsr_d = atoi(message+c);
+            } else if(idx == 2) {
+                e->adsr_s = atof(message+c);
+            } else if(idx == 3) {
+                e->adsr_r = atoi(message+c);
+            }
+        }
+        while(message[c]!=',' && message[c]!=0 && c < MAX_RECEIVE_LEN) c++;
+        c++; idx++;
+    }
+}
 
 // parse a received event string and add event to queue
 void deserialize_event(char * message, uint16_t length) {
@@ -315,11 +418,13 @@ void deserialize_event(char * message, uint16_t length) {
 
     // Cut the OSC cruft Max etc add, they put a 0 and then more things after the 0
     int new_length = length; 
-    for(int d=0;d<length;d++) { if(message[d] == 0) { new_length = d; d = length + 1;  } }
+    for(int d=0;d<length;d++) {
+        if(message[d] == 0) { new_length = d; d = length + 1;  } 
+    }
     length = new_length;
 
     // Debug
-    //printf("message ###%s### len %d\n", message, length);
+    printf("message ###%s### len %d\n", message, length);
 
     while(c < length+1) {
         uint8_t b = message[c];
@@ -333,21 +438,24 @@ void deserialize_event(char * message, uint16_t length) {
                     computed_delta_set = 1;
                 }
             }
+            if(mode=='A') parse_adsr(&e, message+start);
             if(mode=='a') e.amp=atof(message + start);
             if(mode=='b') e.feedback=atof(message+start);
             if(mode=='c') client = atoi(message + start); 
             if(mode=='d') e.duty=atof(message + start);
-            if(mode=='e') e.velocity=atoi(message + start);
-            if(mode=='f') e.freq=atof(message + start);
+            // reminder: don't use "E" or "e", lol 
+            if(mode=='f') e.freq=atof(message + start); 
             if(mode=='F') e.filter_freq=atof(message + start);
             if(mode=='i') sync_index = atoi(message + start);
+            if(mode=='l') e.velocity=atoi(message + start);
             if(mode=='n') e.midi_note=atoi(message + start);
             if(mode=='p') e.patch=atoi(message + start);
             if(mode=='r') ipv4=atoi(message + start);
             if(mode=='R') e.resonance=atof(message + start);
             if(mode=='s') sync = atol(message + start); 
+            if(mode=='T') e.adsr_target = atoi(message + start); 
             if(mode=='v') e.voice=atoi(message + start);
-            if(mode=='V') e.volume = atof(message + start);
+            if(mode=='V') { e.volume = atof(message + start); debug_voices(); }
             if(mode=='w') e.wave=atoi(message + start);
             mode=b;
             start=c+1;

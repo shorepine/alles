@@ -39,7 +39,6 @@ extern "C" void render_fm(float * buf, uint8_t voice) {
         // Now make an int32 an int16_t, and put it in buf, this is from their wav writer
         int32_t delta = 0x100;
         for(int j=0;j<N;j++) {
-            // TODO -- this clips/crackles at >> 2, the original in msfa. 
             int32_t val = int32_t_buf[j] >> 3;
             int clip_val = val < -(1 << 24) ? 0x8000 : (val >= (1 << 24) ? 0x7fff : (val + delta) >> 9);
             delta = (delta + val) & 0x1ff;
@@ -49,14 +48,18 @@ extern "C" void render_fm(float * buf, uint8_t voice) {
     }
 }
 
-extern "C" void fm_new_note_freq(uint8_t voice) {
-    note[voice].init_with_freq(patches+(seq[voice].patch*156), seq[voice].freq, seq[voice].velocity);
+extern "C" void fm_note_on(uint8_t voice) {
+    // If MIDI note was set manually, use it instead of the freq conversion
+    if(seq[voice].midi_note>0) {
+        note[voice].init(patches+(seq[voice].patch*156), seq[voice].midi_note, seq[voice].velocity);
+    } else {
+        note[voice].init_with_freq(patches+(seq[voice].patch*156), seq[voice].freq, seq[voice].velocity);
+    }
     controllers[voice].values_[kControllerPitch] = 0x2000; // pitch wheel
-
 }
-extern "C" void fm_new_note_number(uint8_t voice) {
-    note[voice].init(patches+(seq[voice].patch*156), seq[voice].midi_note, seq[voice].velocity);
-    controllers[voice].values_[kControllerPitch] = 0x2000; // pitch wheel
+
+extern "C" void fm_note_off(uint8_t voice) {
+    note[voice].keyup();
 }
 
 extern "C" void fm_init(void) {

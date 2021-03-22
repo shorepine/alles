@@ -67,13 +67,14 @@ v0w4f440.0a0.5
 
 Where
 ```
+A = ADSR envelope, in commas, like 100,50,0.5,200 -- A, D, R are in ms, S is in fraction of the peak, 0-1
 a = amplitude, float 0-1 per voice. default 1
 b = feedback, float 0-1 for karplus-strong. default 0.996
 c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_id % (x-255) == 0) for groups, default all clients
 d = duty cycle, float 0.001-0.999. duty cycle for pulse wave, default 0.5
-e = velocity, uint 0-127, MIDI velocity for the DX7, default 100
 f = frequency, float 0-22050. default 0
 F = center frequency of biquad filter. 0 is off. default 0. applies to entire synth audio
+l = velocity, uint 0-127, MIDI velocity for the DX7, default 100
 n = midinote, uint, 0-127 (note that this will also set f). default 0
 p = patch, uint, 0-999, choose a preloaded DX7 patch number for FM waveforms. See patches.h and alles.py. default 0
 R = q factor / "resonance" of biquad filter. float. in practice, 0 to 1000.0. default 0.7.

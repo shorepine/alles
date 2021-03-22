@@ -35,7 +35,7 @@ extern "C" {
 
 
 // Constants you can change if you want
-#define BLOCK_SIZE 256       // i2s buffer block size in samples
+#define BLOCK_SIZE 64       // i2s buffer block size in samples
 #define VOICES 10            // # of simultaneous voices to keep track of 
 #define EVENT_FIFO_LEN 400   // number of events the queue can store
 #define LATENCY_MS 1000      // fixed latency in milliseconds
@@ -79,9 +79,15 @@ extern "C" {
 #define MIDI_IN 19
 
 
+#define TARGET_AMP 1
+#define TARGET_DUTY 2
+#define TARGET_FREQ 3
+#define TARGET_FILTER_FREQ 4
+#define TARGET_RESONANCE 5
+
 // Events
 struct event {
-    uint64_t time;
+    int64_t time;
     int16_t voice;
     int16_t wave;
     int16_t patch;
@@ -98,8 +104,25 @@ struct event {
     float volume;
     float filter_freq;
     float resonance;
+    int8_t lfo_source;
+    int8_t lfo_target;
+    int8_t adsr_target;
+    int64_t adsr_on_clock;
+    int64_t adsr_off_clock;
+    int16_t adsr_a;
+    int16_t adsr_d;
+    float adsr_s;
+    int16_t adsr_r;
 
 };
+
+// only the things that LFOs/env can change per voice
+struct mod_event {
+    float amp;
+    float duty;
+    float freq;
+};
+
 struct event default_event();
 void add_event(struct event e);
 
@@ -115,6 +138,12 @@ struct state {
     uint8_t midi_mode;
     uint8_t running;
     uint8_t wifi_manager_started_ok;
+};
+
+// global synth state, only the things LFO/env can change
+struct mod_state {
+    float resonance;
+    float filter_freq;
 };
 
 
@@ -146,8 +175,9 @@ extern int16_t client_id;
 extern void fm_init();
 extern void fm_deinit();
 extern void render_fm(float * buf, uint8_t voice); 
-extern void fm_new_note_number(uint8_t voice);
-extern void fm_new_note_freq(uint8_t voice);
+extern void fm_note_on(uint8_t voice);
+extern void fm_note_off(uint8_t voice);
+
 
 // bandlimted oscillators
 extern void oscillators_init();
@@ -159,13 +189,18 @@ extern void render_pulse(float * buf, uint8_t voice);
 extern void render_saw(float * buf, uint8_t voice); 
 extern void render_triangle(float * buf, uint8_t voice); 
 extern void render_noise(float * buf, uint8_t voice); 
-extern void ks_new_note_freq(uint8_t voice); 
+extern void ks_note_on(uint8_t voice); 
+extern void ks_note_off(uint8_t voice);
+
 
 // filters
 extern void filters_init();
 extern void filters_deinit();
-extern void filter_update();
 extern void filter_process(float * block);
+
+// envelopes
+extern void adsr_modify(uint8_t voice);
+extern void lfo_modify(uint8_t voice);
 
 // MIDI
 extern void midi_init();
