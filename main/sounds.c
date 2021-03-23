@@ -10,13 +10,13 @@ void bleep() {
     e.wave = SINE;
     e.freq = 220;
     e.status = SCHEDULED;
+    e.velocity = 1;
     add_event(e);
     e.time = sysclock + 150;
     e.freq = 440;
     add_event(e);
     e.time = sysclock + 300;
-    e.wave = OFF;
-    e.freq = 0;
+    e.velocity = 0;
     add_event(e);
 }
 
@@ -27,12 +27,13 @@ void debleep() {
     e.wave = SINE;
     e.freq = 440;
     e.status = SCHEDULED;
+    e.velocity = 1;
     add_event(e);
     e.time = sysclock + 150;
     e.freq = 220;
     add_event(e);
     e.time = sysclock + 300;
-    e.wave = OFF;
+    e.velocity = 0;
     e.freq = 0;
     add_event(e);
 }
@@ -46,6 +47,7 @@ void scale(uint8_t wave) {
         e.time = sysclock + (i*250);
         e.wave = wave;
         e.midi_note = 48+i;
+        e.velocity = 1;
         e.status = SCHEDULED;
         add_event(e);
     }

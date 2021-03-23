@@ -8,8 +8,22 @@ local_ip = socket.gethostbyname(socket.gethostname())
 # But override this if you are using multiple network interfaces, for example a dedicated router to control the synths
 local_ip = '192.168.1.2'
 
+# Some constants shared with the synth that help
 ALLES_LATENCY_MS = 1000
 [SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, OFF] = range(8)
+AMP = 1
+DUTY = 2
+FREQ = 4
+FILTER_FREQ = 8
+RESONANCE = 16
+
+def set_preset(which,voice=0, client=-1):
+    if(which==0): # simple note
+        tone(voice=voice, wave=SINE, envelope="10,250,0.7,250", adsr_target=AMP)
+    if(which==1): # filter bass
+        filter(1500, 10)
+        tone(voice=voice, wave=PULSE, envelope="50,750,0.2,250", adsr_target=AMP+FILTER_FREQ+RESONANCE+DUTY)
+
 
 def setup_sock():
     # Set up the socket for multicast send & receive
@@ -124,11 +138,19 @@ def sync(count=10, delay_ms=100):
     return clients
 
 
-def tone(voice=0, wave=-1, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=-1, \
+# yeah, TODO, note off should not turn off the wave , it should stay once set 
+def note_on(voice=-1, wave=-1, amp=-1, note=-1, client=-1):
+    tone(voice=voice, wave=wave, amp=amp, client=client, note=note, vel=1)
+def note_off(voice=-1, wave=-1, amp=-1, note=-1, client=-1):
+    tone(voice=voice, wave=wave, amp=amp, client=client, note=note, vel=0)
+
+
+def tone(voice=0, wave=-1, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=-1, reset=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, adsr_target=-1, lfo_target=-1, lfo_source=-1):
     global sock
     if(timestamp < 0): timestamp = alles_ms()
-    m = "t%dv%d" % (timestamp, voice)
+    m = "t%d" % (timestamp)
+    if(voice>=0): m = "v%d" % (voice)
     if(wave>=0): m = m + "w%d" % (wave)
     if(amp>=0): m = m + "a%f" % (amp)
     if(duty>=0): m = m + "d%f" % (duty)
@@ -145,6 +167,7 @@ def tone(voice=0, wave=-1, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, 
     if(adsr_target>=0): m = m + "T%d" % (adsr_target)
     if(lfo_target>=0): m = m + "g%d" % (lfo_target)
     if(lfo_source>=0): m = m + "L%d" % (lfo_source)
+    if(reset>=0): m = m + "S%d" % (reset)
     for x in range(retries):
         sock.sendto(m.encode('ascii'), multicast_group)
 
@@ -272,10 +295,12 @@ def complex(speed=0.250, vol=1, client =-1, loops=-1):
 
         loops = loops - 1
 
-def reset():
+def reset(voice=None):
     # Turn off amp per voice and back on again with no wave
-    for x in range(10):
-        tone(x, amp=1, wave=OFF, freq=0, filter_freq = 0, adsr_target=-1, lfo_target=-1, lfo_source=-1, envelope="0,0,1.0,0")
+    if(voice):
+        tone(reset=voice)
+    else:
+        tone(reset=100)
 
 def volume(volume, client = -1):
     tone(0, client=client, volume=volume)

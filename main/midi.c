@@ -47,8 +47,8 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
             }
             e.voice = 0; // midi_voice;
             e.midi_note = data1;
-            e.velocity = data2;
-            e.amp = 0.1; // for now
+            e.velocity = (float)data2/127.0;
+            e.amp = 1; // for now
             //note_map[midi_voice] = data1;
             if(channel == 0) {
                 serialize_event(e,256);

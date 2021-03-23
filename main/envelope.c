@@ -87,48 +87,31 @@ extern struct mod_event* mseq;
 
 extern struct mod_state mglobal;
 
-// Yeah, ok. ADSRs & LFOs happpen at BLOCK_SIZE resolution for now. not per sample. 
-// can update to ADSRs per sample later after i hear it
 
-
+// Re-trigger an LFO source voice on note on. 
 void retrigger_lfo_source(uint8_t voice) {
 	seq[voice].step = 0;
 	seq[voice].substep = 0;
 	seq[voice].sample = DOWN;
 }
 
+// LFO scale is not like ADSR scale, it can also make a thing bigger, so return range is between -1 and 1, where 1 = 2x and 0 = 1x
 float compute_lfo_scale(uint8_t voice) {
 	int8_t source = seq[voice].lfo_source;
 	if(seq[voice].lfo_target >= 1 && source >= 0) {
 		if(source != voice) {  // that would be weird
 			// Render the wave. you only need / get the first sample, so maybe there's a faster way to do this
-            mseq[source].amp = seq[source].amp;
-            mseq[source].duty = seq[source].duty;
-            mseq[source].freq = seq[source].freq;
+			mseq[source].amp = seq[source].amp;
+			mseq[source].duty = seq[source].duty;
+			mseq[source].freq = seq[source].freq;
 			float floatblock[BLOCK_SIZE];
-			for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
-			switch(seq[source].wave) {
-                case NOISE:
-                    render_noise(floatblock, source);
-                    break;
-                case SAW:
-                    render_saw(floatblock, source);
-                    break;
-                case PULSE:
-                    render_pulse(floatblock, source); 
-                    break;
-                case TRIANGLE:
-                    render_triangle(floatblock, source);
-                    break;                
-                case SINE:
-                    render_sine(floatblock, source);
-                    break;
-            }
-            //printf("lfo scale. voice %d source %d target %d scale %f\n", voice, source, seq[voice].lfo_target, floatblock[0]/16384.0);
+			for(uint16_t i=0;i<BLOCK_SIZE;i++) { floatblock[i] = 0; }
+			if(seq[source].wave == NOISE) render_noise(floatblock, source);
+			if(seq[source].wave == SAW) render_saw(floatblock, source);
+			if(seq[source].wave == PULSE) render_pulse(floatblock, source);
+			if(seq[source].wave == TRIANGLE) render_triangle(floatblock, source);
+			if(seq[source].wave == SINE) render_sine(floatblock, source);
             return floatblock[0] / 16384.0; // will be between -1 and 1
-            // what does an LFO do to scale? users can set depth using amp...
-            // i would think a max val would double the incoming sample, and a min val would 0 it
-            // so original + (original * scale); ? yes
   		}
 	}
 	return 0; // 0 is no change, unlike ADSR scale
@@ -157,7 +140,7 @@ float compute_adsr_scale(uint8_t voice) {
 		int64_t elapsed = sysclock - seq[voice].adsr_off_clock;
 		if(elapsed > seq[voice].adsr_r) {
 			scale = 0; // note is done
-			seq[voice].wave=OFF; // or else it'll just start playing as an oscillator again
+			seq[voice].status=OFF; // or else it'll just start playing as an oscillator again
 			// Turn off release clock
 			seq[voice].adsr_off_clock = -1;
 		} else {

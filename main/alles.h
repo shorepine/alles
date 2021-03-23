@@ -97,7 +97,7 @@ struct event {
     float feedback;
     float freq;
     uint8_t status;
-    int8_t velocity;
+    float velocity;
     float step;
     float substep;
     float sample;

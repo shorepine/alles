@@ -121,6 +121,38 @@ void add_event(struct event e) {
     }
 }
 
+void reset_voice(uint8_t i ) {
+    // set all the sequencer state to defaults
+    seq[i].voice = i; // self-reference to make updating oscillators easier
+    seq[i].wave = SINE;
+    seq[i].duty = 0.5;
+    seq[i].patch = 0;
+    seq[i].midi_note = 0;
+    seq[i].freq = 0;
+    seq[i].feedback = 0.996;
+    seq[i].amp = 1;
+    seq[i].volume = 0;
+    seq[i].filter_freq = 0;
+    seq[i].resonance = 0.7;
+    seq[i].velocity = 0;
+    seq[i].step = 0;
+    seq[i].sample = DOWN;
+    seq[i].substep = 0;
+    seq[i].status = OFF;
+    seq[i].lfo_source = -1;
+    seq[i].lfo_target = -1;
+    seq[i].adsr_target = -1;
+    seq[i].adsr_on_clock = -1;
+    seq[i].adsr_off_clock = -1;
+    seq[i].adsr_a = 0;
+    seq[i].adsr_d = 0;
+    seq[i].adsr_s = 1.0;
+    seq[i].adsr_r = 0;
+}
+
+void reset_voices() {
+    for(uint8_t i=0;i<VOICES;i++) reset_voice(i);
+}
 
 // The sequencer object keeps state betweeen voices, whereas events are only deltas/changes
 esp_err_t voices_init() {
@@ -133,36 +165,7 @@ esp_err_t voices_init() {
     floatblock = (float*) malloc(sizeof(float) * BLOCK_SIZE);
     block = (int16_t *) malloc(sizeof(int16_t) * BLOCK_SIZE);
 
-    for(int i=0;i<VOICES;i++) {
-        seq[i].voice = i; // self-reference to make updating oscillators easier
-        seq[i].wave = OFF;
-        seq[i].duty = 0.5;
-        seq[i].patch = 0;
-        seq[i].midi_note = 0;
-        seq[i].freq = 0;
-        seq[i].feedback = 0.996;
-        seq[i].amp = 1;
-        seq[i].volume = 0;
-        seq[i].filter_freq = 0;
-        seq[i].resonance = 0.7;
-        seq[i].velocity = 100;
-        seq[i].step = 0;
-        seq[i].sample = DOWN;
-        seq[i].substep = 0;
-        seq[i].status = AUDIBLE;
- 
-        seq[i].lfo_source = -1;
-        seq[i].lfo_target = -1;
-        seq[i].adsr_target = -1;
-        seq[i].adsr_on_clock = -1;
-        seq[i].adsr_off_clock = -1;
-        seq[i].adsr_a = 50;
-        seq[i].adsr_d = 200;
-        seq[i].adsr_s = .5;
-        seq[i].adsr_r = 25;
-
-    }
-
+    reset_voices();
     // Fill the FIFO with default events, as the audio thread reads from it immediately
     for(int i=0;i<EVENT_FIFO_LEN;i++) {
         // First clear out the malloc'd events so it doesn't seem like the queue is full
@@ -180,9 +183,9 @@ void debug_voices() {
     printf("global: filter %f resonance %f volume %f\n", global.filter_freq, global.resonance, global.volume);
     printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
     for(uint8_t i=0;i<VOICES;i++) {
-        printf("voice %d: amp %f wave %d freq %f duty %f adsr_target %d lfo_target %d lfo source %d velocity %d E: %d,%d,%2.2f,%d step %f \n",
-            i, seq[i].amp, seq[i].wave, seq[i].freq, seq[i].duty, seq[i].adsr_target, seq[i].lfo_target, seq[i].lfo_source, seq[i].velocity,
-            seq[i].adsr_a, seq[i].adsr_d, seq[i].adsr_s, seq[i].adsr_r, seq[i].step);
+        printf("voice %d: status %d amp %f wave %d freq %f duty %f adsr_target %d lfo_target %d lfo source %d velocity %f E: %d,%d,%2.2f,%d step %f \n",
+            i, seq[i].status, seq[i].amp, seq[i].wave, seq[i].freq, seq[i].duty, seq[i].adsr_target, seq[i].lfo_target, seq[i].lfo_source, 
+            seq[i].velocity, seq[i].adsr_a, seq[i].adsr_d, seq[i].adsr_s, seq[i].adsr_r, seq[i].step);
         printf("mod voice %d: amp: %f, freq %f duty %f\n",
             i, mseq[i].amp, mseq[i].freq, mseq[i].duty);
     }
@@ -203,7 +206,6 @@ void play_event(struct event e) {
     if(e.patch >= 0) seq[e.voice].patch = e.patch;
     if(e.duty >= 0) seq[e.voice].duty = e.duty;
     if(e.feedback >= 0) seq[e.voice].feedback = e.feedback;
-    //if(e.velocity >= 0) seq[e.voice].velocity = e.velocity;
     if(e.freq >= 0) seq[e.voice].freq = e.freq;
     if(e.amp >= 0) seq[e.voice].amp = e.amp;
     
@@ -228,6 +230,7 @@ void play_event(struct event e) {
 
     if(e.velocity>0 ) {
         seq[e.voice].velocity = e.velocity;
+        seq[e.voice].status = AUDIBLE;
         // Take care of FM & KS first -- no special treatment for ADSR/LFO (although KS could use one? unclear)
         if(seq[e.voice].wave==FM) { fm_note_on(e.voice); } 
         else if(seq[e.voice].wave==KS) { ks_note_on(e.voice); } 
@@ -402,7 +405,8 @@ esp_err_t setup_i2s(void) {
 void serialize_event(struct event e, uint16_t client) {
     char message[MAX_RECEIVE_LEN];
     // Maybe only send the ones that are non-default? think
-    sprintf(message, "a%fb%fc%dd%fe%df%fn%dp%dv%dw%dt%lld", 
+    // TODO -- we're missing a bunch here, only used for MIDI relay
+    sprintf(message, "a%fb%fc%dd%fl%ff%fn%dp%dv%dw%dt%lld", 
         e.amp, e.feedback, client, e.duty, e.velocity, e.freq, e.midi_note, e.patch, e.voice, e.wave, e.time );
     mcast_send(message, strlen(message));
 }
@@ -482,6 +486,10 @@ void deserialize_event(char * message, uint16_t length) {
             if(mode=='r') ipv4=atoi(message + start);
             if(mode=='R') e.resonance=atof(message + start);
             if(mode=='s') sync = atol(message + start); 
+            if(mode=='S') { 
+                uint8_t voice = atoi(message + start); 
+                if(voice > VOICES-1) { reset_voices(); } else { reset_voice(voice); }
+            }
             if(mode=='T') e.adsr_target = atoi(message + start); 
             if(mode=='v') e.voice=atoi(message + start);
             if(mode=='V') { e.volume = atof(message + start); debug_voices(); }

@@ -2,7 +2,7 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/alles/master/pics/set.jpg)
 
-**alles** is a many-speaker distributed mesh synthesizer that responds to control signals over WiFi. Each synth supports up to 10 additive sine, saw, pulse/square, noise and triangle oscillators, a Karplus-Strong string implementation, and a full FM stage including support for DX7 patches, with a single biquad filter implementation on top. They're cheap to make ($7 for the microcontroller, $6 for the amplifier, speakers from $0.50 up depending on quality). And very easy to put together with hookup wire or only a few soldering points. 
+**alles** is a many-speaker distributed mesh synthesizer that responds to control signals over WiFi. Each synth supports up to 10 additive sine, saw, pulse/square, noise and triangle oscillators, a Karplus-Strong string implementation, and a full FM stage including support for DX7 patches. Each voice can support an ADSR envelope or LFO sourced from a different voice controlling up to 5 parameters. Each synth has a single biquad filter implementation on top of all voices. They're cheap to make ($7 for the microcontroller, $6 for the amplifier, speakers from $0.50 up depending on quality). And very easy to put together with hookup wire or only a few soldering points. 
 
 The synthesizers form a mesh and listen to UDP multicast messages. You can control the mesh from a host computer from any programming language or environments like Max or Pd. You can also wire one synth up to MIDI or MIDI over Bluetooth, and use any MIDI software or controller; the directly connected synth will broadcast to the rest of the mesh for you. 
 
@@ -62,23 +62,28 @@ On first boot, each synth will create a captive wifi network called `alles-synth
 Alles responds to commands via UDP in ASCII delimited by a character, like
 
 ```
-v0w4f440.0a0.5
+v0w4f440.0a0.5l1
 ```
+
 
 Where
 ```
-A = ADSR envelope, in commas, like 100,50,0.5,200 -- A, D, R are in ms, S is in fraction of the peak, 0-1
+A = ADSR envelope, string, in commas, like 100,50,0.5,200 -- A, D, R are in ms, S is in fraction of the peak, 0-1. default 0,0,1,0
 a = amplitude, float 0-1 per voice. default 1
 b = feedback, float 0-1 for karplus-strong. default 0.996
 c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_id % (x-255) == 0) for groups, default all clients
 d = duty cycle, float 0.001-0.999. duty cycle for pulse wave, default 0.5
 f = frequency, float 0-22050. default 0
 F = center frequency of biquad filter. 0 is off. default 0. applies to entire synth audio
-l = velocity, uint 0-127, MIDI velocity for the DX7, default 100
+g = LFO target mask. Which parameter LFO controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
+L = LFO source voice. 0-9. Which voice is used as an LFO for this voice. Source voice will be silent. 
+l = velocity, float 0-1, send >0 to trigger note on. Must be sent to make sound. Send 0 to trigger note off.
 n = midinote, uint, 0-127 (note that this will also set f). default 0
 p = patch, uint, 0-999, choose a preloaded DX7 patch number for FM waveforms. See patches.h and alles.py. default 0
-R = q factor / "resonance" of biquad filter. float. in practice, 0 to 1000.0. default 0.7.
+R = q factor / "resonance" of biquad filter. float. in practice, 0 to 100.0. default 0.7.
+S = reset voice, uint 0-9 or all voices, anything >=10. 
 s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py, also uses i for sync_index and y for battery
+T = ADSR target mask. Which parameter ADSR controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can.
 v = voice, uint, 0 to 9. default: 0
 V = volume, float 0 to about 10 in practice. volume knob for the entire synth / speaker. default 0.5
@@ -90,11 +95,11 @@ Commands are cumulative, state is held per voice. If voice is not given it's ass
 Example:
 
 ```
-f440a0.1t4500
+f440a0.1t4500l1
 a0.5t4600
 w1t4600
-v1w5n50a0.2t5500
-v10.4t7000
+v1w5n50a0.2t5500l1
+v1a0.4t7000
 w2t7000
 ```
 
