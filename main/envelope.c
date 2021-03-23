@@ -69,10 +69,14 @@ yeah it's -- do envelopes lead or not is the deign q, it's the same thing i thin
 ok, need to think about multiples here
 a voice always has an ADSR attached. by default it's 0,0,1,0.
 you can change ADSR with a envelope command: v0L0,0,0.5,0 etc
-ADSR can control up to 5 things with a bitmask - 1 + 2 + 4 + 8 + 16, filter+amp is 9
+T -- ADSR can control up to 5 things with a bitmask - 1 + 2 + 4 + 8 + 16, filter+amp is 9
 T0 means none
 but do you ever want to remove an amp envelope? Oh yes, you would.. sure - if it's a constant tone but with env for filters
-OK, that should work for T
+
+Now, LFOs. 
+
+F - v0F2 - sets LFO source. default is none / -1
+separate target command -- R, same params
 
 
 
@@ -86,8 +90,48 @@ extern struct mod_state mglobal;
 // Yeah, ok. ADSRs & LFOs happpen at BLOCK_SIZE resolution for now. not per sample. 
 // can update to ADSRs per sample later after i hear it
 
+
+void retrigger_lfo_source(uint8_t voice) {
+	seq[voice].step = 0;
+	seq[voice].substep = 0;
+	seq[voice].sample = DOWN;
+}
+
 float compute_lfo_scale(uint8_t voice) {
-	return 1;
+	int8_t source = seq[voice].lfo_source;
+	if(seq[voice].lfo_target >= 1 && source >= 0) {
+		if(source != voice) {  // that would be weird
+			// Render the wave. you only need / get the first sample, so maybe there's a faster way to do this
+            mseq[source].amp = seq[source].amp;
+            mseq[source].duty = seq[source].duty;
+            mseq[source].freq = seq[source].freq;
+			float floatblock[BLOCK_SIZE];
+			for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
+			switch(seq[source].wave) {
+                case NOISE:
+                    render_noise(floatblock, source);
+                    break;
+                case SAW:
+                    render_saw(floatblock, source);
+                    break;
+                case PULSE:
+                    render_pulse(floatblock, source); 
+                    break;
+                case TRIANGLE:
+                    render_triangle(floatblock, source);
+                    break;                
+                case SINE:
+                    render_sine(floatblock, source);
+                    break;
+            }
+            //printf("lfo scale. voice %d source %d target %d scale %f\n", voice, source, seq[voice].lfo_target, floatblock[0]/16384.0);
+            return floatblock[0] / 16384.0; // will be between -1 and 1
+            // what does an LFO do to scale? users can set depth using amp...
+            // i would think a max val would double the incoming sample, and a min val would 0 it
+            // so original + (original * scale); ? yes
+  		}
+	}
+	return 0; // 0 is no change, unlike ADSR scale
 }
 
 float compute_adsr_scale(uint8_t voice) {

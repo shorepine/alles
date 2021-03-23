@@ -203,6 +203,7 @@ extern void filter_process_ints(int16_t * block);
 // envelopes
 extern float compute_adsr_scale(uint8_t voice);
 extern float compute_lfo_scale(uint8_t voice);
+extern void retrigger_lfo_source(uint8_t voice);
 
 // MIDI
 extern void midi_init();
@@ -225,6 +226,8 @@ extern void read_midi();
 #define EMPTY 0
 #define SCHEDULED 1
 #define PLAYED 2
+#define AUDIBLE 3
+#define LFO_SOURCE 4
 
 
 #define UP    16383

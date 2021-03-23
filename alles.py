@@ -125,7 +125,7 @@ def sync(count=10, delay_ms=100):
 
 
 def tone(voice=0, wave=-1, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=-1, \
-        client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, target=-1):
+        client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, adsr_target=-1, lfo_target=-1, lfo_source=-1):
     global sock
     if(timestamp < 0): timestamp = alles_ms()
     m = "t%dv%d" % (timestamp, voice)
@@ -142,7 +142,9 @@ def tone(voice=0, wave=-1, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, 
     if(resonance>=0): m = m + "R%f" % (resonance)
     if(filter_freq>=0): m = m + "F%f" % (filter_freq)
     if(envelope is not None): m = m +"A%s" %(envelope)
-    if(target>=0): m = m + "T%d" % (target)
+    if(adsr_target>=0): m = m + "T%d" % (adsr_target)
+    if(lfo_target>=0): m = m + "g%d" % (lfo_target)
+    if(lfo_source>=0): m = m + "L%d" % (lfo_source)
     for x in range(retries):
         sock.sendto(m.encode('ascii'), multicast_group)
 
@@ -273,7 +275,7 @@ def complex(speed=0.250, vol=1, client =-1, loops=-1):
 def reset():
     # Turn off amp per voice and back on again with no wave
     for x in range(10):
-        tone(x, amp=1, wave=OFF, freq=0, filter_freq = 0)
+        tone(x, amp=1, wave=OFF, freq=0, filter_freq = 0, adsr_target=-1, lfo_target=-1, lfo_source=-1, envelope="0,0,1.0,0")
 
 def volume(volume, client = -1):
     tone(0, client=client, volume=volume)

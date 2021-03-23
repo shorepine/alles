@@ -149,6 +149,7 @@ esp_err_t voices_init() {
         seq[i].step = 0;
         seq[i].sample = DOWN;
         seq[i].substep = 0;
+        seq[i].status = AUDIBLE;
  
         seq[i].lfo_source = -1;
         seq[i].lfo_target = -1;
@@ -179,8 +180,8 @@ void debug_voices() {
     printf("global: filter %f resonance %f volume %f\n", global.filter_freq, global.resonance, global.volume);
     printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
     for(uint8_t i=0;i<VOICES;i++) {
-        printf("voice %d: amp %f wave %d freq %f duty %f target %d velocity %d E: %d,%d,%2.2f,%d step %f \n",
-            i, seq[i].amp, seq[i].wave, seq[i].freq, seq[i].duty, seq[i].adsr_target, seq[i].velocity,
+        printf("voice %d: amp %f wave %d freq %f duty %f adsr_target %d lfo_target %d lfo source %d velocity %d E: %d,%d,%2.2f,%d step %f \n",
+            i, seq[i].amp, seq[i].wave, seq[i].freq, seq[i].duty, seq[i].adsr_target, seq[i].lfo_target, seq[i].lfo_source, seq[i].velocity,
             seq[i].adsr_a, seq[i].adsr_d, seq[i].adsr_s, seq[i].adsr_r, seq[i].step);
         printf("mod voice %d: amp: %f, freq %f duty %f\n",
             i, mseq[i].amp, mseq[i].freq, mseq[i].duty);
@@ -212,6 +213,10 @@ void play_event(struct event e) {
     if(e.adsr_s >= 0) seq[e.voice].adsr_s = e.adsr_s;
     if(e.adsr_r >= 0) seq[e.voice].adsr_r = e.adsr_r;
 
+    // Todo , how to turn off LFO source once set
+    if(e.lfo_source >= 0) { seq[e.voice].lfo_source = e.lfo_source; seq[e.lfo_source].status = LFO_SOURCE; }
+    if(e.lfo_target >= 0) seq[e.voice].lfo_target = e.lfo_target;
+
     // For volume (and later off, reset, etc) just make the change, no need to update the per-voice sequencer
     if(e.volume >= 0) global.volume = e.volume; 
     if(e.filter_freq >= 0) global.filter_freq = e.filter_freq; 
@@ -230,6 +235,8 @@ void play_event(struct event e) {
             // an oscillator voice came in with a note on.
             // I think i just start the ADSR clock
             seq[e.voice].adsr_on_clock = esp_timer_get_time() / 1000;
+            // And reset the step of the LFO source if any for this voice 
+            if(seq[e.voice].lfo_source >= 0) retrigger_lfo_source(seq[e.voice].lfo_source);
         }
     } else if(seq[e.voice].velocity > 0 && e.velocity == 0) { // new note off 
         seq[e.voice].velocity = e.velocity;
@@ -289,48 +296,57 @@ void fill_audio_buffer(float seconds) {
         mglobal.filter_freq = global.filter_freq;
 
         for(uint8_t voice=0;voice<VOICES;voice++) {
- 
-            // Copy all the mseq variables
-            mseq[voice].amp = seq[voice].amp;
-            mseq[voice].duty = seq[voice].duty;
-            mseq[voice].freq = seq[voice].freq;
 
-            // Modify the mseq if you need to
-            float scale = compute_adsr_scale(voice);
-            if(scale < 1) {
+            if(seq[voice].status==AUDIBLE) { // skip voices that are silent or LFO sources from playback
+                // Copy all the mseq variables
+                mseq[voice].amp = seq[voice].amp;
+                mseq[voice].duty = seq[voice].duty;
+                mseq[voice].freq = seq[voice].freq;
+
+                // Modify the mseq if you need to
+                float scale = compute_adsr_scale(voice);
+                
                 if(seq[voice].adsr_target & TARGET_AMP) mseq[voice].amp = mseq[voice].amp * scale;
                 if(seq[voice].adsr_target & TARGET_DUTY) mseq[voice].duty = mseq[voice].duty * scale;
                 if(seq[voice].adsr_target & TARGET_FREQ) mseq[voice].freq = mseq[voice].freq * scale;
                 // In practice you probably only have one voice doing these, but if you have two they'll get double scaled
                 if(seq[voice].adsr_target & TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq * scale;
                 if(seq[voice].adsr_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
-            }
-            scale = compute_lfo_scale(voice); // TBD
 
+                // And the LFO 
+                scale = compute_lfo_scale(voice);
+                // original + (original * scale)
+                if(seq[voice].lfo_target & TARGET_AMP) mseq[voice].amp = mseq[voice].amp + (mseq[voice].amp * scale);
+                if(seq[voice].lfo_target & TARGET_DUTY) mseq[voice].duty = mseq[voice].duty + (mseq[voice].duty * scale);
+                if(seq[voice].lfo_target & TARGET_FREQ) mseq[voice].freq = mseq[voice].freq + (mseq[voice].freq * scale);
+                // In practice you probably only have one voice doing these, but if you have two they'll get double scaled
+                if(seq[voice].lfo_target & TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq + (mglobal.filter_freq * scale);
+                if(seq[voice].lfo_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance + (mglobal.resonance * scale);
 
-            switch(seq[voice].wave) {
-                case FM:
-                    render_fm(floatblock, voice); 
-                    break;
-                case NOISE:
-                    render_noise(floatblock, voice);
-                    break;
-                case SAW:
-                    render_saw(floatblock, voice);
-                    break;
-                case PULSE:
-                    render_pulse(floatblock, voice); 
-                    break;
-                case TRIANGLE:
-                    render_triangle(floatblock, voice);
-                    break;                
-                case SINE:
-                    render_sine(floatblock, voice);
-                    break;
-                case KS:
-                    render_ks(floatblock, voice); 
-                    break;
+                switch(seq[voice].wave) {
+                    case FM:
+                        render_fm(floatblock, voice); 
+                        break;
+                    case NOISE:
+                        render_noise(floatblock, voice);
+                        break;
+                    case SAW:
+                        render_saw(floatblock, voice);
+                        break;
+                    case PULSE:
+                        render_pulse(floatblock, voice); 
+                        break;
+                    case TRIANGLE:
+                        render_triangle(floatblock, voice);
+                        break;                
+                    case SINE:
+                        render_sine(floatblock, voice);
+                        break;
+                    case KS:
+                        render_ks(floatblock, voice); 
+                        break;
 
+                }
             }
         }
 
@@ -457,8 +473,10 @@ void deserialize_event(char * message, uint16_t length) {
             // reminder: don't use "E" or "e", lol 
             if(mode=='f') e.freq=atof(message + start); 
             if(mode=='F') e.filter_freq=atof(message + start);
+            if(mode=='g') e.lfo_target = atoi(message + start); 
             if(mode=='i') sync_index = atoi(message + start);
             if(mode=='l') e.velocity=atoi(message + start);
+            if(mode=='L') e.lfo_source=atoi(message + start);
             if(mode=='n') e.midi_note=atoi(message + start);
             if(mode=='p') e.patch=atoi(message + start);
             if(mode=='r') ipv4=atoi(message + start);
