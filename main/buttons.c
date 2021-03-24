@@ -51,7 +51,7 @@ static void gpio_task(void* arg) {
                 break;
             case BUTTON_POWER_LONG:
                 printf("power long\n");
-                if(global.board_level == ALLES_BOARD_V1) global.running = 0;
+                if(global.board_level == ALLES_BOARD_V1) global.status = 0;
                 break;
             }
 

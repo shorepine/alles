@@ -128,6 +128,10 @@ void add_event(struct event e);
 
 
 
+#define RUNNING 1
+#define WIFI_MANAGER_OK 2
+#define MIDI_MODE 4
+
 // global synth state
 struct state {
     float volume;
@@ -135,9 +139,7 @@ struct state {
     float filter_freq;
     int16_t next_event_write;
     uint8_t board_level;
-    uint8_t midi_mode;
-    uint8_t running;
-    uint8_t wifi_manager_started_ok;
+    uint8_t status;
 };
 
 // global synth state, only the things LFO/env can change

@@ -41,9 +41,9 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
             e.time = esp_timer_get_time() / 1000; // looks like BLE timestamp rolls over within 10s
             if(program_bank[channel] > 0) {
                 e.wave = FM;
-                e.patch = ((program_bank[channel]-1) * 128) + program[channel];
+                //e.patch = ((program_bank[channel]-1) * 128) + program[channel];
             } else {
-                e.wave = program[channel];
+                //e.wave = program[channel];
             }
             e.voice = 0; // midi_voice;
             e.midi_note = data1;
@@ -59,6 +59,16 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
 
         } else if (message == 0x80) { 
             // note off
+            struct event e = default_event();
+            e.velocity = 0;
+            e.time = esp_timer_get_time() / 1000;
+            e.voice = 0;
+            if(channel == 0) {
+                serialize_event(e,256);
+            } else {
+                serialize_event(e, channel - 1);
+            }
+            
             //uint8_t data2 = remaining_message[1];
             //printf("note off channel %d note %d\n", channel, data1);
             // for now, only handle broadcast note offs... will have to refactor if i go down this path farther

@@ -25,9 +25,7 @@ int16_t * block;
 esp_err_t global_init() {
     global.next_event_write = 0;
     global.board_level = ALLES_BOARD_V1;
-    global.midi_mode = 0;
-    global.running = 1;
-    global.wifi_manager_started_ok = 0;
+    global.status = RUNNING;
     global.volume = 0.5;
     global.resonance = 0.7;
     global.filter_freq = 0;
@@ -126,11 +124,14 @@ void reset_voice(uint8_t i ) {
     seq[i].voice = i; // self-reference to make updating oscillators easier
     seq[i].wave = SINE;
     seq[i].duty = 0.5;
+    mseq[i].duty = 0.5;
     seq[i].patch = 0;
     seq[i].midi_note = 0;
     seq[i].freq = 0;
+    mseq[i].freq = 0;
     seq[i].feedback = 0.996;
     seq[i].amp = 1;
+    mseq[i].amp = 1;
     seq[i].volume = 0;
     seq[i].filter_freq = 0;
     seq[i].resonance = 0.7;
@@ -148,6 +149,7 @@ void reset_voice(uint8_t i ) {
     seq[i].adsr_d = 0;
     seq[i].adsr_s = 1.0;
     seq[i].adsr_r = 0;
+
 }
 
 void reset_voices() {
@@ -180,7 +182,7 @@ esp_err_t voices_init() {
 void debug_voices() {
     // print out all the voice data
 
-    printf("global: filter %f resonance %f volume %f\n", global.filter_freq, global.resonance, global.volume);
+    printf("global: filter %f resonance %f volume %f status %d\n", global.filter_freq, global.resonance, global.volume, global.status);
     printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
     for(uint8_t i=0;i<VOICES;i++) {
         printf("voice %d: status %d amp %f wave %d freq %f duty %f adsr_target %d lfo_target %d lfo source %d velocity %f E: %d,%d,%2.2f,%d step %f \n",
@@ -406,8 +408,12 @@ void serialize_event(struct event e, uint16_t client) {
     char message[MAX_RECEIVE_LEN];
     // Maybe only send the ones that are non-default? think
     // TODO -- we're missing a bunch here, only used for MIDI relay
-    sprintf(message, "a%fb%fc%dd%fl%ff%fn%dp%dv%dw%dt%lld", 
-        e.amp, e.feedback, client, e.duty, e.velocity, e.freq, e.midi_note, e.patch, e.voice, e.wave, e.time );
+    //sprintf(message, "a%fb%fc%dd%fl%ff%fn%dp%dv%dw%dt%lld", 
+    //    e.amp, e.feedback, client, e.duty, e.velocity, e.freq, e.midi_note, e.patch, e.voice, e.wave, e.time );
+    sprintf(message, "c%dl%fn%dv%dt%lld", 
+        client, e.velocity, e.midi_note, e.voice, e.time );
+    
+    printf("sending %s\n", message);
     mcast_send(message, strlen(message));
 }
 
@@ -433,7 +439,11 @@ void parse_adsr(struct event * e, char* message) {
 }
 
 // parse a received event string and add event to queue
-void deserialize_event(char * message, uint16_t length) {
+uint8_t deserialize_event(char * message, uint16_t length) {
+
+    // Don't process new messages if we're in MIDI mode
+    if(global.status & MIDI_MODE) return 0;
+
     uint8_t mode = 0;
     int64_t sync = -1;
     int8_t sync_index = -1;
@@ -455,7 +465,7 @@ void deserialize_event(char * message, uint16_t length) {
     length = new_length;
 
     // Debug
-    //printf("message ###%s### len %d\n", message, length);
+    //printf("received message ###%s### len %d\n", message, length);
 
     while(c < length+1) {
         uint8_t b = message[c];
@@ -479,7 +489,7 @@ void deserialize_event(char * message, uint16_t length) {
             if(mode=='F') e.filter_freq=atof(message + start);
             if(mode=='g') e.lfo_target = atoi(message + start); 
             if(mode=='i') sync_index = atoi(message + start);
-            if(mode=='l') e.velocity=atoi(message + start);
+            if(mode=='l') e.velocity=atof(message + start);
             if(mode=='L') e.lfo_source=atoi(message + start);
             if(mode=='n') e.midi_note=atoi(message + start);
             if(mode=='p') e.patch=atoi(message + start);
@@ -552,6 +562,7 @@ void deserialize_event(char * message, uint16_t length) {
             if(for_me) add_event(e);
         }
     }
+    return 0;
 }
 
 int8_t check_init(esp_err_t (*fn)(), char *name) {
@@ -574,7 +585,7 @@ void cb_connection_ok(void *pvParameter){
     esp_ip4addr_ntoa(&param->ip_info.ip, str_ip, IP4ADDR_STRLEN_MAX);
 
     ESP_LOGI(TAG, "I have a connection and my IP is %s!", str_ip);
-    global.wifi_manager_started_ok = 1;
+    global.status |= WIFI_MANAGER_OK;
 }
 
 
@@ -597,19 +608,20 @@ void wifi_reconfigure() {
     esp_restart();
 }
 
+    TaskHandle_t multicast_handle = NULL;
 
 // Called when the MIDI button is hit. Toggle between MIDI on and off mode
 void toggle_midi() {
-    if(global.midi_mode) { 
-        // turn off midi
-        global.midi_mode = 0;
+    if(global.status & MIDI_MODE) { 
         // just restart, easier that way
         esp_restart();
     } else {
         // turn on midi
-        global.midi_mode = 1;
+        global.status = MIDI_MODE | RUNNING;
         fm_deinit(); // have to free RAM to start the BLE stack
         voices_deinit();
+        printf("Shutting down multicast receive\n");
+        vTaskDelete(multicast_handle);
         midi_init();
     }
 }
@@ -693,7 +705,7 @@ void app_main() {
     /* register a callback as an example to how you can integrate your code with the wifi manager */
     wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_connection_ok);
 
-    while(!global.wifi_manager_started_ok) {
+    while(!(global.status & WIFI_MANAGER_OK)) {
         vTaskDelay(100 / portTICK_PERIOD_MS);
     };
 
@@ -719,7 +731,6 @@ void app_main() {
     create_multicast_ipv4_socket();
 
     // Pin the UDP task to the 2nd core so the audio / main core runs on its own without getting starved
-    TaskHandle_t multicast_handle = NULL;
     xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 2, &multicast_handle, 1);
     
     // Allocate the FM RAM after the captive portal HTTP server is passed, as you can't have both at once
@@ -730,9 +741,9 @@ void app_main() {
     bleep();
 
     // Spin this core until the power off button is pressed, parsing events and making sounds
-    while(global.running) {
+    while(global.status & RUNNING) {
         // Only emit sounds if MIDI is not on
-        if(!global.midi_mode) {
+        if(!(global.status & MIDI_MODE)) {
             fill_audio_buffer(-1); 
         } else {
             vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -765,7 +776,7 @@ void app_main() {
     // Stop mulitcast listening, wifi, midi
     vTaskDelete(multicast_handle);
     esp_wifi_stop();
-    if(global.midi_mode) midi_deinit();
+    if(global.status & MIDI_MODE) midi_deinit();
 
     // Go into deep_sleep
     esp_deep_sleep_start();

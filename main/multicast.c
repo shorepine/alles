@@ -31,7 +31,6 @@ extern void deserialize_event(char * message, uint16_t length);
 extern esp_ip4_addr_t wifi_manager_ip4;
 extern uint8_t battery_mask;
 
-
 uint8_t ipv4_quartet;
 int16_t client_id;
 int64_t clocks[255];
@@ -240,7 +239,7 @@ void mcast_listen_task(void *pvParameters) {
 
         // Loop waiting for UDP received, and sending UDP packets if we don't see any.
         int err = 1;
-        while (err > 0) {
+        while (err > 0) { //         while (err > 0) {
             fd_set rfds;
             FD_ZERO(&rfds);
             FD_SET(sock, &rfds);

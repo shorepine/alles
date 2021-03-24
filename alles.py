@@ -19,10 +19,10 @@ RESONANCE = 16
 
 def set_preset(which,voice=0, client=-1):
     if(which==0): # simple note
-        tone(voice=voice, wave=SINE, envelope="10,250,0.7,250", adsr_target=AMP)
+        tone(voice=voice, wave=SINE, envelope="10,250,0.7,250", adsr_target=AMP,timestamp=-1)
     if(which==1): # filter bass
         filter(1500, 10)
-        tone(voice=voice, wave=PULSE, envelope="50,750,0.2,250", adsr_target=AMP+FILTER_FREQ+RESONANCE+DUTY)
+        tone(voice=voice, wave=SAW, envelope="10,100,0.5,25", adsr_target=AMP+FILTER_FREQ,timestamp=-1)
 
 
 def setup_sock():
@@ -145,10 +145,10 @@ def note_off(voice=-1, wave=-1, amp=-1, note=-1, client=-1):
     tone(voice=voice, wave=wave, amp=amp, client=client, note=note, vel=0)
 
 
-def tone(voice=0, wave=-1, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=-1, reset=-1, \
+def tone(voice=0, wave=-1, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, adsr_target=-1, lfo_target=-1, lfo_source=-1):
     global sock
-    if(timestamp < 0): timestamp = alles_ms()
+    if(timestamp is None): timestamp = alles_ms()
     m = "t%d" % (timestamp)
     if(voice>=0): m = "v%d" % (voice)
     if(wave>=0): m = m + "w%d" % (wave)
@@ -303,10 +303,10 @@ def reset(voice=None):
         tone(reset=100)
 
 def volume(volume, client = -1):
-    tone(0, client=client, volume=volume)
+    tone(0, client=client, volume=volume, timestamp=-1)
 
 def filter(center, q, client = -1):
-    tone(0, filter_freq = center, resonance = q, client = client)
+    tone(0, filter_freq = center, resonance = q, client = client, timestamp=-1)
 
 def c_major(octave=2,wave=SINE, vol=0.2):
     tone(voice=0,freq=220.5*octave,amp=vol/3.0, wave=wave)
