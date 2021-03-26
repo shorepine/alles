@@ -12,7 +12,11 @@ The original idea was to install a bunch of them throughout a space and make a d
 
 ## Putting it together 
 
-We are currently testing rev2 of a all-in-one design for Alles. The self-contained version has its own rechargable battery, 4ohm speaker, case and buttons for configuration & setup. We're hoping to be able to sell these in packs for anyone to use. More details soon. But it's still very simple to make one yourself with parts you can get from electronics distributors like Sparkfun, Adafruit or Amazon. 
+We are currently testing rev2 of a all-in-one design for Alles. The self-contained version has its own rechargable battery, 4ohm speaker, case and buttons for configuration & setup. We're hoping to be able to sell these in packs for anyone to use. More details soon. 
+
+![blinkinlabs PCB](https://raw.githubusercontent.com/bwhitman/alles/master/pics/alles_reva.png)
+
+But it's still very simple to make one yourself with parts you can get from electronics distributors like Sparkfun, Adafruit or Amazon. 
 
 To make an Alles synth yourself, you need
 
@@ -40,7 +44,7 @@ Speaker connectors -> speaker
 
 *You don't need this PCB made to build a DIY Alles!* -- it will work with just hookup wire. But if you're making a lot of DIY Alleses want more stability, I had a tiny little board made to join the boards together, like so:
 
-![closeup](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/adapter.jpg)
+![closeup](https://raw.githubusercontent.com/bwhitman/alles/master/pics/adapter.jpg)
 
 Fritzing file in the `pcbs` folder of this repository, and [it's here on Aisler](https://aisler.net/p/TEBMDZWQ). This is a lot more stable and easier to wire up than snipping small bits of hookup wire, especially for the GAIN connection. 
 
