@@ -176,13 +176,13 @@ import socket
 multicast_group = ('232.10.11.12', 3333)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-def tone(voice=0, type=0, amp=0.1, freq=0):
-    sock.sendto("v%dw%da%ff%f" % (voice, type, amp, freq), multicast_group)
+def tone(voice=0, freq=0, vel=1):
+    sock.sendto("v%df%fl%f" % (voice, freq, vel), multicast_group)
 
-def c_major(octave=2,vol=0.2):
-    tone(voice=0,freq=220.5*octave,amp=vol/3.0)
-    tone(voice=1,freq=138.5*octave,amp=vol/3.0)
-    tone(voice=2,freq=164.5*octave,amp=vol/3.0)
+def c_major(octave=2):
+    tone(voice=0,freq=220.5*octave)
+    tone(voice=1,freq=138.5*octave)
+    tone(voice=2,freq=164.5*octave)
 
 ```
 
