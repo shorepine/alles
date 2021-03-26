@@ -30,8 +30,6 @@ void filter_process_ints(int16_t * block) {
 }
 
 void filter_process(float * block) {
-	// process in place
-	// Update the coeffs each tick, this is a quick process
 	float output[BLOCK_SIZE];
 	dsps_biquad_f32_ae32(block, output, BLOCK_SIZE, coeffs, delay);
 	for(uint16_t i=0;i<BLOCK_SIZE;i++) {

@@ -11,10 +11,10 @@ struct mod_state mglobal;
 
 // One set of events for the fifo
 struct event * events;
-// And another event per voice as multi-channel sequencer that the scheduler renders into
-struct event * seq;
+// And another event per voice as multi-channel synthesizer state the scheduler renders into
+struct event * synth;
 // The things per voice that LFOs & envelopes can change
-struct mod_event * mseq;
+struct mod_event * msynth;
 
 // floatblock -- accumulative for mixing, -32767.0 -- 32768.0
 float * floatblock;
@@ -120,35 +120,35 @@ void add_event(struct event e) {
 }
 
 void reset_voice(uint8_t i ) {
-    // set all the sequencer state to defaults
-    seq[i].voice = i; // self-reference to make updating oscillators easier
-    seq[i].wave = SINE;
-    seq[i].duty = 0.5;
-    mseq[i].duty = 0.5;
-    seq[i].patch = 0;
-    seq[i].midi_note = 0;
-    seq[i].freq = 0;
-    mseq[i].freq = 0;
-    seq[i].feedback = 0.996;
-    seq[i].amp = 1;
-    mseq[i].amp = 1;
-    seq[i].volume = 0;
-    seq[i].filter_freq = 0;
-    seq[i].resonance = 0.7;
-    seq[i].velocity = 0;
-    seq[i].step = 0;
-    seq[i].sample = DOWN;
-    seq[i].substep = 0;
-    seq[i].status = OFF;
-    seq[i].lfo_source = -1;
-    seq[i].lfo_target = -1;
-    seq[i].adsr_target = -1;
-    seq[i].adsr_on_clock = -1;
-    seq[i].adsr_off_clock = -1;
-    seq[i].adsr_a = 0;
-    seq[i].adsr_d = 0;
-    seq[i].adsr_s = 1.0;
-    seq[i].adsr_r = 0;
+    // set all the synth state to defaults
+    synth[i].voice = i; // self-reference to make updating oscillators easier
+    synth[i].wave = SINE;
+    synth[i].duty = 0.5;
+    msynth[i].duty = 0.5;
+    synth[i].patch = 0;
+    synth[i].midi_note = 0;
+    synth[i].freq = 0;
+    msynth[i].freq = 0;
+    synth[i].feedback = 0.996;
+    synth[i].amp = 1;
+    msynth[i].amp = 1;
+    synth[i].volume = 0;
+    synth[i].filter_freq = 0;
+    synth[i].resonance = 0.7;
+    synth[i].velocity = 0;
+    synth[i].step = 0;
+    synth[i].sample = DOWN;
+    synth[i].substep = 0;
+    synth[i].status = OFF;
+    synth[i].lfo_source = -1;
+    synth[i].lfo_target = -1;
+    synth[i].adsr_target = -1;
+    synth[i].adsr_on_clock = -1;
+    synth[i].adsr_off_clock = -1;
+    synth[i].adsr_a = 0;
+    synth[i].adsr_d = 0;
+    synth[i].adsr_s = 1.0;
+    synth[i].adsr_r = 0;
 
 }
 
@@ -156,14 +156,14 @@ void reset_voices() {
     for(uint8_t i=0;i<VOICES;i++) reset_voice(i);
 }
 
-// The sequencer object keeps state betweeen voices, whereas events are only deltas/changes
+// The synth object keeps held state, whereas events are only deltas/changes
 esp_err_t voices_init() {
     // FM init happens later for mem reason
     oscillators_init();
     filters_init();
     events = (struct event*) malloc(sizeof(struct event) * EVENT_FIFO_LEN);
-    seq = (struct event*) malloc(sizeof(struct event) * VOICES);
-    mseq = (struct mod_event*) malloc(sizeof(struct mod_event) * VOICES);
+    synth = (struct event*) malloc(sizeof(struct event) * VOICES);
+    msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * VOICES);
     floatblock = (float*) malloc(sizeof(float) * BLOCK_SIZE);
     block = (int16_t *) malloc(sizeof(int16_t) * BLOCK_SIZE);
 
@@ -186,16 +186,17 @@ void debug_voices() {
     printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
     for(uint8_t i=0;i<VOICES;i++) {
         printf("voice %d: status %d amp %f wave %d freq %f duty %f adsr_target %d lfo_target %d lfo source %d velocity %f E: %d,%d,%2.2f,%d step %f \n",
-            i, seq[i].status, seq[i].amp, seq[i].wave, seq[i].freq, seq[i].duty, seq[i].adsr_target, seq[i].lfo_target, seq[i].lfo_source, 
-            seq[i].velocity, seq[i].adsr_a, seq[i].adsr_d, seq[i].adsr_s, seq[i].adsr_r, seq[i].step);
+            i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].adsr_target, synth[i].lfo_target, synth[i].lfo_source, 
+            synth[i].velocity, synth[i].adsr_a, synth[i].adsr_d, synth[i].adsr_s, synth[i].adsr_r, synth[i].step);
         printf("mod voice %d: amp: %f, freq %f duty %f\n",
-            i, mseq[i].amp, mseq[i].freq, mseq[i].duty);
+            i, msynth[i].amp, msynth[i].freq, msynth[i].duty);
     }
 }
 void voices_deinit() {
     free(block);
     free(floatblock);
-    free(seq);
+    free(synth);
+    free(msynth);
     free(events);
     oscillators_deinit();
     filters_deinit();
@@ -203,25 +204,25 @@ void voices_deinit() {
 
 // Play an event, now -- tell the audio loop to start making noise
 void play_event(struct event e) {
-    if(e.midi_note >= 0) { seq[e.voice].midi_note = e.midi_note; seq[e.voice].freq = freq_for_midi_note(e.midi_note); } 
-    if(e.wave >= 0) seq[e.voice].wave = e.wave;
-    if(e.patch >= 0) seq[e.voice].patch = e.patch;
-    if(e.duty >= 0) seq[e.voice].duty = e.duty;
-    if(e.feedback >= 0) seq[e.voice].feedback = e.feedback;
-    if(e.freq >= 0) seq[e.voice].freq = e.freq;
-    if(e.amp >= 0) seq[e.voice].amp = e.amp;
+    if(e.midi_note >= 0) { synth[e.voice].midi_note = e.midi_note; synth[e.voice].freq = freq_for_midi_note(e.midi_note); } 
+    if(e.wave >= 0) synth[e.voice].wave = e.wave;
+    if(e.patch >= 0) synth[e.voice].patch = e.patch;
+    if(e.duty >= 0) synth[e.voice].duty = e.duty;
+    if(e.feedback >= 0) synth[e.voice].feedback = e.feedback;
+    if(e.freq >= 0) synth[e.voice].freq = e.freq;
+    if(e.amp >= 0) synth[e.voice].amp = e.amp;
     
-    if(e.adsr_target >= 0) seq[e.voice].adsr_target = e.adsr_target;
-    if(e.adsr_a >= 0) seq[e.voice].adsr_a = e.adsr_a;
-    if(e.adsr_d >= 0) seq[e.voice].adsr_d = e.adsr_d;
-    if(e.adsr_s >= 0) seq[e.voice].adsr_s = e.adsr_s;
-    if(e.adsr_r >= 0) seq[e.voice].adsr_r = e.adsr_r;
+    if(e.adsr_target >= 0) synth[e.voice].adsr_target = e.adsr_target;
+    if(e.adsr_a >= 0) synth[e.voice].adsr_a = e.adsr_a;
+    if(e.adsr_d >= 0) synth[e.voice].adsr_d = e.adsr_d;
+    if(e.adsr_s >= 0) synth[e.voice].adsr_s = e.adsr_s;
+    if(e.adsr_r >= 0) synth[e.voice].adsr_r = e.adsr_r;
 
     // Todo , how to turn off LFO source once set
-    if(e.lfo_source >= 0) { seq[e.voice].lfo_source = e.lfo_source; seq[e.lfo_source].status = LFO_SOURCE; }
-    if(e.lfo_target >= 0) seq[e.voice].lfo_target = e.lfo_target;
+    if(e.lfo_source >= 0) { synth[e.voice].lfo_source = e.lfo_source; synth[e.lfo_source].status = LFO_SOURCE; }
+    if(e.lfo_target >= 0) synth[e.voice].lfo_target = e.lfo_target;
 
-    // For volume (and later off, reset, etc) just make the change, no need to update the per-voice sequencer
+    // For volume (and later off, reset, etc) just make the change, no need to update the per-voice synth
     if(e.volume >= 0) global.volume = e.volume; 
     if(e.filter_freq >= 0) global.filter_freq = e.filter_freq; 
     if(e.resonance >= 0) global.resonance = e.resonance; 
@@ -231,26 +232,26 @@ void play_event(struct event e) {
     // you can play oscillators without note ons, but if you send velocity > 0 it will trigger ADSR & (LFO if set)
 
     if(e.velocity>0 ) {
-        seq[e.voice].velocity = e.velocity;
-        seq[e.voice].status = AUDIBLE;
+        synth[e.voice].velocity = e.velocity;
+        synth[e.voice].status = AUDIBLE;
         // Take care of FM & KS first -- no special treatment for ADSR/LFO (although KS could use one? unclear)
-        if(seq[e.voice].wave==FM) { fm_note_on(e.voice); } 
-        else if(seq[e.voice].wave==KS) { ks_note_on(e.voice); } 
+        if(synth[e.voice].wave==FM) { fm_note_on(e.voice); } 
+        else if(synth[e.voice].wave==KS) { ks_note_on(e.voice); } 
         else {
             // an oscillator voice came in with a note on.
             // I think i just start the ADSR clock
-            seq[e.voice].adsr_on_clock = esp_timer_get_time() / 1000;
+            synth[e.voice].adsr_on_clock = esp_timer_get_time() / 1000;
             // And reset the step of the LFO source if any for this voice 
-            if(seq[e.voice].lfo_source >= 0) retrigger_lfo_source(seq[e.voice].lfo_source);
+            if(synth[e.voice].lfo_source >= 0) retrigger_lfo_source(synth[e.voice].lfo_source);
         }
-    } else if(seq[e.voice].velocity > 0 && e.velocity == 0) { // new note off 
-        seq[e.voice].velocity = e.velocity;
-        if(seq[e.voice].wave==FM) { fm_note_off(e.voice); }
-        else if(seq[e.voice].wave==KS) { ks_note_off(e.voice); }
+    } else if(synth[e.voice].velocity > 0 && e.velocity == 0) { // new note off 
+        synth[e.voice].velocity = e.velocity;
+        if(synth[e.voice].wave==FM) { fm_note_off(e.voice); }
+        else if(synth[e.voice].wave==KS) { ks_note_off(e.voice); }
         else {
             // osc voice note off
-            seq[e.voice].adsr_on_clock = -1;
-            seq[e.voice].adsr_off_clock = esp_timer_get_time() / 1000;
+            synth[e.voice].adsr_on_clock = -1;
+            synth[e.voice].adsr_off_clock = esp_timer_get_time() / 1000;
         }
     }
 
@@ -259,25 +260,25 @@ void play_event(struct event e) {
 // Apply an LFO & ADSR, if any, to the voice
 void hold_and_modify(uint8_t voice) {
     // Copy all the modifier variables
-    mseq[voice].amp = seq[voice].amp;
-    mseq[voice].duty = seq[voice].duty;
-    mseq[voice].freq = seq[voice].freq;
+    msynth[voice].amp = synth[voice].amp;
+    msynth[voice].duty = synth[voice].duty;
+    msynth[voice].freq = synth[voice].freq;
 
-    // Modify the seq params by scale
+    // Modify the synth params by scale
     float scale = compute_adsr_scale_exp(voice);
-    if(seq[voice].adsr_target & TARGET_AMP) mseq[voice].amp = mseq[voice].amp * scale;
-    if(seq[voice].adsr_target & TARGET_DUTY) mseq[voice].duty = mseq[voice].duty * scale;
-    if(seq[voice].adsr_target & TARGET_FREQ) mseq[voice].freq = mseq[voice].freq * scale;
-    if(seq[voice].adsr_target & TARGET_FILTER_FREQ) mglobal.filter_freq = (mglobal.filter_freq * scale);
-    if(seq[voice].adsr_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
+    if(synth[voice].adsr_target & TARGET_AMP) msynth[voice].amp = msynth[voice].amp * scale;
+    if(synth[voice].adsr_target & TARGET_DUTY) msynth[voice].duty = msynth[voice].duty * scale;
+    if(synth[voice].adsr_target & TARGET_FREQ) msynth[voice].freq = msynth[voice].freq * scale;
+    if(synth[voice].adsr_target & TARGET_FILTER_FREQ) mglobal.filter_freq = (mglobal.filter_freq * scale);
+    if(synth[voice].adsr_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
 
     // And the LFO -- scaled by original + (original * scale)
     scale = compute_lfo_scale(voice);
-    if(seq[voice].lfo_target & TARGET_AMP) mseq[voice].amp = mseq[voice].amp + (mseq[voice].amp * scale);
-    if(seq[voice].lfo_target & TARGET_DUTY) mseq[voice].duty = mseq[voice].duty + (mseq[voice].duty * scale);
-    if(seq[voice].lfo_target & TARGET_FREQ) mseq[voice].freq = mseq[voice].freq + (mseq[voice].freq * scale);
-    if(seq[voice].lfo_target & TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq + (mglobal.filter_freq * scale);
-    if(seq[voice].lfo_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance + (mglobal.resonance * scale);
+    if(synth[voice].lfo_target & TARGET_AMP) msynth[voice].amp = msynth[voice].amp + (msynth[voice].amp * scale);
+    if(synth[voice].lfo_target & TARGET_DUTY) msynth[voice].duty = msynth[voice].duty + (msynth[voice].duty * scale);
+    if(synth[voice].lfo_target & TARGET_FREQ) msynth[voice].freq = msynth[voice].freq + (msynth[voice].freq * scale);
+    if(synth[voice].lfo_target & TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq + (mglobal.filter_freq * scale);
+    if(synth[voice].lfo_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance + (mglobal.resonance * scale);
 }
 
 
@@ -312,15 +313,15 @@ void fill_audio_buffer(float seconds) {
         mglobal.filter_freq = global.filter_freq;
 
         for(uint8_t voice=0;voice<VOICES;voice++) {
-            if(seq[voice].status==AUDIBLE) { // skip voices that are silent or LFO sources from playback
+            if(synth[voice].status==AUDIBLE) { // skip voices that are silent or LFO sources from playback
                 hold_and_modify(voice); // apply ADSR / LFO
-                if(seq[voice].wave == FM) render_fm(floatblock, voice);
-                if(seq[voice].wave == NOISE) render_noise(floatblock, voice);
-                if(seq[voice].wave == SAW) render_saw(floatblock, voice);
-                if(seq[voice].wave == PULSE) render_pulse(floatblock, voice);
-                if(seq[voice].wave == TRIANGLE) render_triangle(floatblock, voice);
-                if(seq[voice].wave == SINE) render_sine(floatblock, voice);
-                if(seq[voice].wave == KS) render_ks(floatblock, voice);
+                if(synth[voice].wave == FM) render_fm(floatblock, voice);
+                if(synth[voice].wave == NOISE) render_noise(floatblock, voice);
+                if(synth[voice].wave == SAW) render_saw(floatblock, voice);
+                if(synth[voice].wave == PULSE) render_pulse(floatblock, voice);
+                if(synth[voice].wave == TRIANGLE) render_triangle(floatblock, voice);
+                if(synth[voice].wave == SINE) render_sine(floatblock, voice);
+                if(synth[voice].wave == KS) render_ks(floatblock, voice);
             }
         }
 

@@ -21,7 +21,7 @@ extern "C" {
 // One note/controller object per voice
 Dx7Note note[VOICES];
 Controllers controllers[VOICES];
-extern struct event *seq;
+extern struct event *synth;
 
 extern "C" void render_fm(float * buf, uint8_t voice) {
     int32_t int32_t_buf[N];
@@ -42,7 +42,7 @@ extern "C" void render_fm(float * buf, uint8_t voice) {
             int32_t val = int32_t_buf[j] >> 3;
             int clip_val = val < -(1 << 24) ? 0x8000 : (val >= (1 << 24) ? 0x7fff : (val + delta) >> 9);
             delta = (delta + val) & 0x1ff;
-            buf[count] = buf[count] + clip_val * seq[voice].amp;
+            buf[count] = buf[count] + clip_val * synth[voice].amp;
             count++;
         }
     }
@@ -50,10 +50,10 @@ extern "C" void render_fm(float * buf, uint8_t voice) {
 
 extern "C" void fm_note_on(uint8_t voice) {
     // If MIDI note was set manually, use it instead of the freq conversion
-    if(seq[voice].midi_note>0) {
-        note[voice].init(patches+(seq[voice].patch*156), seq[voice].midi_note, seq[voice].velocity*127);
+    if(synth[voice].midi_note>0) {
+        note[voice].init(patches+(synth[voice].patch*156), synth[voice].midi_note, synth[voice].velocity*127);
     } else {
-        note[voice].init_with_freq(patches+(seq[voice].patch*156), seq[voice].freq, seq[voice].velocity*127);
+        note[voice].init_with_freq(patches+(synth[voice].patch*156), synth[voice].freq, synth[voice].velocity*127);
     }
     controllers[voice].values_[kControllerPitch] = 0x2000; // pitch wheel
 }

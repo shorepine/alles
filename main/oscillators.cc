@@ -7,15 +7,15 @@ extern "C" {
 
 static Blip_Buffer blipbuf;
 // 10 voices * -32767 to 32767
-static Blip_Synth<blip_good_quality,655350> synth;
+static Blip_Synth<blip_good_quality,655350> blipsynth;
 
 
 #define MAX_KS_BUFFER_LEN 802 // 44100/55  -- 55Hz (A1) lowest we can go for KS
 float ** ks_buffer; 
 
 
-extern struct event *seq;
-extern struct mod_event *mseq; // the seq that is being modified by LFOs & envelopes
+extern struct event *synth;
+extern struct mod_event *msynth; // the synth that is being modified by LFOs & envelopes
 extern struct state global; 
 
 // Use the Blip_Buffer library to bandlimit signals
@@ -23,107 +23,107 @@ extern "C" void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) {
     // OK, now we've got a bunch of 16-bit floats all added up in ibuf
     // we want some non-linear curve scaling those #s into -32767 to +32767
     // blipbuf may do this for me
-    synth.volume(global.volume);
+    blipsynth.volume(global.volume);
     for(uint16_t i=0;i<len;i++) {
-        synth.update(i, ibuf[i]);
+        blipsynth.update(i, ibuf[i]);
     }
     blipbuf.end_frame(len);
     blipbuf.read_samples(obuf, len, 0);
 }
 
 extern "C" void render_sine(float * buf, uint8_t voice) { 
-    //printf("rendering sine amp is %f\n", mseq[voice].amp);
-    float skip = mseq[voice].freq / 44100.0 * SINE_LUT_SIZE;
+    //printf("rendering sine amp is %f\n", msynth[voice].amp);
+    float skip = msynth[voice].freq / 44100.0 * SINE_LUT_SIZE;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         if(skip >= 1) { // skip compute if frequency is < 3Hz
-            uint16_t u0 = sine_LUT[(uint16_t)floor(seq[voice].step)];
-            uint16_t u1 = sine_LUT[(uint16_t)(floor(seq[voice].step)+1 % SINE_LUT_SIZE)];
+            uint16_t u0 = sine_LUT[(uint16_t)floor(synth[voice].step)];
+            uint16_t u1 = sine_LUT[(uint16_t)(floor(synth[voice].step)+1 % SINE_LUT_SIZE)];
             float x0 = (float)u0 - 32768.0;
             float x1 = (float)u1 - 32768.0;
-            float frac = seq[voice].step - floor(seq[voice].step);
+            float frac = synth[voice].step - floor(synth[voice].step);
             float sample = x0 + ((x1 - x0) * frac);
-            buf[i] = buf[i] + (sample * mseq[voice].amp);
-            seq[voice].step = seq[voice].step + skip;
-            if(seq[voice].step >= SINE_LUT_SIZE) seq[voice].step = seq[voice].step - SINE_LUT_SIZE;
+            buf[i] = buf[i] + (sample * msynth[voice].amp);
+            synth[voice].step = synth[voice].step + skip;
+            if(synth[voice].step >= SINE_LUT_SIZE) synth[voice].step = synth[voice].step - SINE_LUT_SIZE;
         }
     }
 }
 
 extern "C" void render_noise(float *buf, uint8_t voice) {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        buf[i] = buf[i] + ( (int16_t) ((esp_random() >> 16) - 32768) * mseq[voice].amp);
+        buf[i] = buf[i] + ( (int16_t) ((esp_random() >> 16) - 32768) * msynth[voice].amp);
     }
 }
 
 extern "C" void render_ks(float * buf, uint8_t voice) {
-    if(mseq[voice].freq >= 55) { // lowest note we can play
-        uint16_t buflen = floor(SAMPLE_RATE / mseq[voice].freq);
+    if(msynth[voice].freq >= 55) { // lowest note we can play
+        uint16_t buflen = floor(SAMPLE_RATE / msynth[voice].freq);
         for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-            uint16_t index = floor(seq[voice].step);
-            seq[voice].sample = ks_buffer[voice][index];
-            ks_buffer[voice][index] = (ks_buffer[voice][index] + ks_buffer[voice][(index + 1) % buflen]) * 0.5 * seq[voice].feedback;
-            seq[voice].step = (index + 1) % buflen;
-            buf[i] = buf[i] + seq[voice].sample * mseq[voice].amp;
+            uint16_t index = floor(synth[voice].step);
+            synth[voice].sample = ks_buffer[voice][index];
+            ks_buffer[voice][index] = (ks_buffer[voice][index] + ks_buffer[voice][(index + 1) % buflen]) * 0.5 * synth[voice].feedback;
+            synth[voice].step = (index + 1) % buflen;
+            buf[i] = buf[i] + synth[voice].sample * msynth[voice].amp;
         }
     }
 }
 
 extern "C" void render_saw(float * buf, uint8_t voice) {
-    float period = 1. / (mseq[voice].freq/(float)SAMPLE_RATE);
+    float period = 1. / (msynth[voice].freq/(float)SAMPLE_RATE);
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        if(seq[voice].step >= period || seq[voice].step == 0) {
-            seq[voice].sample = DOWN;
-            seq[voice].step = 0; // reset the period counter
+        if(synth[voice].step >= period || synth[voice].step == 0) {
+            synth[voice].sample = DOWN;
+            synth[voice].step = 0; // reset the period counter
         } else {
-            seq[voice].sample = DOWN + (seq[voice].step * ((UP-DOWN) / period));
+            synth[voice].sample = DOWN + (synth[voice].step * ((UP-DOWN) / period));
         }
-        buf[i] = buf[i] + seq[voice].sample * mseq[voice].amp;
-        seq[voice].step++;
+        buf[i] = buf[i] + synth[voice].sample * msynth[voice].amp;
+        synth[voice].step++;
     }
 }
 
 extern "C" void render_triangle(float * buf, uint8_t voice) {
-    float period = 1. / (mseq[voice].freq/(float)SAMPLE_RATE);
+    float period = 1. / (msynth[voice].freq/(float)SAMPLE_RATE);
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        if(seq[voice].step >= period || seq[voice].step == 0) {
-            seq[voice].sample = DOWN;
-            seq[voice].step = 0; // reset the period counter
+        if(synth[voice].step >= period || synth[voice].step == 0) {
+            synth[voice].sample = DOWN;
+            synth[voice].step = 0; // reset the period counter
         } else {
-            if(seq[voice].step < (period/2.0)) {
-                seq[voice].sample = DOWN + (seq[voice].step * ((UP-DOWN) / period * 2));
+            if(synth[voice].step < (period/2.0)) {
+                synth[voice].sample = DOWN + (synth[voice].step * ((UP-DOWN) / period * 2));
             } else {
-                seq[voice].sample = UP - ((seq[voice].step-(period/2)) * ((UP-DOWN) / period * 2));
+                synth[voice].sample = UP - ((synth[voice].step-(period/2)) * ((UP-DOWN) / period * 2));
             }
         }
-        buf[i] = buf[i] + seq[voice].sample * mseq[voice].amp;
-        seq[voice].step++;
+        buf[i] = buf[i] + synth[voice].sample * msynth[voice].amp;
+        synth[voice].step++;
     }
 }
 
 
 extern "C" void render_pulse(float * buf, uint8_t voice) {
-    if(mseq[voice].duty < 0.001 || mseq[voice].duty > 0.999) mseq[voice].duty = 0.5;
-    float period = 1. / (mseq[voice].freq/(float)SAMPLE_RATE);
-    float period2 = mseq[voice].duty * period; // if duty is 0.5, square wave
+    if(msynth[voice].duty < 0.001 || msynth[voice].duty > 0.999) msynth[voice].duty = 0.5;
+    float period = 1. / (msynth[voice].freq/(float)SAMPLE_RATE);
+    float period2 = msynth[voice].duty * period; // if duty is 0.5, square wave
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        if(seq[voice].step >= period || seq[voice].step == 0)  {
-            seq[voice].sample = UP;
-            seq[voice].substep = 0; // start the duty cycle counter
-            seq[voice].step = 0;
+        if(synth[voice].step >= period || synth[voice].step == 0)  {
+            synth[voice].sample = UP;
+            synth[voice].substep = 0; // start the duty cycle counter
+            synth[voice].step = 0;
         } 
-        if(seq[voice].sample == UP) {
-            if(seq[voice].substep++ > period2) {
-                seq[voice].sample = DOWN;
+        if(synth[voice].sample == UP) {
+            if(synth[voice].substep++ > period2) {
+                synth[voice].sample = DOWN;
             }
         }
-        buf[i] = buf[i] + seq[voice].sample * mseq[voice].amp;
-        seq[voice].step++;
+        buf[i] = buf[i] + synth[voice].sample * msynth[voice].amp;
+        synth[voice].step++;
     }
 }
 
 extern "C" void ks_note_on(uint8_t voice) {
-    if(mseq[voice].freq<=0) mseq[voice].freq = 1;
-    uint16_t buflen = floor(SAMPLE_RATE / mseq[voice].freq);
+    if(msynth[voice].freq<=0) msynth[voice].freq = 1;
+    uint16_t buflen = floor(SAMPLE_RATE / msynth[voice].freq);
     if(buflen > MAX_KS_BUFFER_LEN) buflen = MAX_KS_BUFFER_LEN;
     // init KS buffer with noise up to max
     for(uint16_t i=0;i<buflen;i++) {
@@ -132,7 +132,7 @@ extern "C" void ks_note_on(uint8_t voice) {
 }
 
 extern "C" void ks_note_off(uint8_t voice) {
-    mseq[voice].amp = 0;
+    msynth[voice].amp = 0;
 }
 
 
@@ -142,8 +142,8 @@ extern "C" void oscillators_init(void) {
         exit( EXIT_FAILURE );
     blipbuf.clock_rate( blipbuf.sample_rate() );
     blipbuf.bass_freq( 0 ); // makes waveforms perfectly flat
-    synth.volume(global.volume);
-    synth.output(&blipbuf);
+    blipsynth.volume(global.volume);
+    blipsynth.output(&blipbuf);
     ks_buffer = (float**) malloc(sizeof(float*)*VOICES);
     for(int i=0;i<VOICES;i++) ks_buffer[i] = (float*)malloc(sizeof(float)*MAX_KS_BUFFER_LEN); 
 }
