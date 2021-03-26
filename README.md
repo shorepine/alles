@@ -2,7 +2,9 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/alles/master/pics/set.jpg)
 
-**alles** is a many-speaker distributed mesh synthesizer that responds to control signals over WiFi. Each synth supports up to 10 additive sine, saw, pulse/square, noise and triangle oscillators, a Karplus-Strong string implementation, and a full FM stage including support for DX7 patches. Each voice can support an ADSR envelope or LFO sourced from a different voice controlling up to 5 parameters. Each synth has a single biquad filter implementation on top of all voices. They're cheap to make ($7 for the microcontroller, $6 for the amplifier, speakers from $0.50 up depending on quality). And very easy to put together with hookup wire or only a few soldering points. 
+**alles** is a many-speaker distributed mesh synthesizer that responds to control signals over WiFi. Each synth supports up to 10 additive sine, saw, pulse/square, noise and triangle oscillators, a Karplus-Strong string implementation, and a full FM stage including support for DX7 patches. Each voice can support an ADSR envelope or LFO sourced from a different voice controlling up to 5 parameters. Each synth has a single biquad filter implementation on top of all voices. 
+
+Our friends at [Blinkinlabs](https://blinkinlabs.com) are helping us produce small self-contained battery powered speakers with Alles built in. But in the meantime, or if you want to DIY, you can easily build your own! They're cheap to make ($7 for the microcontroller, $6 for the amplifier, speakers from $0.50 up depending on quality). And very easy to put together with hookup wire or only a few soldering points. 
 
 The synthesizers form a mesh and listen to UDP multicast messages. You can control the mesh from a host computer from any programming language or environments like Max or Pd. You can also wire one synth up to MIDI or MIDI over Bluetooth, and use any MIDI software or controller; the directly connected synth will broadcast to the rest of the mesh for you. 
 
@@ -10,20 +12,18 @@ The original idea was to install a bunch of them throughout a space and make a d
 
 ## Putting it together 
 
-To make one yourself, you need
+We are currently testing rev2 of a all-in-one design for Alles. The self-contained version has its own rechargable battery, 4ohm speaker, case and buttons for configuration & setup. We're hoping to be able to sell these in packs for anyone to use. More details soon. But it's still very simple to make one yourself with parts you can get from electronics distributors like Sparkfun, Adafruit or Amazon. 
+
+To make an Alles synth yourself, you need
 
 * [ESP32 dev board (any one will do, but you want pins broken out)](https://www.amazon.com/gp/product/B07Q576VWZ/) (pack of 2, $7.45 each)
 * [The Adafruit I2S mono amplifier](https://www.adafruit.com/product/3006) ($5.95)
 * [4 ohm speaker, this one is especially nice](https://www.parts-express.com/peerless-by-tymphany-tc6fd00-04-2-full-range-paper-cone-woofer-4-ohm--264-1126?gclid=EAIaIQobChMIwcX3-vXi5wIVgpOzCh0a7gjuEAYYASABEgLwf_D_BwE) ($9.77, but you can save a lot of money here going lower-end if you're ok with the sound quality). I also like speakers with prebuilt cases, like [these bookshelf speakers](https://www.amazon.com/Pyle-PCB3BK-100-Watt-Bookshelf-Speakers/dp/B000MCGF1O/ref=sr_1_1?dchild=1&keywords=pyle+home+speaker&qid=1592156929&s=electronics&sr=1-1).
 * A breadboard, custom PCB, or just some hookup wire!
 
-### Power 
+A 5V input (USB battery, USB input, rechargeable batteries direct to power input) powers both boards and speaker at pretty good volumes. A 3.7V LiPo battery will also work, but note the I2S amp will not get as loud (without distorting) if you give it 3.7V. If you want your DIY Alles to be portable, I recommend using a USB battery pack that does not do [low current shutoff](https://www.element14.com/community/groups/test-and-measurement/blog/2018/10/15/on-using-a-usb-battery-for-a-portable-project-power-supply). The draw of the whole unit at loud volumes is around 90mA, and at idle 40mA. 
 
-A 5V input (USB battery, USB input, rechargeable batteries direct to power input) powers both boards and speaker at pretty good volumes. A 3.7V LiPo battery will also work, but note the I2S amp will not get as loud (without distorting) if you give it 3.7V. I recommend using a USB battery pack that does not do [low current shutoff](https://www.element14.com/community/groups/test-and-measurement/blog/2018/10/15/on-using-a-usb-battery-for-a-portable-project-power-supply). I lucked on [this one at Amazon for $9.44](https://www.amazon.com/gp/product/B00MWU1GGI). The draw of the whole unit at loud volumes is around 150mA, so my battery should power a single synth making sound for 30 hours. 
-
-### Wiring
-
-Wire it up like this (I2S -> ESP)
+Wire up your DIY Alles like this (I2S -> ESP)
 
 ```
 LRC -> GPIO25
@@ -36,35 +36,37 @@ Vin -> Vin / USB / 3.3 (or direct to your 5V power source)
 Speaker connectors -> speaker
 ```
 
-### PCBs
+### DIY bridge PCB
 
-*You don't need any PCBs made to build this synth!* -- it will work with just hookup wire. But if you're making a lot or want more stability, you've got two options so far:
-
-(1) I had a tiny little board made to join the boards together, like so:
+*You don't need this PCB made to build a DIY Alles!* -- it will work with just hookup wire. But if you're making a lot of DIY Alleses want more stability, I had a tiny little board made to join the boards together, like so:
 
 ![closeup](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/adapter.jpg)
 
 Fritzing file in the `pcbs` folder of this repository, and [it's here on Aisler](https://aisler.net/p/TEBMDZWQ). This is a lot more stable and easier to wire up than snipping small bits of hookup wire, especially for the GAIN connection. 
 
-(2) I am working on a PCB with the ESP32 and i2s amp chip mounted directly on the board. This should be cheaper and smaller and less reliant on the dev-board's quirks. Eagle files in `pcbs` but I'd hold off until I verify this works.
-
 
 ## Firmware
 
-Setup esp-idf: http://esp-idf.readthedocs.io/en/latest/get-started/
+Alles is completely open source, and can be a fun platform to adapt beyond its current capabilities. To build your own firmware, start by setting up `esp-idf`: http://esp-idf.readthedocs.io/en/latest/get-started/
 
-Just run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board after setup.
+Clone this repository and run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board after setup.
 
 ## Using it
 
-On first boot, each synth will create a captive wifi network called `alles-synth-X` where X is some ID of the synth. Join it, and you should get redirected to a captive wifi setup page. If not, go to `http://10.10.0.1` in your browser. Once you tell each synth what the wifi SSID and password you want it to join are, it will reboot. You only need to do that once per synth.
+On first boot, each synth will create a captive wifi network called `alles-synth-X` where X is some ID of the synth. Join it, and you should get redirected to a captive wifi setup page. If not, go to `http://10.10.0.1` in your browser after joining the network. Once you tell each synth what the wifi SSID and password you want it to join are, it will reboot. You only need to do that once per synth.
 
-Alles responds to commands via UDP in ASCII delimited by a character, like
+Alles can be used two ways: 
+
+ * **Direct mode**, where you directly control the entire mesh from a computer or mobile device: This is the preferred way and gives you the most functionality. You can control every synth on the mesh from a single host, using UDP over WiFi. You can address any synth in the mesh or all of them at once with one message, or use groups. You can specify synth parameters down to 32 bits of precision, far more than MIDI. This method can be used in music environments like Max or Pd, or by musicians or developers using languages like Python, or for plug-in developers who want to bridge Alles's full features to DAWs.
+
+ * **MIDI mode**, using MIDI over Bluetooth or a MIDI cable: A single Alles synth can be set up as a MIDI relay, by hitting the `MIDI` (or `BOOT0 / GPIO0`) button. Once in MIDI relay mode, that synth stops making its own sound and acts as a relay to the rest of the mesh. You can connect to the relay over MIDI cable (details below) or wirelessly via MIDI bluetooth, supported by most OSes. You can then control the mesh using any MIDI sequencer or DAW of your choice. You are limited to directly addressing 16 synths in this mode (vs 100s), and lose control over fine grained parameter tuning. 
+
+
+In direct mode, Alles responds to commands via UDP in ASCII delimited by a character, like
 
 ```
 v0w4f440.0a0.5l1
 ```
-
 
 Where
 ```
@@ -77,17 +79,17 @@ f = frequency, float 0-22050. default 0
 F = center frequency of biquad filter. 0 is off. default 0. applies to entire synth audio
 g = LFO target mask. Which parameter LFO controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
 L = LFO source voice. 0-9. Which voice is used as an LFO for this voice. Source voice will be silent. 
-l = velocity, float 0-1, send >0 to trigger note on. Must be sent to make sound. Send 0 to trigger note off.
+l = velocity, float 0-1, >0 to trigger note on, 0 to trigger note off. Some envelopes / sounds are vel sensitive. 
 n = midinote, uint, 0-127 (note that this will also set f). default 0
 p = patch, uint, 0-999, choose a preloaded DX7 patch number for FM waveforms. See patches.h and alles.py. default 0
-R = q factor / "resonance" of biquad filter. float. in practice, 0 to 100.0. default 0.7.
-S = reset voice, uint 0-9 or all voices, anything >=10. 
-s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py, also uses i for sync_index and y for battery
+R = q factor / "resonance" of biquad filter. float. in practice, 0 to 10.0. default 0.7.
+S = reset voice, uint 0-9 or for all voices, anything >=10. 
+s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py
 T = ADSR target mask. Which parameter ADSR controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can.
 v = voice, uint, 0 to 9. default: 0
 V = volume, float 0 to about 10 in practice. volume knob for the entire synth / speaker. default 0.5
-w = waveform, uint, 0 to 6 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, OFF]. default: 0/SINE
+w = waveform, uint, 0 to 7 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, OFF]. default: 0/SINE
 ```
 
 Commands are cumulative, state is held per voice. If voice is not given it's assumed to be 0. 
@@ -186,13 +188,13 @@ You can also use it in Max or similar software that supports sending UDP packets
 
 ![Max](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/max.png)
 
-## MIDI support
+## MIDI mode
 
-If you'd rather not use UDP, you can also control Alles through MIDI, either wired or over Bluetooth. You can use standard MIDI programs / DAWs to control the entire mesh. The MIDI connected synth will broadcast the messages out to the rest of the mesh in sync. 
+You can also control Alles through MIDI, either wired or over Bluetooth. You can use standard MIDI programs / DAWs to control the entire mesh. The MIDI connected synth will broadcast the messages out to the rest of the mesh in sync. 
 
 Use the MIDI toggle button on the Alles V1 PCB to enter MIDI mode. If using a devboard, use the GPIO0 button. The synth will stop making sound until you press the MIDI button again or reboot it and will only listen for MIDI messages and broadcast those out to the rest of the mesh.
 
-To use BLE MIDI: On a Mac, open Audio MIDI Setup, then show MIDI Studio, then the Bluetooth button, and connect to "Alles MIDI." The Alles MIDI port will show in all your MIDI capable software.
+To use BLE MIDI: On a Mac, open Audio MIDI Setup, then show MIDI Studio, then the Bluetooth button, and connect to "Alles MIDI." The Alles MIDI port will then show up in all your MIDI capable software.
 
 To use hardwired MIDI: I recommend using a pre-built MIDI breakout with the support hardware -- like this one from [Sparkfun](https://www.sparkfun.com/products/12898) or [Adafruit](https://www.adafruit.com/product/4740) to make it easier to wire up. Connect 3.3V, GND and MIDI to either the devboard (GPIO 19) or the Alles V1 PCB (MIDI header.)
 
@@ -218,6 +220,7 @@ MIDI messages will have the default latency added to allow for sync between all 
 * kyle mcdonald 
 * blargg for [BlipBuffer](http://slack.net/~ant/libs/audio.html#Blip_Buffer)'s bandlimiting
 * [BLE-MIDI-IDF](https://github.com/mathiasbredholt/blemidi-idf)
+* Matt Mets / [Blinkinlabs](https://blinkinlabs.com)
 
 
 ## TODO

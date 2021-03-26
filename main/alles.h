@@ -46,7 +46,6 @@ extern "C" {
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
 #define PING_TIME_MS 10000   // ms between boards pinging each other
 #define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
-#define ALLES_V1_BOARD 1     // set if using the blinkinlabs v1 board to enable battery state / charging
 
 #define DEVBOARD 0
 #define ALLES_BOARD_V1 1
@@ -78,7 +77,7 @@ extern "C" {
 #define CONFIG_I2S_NUM 0 
 #define MIDI_IN 19
 
-
+// LFO/ADSR target mask
 #define TARGET_AMP 1
 #define TARGET_DUTY 2
 #define TARGET_FREQ 4
@@ -127,7 +126,7 @@ struct event default_event();
 void add_event(struct event e);
 
 
-
+// Status mask 
 #define RUNNING 1
 #define WIFI_MANAGER_OK 2
 #define MIDI_MODE 4

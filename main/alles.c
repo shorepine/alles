@@ -16,7 +16,7 @@ struct event * synth;
 // The things per voice that LFOs & envelopes can change
 struct mod_event * msynth;
 
-// floatblock -- accumulative for mixing, -32767.0 -- 32768.0
+// floatblock -- accumulative for mixing
 float * floatblock;
 // block -- what gets sent to the DAC -- -32767...32768 (wave file, int16 LE)
 int16_t * block;
@@ -36,6 +36,9 @@ static const char TAG[] = "main";
 
 // Button event
 extern xQueueHandle gpio_evt_queue;
+
+// Multicast task handle 
+TaskHandle_t multicast_handle = NULL;
 
 // Battery status for V1 board. If no v1 board, will stay at 0
 uint8_t battery_mask = 0;
@@ -228,10 +231,8 @@ void play_event(struct event e) {
     if(e.resonance >= 0) global.resonance = e.resonance; 
 
     // Triggers / envelopes 
-    // the only way to make FM or KS noises is to use note ons (send velocity)
-    // you can play oscillators without note ons, but if you send velocity > 0 it will trigger ADSR & (LFO if set)
-
-    if(e.velocity>0 ) {
+    // The only way a sound is made is if velocity (note on) is set.
+    if(e.velocity>0 ) { // New note on (even if something is already playing on this voice)
         synth[e.voice].velocity = e.velocity;
         synth[e.voice].status = AUDIBLE;
         // Take care of FM & KS first -- no special treatment for ADSR/LFO (although KS could use one? unclear)
@@ -239,17 +240,17 @@ void play_event(struct event e) {
         else if(synth[e.voice].wave==KS) { ks_note_on(e.voice); } 
         else {
             // an oscillator voice came in with a note on.
-            // I think i just start the ADSR clock
+            // Start the ADSR clock
             synth[e.voice].adsr_on_clock = esp_timer_get_time() / 1000;
             // And reset the step of the LFO source if any for this voice 
             if(synth[e.voice].lfo_source >= 0) retrigger_lfo_source(synth[e.voice].lfo_source);
         }
-    } else if(synth[e.voice].velocity > 0 && e.velocity == 0) { // new note off 
+    } else if(synth[e.voice].velocity > 0 && e.velocity == 0) { // new note off
         synth[e.voice].velocity = e.velocity;
         if(synth[e.voice].wave==FM) { fm_note_off(e.voice); }
         else if(synth[e.voice].wave==KS) { ks_note_off(e.voice); }
         else {
-            // osc voice note off
+            // osc voice note off, start release
             synth[e.voice].adsr_on_clock = -1;
             synth[e.voice].adsr_off_clock = esp_timer_get_time() / 1000;
         }
@@ -343,28 +344,26 @@ void fill_audio_buffer(float seconds) {
     }
 }
 
-
-//i2s configuration
-i2s_config_t i2s_config = {
-     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
-     .sample_rate = SAMPLE_RATE,
-     .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
-     .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_STAND_I2S),
-     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1, // high interrupt priority
-     .dma_buf_count = 8,
-     .dma_buf_len = 64   //Interrupt level 1
-    };
-    
-i2s_pin_config_t pin_config = {
-    .bck_io_num = CONFIG_I2S_BCLK, 
-    .ws_io_num = CONFIG_I2S_LRCLK,  
-    .data_out_num = CONFIG_I2S_DIN, 
-    .data_in_num = -1   //Not used
-};
-
 // Setup I2S
 esp_err_t setup_i2s(void) {
+    //i2s configuration
+    i2s_config_t i2s_config = {
+         .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
+         .sample_rate = SAMPLE_RATE,
+         .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+         .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
+         .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_STAND_I2S),
+         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1, // high interrupt priority
+         .dma_buf_count = 8,
+         .dma_buf_len = 64   //Interrupt level 1
+        };
+        
+    i2s_pin_config_t pin_config = {
+        .bck_io_num = CONFIG_I2S_BCLK, 
+        .ws_io_num = CONFIG_I2S_LRCLK,  
+        .data_out_num = CONFIG_I2S_DIN, 
+        .data_in_num = -1   //Not used
+    };
     i2s_driver_install((i2s_port_t)CONFIG_I2S_NUM, &i2s_config, 0, NULL);
     i2s_set_pin((i2s_port_t)CONFIG_I2S_NUM, &pin_config);
     i2s_set_sample_rates((i2s_port_t)CONFIG_I2S_NUM, SAMPLE_RATE);
@@ -396,7 +395,6 @@ void parse_adsr(struct event * e, char* message) {
 
 // parse a received event string and add event to queue
 uint8_t deserialize_event(char * message, uint16_t length) {
-
     // Don't process new messages if we're in MIDI mode
     if(global.status & MIDI_MODE) return 0;
 
@@ -563,7 +561,7 @@ void wifi_reconfigure() {
     esp_restart();
 }
 
-    TaskHandle_t multicast_handle = NULL;
+
 
 // Called when the MIDI button is hit. Toggle between MIDI on and off mode
 void toggle_midi() {

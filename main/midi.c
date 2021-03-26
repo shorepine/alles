@@ -1,15 +1,6 @@
 #include "alles.h"
+// Handle MIDI events from UART or BLE
 
-// midi spec
-// one device can have a midi port optionally
-// it can act as a broadcast channel 
-// meaning, i send a message like channel 1, program 23, then note on, channel 1, etc 
-// channel == booted ID. channel 0 is all synths. channel 1 is only ID = 0, and so on
-// if people really want to address more than 16 synths over MIDI make a 2nd control bank
-// but i assume bigger meshes are controlled via UDP only in practice 
-// program == sound -- SINE, SQUARE, SAW, TRIANGLE, NOISE, (FM), KS
-// bank 0 is default set here ^
-// bank 1 is FM bank 0 and so on 
 
 extern struct event default_event();
 extern void mcast_send(char * message, uint16_t len);
@@ -171,9 +162,6 @@ void midi_init() {
         .rx_flow_ctrl_thresh = 122,
     };
 
-//    for(uint8_t v=0;v<VOICES;v++) {
-//        note_map[v] = 0;
-//    }
     for(uint8_t c=0;c<CHANNELS;c++) {
         program_bank[c] = 0;
         program[c] = 0;
