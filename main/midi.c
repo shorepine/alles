@@ -11,20 +11,31 @@
 // bank 0 is default set here ^
 // bank 1 is FM bank 0 and so on 
 
-extern void serialize_event(struct event e, uint16_t client);
 extern struct event default_event();
+extern void mcast_send(char * message, uint16_t len);
 
 QueueHandle_t uart_queue;
 uint8_t midi_voice = 0;
 #define CHANNELS 16
 uint8_t program_bank[CHANNELS];
 uint8_t program[CHANNELS];
-//uint8_t note_map[VOICES];
+
+
+
+// take an event and make it a string and send it to everyone!
+// This is only used for MIDI relay, so we only need to send events that MIDI parses.
+void serialize_event(struct event e, uint16_t client) {
+    char message[MAX_RECEIVE_LEN];
+    // TODO -- patch / wave
+    sprintf(message, "c%dl%fn%dv%dt%lld", 
+        client, e.velocity, e.midi_note, e.voice, e.time );
+    //printf("sending %s\n", message);
+    mcast_send(message, strlen(message));
+}
 
 
 // TODO don't schedule notes to me, or ignore them 
-// TODO this synth should not get a client ID 
-
+// TODO this synth should not get a client ID  ????
 void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t midi_status, uint8_t *remaining_message, size_t len) {
     // source is 1 if this came in through uart, 0 if ble
     //printf("got midi message source %d: status %02x -- ", source, midi_status);
@@ -68,7 +79,7 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
             } else {
                 serialize_event(e, channel - 1);
             }
-            
+
             //uint8_t data2 = remaining_message[1];
             //printf("note off channel %d note %d\n", channel, data1);
             // for now, only handle broadcast note offs... will have to refactor if i go down this path farther

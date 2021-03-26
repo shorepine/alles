@@ -4,11 +4,15 @@
 
 extern struct mod_state mglobal; 
 
-	float coeffs[5];
-	float delay[2] = {0,0};
+float coeffs[5];
+float delay[2] = {0,0};
+
+#define LOWEST_RATIO 0.0001
 
 void filter_update() {
-	dsps_biquad_gen_lpf_f32(coeffs, mglobal.filter_freq/((float)SAMPLE_RATE/2.0), mglobal.resonance);
+	float ratio = mglobal.filter_freq/((float)SAMPLE_RATE/2.0);
+	if(ratio < LOWEST_RATIO) ratio = LOWEST_RATIO;
+	dsps_biquad_gen_lpf_f32(coeffs, ratio, mglobal.resonance);
 	//printf("filtering ff %f res %f coeffs %f %f %f %f %f\n", mglobal.filter_freq, mglobal.resonance, coeffs[0], coeffs[1], coeffs[2], coeffs[3], coeffs[4]);	
 }
 

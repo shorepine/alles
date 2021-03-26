@@ -2,6 +2,16 @@
 // various little "make a sound in firmware" methods
 #include "alles.h"
 
+
+// Play a sonar ping -- searching for wifi
+void wifi_tone() {
+    
+}
+
+// Play the "i'm going into midi mode" tone
+void midi_tone() {
+
+}
 // Schedule a bleep now
 void bleep() {
     struct event e = default_event();

@@ -31,7 +31,6 @@ void Exp2::deinit() {
 }
 
 void Exp2::init() {
-  //TODO free this 
   exp2tab = (int32_t*) malloc(sizeof(int32_t)*(EXP2_N_SAMPLES<<1));
   double inc = exp2(1.0 / EXP2_N_SAMPLES);
   double y = 1 << 30;

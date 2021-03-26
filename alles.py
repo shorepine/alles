@@ -21,9 +21,10 @@ def set_preset(which,voice=0, client=-1):
     if(which==0): # simple note
         tone(voice=voice, wave=SINE, envelope="10,250,0.7,250", adsr_target=AMP,timestamp=-1)
     if(which==1): # filter bass
-        filter(1500, 10)
+        filter(1000, 2)
         tone(voice=voice, wave=SAW, envelope="10,100,0.5,25", adsr_target=AMP+FILTER_FREQ,timestamp=-1)
-
+    if(which==2): # long square pad to test ADSR
+        tone(voice=voice, wave=PULSE, envelope="500,1000,0.25,750", adsr_target=AMP, timestamp=-1)
 
 def setup_sock():
     # Set up the socket for multicast send & receive

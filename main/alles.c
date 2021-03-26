@@ -256,19 +256,29 @@ void play_event(struct event e) {
 
 }
 
+// Apply an LFO & ADSR, if any, to the voice
+void hold_and_modify(uint8_t voice) {
+    // Copy all the modifier variables
+    mseq[voice].amp = seq[voice].amp;
+    mseq[voice].duty = seq[voice].duty;
+    mseq[voice].freq = seq[voice].freq;
 
+    // Modify the seq params by scale
+    float scale = compute_adsr_scale_exp(voice);
+    if(seq[voice].adsr_target & TARGET_AMP) mseq[voice].amp = mseq[voice].amp * scale;
+    if(seq[voice].adsr_target & TARGET_DUTY) mseq[voice].duty = mseq[voice].duty * scale;
+    if(seq[voice].adsr_target & TARGET_FREQ) mseq[voice].freq = mseq[voice].freq * scale;
+    if(seq[voice].adsr_target & TARGET_FILTER_FREQ) mglobal.filter_freq = (mglobal.filter_freq * scale);
+    if(seq[voice].adsr_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
 
-
-
-// let's refactor mixing a little bit.
-// all voices render into a float32 (or int32??) buffer
-// a big one, all at the same volume. 
-// and we mix down per speaker at a common volume
-// right the issue here is that a sin wave is < noisy than a square...
-// so how could you mix them
-
-// ok, we keep a for amp per voice, but default is 1 / unity
-// we then have a v / volume that works per synth
+    // And the LFO -- scaled by original + (original * scale)
+    scale = compute_lfo_scale(voice);
+    if(seq[voice].lfo_target & TARGET_AMP) mseq[voice].amp = mseq[voice].amp + (mseq[voice].amp * scale);
+    if(seq[voice].lfo_target & TARGET_DUTY) mseq[voice].duty = mseq[voice].duty + (mseq[voice].duty * scale);
+    if(seq[voice].lfo_target & TARGET_FREQ) mseq[voice].freq = mseq[voice].freq + (mseq[voice].freq * scale);
+    if(seq[voice].lfo_target & TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq + (mglobal.filter_freq * scale);
+    if(seq[voice].lfo_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance + (mglobal.resonance * scale);
+}
 
 
 
@@ -297,76 +307,33 @@ void fill_audio_buffer(float seconds) {
         // Clear out the accumulator buffer
         for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
 
+        // Save the current global synth state to the modifiers         
         mglobal.resonance = global.resonance;
         mglobal.filter_freq = global.filter_freq;
 
         for(uint8_t voice=0;voice<VOICES;voice++) {
-
             if(seq[voice].status==AUDIBLE) { // skip voices that are silent or LFO sources from playback
-                // Copy all the mseq variables
-                mseq[voice].amp = seq[voice].amp;
-                mseq[voice].duty = seq[voice].duty;
-                mseq[voice].freq = seq[voice].freq;
-
-                // Modify the mseq if you need to
-                float scale = compute_adsr_scale(voice);
-                
-                if(seq[voice].adsr_target & TARGET_AMP) mseq[voice].amp = mseq[voice].amp * scale;
-                if(seq[voice].adsr_target & TARGET_DUTY) mseq[voice].duty = mseq[voice].duty * scale;
-                if(seq[voice].adsr_target & TARGET_FREQ) mseq[voice].freq = mseq[voice].freq * scale;
-                // In practice you probably only have one voice doing these, but if you have two they'll get double scaled
-                if(seq[voice].adsr_target & TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq * scale;
-                if(seq[voice].adsr_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
-
-                // And the LFO 
-                scale = compute_lfo_scale(voice);
-                // original + (original * scale)
-                if(seq[voice].lfo_target & TARGET_AMP) mseq[voice].amp = mseq[voice].amp + (mseq[voice].amp * scale);
-                if(seq[voice].lfo_target & TARGET_DUTY) mseq[voice].duty = mseq[voice].duty + (mseq[voice].duty * scale);
-                if(seq[voice].lfo_target & TARGET_FREQ) mseq[voice].freq = mseq[voice].freq + (mseq[voice].freq * scale);
-                // In practice you probably only have one voice doing these, but if you have two they'll get double scaled
-                if(seq[voice].lfo_target & TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq + (mglobal.filter_freq * scale);
-                if(seq[voice].lfo_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance + (mglobal.resonance * scale);
-
-                switch(seq[voice].wave) {
-                    case FM:
-                        render_fm(floatblock, voice); 
-                        break;
-                    case NOISE:
-                        render_noise(floatblock, voice);
-                        break;
-                    case SAW:
-                        render_saw(floatblock, voice);
-                        break;
-                    case PULSE:
-                        render_pulse(floatblock, voice); 
-                        break;
-                    case TRIANGLE:
-                        render_triangle(floatblock, voice);
-                        break;                
-                    case SINE:
-                        render_sine(floatblock, voice);
-                        break;
-                    case KS:
-                        render_ks(floatblock, voice); 
-                        break;
-
-                }
+                hold_and_modify(voice); // apply ADSR / LFO
+                if(seq[voice].wave == FM) render_fm(floatblock, voice);
+                if(seq[voice].wave == NOISE) render_noise(floatblock, voice);
+                if(seq[voice].wave == SAW) render_saw(floatblock, voice);
+                if(seq[voice].wave == PULSE) render_pulse(floatblock, voice);
+                if(seq[voice].wave == TRIANGLE) render_triangle(floatblock, voice);
+                if(seq[voice].wave == SINE) render_sine(floatblock, voice);
+                if(seq[voice].wave == KS) render_ks(floatblock, voice);
             }
         }
-
 
         // Bandlimit the buffer all at once
         blip_the_buffer(floatblock, block, BLOCK_SIZE);
 
-        // If filtering is on, filter the mixed signal before bandlimiting
+        // If filtering is on, filter the mixed signal
         if(mglobal.filter_freq > 0) {
             filter_update();
             filter_process_ints(block);
         }
 
-
-        // And write
+        // And write to I2S
         size_t written = 0;
         i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
         if(written != BLOCK_SIZE*2) {
@@ -389,9 +356,9 @@ i2s_config_t i2s_config = {
     };
     
 i2s_pin_config_t pin_config = {
-    .bck_io_num = CONFIG_I2S_BCLK,   // this is BCK pin 
-    .ws_io_num = CONFIG_I2S_LRCLK,   // this is LRCK pin
-    .data_out_num = CONFIG_I2S_DIN,  // this is DIN 
+    .bck_io_num = CONFIG_I2S_BCLK, 
+    .ws_io_num = CONFIG_I2S_LRCLK,  
+    .data_out_num = CONFIG_I2S_DIN, 
     .data_in_num = -1   //Not used
 };
 
@@ -403,20 +370,8 @@ esp_err_t setup_i2s(void) {
     return ESP_OK;
 }
 
-// take an event and make it a string and send it to everyone!
-void serialize_event(struct event e, uint16_t client) {
-    char message[MAX_RECEIVE_LEN];
-    // Maybe only send the ones that are non-default? think
-    // TODO -- we're missing a bunch here, only used for MIDI relay
-    //sprintf(message, "a%fb%fc%dd%fl%ff%fn%dp%dv%dw%dt%lld", 
-    //    e.amp, e.feedback, client, e.duty, e.velocity, e.freq, e.midi_note, e.patch, e.voice, e.wave, e.time );
-    sprintf(message, "c%dl%fn%dv%dt%lld", 
-        client, e.velocity, e.midi_note, e.voice, e.time );
-    
-    printf("sending %s\n", message);
-    mcast_send(message, strlen(message));
-}
 
+// Helper to parse the special ADSR string
 void parse_adsr(struct event * e, char* message) {
     uint8_t idx = 0;
     uint8_t c = 0;
@@ -576,9 +531,8 @@ int8_t check_init(esp_err_t (*fn)(), char *name) {
     return 0;
 }
 
-
 // callback to let us know when we have wifi set up ok.
-void cb_connection_ok(void *pvParameter){
+void wifi_connected(void *pvParameter){
     ip_event_got_ip_t* param = (ip_event_got_ip_t*)pvParameter;
 
     char str_ip[16];
@@ -616,12 +570,17 @@ void toggle_midi() {
         // just restart, easier that way
         esp_restart();
     } else {
+        // If button pushed before wifi connects, wait for wifi to connect.
+        while(!(global.status & WIFI_MANAGER_OK)) {
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+        }
         // turn on midi
         global.status = MIDI_MODE | RUNNING;
+        // Play a MIDI sound before shutting down voices
+        midi_tone();
+        fill_audio_buffer(1.0);
         fm_deinit(); // have to free RAM to start the BLE stack
         voices_deinit();
-        printf("Shutting down multicast receive\n");
-        vTaskDelete(multicast_handle);
         midi_init();
     }
 }
@@ -681,7 +640,7 @@ void ip5306_monitor() {
 
     ret = ip5306_battery_voltage_get(&battery_voltage);
     if(ret != ESP_OK) {
-        printf("Error getting battery voltage\n");
+        //printf("Error getting battery voltage\n");
         return;
     } else {
         if(battery_voltage == BATTERY_OVER_395) battery_mask = battery_mask | BATTERY_VOLTAGE_4;
@@ -701,17 +660,12 @@ void app_main() {
     check_init(&buttons_init, "buttons"); // only one button for the protoboard, 4 for the blinkinlabs
 
     wifi_manager_start();
+    wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &wifi_connected);
 
-    /* register a callback as an example to how you can integrate your code with the wifi manager */
-    wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &cb_connection_ok);
-
+    // Wait for wifi to connect
     while(!(global.status & WIFI_MANAGER_OK)) {
         vTaskDelay(100 / portTICK_PERIOD_MS);
     };
-
-    uint8_t captive_on = 1;
-    int64_t tic = esp_timer_get_time() / 1000;
-
 
     // Do the blinkinlabs battery setup
     check_init(&master_i2c_init, "master_i2c");
@@ -748,19 +702,9 @@ void app_main() {
         } else {
             vTaskDelay(10 / portTICK_PERIOD_MS);
         }
-        // Kill the http server after 10s
-        // we can't kill it immediately because the wifi config checks it to see when it's done adding a new ssid/pass
-        int64_t sysclock = esp_timer_get_time() / 1000;
-        if((sysclock-tic) > 10000 && captive_on) {
-            // Stop the captive portal after 10s from boot, we don't need it anymore
-            printf("Stopping captive portal\n");
-            http_app_stop();
-            wifi_manager_destroy();
-            captive_on = 0;
-        }
     }
 
-    // If we're here, the power off button was pressed (long hold on power.) 
+    // If we got here, the power off button was pressed (long hold on power.) 
     // The idea here is we go into a low power deep sleep mode waiting for a GPIO pin to turn us back on
     // The battery can still charge during this, but let's turn off audio, wifi, multicast, midi 
 

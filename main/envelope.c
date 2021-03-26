@@ -84,7 +84,6 @@ separate target command -- R, same params
 
 extern struct event* seq;
 extern struct mod_event* mseq;
-
 extern struct mod_state mglobal;
 
 
@@ -117,6 +116,43 @@ float compute_lfo_scale(uint8_t voice) {
 	return 0; // 0 is no change, unlike ADSR scale
 }
 
+// dpwe approved exp ADSR curves:
+//def attack(t, attack):
+//    return 1-exp(-3*(t/attack))
+//def decay_and_sustain(t, attack, decay, S):
+//    return S + (1-S)*exp(-(t - attack)/(decay / 3))
+//def release(t, release, S):
+//    return S*exp(-3 * t / release)
+float compute_adsr_scale_exp(uint8_t voice) {
+	// get the scale out of a voice
+	int64_t sysclock = esp_timer_get_time() / 1000;
+	float scale = 1.0; // the overall ratio to modify the thing
+	float t_a = seq[voice].adsr_a;
+	float t_d = seq[voice].adsr_d;
+	float S   = seq[voice].adsr_s;
+	float t_r = seq[voice].adsr_r;
+	float curve = 3.0;
+	if(seq[voice].adsr_on_clock >= 0) { 
+		int64_t elapsed = sysclock - seq[voice].adsr_on_clock;
+		if(elapsed > t_a) { // we're in sustain or decay
+			scale = S + (1.0-S)*expf(-(elapsed - t_a)/(t_d / curve));
+		} else { // attack
+			scale = 1.0 - expf(-curve * (elapsed / t_a));
+		}
+	} else if(seq[voice].adsr_off_clock >= 0) { // release
+		int64_t elapsed = sysclock - seq[voice].adsr_off_clock;
+		scale = S * expf(-curve * elapsed / t_r);
+		if(elapsed > t_r) {
+			// Turn off note
+			seq[voice].status=OFF;
+			seq[voice].adsr_off_clock = -1;
+		}
+	}
+	if(scale < 0) scale = 0;
+	return scale;
+}
+
+
 float compute_adsr_scale(uint8_t voice) {
 	// get the scale out of a voice
 	int64_t sysclock = esp_timer_get_time() / 1000;
@@ -147,8 +183,6 @@ float compute_adsr_scale(uint8_t voice) {
 			// compute the release scale
 			scale = seq[voice].adsr_s - (((float) elapsed / (float) seq[voice].adsr_r) * seq[voice].adsr_s); 
 		}
-	} else {
-		// Nothing. scale = 1
 	}
 	if(scale < 0) scale = 0;
 	return scale;
