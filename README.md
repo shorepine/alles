@@ -1,59 +1,31 @@
-# alles
+# Alles - the mesh synthesizer
 
 ![picture](https://raw.githubusercontent.com/bwhitman/alles/master/pics/set.jpg)
 
-**alles** is a many-speaker distributed mesh synthesizer that responds to control signals over WiFi. Each synth supports up to 10 additive sine, saw, pulse/square, noise and triangle oscillators, a Karplus-Strong string implementation, and a full FM stage including support for DX7 patches. Each voice can support an ADSR envelope or LFO sourced from a different voice controlling up to 5 parameters. Each synth has a single biquad filter implementation on top of all voices. 
+**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 10 additive oscillators, a full FM stage, biquad filter, with LFOs and ADSRs per voice. They're open source, cheap and easy to make -- you can build one yourself for about US$20.
+
+The synthesizers automatically form a mesh and listen to multicast WiFi messages. You can control the mesh from a host computer using any programming language or environments like Max or Pd. You can also wire one synth up to MIDI or MIDI over Bluetooth, and use any MIDI software or controller; the directly connected synth will broadcast to the rest of the mesh for you. 
+
+We intended their first use as distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled as a group or individually. But you can just treat them as dozens of individual synthesizers and do whatever you want with them. It's pretty fun!
 
 Our friends at [Blinkinlabs](https://blinkinlabs.com) are helping us produce small self-contained battery powered speakers with Alles built in. But in the meantime, or if you want to DIY, you can easily build your own! They're cheap to make ($7 for the microcontroller, $6 for the amplifier, speakers from $0.50 up depending on quality). And very easy to put together with hookup wire or only a few soldering points. 
 
-The synthesizers form a mesh and listen to UDP multicast messages. You can control the mesh from a host computer from any programming language or environments like Max or Pd. You can also wire one synth up to MIDI or MIDI over Bluetooth, and use any MIDI software or controller; the directly connected synth will broadcast to the rest of the mesh for you. 
+## Synthesizer details
 
-The original idea was to install a bunch of them throughout a space and make a distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 10 partials, all controlled as a group or individually from a laptop or phone or etc. But you can just treat them as dozens / hundreds of individual synthesizers and do whatever you want with them. It's pretty fun!
+ * 10 voices, each voice can be:
+   * pulse (adjustable duty cycle)
+   * sine
+   * saw
+   * triangle
+   * karplus-strong string (adjustable feedback)
+   * noise
+   * FM, using a DX7 simulation, with support for DX7 patches and 10,000 presets 
+ * Biquad low-pass filter with cutoff and resonance at the last stage
+ * Oscillators can be specified by frequency in floating point or midi note 
+ * Each voice has a dedicated ADSR VCA, which can modify any combination of amplitude, frequency, duty, filter cutoff or resonance
+ * Each voice can also act as an LFO to modify the parameters of another voice
+ * Speaker gain control
 
-## Putting it together 
-
-We are currently testing rev2 of a all-in-one design for Alles. The self-contained version has its own rechargable battery, 4ohm speaker, case and buttons for configuration & setup. We're hoping to be able to sell these in packs for anyone to use. More details soon. 
-
-![blinkinlabs PCB](https://raw.githubusercontent.com/bwhitman/alles/master/pics/alles_reva.png)
-
-But it's still very simple to make one yourself with parts you can get from electronics distributors like Sparkfun, Adafruit or Amazon. 
-
-To make an Alles synth yourself, you need
-
-* [ESP32 dev board (any one will do, but you want pins broken out)](https://www.amazon.com/gp/product/B07Q576VWZ/) (pack of 2, $7.45 each)
-* [The Adafruit I2S mono amplifier](https://www.adafruit.com/product/3006) ($5.95)
-* [4 ohm speaker, this one is especially nice](https://www.parts-express.com/peerless-by-tymphany-tc6fd00-04-2-full-range-paper-cone-woofer-4-ohm--264-1126?gclid=EAIaIQobChMIwcX3-vXi5wIVgpOzCh0a7gjuEAYYASABEgLwf_D_BwE) ($9.77, but you can save a lot of money here going lower-end if you're ok with the sound quality). I also like speakers with prebuilt cases, like [these bookshelf speakers](https://www.amazon.com/Pyle-PCB3BK-100-Watt-Bookshelf-Speakers/dp/B000MCGF1O/ref=sr_1_1?dchild=1&keywords=pyle+home+speaker&qid=1592156929&s=electronics&sr=1-1).
-* A breadboard, custom PCB, or just some hookup wire!
-
-A 5V input (USB battery, USB input, rechargeable batteries direct to power input) powers both boards and speaker at pretty good volumes. A 3.7V LiPo battery will also work, but note the I2S amp will not get as loud (without distorting) if you give it 3.7V. If you want your DIY Alles to be portable, I recommend using a USB battery pack that does not do [low current shutoff](https://www.element14.com/community/groups/test-and-measurement/blog/2018/10/15/on-using-a-usb-battery-for-a-portable-project-power-supply). The draw of the whole unit at loud volumes is around 90mA, and at idle 40mA. 
-
-Wire up your DIY Alles like this (I2S -> ESP)
-
-```
-LRC -> GPIO25
-BCLK -> GPIO26
-DIN -> GPIO27
-GAIN -> I2S Vin (i jumper this on the I2S board)
-SD -> not connected
-GND -> GND
-Vin -> Vin / USB / 3.3 (or direct to your 5V power source)
-Speaker connectors -> speaker
-```
-
-### DIY bridge PCB
-
-*You don't need this PCB made to build a DIY Alles!* -- it will work with just hookup wire. But if you're making a lot of DIY Alleses want more stability, I had a tiny little board made to join the boards together, like so:
-
-![closeup](https://raw.githubusercontent.com/bwhitman/alles/master/pics/adapter.jpg)
-
-Fritzing file in the `pcbs` folder of this repository, and [it's here on Aisler](https://aisler.net/p/TEBMDZWQ). This is a lot more stable and easier to wire up than snipping small bits of hookup wire, especially for the GAIN connection. 
-
-
-## Firmware
-
-Alles is completely open source, and can be a fun platform to adapt beyond its current capabilities. To build your own firmware, start by setting up `esp-idf`: http://esp-idf.readthedocs.io/en/latest/get-started/
-
-Clone this repository and run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board after setup.
 
 ## Using it
 
@@ -125,21 +97,28 @@ Setting `client` to a number greater than 255 allows you to address groups. For 
 
 You can read the heartbeat messages on your host if you want to enumerate the synthesizers locally, see `sync` below. 
 
-## Timing & latency & sync
+## Timing & latency
 
-WiFi, UDP multicast, distance, microcontrollers with bad antennas: all of these are in the way of doing anything close to "real time" control from your host. A message you send from a laptop will arrive between 5ms and 200ms to the connected speakers, and it'll change each time. That's definitely noticeable. We mitigate this by setting a global latency, right now 1000ms, and by allowing any host to send along a `time` parameter of when the host expects the sound to play. `time` can be anything, but I'd suggest using the number of milliseconds since the "alles epoch", e.g.
+Alles is not designed as a low latency real-time performance instrument, where your actions have an immediate effect on the sound. Changes you make on the host will take a fixed latency -- currently set at 1000ms -- to get to every synth. This fixed latency ensures that messages arrive to every synth in the mesh in time to play in perfect sync. This allows you to have millisecond-accurate timing in your performance across dozens of speakers in a large space. 
+
+Your host should send along the `time` parameter of the relative time when you expect the sound to play. I'd suggest using the number of milliseconds since a fixed time, e.g.
 
 ```
 def alles_ms():
-    return int((datetime.datetime.utcnow() - datetime.datetime(2020, 2, 1)).total_seconds() * 1000)
+    d = datetime.datetime.now()
+    return int((datetime.datetime.utcnow() - datetime.datetime(d.year, d.month, d.day)).total_seconds()*1000)
 ```
 
-The first time you send a message the synth uses this to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of both fixed latency and jitter.) Further messages will be accurate message-to-message, but with the fixed latency. 
+If using Max, use the `cpuclock` object as the `time` parameter. If using MIDI mode, the relay synth's clock is used as a time base. 
 
-If you want to update this delta (to correct for drift over time or clock base changes) use the `sync` command. See `alles.py`'s implementation, but sending an `sTIMEiINDEX` message will update the delta and also trigger an immediate response back from each on-line synthesizer. The response looks like `_s65201i4c248`, where s is the time on the client, i is the index it is responding to, and c is the client id. This lets you build a map of not only each booted synthesizer, but if you send many messages with different indexes, will also let you figure the round-trip latency for each one along with the reliability. This is helpful when your synths are spread far apart in space and each may have unique latencies. e.g. here we see we have two synths booted on a busy WiFi network.
+The first time you send a message with `time` the synth mesh uses it to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of WiFi jitter.) Further messages will be millisecond accurate message-to-message, but with the fixed latency. You can adapt `time` per client if you want to account for speed-of-sound delay. If you send a new `time` that is outside 10,000ms from its expected delta, the clock base will re-compute.
+
+## Enumerating synths
+
+The `sync` command in `alles.py`'s triggers an immediate response back from each on-line synthesizer. The response looks like `_s65201i4c248y2`, where s is the time on the client, i is the index it is responding to, y has battery status (for versions that support that) and c is the client id. This lets you build a map of not only each booted synthesizer, but if you send many messages with different indexes, will also let you figure the round-trip latency for each one along with the reliability. This is helpful when your synths are spread far apart in space and each may have unique latencies. e.g. here we see we have two synths booted on a busy WiFi network.
 
 ```
->>> alles.sync(count=10)
+>>> alles.sync()
 {
 	248: {'avg_rtt': 319.14285714285717, 'reliability': 0.7}, 
 	26: {'avg_rtt': 323.5, 'reliability': 0.8}
@@ -160,35 +139,81 @@ And here's a response with 4 synths on a local wired dedicated router:
 
 ## WiFi & reliability 
 
-UDP multicast is naturally 'lossy' -- there is no guarantee that a message will be received by a synth. Depending on a lot of factors, but most especially your wireless router and the presence of other devices, that reliability can go between 70% and 99%. In my home network, a many-client Google WiFi mesh, my average round trip latencies are in the high 200 ms range, and my reliability is in the 75% range. On a direct wired Netgear Nighthawk AC2300 with only synthesizers as clients, latencies are well under 50ms and reliability is close to 100%. For performance purposes, I highly suggest using a dedicated wireless router instead of an existing WiFi network. You'll want to be able to turn off many "quality of service" features (these prioritize a randomly chosen synth and will make sync hard to work with), and you'll want to in the best case only have synthesizers as direct WiFi clients. Using a standalone router also helps with WiFi authentication setup -- by default the same login & password is on all synthesizers. If you were using your own network you'll have to recompile with your own authentication, which gets tiresome with many synths. 
+UDP multicast is naturally 'lossy' -- there is no guarantee that a message will be received by a synth. Depending on a lot of factors, but most especially your wireless router and the presence of other devices, that reliability can go as low as 70%. In my home network, a many-client Google WiFi mesh, my average round trip latencies are in the high 200 ms range, and my reliability is in the 75% range. On a direct wired Netgear Nighthawk AC2300 with only synthesizers as clients, latencies are well under 50ms and reliability is close to 100%. For performance purposes, I highly suggest using a dedicated wireless router instead of an existing WiFi network. You'll want to be able to turn off many "quality of service" features (these prioritize a randomly chosen synth and will make sync hard to work with), and you'll want to in the best case only have synthesizers as direct WiFi clients. Using a standalone router also helps with WiFi authentication setup -- by default the same login & password is on all synthesizers. If you were using your own network you'll have to recompile with your own authentication, which gets tiresome with many synths. 
 
-An easy way to do this is to set up a dedicated router but not wire any internet into it. Connect your laptop or host machine to the router over a wired connection (via a USB-ethernet adapter if you need one) from the router, but keep your laptop's wifi or other internet network active. In your controlling software, you simply set the source network address to send and receive multicast packets from. See `alles.py` for more details on this. This will keep your host machine on its normal network but allow you to control the synths from a second interface.
+An easy way to do this is to set up a dedicated router but not wire any internet into it. Connect your laptop or host machine to the router over a wired connection (via a USB-ethernet adapter if you need one) from the router, but keep your laptop's wifi or other internet network active. In your controlling software, you simply set the source network address to send and receive multicast packets from. This will keep your host machine on its normal network but allow you to control the synths from a second interface.
 
-If you're in a place where you can't control your network, you can mitigate reliability by simply sending messages N times (2-4). Since individual messages are stateless and can have target timestamps, sending multiple duplicate messages do not have any averse effect on the synths.
+If you're in a place where you can't control your network, you can mitigate reliability by simply sending messages N times (2-4). Sending multiple duplicate messages do not have any adverse effect on the synths.
+
+
+## Putting it together 
+
+We are currently testing rev2 of a all-in-one design for Alles. The self-contained version has its own rechargable battery, 4ohm speaker, case and buttons for configuration & setup. We're hoping to be able to sell these in packs for anyone to use. More details soon. 
+
+![blinkinlabs PCB](https://raw.githubusercontent.com/bwhitman/alles/master/pics/alles_reva.png)
+
+But it's still very simple to make one yourself with parts you can get from electronics distributors like Sparkfun, Adafruit or Amazon. 
+
+To make an Alles synth yourself, you need
+
+* [ESP32 dev board (any one will do, but you want pins broken out)](https://www.amazon.com/gp/product/B07Q576VWZ/) (pack of 2, $7.45 each)
+* [The Adafruit I2S mono amplifier](https://www.adafruit.com/product/3006) ($5.95)
+* [4 ohm speaker, this one is especially nice](https://www.parts-express.com/peerless-by-tymphany-tc6fd00-04-2-full-range-paper-cone-woofer-4-ohm--264-1126?gclid=EAIaIQobChMIwcX3-vXi5wIVgpOzCh0a7gjuEAYYASABEgLwf_D_BwE) ($9.77, but you can save a lot of money here going lower-end if you're ok with the sound quality). I also like speakers with prebuilt cases, like [these bookshelf speakers](https://www.amazon.com/Pyle-PCB3BK-100-Watt-Bookshelf-Speakers/dp/B000MCGF1O/ref=sr_1_1?dchild=1&keywords=pyle+home+speaker&qid=1592156929&s=electronics&sr=1-1).
+* A breadboard, custom PCB, or just some hookup wire!
+
+A 5V input (USB battery, USB input, rechargeable batteries direct to power input) powers both boards and speaker at pretty good volumes. A 3.7V LiPo battery will also work, but note the I2S amp will not get as loud (without distorting) if you give it 3.7V. If you want your DIY Alles to be portable, I recommend using a USB battery pack that does not do [low current shutoff](https://www.element14.com/community/groups/test-and-measurement/blog/2018/10/15/on-using-a-usb-battery-for-a-portable-project-power-supply). The draw of the whole unit at loud volumes is around 90mA, and at idle 40mA. 
+
+Wire up your DIY Alles like this (I2S -> ESP)
+
+```
+LRC -> GPIO25
+BCLK -> GPIO26
+DIN -> GPIO27
+GAIN -> I2S Vin (i jumper this on the I2S board)
+SD -> not connected
+GND -> GND
+Vin -> Vin / USB / 3.3 (or direct to your 5V power source)
+Speaker connectors -> speaker
+```
+
+### DIY bridge PCB
+
+*You don't need this PCB made to build a DIY Alles!* -- it will work with just hookup wire. But if you're making a lot of DIY Alleses want more stability, I had a tiny little board made to join the boards together, like so:
+
+![closeup](https://raw.githubusercontent.com/bwhitman/alles/master/pics/adapter.jpg)
+
+Fritzing file in the `pcbs` folder of this repository, and [it's here on Aisler](https://aisler.net/p/TEBMDZWQ). This is a lot more stable and easier to wire up than snipping small bits of hookup wire, especially for the GAIN connection. 
+
+
+## Firmware
+
+Alles is completely open source, and can be a fun platform to adapt beyond its current capabilities. To build your own firmware, start by setting up `esp-idf`: http://esp-idf.readthedocs.io/en/latest/get-started/
+
+Clone this repository and run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board after setup.
 
 
 ## Clients
 
-Simple Python example:
+Minimal Python example:
 
 ```
 import socket
 multicast_group = ('232.10.11.12', 3333)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-def tone(voice=0, freq=0, vel=1):
+def send(voice=0, freq=0, vel=1):
     sock.sendto("v%df%fl%f" % (voice, freq, vel), multicast_group)
 
 def c_major(octave=2):
-    tone(voice=0,freq=220.5*octave)
-    tone(voice=1,freq=138.5*octave)
-    tone(voice=2,freq=164.5*octave)
+    send(voice=0,freq=220.5*octave)
+    send(voice=1,freq=138.5*octave)
+    send(voice=2,freq=164.5*octave)
 
 ```
 
-See `alles.py` for a better example.
+See [`alles.py`](https://github.com/bwhitman/alles/blob/master/alles.py) for a better example.
 
-You can also use it in Max or similar software that supports sending UDP packets. Note that for Max, you'll need your host machine to be on the same wifi network as the synths as it has no easy way to set a source IP address like Python does. Max's `cpuclock` object is a great standin for host time. 
+You can also use it in Max or similar software that supports sending UDP packets. Note that for Max, you'll need your host machine to be on the same wifi network as the synths as it has no easy way to set a source IP address like Python does.
 
 ![Max](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/max.png)
 
@@ -202,16 +227,11 @@ To use BLE MIDI: On a Mac, open Audio MIDI Setup, then show MIDI Studio, then th
 
 To use hardwired MIDI: I recommend using a pre-built MIDI breakout with the support hardware -- like this one from [Sparkfun](https://www.sparkfun.com/products/12898) or [Adafruit](https://www.adafruit.com/product/4740) to make it easier to wire up. Connect 3.3V, GND and MIDI to either the devboard (GPIO 19) or the Alles V1 PCB (MIDI header.)
 
-DAWs may start MIDI messages with 0, or 1, so to avoid confusion, I'm using 1 addressing below. In Ableton Live, for example, a Pgm Change of Bank 1 is the first available bank. 
-
 `CHANNEL: 1-16`: sets which synth ID in the mesh you want to send the message to. `1` sends the message to all synths, and `2-16`sends the message to only that ID, minus 1. So to send a message to only the first booted synth, use the second channel.
 
 `"Pgm Change Bank"`: set to "Bank 1" and then use `PROGRAM CHANGE` messages to set the tone. Bank `1` and `PGM` 1 is a sine wave, 2 is a square, and so on like the `w` parameter above. `Bank 2` and onwards are the FM patches. `Bank 2` and `PGM 1` is the first FM patch. `Bank 2 PGM 2` is the second patch. `BANK X PGM Y` is the `(128*(X-2) + (Y-1))` patch. 
 
 Currently supported are program / bank changes and note on / offs. Will be adding more CCs soon.
-
-MIDI messages will have the default latency added to allow for sync between all your synths.
-
 
 
 ## THANK YOU TO

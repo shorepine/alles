@@ -6,25 +6,24 @@ multicast_group = ('232.10.11.12', 3333)
 local_ip = socket.gethostbyname(socket.gethostname())
 
 # But override this if you are using multiple network interfaces, for example a dedicated router to control the synths
-local_ip = '192.168.1.2'
+# This, for example, is my dev machine's 2nd network interface IP, that I have wired to a separate wifi router
+if(os.uname().nodename=='colossus'):
+    local_ip = '192.168.1.2'
 
 # Some constants shared with the synth that help
 ALLES_LATENCY_MS = 1000
 [SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, OFF] = range(8)
-AMP = 1
-DUTY = 2
-FREQ = 4
-FILTER_FREQ = 8
-RESONANCE = 16
+TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE = (1, 2, 4, 8, 16)
+
 
 def set_preset(which,voice=0, client=-1):
     if(which==0): # simple note
-        tone(voice=voice, wave=SINE, envelope="10,250,0.7,250", adsr_target=AMP,timestamp=-1)
+        send(voice=voice, wave=SINE, envelope="10,250,0.7,250", adsr_target=TARGET_AMP,timestamp=-1)
     if(which==1): # filter bass
         filter(1000, 2)
-        tone(voice=voice, wave=SAW, envelope="10,100,0.5,25", adsr_target=AMP+FILTER_FREQ,timestamp=-1)
+        send(voice=voice, wave=SAW, envelope="10,100,0.5,25", adsr_target=TARGET_AMP+TARGET_FILTER_FREQ,timestamp=-1)
     if(which==2): # long square pad to test ADSR
-        tone(voice=voice, wave=PULSE, envelope="500,1000,0.25,750", adsr_target=AMP, timestamp=-1)
+        send(voice=voice, wave=PULSE, envelope="500,1000,0.25,750", adsr_target=TARGET_AMP, timestamp=-1)
 
 def setup_sock():
     # Set up the socket for multicast send & receive
@@ -139,14 +138,14 @@ def sync(count=10, delay_ms=100):
     return clients
 
 
-# yeah, TODO, note off should not turn off the wave , it should stay once set 
 def note_on(voice=-1, wave=-1, amp=-1, note=-1, client=-1):
-    tone(voice=voice, wave=wave, amp=amp, client=client, note=note, vel=1)
+    send(voice=voice, wave=wave, amp=amp, client=client, note=note, vel=1)
+
 def note_off(voice=-1, wave=-1, amp=-1, note=-1, client=-1):
-    tone(voice=voice, wave=wave, amp=amp, client=client, note=note, vel=0)
+    send(voice=voice, wave=wave, amp=amp, client=client, note=note, vel=0)
 
 
-def tone(voice=0, wave=-1, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, \
+def send(voice=0, wave=-1, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, adsr_target=-1, lfo_target=-1, lfo_source=-1):
     global sock
     if(timestamp is None): timestamp = alles_ms()
@@ -185,7 +184,7 @@ def beating_tones(wave=SINE, vol=0.5, cycle_len_ms = 20000, resolution_ms=100):
             base_freq = start_f + (distance * (end_f-start_f))
             freq = base_freq
             if(freq > end_f): freq = freq - (end_f - start_f)
-            tone(wave=wave, client=client_id, amp=vol, freq=freq, retries=1)
+            send(wave=wave, client=client_id, amp=vol, freq=freq, retries=1)
         beat = beat + 1
         tic = tic + resolution_ms
         if(tic > cycle_len_ms): tic = 0
@@ -212,7 +211,7 @@ def lfoduty():
     while(True):
         duty=duty+0.05
         if(duty > 1): duty = 0
-        tone(voice=0, wave=KS, amp=0.1, freq=220+(duty*220), duty=duty)
+        send(voice=0, wave=KS, amp=0.1, freq=220+(duty*220), duty=duty)
         time.sleep(.05)
 
 def test():
@@ -221,7 +220,7 @@ def test():
         while(True):
             for wave in [SINE, SAW, PULSE, TRIANGLE, FM, NOISE]:
                 for i in range(12):
-                    tone(voice=0, wave=wave, amp=0.1, vel=100, note=40+i, patch=i)
+                    send(voice=0, wave=wave, amp=0.1, vel=100, note=40+i, patch=i)
                     time.sleep(0.5)
     except KeyboardInterrupt:
         pass
@@ -232,7 +231,7 @@ def circle(wave=KS, amp=0.5, clients=6):
     warble=-40
     direction =1
     while 1:
-        tone(voice=0,wave=wave, freq=440+warble, amp=amp, client=i)
+        send(voice=0,wave=wave, freq=440+warble, amp=amp, client=i)
         i = (i + 1) % clients
         warble = warble + direction
         if warble > 40:
@@ -249,7 +248,7 @@ def play_patches(voice=0, wave=FM, amp=0.5 ,forever=True, vel=100, wait=0.750, d
         for i in range(24):
             patch = patch_count % patch_total
             patch_count = patch_count + 1
-            tone(voice=i % 10, wave=wave, amp=amp, vel=vel, note=40+i, patch=patch, duty=duty)
+            send(voice=i % 10, wave=wave, amp=amp, vel=vel, note=40+i, patch=patch, duty=duty)
             time.sleep(wait)
 
 
@@ -257,7 +256,7 @@ def polyphony():
     voice = 0
     note = 0
     while(1):
-        tone(voice=voice, wave=FM, patch=note, note=50+note, client = -1)
+        send(voice=voice, wave=FM, patch=note, note=50+note, client = -1)
         time.sleep(0.5)
         voice =(voice + 1) % 9
         note =(note + 1) % 24
@@ -270,9 +269,9 @@ def sweep(speed=0.100, res=0.5, loops = -1):
         for i in [0, 1, 4, 5, 1, 3, 4, 5]:
             cur = (cur + 100) % end
             filter(cur, res)
-            tone(voice=0,wave=PULSE, note=50+i, duty=0.50)
-            tone(voice=1,wave=PULSE, note=50+12+i, duty=0.25)
-            tone(voice=2,wave=PULSE, note=50+6+i, duty=0.90)
+            send(voice=0,wave=PULSE, note=50+i, duty=0.50)
+            send(voice=1,wave=PULSE, note=50+12+i, duty=0.25)
+            send(voice=2,wave=PULSE, note=50+6+i, duty=0.90)
             time.sleep(speed)
 
 
@@ -280,18 +279,18 @@ def complex(speed=0.250, vol=1, client =-1, loops=-1):
     while(loops != 0): # -1 means forever 
         for i in [0,2,4,5, 0, 4, 0, 2]:
 
-            tone(voice=0, wave=FM, note=50+i, patch=15, vel=100, client=client)
+            send(voice=0, wave=FM, note=50+i, patch=15, vel=100, client=client)
             time.sleep(speed)
-            tone(voice=0, vel=0, client=client) # note off
+            send(voice=0, vel=0, client=client) # note off
 
-            tone(voice=1, wave=KS, note=50+i, patch=8, vel=100,client=client)
+            send(voice=1, wave=KS, note=50+i, patch=8, vel=100,client=client)
             time.sleep(speed)
-            tone(voice=1, vel=0, client=client) # note off
+            send(voice=1, vel=0, client=client) # note off
 
-            tone(voice=2, wave=SINE, note=62+i, client=client)
+            send(voice=2, wave=SINE, note=62+i, client=client)
             time.sleep(speed)
 
-            tone(voice=2, wave=SINE, freq = 20, client=client)
+            send(voice=2, wave=SINE, freq = 20, client=client)
             time.sleep(speed)
 
         loops = loops - 1
@@ -299,26 +298,26 @@ def complex(speed=0.250, vol=1, client =-1, loops=-1):
 def reset(voice=None):
     # Turn off amp per voice and back on again with no wave
     if(voice):
-        tone(reset=voice)
+        send(reset=voice)
     else:
-        tone(reset=100)
+        send(reset=100)
 
 def volume(volume, client = -1):
-    tone(0, client=client, volume=volume, timestamp=-1)
+    send(0, client=client, volume=volume, timestamp=-1)
 
 def filter(center, q, client = -1):
-    tone(0, filter_freq = center, resonance = q, client = client, timestamp=-1)
+    send(0, filter_freq = center, resonance = q, client = client, timestamp=-1)
 
 def c_major(octave=2,wave=SINE, vol=0.2):
-    tone(voice=0,freq=220.5*octave,amp=vol/3.0, wave=wave)
-    tone(voice=1,freq=138.5*octave,amp=vol/3.0, wave=wave)
-    tone(voice=2,freq=164.5*octave,amp=vol/3.0, wave=wave)
+    send(voice=0,freq=220.5*octave,amp=vol/3.0, wave=wave)
+    send(voice=1,freq=138.5*octave,amp=vol/3.0, wave=wave)
+    send(voice=2,freq=164.5*octave,amp=vol/3.0, wave=wave)
 
 def many_voices_fast(wave=KS, vol=0.5):
     # debug the weird underwater effect of many KS voices
     while 1:
         for voice in range(10):
-            tone(voice=(voice % 10), note=50+voice, amp=vol/10, wave=wave)
+            send(voice=(voice % 10), note=50+voice, amp=vol/10, wave=wave)
             time.sleep(0.2)
 
 

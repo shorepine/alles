@@ -205,7 +205,6 @@ extern void filter_process_ints(int16_t * block);
 
 // envelopes
 extern float compute_adsr_scale(uint8_t voice);
-extern float compute_adsr_scale_exp(uint8_t voice);
 extern float compute_lfo_scale(uint8_t voice);
 extern void retrigger_lfo_source(uint8_t voice);
 

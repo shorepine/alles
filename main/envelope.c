@@ -44,7 +44,7 @@ float compute_lfo_scale(uint8_t voice) {
 //    return S + (1-S)*exp(-(t - attack)/(decay / 3))
 //def release(t, release, S):
 //    return S*exp(-3 * t / release)
-float compute_adsr_scale_exp(uint8_t voice) {
+float compute_adsr_scale(uint8_t voice) {
 	// get the scale out of a voice
 	int64_t sysclock = esp_timer_get_time() / 1000;
 	float scale = 1.0; // the overall ratio to modify the thing
@@ -73,39 +73,4 @@ float compute_adsr_scale_exp(uint8_t voice) {
 	return scale;
 }
 
-
-float compute_adsr_scale(uint8_t voice) {
-	// get the scale out of a voice
-	int64_t sysclock = esp_timer_get_time() / 1000;
-	float scale = 1.0; // the overall ratio to modify the thing
-
-	if(synth[voice].adsr_on_clock >= 0) { 
-		// figure out where we are in the curve
-		int64_t elapsed = sysclock - synth[voice].adsr_on_clock;
-		if(elapsed > (synth[voice].adsr_d+synth[voice].adsr_a)) { // we're in sustain
-			scale = synth[voice].adsr_s;
-		} else if(elapsed > synth[voice].adsr_a) { // decay
-			// compute the decay scale
-			elapsed = elapsed - synth[voice].adsr_a; // time since d started 
-			float elapsed_ratio = ((float) elapsed / (float)synth[voice].adsr_d);
-			scale = 1.0 - ((1.0-synth[voice].adsr_s) * elapsed_ratio);
-		} else { // attack
-			// compute the attack scale
-			scale = (float)elapsed / (float)synth[voice].adsr_a; 
-		}
-	} else if(synth[voice].adsr_off_clock >= 0) {
-		int64_t elapsed = sysclock - synth[voice].adsr_off_clock;
-		if(elapsed > synth[voice].adsr_r) {
-			scale = 0; // note is done
-			synth[voice].status=OFF; // or else it'll just start playing as an oscillator again
-			// Turn off release clock
-			synth[voice].adsr_off_clock = -1;
-		} else {
-			// compute the release scale
-			scale = synth[voice].adsr_s - (((float) elapsed / (float) synth[voice].adsr_r) * synth[voice].adsr_s); 
-		}
-	}
-	if(scale < 0) scale = 0;
-	return scale;
-}
 

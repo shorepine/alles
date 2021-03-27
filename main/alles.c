@@ -7,13 +7,14 @@
 
 // Global state 
 struct state global;
+// envelope-modified global state
 struct mod_state mglobal;
 
-// One set of events for the fifo
+// set of events for the fifo to be played
 struct event * events;
-// And another event per voice as multi-channel synthesizer state the scheduler renders into
+// state per voice as multi-channel synthesizer that the scheduler renders into
 struct event * synth;
-// The things per voice that LFOs & envelopes can change
+// envelope-modified per-voice state
 struct mod_event * msynth;
 
 // floatblock -- accumulative for mixing
@@ -401,7 +402,7 @@ uint8_t deserialize_event(char * message, uint16_t length) {
     uint8_t mode = 0;
     int64_t sync = -1;
     int8_t sync_index = -1;
-    uint8_t ipv4 = 0; // lol i had this as an int8 jeez 
+    uint8_t ipv4 = 0; 
     int16_t client = -1;
     uint16_t start = 0;
     uint16_t c = 0;
@@ -418,9 +419,7 @@ uint8_t deserialize_event(char * message, uint16_t length) {
     }
     length = new_length;
 
-    // Debug
     //printf("received message ###%s### len %d\n", message, length);
-
     while(c < length+1) {
         uint8_t b = message[c];
         if(b == '_' && c==0) sync_response = 1;
@@ -473,11 +472,9 @@ uint8_t deserialize_event(char * message, uint16_t length) {
         // Now adjust time in some useful way:
         // if we have a delta & got a time in this message, use it schedule it properly
         if(computed_delta_set && e.time > 0) {
-
-            //e.time = (e.time - computed_delta) + LATENCY_MS;
-            // OK, so check for potentially negative numbers here (or really big numbers-syslclock) 
+            // OK, so check for potentially negative numbers here (or really big numbers-sysclock) 
             int64_t potential_time = (e.time - computed_delta) + LATENCY_MS;
-            if(potential_time < 0 || potential_time > sysclock + LATENCY_MS + MAX_DRIFT_MS) {
+            if(potential_time < 0 || (potential_time > sysclock + LATENCY_MS + MAX_DRIFT_MS)) {
                 printf("recomputing time base: message came in with %lld, mine is %lld, computed delta was %lld\n", e.time, sysclock, computed_delta);
                 computed_delta = e.time - sysclock;
                 printf("computed delta now %lld\n", computed_delta);
@@ -647,7 +644,6 @@ void ip5306_monitor() {
         if(battery_voltage == BATTERY_36_38) battery_mask = battery_mask | BATTERY_VOLTAGE_2;
         if(battery_voltage == BATTERY_33_36) battery_mask = battery_mask | BATTERY_VOLTAGE_1;
     }
-
 }
 
 
