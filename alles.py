@@ -1,4 +1,4 @@
-import socket, time, struct, datetime, sys, re
+import socket, time, struct, datetime, sys, re, os
 
 # Setup stuff -- this is the multicast IP & port all the synths listen on
 multicast_group = ('232.10.11.12', 3333)
@@ -138,28 +138,27 @@ def sync(count=10, delay_ms=100):
     return clients
 
 
-def note_on(voice=-1, wave=-1, amp=-1, note=-1, client=-1):
-    send(voice=voice, wave=wave, amp=amp, client=client, note=note, vel=1)
+def note_on(voice=-1, wave=-1, freq=-1, note=-1, client=-1, vel=1, patch=-1):
+    send(voice=voice, wave=wave, freq=freq, client=client, note=note, patch=patch, vel=vel)
 
-def note_off(voice=-1, wave=-1, amp=-1, note=-1, client=-1):
-    send(voice=voice, wave=wave, amp=amp, client=client, note=note, vel=0)
+def note_off(voice=-1, client=-1):
+    send(voice=voice, client=client, vel=0)
 
 
-def send(voice=0, wave=-1, patch=-1, amp=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, \
+def send(voice=0, wave=-1, patch=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, adsr_target=-1, lfo_target=-1, lfo_source=-1):
     global sock
     if(timestamp is None): timestamp = alles_ms()
     m = "t%d" % (timestamp)
-    if(voice>=0): m = "v%d" % (voice)
+    if(voice>=0): m = m + "v%d" % (voice)
     if(wave>=0): m = m + "w%d" % (wave)
-    if(amp>=0): m = m + "a%f" % (amp)
     if(duty>=0): m = m + "d%f" % (duty)
     if(feedback>=0): m = m + "b%f" % (feedback)
     if(freq>=0): m = m + "f%f" % (freq)
     if(note>=0): m = m + "n%d" % (note)
     if(patch>=0): m = m + "p%d" % (patch)
     if(client>=0): m = m + "c%d" % (client)
-    if(vel>=0): m = m + "l%d" % (vel)
+    if(vel>=0): m = m + "l%f" % (vel)
     if(volume>=0): m = m + "V%f" % (volume)
     if(resonance>=0): m = m + "R%f" % (resonance)
     if(filter_freq>=0): m = m + "F%f" % (filter_freq)
@@ -184,7 +183,7 @@ def beating_tones(wave=SINE, vol=0.5, cycle_len_ms = 20000, resolution_ms=100):
             base_freq = start_f + (distance * (end_f-start_f))
             freq = base_freq
             if(freq > end_f): freq = freq - (end_f - start_f)
-            send(wave=wave, client=client_id, amp=vol, freq=freq, retries=1)
+            send(wave=wave, client=client_id, vel=vol, freq=freq, retries=1)
         beat = beat + 1
         tic = tic + resolution_ms
         if(tic > cycle_len_ms): tic = 0
@@ -206,21 +205,13 @@ def battery_test():
     print("Took %d seconds to stop" %(time.time() - tic))
 
 
-def lfoduty():
-    duty = 0
-    while(True):
-        duty=duty+0.05
-        if(duty > 1): duty = 0
-        send(voice=0, wave=KS, amp=0.1, freq=220+(duty*220), duty=duty)
-        time.sleep(.05)
-
 def test():
     # Plays a test suite
     try:
         while(True):
             for wave in [SINE, SAW, PULSE, TRIANGLE, FM, NOISE]:
                 for i in range(12):
-                    send(voice=0, wave=wave, amp=0.1, vel=100, note=40+i, patch=i)
+                    send(voice=0, wave=wave, vel=0.9, note=40+i, patch=i)
                     time.sleep(0.5)
     except KeyboardInterrupt:
         pass
@@ -278,21 +269,14 @@ def sweep(speed=0.100, res=0.5, loops = -1):
 def complex(speed=0.250, vol=1, client =-1, loops=-1):
     while(loops != 0): # -1 means forever 
         for i in [0,2,4,5, 0, 4, 0, 2]:
-
-            send(voice=0, wave=FM, note=50+i, patch=15, vel=100, client=client)
+            note_on(voice=0, wave=FM, vel=0.8, note=50+i, patch=15, client=client)
             time.sleep(speed)
-            send(voice=0, vel=0, client=client) # note off
-
-            send(voice=1, wave=KS, note=50+i, patch=8, vel=100,client=client)
+            note_on(voice=1, wave=FM, vel=0.6, note=50+i, patch=8, client=client)
             time.sleep(speed)
-            send(voice=1, vel=0, client=client) # note off
-
-            send(voice=2, wave=SINE, note=62+i, client=client)
+            note_on(voice=2, wave=SINE, vel=0.5, note=62+i, patch=2, client=client)
             time.sleep(speed)
-
-            send(voice=2, wave=SINE, freq = 20, client=client)
+            note_on(voice=2, wave=SINE, vel=1, freq = 20, client=client)
             time.sleep(speed)
-
         loops = loops - 1
 
 def reset(voice=None):

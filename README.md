@@ -10,14 +10,14 @@ We intended their first use as distributed / spatial version of an [Alles Machin
 
 Our friends at [Blinkinlabs](https://blinkinlabs.com) are helping us produce small self-contained battery powered speakers with Alles built in. But in the meantime, or if you want to DIY, you can easily build your own! They're cheap to make ($7 for the microcontroller, $6 for the amplifier, speakers from $0.50 up depending on quality). And very easy to put together with hookup wire or only a few soldering points. 
 
-## Synthesizer details
+## Synthesizer specs
 
- * 10 voices, each voice can be:
-   * pulse (adjustable duty cycle)
+ * 10 voices, each voice with adjustable frequency and amplitude:
+   * pulse (+ adjustable duty cycle)
    * sine
    * saw
    * triangle
-   * karplus-strong string (adjustable feedback)
+   * karplus-strong string (+ adjustable feedback)
    * noise
    * FM, using a DX7 simulation, with support for DX7 patches and 10,000 presets 
  * Biquad low-pass filter with cutoff and resonance at the last stage
@@ -47,7 +47,6 @@ v0w4f440.0a0.5l1
 Where
 ```
 A = ADSR envelope, string, in commas, like 100,50,0.5,200 -- A, D, R are in ms, S is in fraction of the peak, 0-1. default 0,0,1,0
-a = amplitude, float 0-1 per voice. default 1
 b = feedback, float 0-1 for karplus-strong. default 0.996
 c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_id % (x-255) == 0) for groups, default all clients
 d = duty cycle, float 0.001-0.999. duty cycle for pulse wave, default 0.5
@@ -55,7 +54,7 @@ f = frequency, float 0-22050. default 0
 F = center frequency of biquad filter. 0 is off. default 0. applies to entire synth audio
 g = LFO target mask. Which parameter LFO controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
 L = LFO source voice. 0-9. Which voice is used as an LFO for this voice. Source voice will be silent. 
-l = velocity, float 0-1, >0 to trigger note on, 0 to trigger note off. Some envelopes / sounds are vel sensitive. 
+l = velocity (amplitude), float 0-1, >0 to trigger note on, 0 to trigger note off.  
 n = midinote, uint, 0-127 (note that this will also set f). default 0
 p = patch, uint, 0-999, choose a preloaded DX7 patch number for FM waveforms. See patches.h and alles.py. default 0
 R = q factor / "resonance" of biquad filter. float. in practice, 0 to 10.0. default 0.7.
@@ -69,21 +68,6 @@ w = waveform, uint, 0 to 7 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, OFF]. de
 ```
 
 Commands are cumulative, state is held per voice. If voice is not given it's assumed to be 0. 
-
-Example:
-
-```
-f440a0.1t4500l1
-a0.5t4600
-w1t4600
-v1w5n50a0.2t5500l1
-v1a0.4t7000
-w2t7000
-```
-
-Will set voice 0 (default) to a sine wave (default) at 440Hz amplitude 0.1 at timestamp 4.5s, then set amplitude of voice 0 to 0.5 100ms later, then change the waveform to a square but keep everything else the same. Then set voice 1 to an FM synth playing midi note 50 at amplitude 0.2. Then set voice 1's amplitude to 0.4. Then change voice 0 again to a saw wave.
-
-In normal operation, a small "bleep" noise is made a few seconds after boot to confirm that the synthesizer is ready to receive UDP packets. If you don't hear the bleep, ensure the Wi-Fi authentication is correct.
 
 ## Addressing individual synthesizers
 
@@ -101,7 +85,7 @@ You can read the heartbeat messages on your host if you want to enumerate the sy
 
 Alles is not designed as a low latency real-time performance instrument, where your actions have an immediate effect on the sound. Changes you make on the host will take a fixed latency -- currently set at 1000ms -- to get to every synth. This fixed latency ensures that messages arrive to every synth in the mesh in time to play in perfect sync. This allows you to have millisecond-accurate timing in your performance across dozens of speakers in a large space. 
 
-Your host should send along the `time` parameter of the relative time when you expect the sound to play. I'd suggest using the number of milliseconds since a fixed time, e.g.
+Your host should send along the `time` parameter of the relative time when you expect the sound to play. I'd suggest using the number of milliseconds since your host started, e.g. in Python:
 
 ```
 def alles_ms():
@@ -111,35 +95,17 @@ def alles_ms():
 
 If using Max, use the `cpuclock` object as the `time` parameter. If using MIDI mode, the relay synth's clock is used as a time base. 
 
-The first time you send a message with `time` the synth mesh uses it to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of WiFi jitter.) Further messages will be millisecond accurate message-to-message, but with the fixed latency. You can adapt `time` per client if you want to account for speed-of-sound delay. If you send a new `time` that is outside 10,000ms from its expected delta, the clock base will re-compute.
+The first time you send a message with `time` the synth mesh uses it to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of WiFi jitter.) Further messages will be millisecond accurate message-to-message, but with the fixed latency. You can adapt `time` per client if you want to account for speed-of-sound delay. 
+
+The `time` parameter is not meant to schedule things far in the future on the clients. If you send a new `time` that is outside 10,000ms from its expected delta, the clock base will re-compute. Your host should be the main "sequencer" and keep track of performance state and future events. 
 
 ## Enumerating synths
 
-The `sync` command in `alles.py`'s triggers an immediate response back from each on-line synthesizer. The response looks like `_s65201i4c248y2`, where s is the time on the client, i is the index it is responding to, y has battery status (for versions that support that) and c is the client id. This lets you build a map of not only each booted synthesizer, but if you send many messages with different indexes, will also let you figure the round-trip latency for each one along with the reliability. This is helpful when your synths are spread far apart in space and each may have unique latencies. e.g. here we see we have two synths booted on a busy WiFi network.
-
-```
->>> alles.sync()
-{
-	248: {'avg_rtt': 319.14285714285717, 'reliability': 0.7}, 
-	26: {'avg_rtt': 323.5, 'reliability': 0.8}
-}
-```
-
-And here's a response with 4 synths on a local wired dedicated router:
-
-```
->>> alles.sync()
-{
-	3: {'avg_rtt': 4.0, 'reliability': 1.0},
-	4: {'avg_rtt': 4.6, 'reliability': 1.0},
-	5: {'avg_rtt': 4.2, 'reliability': 1.0},
-	6: {'avg_rtt': 5.2, 'reliability': 1.0}
-}
-```
+The `sync` command in `alles.py`'s triggers an immediate response back from each on-line synthesizer. The response looks like `_s65201i4c248y2`, where s is the time on the client, i is the index it is responding to, y has battery status (for versions that support that) and c is the client id. This lets you build a map of not only each booted synthesizer, but if you send many messages with different indexes, will also let you figure the round-trip latency for each one along with the reliability. 
 
 ## WiFi & reliability 
 
-UDP multicast is naturally 'lossy' -- there is no guarantee that a message will be received by a synth. Depending on a lot of factors, but most especially your wireless router and the presence of other devices, that reliability can go as low as 70%. In my home network, a many-client Google WiFi mesh, my average round trip latencies are in the high 200 ms range, and my reliability is in the 75% range. On a direct wired Netgear Nighthawk AC2300 with only synthesizers as clients, latencies are well under 50ms and reliability is close to 100%. For performance purposes, I highly suggest using a dedicated wireless router instead of an existing WiFi network. You'll want to be able to turn off many "quality of service" features (these prioritize a randomly chosen synth and will make sync hard to work with), and you'll want to in the best case only have synthesizers as direct WiFi clients. Using a standalone router also helps with WiFi authentication setup -- by default the same login & password is on all synthesizers. If you were using your own network you'll have to recompile with your own authentication, which gets tiresome with many synths. 
+UDP multicast is naturally 'lossy' -- there is no guarantee that a message will be received by a synth. Depending on a lot of factors, but most especially your wireless router and the presence of other devices, that reliability can go as low as 70%. In my home network, a many-client Google WiFi mesh, my average round trip latencies are in the high 200 ms range, and my reliability is in the 75% range. On a direct wired Netgear Nighthawk AC2300 with only synthesizers as clients, latencies are well under 50ms and reliability is close to 100%. For performance purposes, I highly suggest using a dedicated wireless router instead of an existing WiFi network. You'll want to be able to turn off many "quality of service" features (these prioritize a randomly chosen synth and will make sync hard to work with), and you'll want to in the best case only have synthesizers as direct WiFi clients.
 
 An easy way to do this is to set up a dedicated router but not wire any internet into it. Connect your laptop or host machine to the router over a wired connection (via a USB-ethernet adapter if you need one) from the router, but keep your laptop's wifi or other internet network active. In your controlling software, you simply set the source network address to send and receive multicast packets from. This will keep your host machine on its normal network but allow you to control the synths from a second interface.
 
@@ -182,14 +148,12 @@ Speaker connectors -> speaker
 
 ![closeup](https://raw.githubusercontent.com/bwhitman/alles/master/pics/adapter.jpg)
 
-Fritzing file in the `pcbs` folder of this repository, and [it's here on Aisler](https://aisler.net/p/TEBMDZWQ). This is a lot more stable and easier to wire up than snipping small bits of hookup wire, especially for the GAIN connection. 
+This assumes you're using the suggested ESP32 dev board with its pin layout. If you use another one, you can probably change the GPIO assignments in `alles.h`. Fritzing file in the `pcbs` folder of this repository, and [it's here on Aisler](https://aisler.net/p/TEBMDZWQ). This is a lot more stable and easier to wire up than snipping small bits of hookup wire, especially for the GAIN connection. 
 
 
 ## Firmware
 
-Alles is completely open source, and can be a fun platform to adapt beyond its current capabilities. To build your own firmware, start by setting up `esp-idf`: http://esp-idf.readthedocs.io/en/latest/get-started/
-
-Clone this repository and run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board after setup.
+Alles is completely open source, and can be a fun platform to adapt beyond its current capabilities. To build your own firmware, [start by setting up `esp-idf`](http://esp-idf.readthedocs.io/en/latest/get-started/). Once installed, connect to your board over USB, clone and cd into this repository and run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board.
 
 
 ## Clients
@@ -211,9 +175,9 @@ def c_major(octave=2):
 
 ```
 
-See [`alles.py`](https://github.com/bwhitman/alles/blob/master/alles.py) for a better example.
+See [`alles.py`](https://github.com/bwhitman/alles/blob/master/alles.py) for a better example. Any language that supports sockets and mulitcast can work, I encourage pull requests with new clients!
 
-You can also use it in Max or similar software that supports sending UDP packets. Note that for Max, you'll need your host machine to be on the same wifi network as the synths as it has no easy way to set a source IP address like Python does.
+You can also easily use it in Max or Pd:
 
 ![Max](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/max.png)
 
@@ -256,7 +220,7 @@ Currently supported are program / bank changes and note on / offs. Will be addin
 * ~~FM~~
 * ~~should synths self-identify to each other? would make it easier to use in Max~~
 * ~~see what you can do about wide swings of UDP latency on the netgear router~~
-* envelopes / note on/offs / LFOs
+* ~~envelopes / note on/offs / LFOs~~
 * ~~confirm UDP still works from Max/Pd~~
 * ~~bandlimit the square/saw/triangle oscillators~~
 * ~~karplus-strong~~ 

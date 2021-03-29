@@ -214,7 +214,7 @@ void play_event(struct event e) {
     if(e.duty >= 0) synth[e.voice].duty = e.duty;
     if(e.feedback >= 0) synth[e.voice].feedback = e.feedback;
     if(e.freq >= 0) synth[e.voice].freq = e.freq;
-    if(e.amp >= 0) synth[e.voice].amp = e.amp;
+    //if(e.amp >= 0) synth[e.voice].amp = e.amp;
     
     if(e.adsr_target >= 0) synth[e.voice].adsr_target = e.adsr_target;
     if(e.adsr_a >= 0) synth[e.voice].adsr_a = e.adsr_a;
@@ -234,6 +234,7 @@ void play_event(struct event e) {
     // Triggers / envelopes 
     // The only way a sound is made is if velocity (note on) is set.
     if(e.velocity>0 ) { // New note on (even if something is already playing on this voice)
+        synth[e.voice].amp = e.velocity; 
         synth[e.voice].velocity = e.velocity;
         synth[e.voice].status = AUDIBLE;
         // Take care of FM & KS first -- no special treatment for ADSR/LFO (although KS could use one? unclear)
@@ -267,7 +268,7 @@ void hold_and_modify(uint8_t voice) {
     msynth[voice].freq = synth[voice].freq;
 
     // Modify the synth params by scale
-    float scale = compute_adsr_scale_exp(voice);
+    float scale = compute_adsr_scale(voice);
     if(synth[voice].adsr_target & TARGET_AMP) msynth[voice].amp = msynth[voice].amp * scale;
     if(synth[voice].adsr_target & TARGET_DUTY) msynth[voice].duty = msynth[voice].duty * scale;
     if(synth[voice].adsr_target & TARGET_FREQ) msynth[voice].freq = msynth[voice].freq * scale;
@@ -433,7 +434,7 @@ uint8_t deserialize_event(char * message, uint16_t length) {
                 }
             }
             if(mode=='A') parse_adsr(&e, message+start);
-            if(mode=='a') e.amp=atof(message + start);
+            //if(mode=='a') e.amp=atof(message + start);
             if(mode=='b') e.feedback=atof(message+start);
             if(mode=='c') client = atoi(message + start); 
             if(mode=='d') e.duty=atof(message + start);

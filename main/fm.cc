@@ -51,9 +51,9 @@ extern "C" void render_fm(float * buf, uint8_t voice) {
 extern "C" void fm_note_on(uint8_t voice) {
     // If MIDI note was set manually, use it instead of the freq conversion
     if(synth[voice].midi_note>0) {
-        note[voice].init(patches+(synth[voice].patch*156), synth[voice].midi_note, synth[voice].velocity*127);
+        note[voice].init(patches+(synth[voice].patch*156), synth[voice].midi_note, 100); 
     } else {
-        note[voice].init_with_freq(patches+(synth[voice].patch*156), synth[voice].freq, synth[voice].velocity*127);
+        note[voice].init_with_freq(patches+(synth[voice].patch*156), synth[voice].freq, 100);
     }
     controllers[voice].values_[kControllerPitch] = 0x2000; // pitch wheel
 }
