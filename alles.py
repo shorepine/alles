@@ -211,7 +211,7 @@ def test():
         while(True):
             for wave in [SINE, SAW, PULSE, TRIANGLE, FM, NOISE]:
                 for i in range(12):
-                    send(voice=0, wave=wave, vel=0.9, note=40+i, patch=i)
+                    note_on(voice=0, wave=wave, note=40+i, patch=i)
                     time.sleep(0.5)
     except KeyboardInterrupt:
         pass

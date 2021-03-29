@@ -54,15 +54,18 @@ float compute_adsr_scale(uint8_t voice) {
 	float t_r = synth[voice].adsr_r;
 	float curve = 3.0;
 	if(synth[voice].adsr_on_clock >= 0) { 
-		int64_t elapsed = sysclock - synth[voice].adsr_on_clock;
+		int64_t elapsed = (sysclock - synth[voice].adsr_on_clock) + 1; // +1 to avoid nans 
 		if(elapsed > t_a) { // we're in sustain or decay
 			scale = S + (1.0-S)*expf(-(elapsed - t_a)/(t_d / curve));
+			//printf("sus/decay. elapsed %lld. aoc %lld.\n", elapsed, synth[voice].adsr_on_clock);
 		} else { // attack
 			scale = 1.0 - expf(-curve * (elapsed / t_a));
+			//printf("attack. elapsed %lld. aoc %lld.\n", elapsed, synth[voice].adsr_on_clock);
 		}
 	} else if(synth[voice].adsr_off_clock >= 0) { // release
-		int64_t elapsed = sysclock - synth[voice].adsr_off_clock;
+		int64_t elapsed = (sysclock - synth[voice].adsr_off_clock) + 1;
 		scale = S * expf(-curve * elapsed / t_r);
+		//printf("release. elapsed %lld. aoffc %lld.\n", elapsed, synth[voice].adsr_off_clock);
 		if(elapsed > t_r) {
 			// Turn off note
 			synth[voice].status=OFF;
@@ -70,6 +73,7 @@ float compute_adsr_scale(uint8_t voice) {
 		}
 	}
 	if(scale < 0) scale = 0;
+	//printf("scale %f for a %f d %f s %f r %f\n", scale, t_a, t_d, S, t_r);
 	return scale;
 }
 
