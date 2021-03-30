@@ -12,6 +12,7 @@ if(os.uname().nodename=='colossus'):
 
 # Some constants shared with the synth that help
 ALLES_LATENCY_MS = 1000
+ALLES_VOICES = 10
 [SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, OFF] = range(8)
 TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE = (1, 2, 4, 8, 16)
 
@@ -20,28 +21,28 @@ def preset(which,voice=0, client=-1):
     # Reset voice
     reset(voice=voice)
     if(which==0): # simple note
-        send(voice=voice, wave=SINE, envelope="10,250,0.7,250", adsr_target=TARGET_AMP,timestamp=-1)
+        send(voice=voice, wave=SINE, envelope="10,250,0.7,250", adsr_target=TARGET_AMP)
     if(which==1): # filter bass
         filter(1000, 2)
-        send(voice=voice, wave=SAW, envelope="10,100,0.5,25", adsr_target=TARGET_AMP+TARGET_FILTER_FREQ,timestamp=-1)
+        send(voice=voice, wave=SAW, envelope="10,100,0.5,25", adsr_target=TARGET_AMP+TARGET_FILTER_FREQ)
     if(which==2): # long square pad to test ADSR
-        send(voice=voice, wave=PULSE, envelope="500,1000,0.25,750", adsr_target=TARGET_AMP, timestamp=-1)
+        send(voice=voice, wave=PULSE, envelope="500,1000,0.25,750", adsr_target=TARGET_AMP)
     if(which==3): # amp LFO example
         reset(voice+1)
         send(voice=voice+1, wave=SINE, vel=0.50, freq=1.5)
-        send(voice=voice, wave=PULSE, envelope="150,250,0.25,250", adsr_target=TARGET_AMP, lfo_target=TARGET_AMP, lfo_source=voice+1, timestamp=-1)
+        send(voice=voice, wave=PULSE, envelope="150,250,0.25,250", adsr_target=TARGET_AMP, lfo_target=TARGET_AMP, lfo_source=voice+1)
     if(which==4): # pitch LFO going up 
         reset(voice+1)
         send(voice=voice+1, wave=SINE, vel=0.50, freq=0.25)
-        send(voice=voice, wave=PULSE, envelope="150,400,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=voice+1, timestamp=-1)
+        send(voice=voice, wave=PULSE, envelope="150,400,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=voice+1)
     if(which==5): # bass drum
         reset(voice+1)
         send(voice=voice+1, wave=SINE, vel=0.50, freq=0.25, phase=0.5)
-        send(voice=voice, wave=SINE, vel=0, envelope="0,500,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=voice+1, timestamp=-1)
+        send(voice=voice, wave=SINE, vel=0, envelope="0,500,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=voice+1)
     if(which==6): # noise snare
-        send(voice=voice, wave=NOISE, vel=0, envelope="0,250,0,0", adsr_target=TARGET_AMP, timestamp=-1)
+        send(voice=voice, wave=NOISE, vel=0, envelope="0,250,0,0", adsr_target=TARGET_AMP)
     if(which==7): # closed hat
-        send(voice=voice, wave=NOISE, vel=0, envelope="25,75,0,0", adsr_target=TARGET_AMP, timestamp=-1)
+        send(voice=voice, wave=NOISE, vel=0, envelope="25,75,0,0", adsr_target=TARGET_AMP)
 
 
 def setup_sock():
@@ -161,12 +162,13 @@ def reset(voice=None):
         send(reset=voice)
     else:
         send(reset=100) # reset > VOICES resets all voices
+        filter(0, 0.7) # also reset the filter in this case
 
 def volume(volume, client = -1):
-    send(0, client=client, volume=volume, timestamp=-1)
+    send(0, client=client, volume=volume)
 
 def filter(center, q, client = -1):
-    send(0, filter_freq = center, resonance = q, client = client, timestamp=-1)
+    send(0, filter_freq = center, resonance = q, client = client)
 
 
 def note_on(vel=1, **kwargs):
@@ -234,9 +236,9 @@ def play_patches(wait=0.500, patch_total = 100, **kwargs):
         for i in range(24):
             patch = patch_count % patch_total
             patch_count = patch_count + 1
-            note_on(voice=i % 10, note=i+50, wave=FM, patch=patch, **kwargs)
+            note_on(voice=i % ALLES_VOICES, note=i+50, wave=FM, patch=patch, **kwargs)
             time.sleep(wait)
-            note_off(voice=i % 10)
+            note_off(voice=i % ALLES_VOICES)
 
 
 def polyphony():
@@ -245,7 +247,7 @@ def polyphony():
     while(1):
         note_on(voice=voice, wave=FM, patch=note, note=50+note, client = -1)
         time.sleep(0.5)
-        voice =(voice + 1) % 9
+        voice =(voice + 1) % ALLES_VOICES
         note =(note + 1) % 24
 
 
@@ -267,7 +269,6 @@ def drums(speed=0.250):
     preset(7, voice=3) # hat
     [bass, snare, hat, silent] = [1, 2, 4, 8]
     pattern = [bass+hat, hat, bass+hat+snare, hat, hat, hat+bass, snare+hat, hat]
-    time.sleep(ALLES_LATENCY_MS/1000.0) # give the presets (which get sent without timestamp) a chance to get to the unit
     while True:
         for i,x in enumerate(pattern):
             if(x & bass): note_on(voice=0, note=50, vel=1.5)
