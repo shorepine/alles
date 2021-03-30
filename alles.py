@@ -16,7 +16,9 @@ ALLES_LATENCY_MS = 1000
 TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE = (1, 2, 4, 8, 16)
 
 
-def set_preset(which,voice=0, client=-1):
+def preset(which,voice=0, client=-1):
+    # Reset voice
+    reset(voice=voice)
     if(which==0): # simple note
         send(voice=voice, wave=SINE, envelope="10,250,0.7,250", adsr_target=TARGET_AMP,timestamp=-1)
     if(which==1): # filter bass
@@ -24,6 +26,23 @@ def set_preset(which,voice=0, client=-1):
         send(voice=voice, wave=SAW, envelope="10,100,0.5,25", adsr_target=TARGET_AMP+TARGET_FILTER_FREQ,timestamp=-1)
     if(which==2): # long square pad to test ADSR
         send(voice=voice, wave=PULSE, envelope="500,1000,0.25,750", adsr_target=TARGET_AMP, timestamp=-1)
+    if(which==3): # amp LFO example
+        reset(voice+1)
+        send(voice=voice+1, wave=SINE, vel=0.50, freq=1.5)
+        send(voice=voice, wave=PULSE, envelope="150,250,0.25,250", adsr_target=TARGET_AMP, lfo_target=TARGET_AMP, lfo_source=voice+1, timestamp=-1)
+    if(which==4): # pitch LFO going up 
+        reset(voice+1)
+        send(voice=voice+1, wave=SINE, vel=0.50, freq=0.25)
+        send(voice=voice, wave=PULSE, envelope="150,400,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=voice+1, timestamp=-1)
+    if(which==5): # bass drum
+        reset(voice+1)
+        send(voice=voice+1, wave=SINE, vel=0.50, freq=0.25, phase=0.5)
+        send(voice=voice, wave=SINE, vel=0, envelope="0,500,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=voice+1, timestamp=-1)
+    if(which==6): # noise snare
+        send(voice=voice, wave=NOISE, vel=0, envelope="0,250,0,0", adsr_target=TARGET_AMP, timestamp=-1)
+    if(which==7): # closed hat
+        send(voice=voice, wave=NOISE, vel=0, envelope="25,75,0,0", adsr_target=TARGET_AMP, timestamp=-1)
+
 
 def setup_sock():
     # Set up the socket for multicast send & receive
@@ -145,7 +164,7 @@ def note_off(voice=-1, client=-1):
     send(voice=voice, client=client, vel=0)
 
 
-def send(voice=0, wave=-1, patch=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, \
+def send(voice=0, wave=-1, patch=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, adsr_target=-1, lfo_target=-1, lfo_source=-1):
     global sock
     if(timestamp is None): timestamp = alles_ms()
@@ -157,6 +176,7 @@ def send(voice=0, wave=-1, patch=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback
     if(freq>=0): m = m + "f%f" % (freq)
     if(note>=0): m = m + "n%d" % (note)
     if(patch>=0): m = m + "p%d" % (patch)
+    if(phase>=0): m = m + "P%f" % (phase)
     if(client>=0): m = m + "c%d" % (client)
     if(vel>=0): m = m + "l%f" % (vel)
     if(volume>=0): m = m + "V%f" % (volume)
@@ -169,6 +189,7 @@ def send(voice=0, wave=-1, patch=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback
     if(reset>=0): m = m + "S%d" % (reset)
     for x in range(retries):
         sock.sendto(m.encode('ascii'), multicast_group)
+
 
 def beating_tones(wave=SINE, vol=0.5, cycle_len_ms = 20000, resolution_ms=100):
     start_f = 220
@@ -263,6 +284,21 @@ def sweep(speed=0.100, res=0.5, loops = -1):
             send(voice=0,wave=PULSE, note=50+i, duty=0.50)
             send(voice=1,wave=PULSE, note=50+12+i, duty=0.25)
             send(voice=2,wave=PULSE, note=50+6+i, duty=0.90)
+            time.sleep(speed)
+
+def drums(speed=0.250):
+    reset()
+    preset(5, voice=0) # bass
+    preset(6, voice=2) # snare
+    preset(7, voice=3) # hat
+    [bass, snare, hat, silent] = [1, 2, 4, 8]
+    pattern = [bass+hat, hat, bass+hat+snare, hat, hat, hat+bass, snare+hat, hat]
+    time.sleep(ALLES_LATENCY_MS/1000.0) # give the presets a chance to get to the unit
+    while True:
+        for i,x in enumerate(pattern):
+            if(x & bass): note_on(voice=0, note=50, vel=1.5)
+            if(x & snare): note_on(voice=2, note=60, vel=0.5)
+            if(x & hat): note_on(voice=3, note=70, vel=0.3)
             time.sleep(speed)
 
 

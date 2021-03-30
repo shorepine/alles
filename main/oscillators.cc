@@ -18,6 +18,8 @@ extern struct event *synth;
 extern struct mod_event *msynth; // the synth that is being modified by LFOs & envelopes
 extern struct state global; 
 
+
+
 // Use the Blip_Buffer library to bandlimit signals
 extern "C" void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) {
     // OK, now we've got a bunch of 16-bit floats all added up in ibuf
@@ -31,11 +33,16 @@ extern "C" void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) {
     blipbuf.read_samples(obuf, len, 0);
 }
 
+
+extern "C" void sine_note_on(uint8_t voice) {
+    // So i reset step to some phase math, right? yeah
+    synth[voice].step = (float)SINE_LUT_SIZE * synth[voice].phase;
+}
+
 extern "C" void render_sine(float * buf, uint8_t voice) { 
-    //printf("rendering sine amp is %f\n", msynth[voice].amp);
     float skip = msynth[voice].freq / 44100.0 * SINE_LUT_SIZE;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        if(skip >= 1) { // skip compute if frequency is < 3Hz
+        //if(skip >= 0) { 
             uint16_t u0 = sine_LUT[(uint16_t)floor(synth[voice].step)];
             uint16_t u1 = sine_LUT[(uint16_t)(floor(synth[voice].step)+1 % SINE_LUT_SIZE)];
             float x0 = (float)u0 - 32768.0;
@@ -45,7 +52,7 @@ extern "C" void render_sine(float * buf, uint8_t voice) {
             buf[i] = buf[i] + (sample * msynth[voice].amp);
             synth[voice].step = synth[voice].step + skip;
             if(synth[voice].step >= SINE_LUT_SIZE) synth[voice].step = synth[voice].step - SINE_LUT_SIZE;
-        }
+        //}
     }
 }
 
@@ -68,6 +75,10 @@ extern "C" void render_ks(float * buf, uint8_t voice) {
     }
 }
 
+extern "C" void saw_note_on(uint8_t voice) {
+    float period = 1. / (synth[voice].freq/(float)SAMPLE_RATE);
+    synth[voice].step = period * synth[voice].phase;
+}
 extern "C" void render_saw(float * buf, uint8_t voice) {
     float period = 1. / (msynth[voice].freq/(float)SAMPLE_RATE);
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -82,6 +93,10 @@ extern "C" void render_saw(float * buf, uint8_t voice) {
     }
 }
 
+extern "C" void triangle_note_on(uint8_t voice) {
+    float period = 1. / (synth[voice].freq/(float)SAMPLE_RATE);
+    synth[voice].step = period * synth[voice].phase;
+}
 extern "C" void render_triangle(float * buf, uint8_t voice) {
     float period = 1. / (msynth[voice].freq/(float)SAMPLE_RATE);
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -100,6 +115,10 @@ extern "C" void render_triangle(float * buf, uint8_t voice) {
     }
 }
 
+extern "C" void pulse_note_on(uint8_t voice) {
+    float period = 1. / (synth[voice].freq/(float)SAMPLE_RATE);
+    synth[voice].step = period * synth[voice].phase;
+}
 
 extern "C" void render_pulse(float * buf, uint8_t voice) {
     if(msynth[voice].duty < 0.001 || msynth[voice].duty > 0.999) msynth[voice].duty = 0.5;

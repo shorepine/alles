@@ -17,13 +17,13 @@ Our friends at [Blinkinlabs](https://blinkinlabs.com) are helping us produce sma
    * sine
    * saw
    * triangle
-   * karplus-strong string (+ adjustable feedback)
    * noise
+   * karplus-strong string (+ adjustable feedback)
    * FM, using a DX7 simulation, with support for DX7 patches and 10,000 presets 
  * Biquad low-pass filter with cutoff and resonance at the last stage
- * Oscillators can be specified by frequency in floating point or midi note 
+ * Voices can be specified by frequency in floating point or midi note 
  * Each voice has a dedicated ADSR VCA, which can modify any combination of amplitude, frequency, duty, filter cutoff or resonance
- * Each voice can also act as an LFO to modify the parameters of another voice
+ * Each voice (except for those using KS or FM) can also act as an LFO to modify the parameters of another voice
  * Speaker gain control
 
 
@@ -57,6 +57,7 @@ L = LFO source voice. 0-9. Which voice is used as an LFO for this voice. Source 
 l = velocity (amplitude), float 0-1, >0 to trigger note on, 0 to trigger note off.  
 n = midinote, uint, 0-127 (note that this will also set f). default 0
 p = patch, uint, 0-999, choose a preloaded DX7 patch number for FM waveforms. See patches.h and alles.py. default 0
+P = phase, float 0-1. where in the oscillator's cycle to start sampling from. default 0
 R = q factor / "resonance" of biquad filter. float. in practice, 0 to 10.0. default 0.7.
 S = reset voice, uint 0-9 or for all voices, anything >=10. resets every voice parameter to default.
 s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py

@@ -97,6 +97,7 @@ struct event {
     float freq;
     uint8_t status;
     float velocity;
+    float phase;
     float step;
     float substep;
     float sample;
@@ -194,6 +195,10 @@ extern void render_triangle(float * buf, uint8_t voice);
 extern void render_noise(float * buf, uint8_t voice); 
 extern void ks_note_on(uint8_t voice); 
 extern void ks_note_off(uint8_t voice);
+extern void sine_note_on(uint8_t voice); 
+extern void saw_note_on(uint8_t voice); 
+extern void triangle_note_on(uint8_t voice); 
+extern void pulse_note_on(uint8_t voice); 
 
 
 // filters

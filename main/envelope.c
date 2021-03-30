@@ -8,12 +8,6 @@ extern struct mod_event* msynth;
 extern struct mod_state mglobal;
 
 
-// Re-trigger an LFO source voice on note on. 
-void retrigger_lfo_source(uint8_t voice) {
-	synth[voice].step = 0;
-	synth[voice].substep = 0;
-	synth[voice].sample = DOWN;
-}
 
 // LFO scale is not like ADSR scale, it can also make a thing bigger, so return range is between -1 and 1, where 1 = 2x and 0 = 1x
 float compute_lfo_scale(uint8_t voice) {
@@ -54,7 +48,7 @@ float compute_adsr_scale(uint8_t voice) {
 	float t_r = synth[voice].adsr_r;
 	float curve = 3.0;
 	if(synth[voice].adsr_on_clock >= 0) { 
-		int64_t elapsed = (sysclock - synth[voice].adsr_on_clock) + 1; // +1 to avoid nans 
+		int64_t elapsed = (sysclock - synth[voice].adsr_on_clock) + 1; // +1ms to avoid nans 
 		if(elapsed > t_a) { // we're in sustain or decay
 			scale = S + (1.0-S)*expf(-(elapsed - t_a)/(t_d / curve));
 			//printf("sus/decay. elapsed %lld. aoc %lld.\n", elapsed, synth[voice].adsr_on_clock);

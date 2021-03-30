@@ -61,6 +61,7 @@ struct event default_event() {
     e.sample = DOWN;
     e.patch = -1;
     e.wave = -1;
+    e.phase = -1;
     e.duty = -1;
     e.feedback = -1;
     e.velocity = -1;
@@ -103,6 +104,7 @@ void add_event(struct event e) {
         events[ew].patch = e.patch;
         events[ew].freq = e.freq;
         events[ew].amp = e.amp;
+        events[ew].phase = e.phase;
         events[ew].time = e.time;
         events[ew].status = e.status;
         events[ew].sample = e.sample;
@@ -136,6 +138,7 @@ void reset_voice(uint8_t i ) {
     synth[i].feedback = 0.996;
     synth[i].amp = 1;
     msynth[i].amp = 1;
+    synth[i].phase = 0;
     synth[i].volume = 0;
     synth[i].filter_freq = 0;
     synth[i].resonance = 0.7;
@@ -210,6 +213,7 @@ void voices_deinit() {
 void play_event(struct event e) {
     if(e.midi_note >= 0) { synth[e.voice].midi_note = e.midi_note; synth[e.voice].freq = freq_for_midi_note(e.midi_note); } 
     if(e.wave >= 0) synth[e.voice].wave = e.wave;
+    if(e.phase >= 0) synth[e.voice].phase = e.phase;
     if(e.patch >= 0) synth[e.voice].patch = e.patch;
     if(e.duty >= 0) synth[e.voice].duty = e.duty;
     if(e.feedback >= 0) synth[e.voice].feedback = e.feedback;
@@ -244,8 +248,21 @@ void play_event(struct event e) {
             // an oscillator voice came in with a note on.
             // Start the ADSR clock
             synth[e.voice].adsr_on_clock = esp_timer_get_time() / 1000;
-            // And reset the step of the LFO source if any for this voice 
-            if(synth[e.voice].lfo_source >= 0) retrigger_lfo_source(synth[e.voice].lfo_source);
+
+            // Restart the waveforms, adjusting for phase if given
+            if(synth[e.voice].wave==SINE) sine_note_on(e.voice);
+            if(synth[e.voice].wave==SAW) saw_note_on(e.voice);
+            if(synth[e.voice].wave==TRIANGLE) triangle_note_on(e.voice);
+            if(synth[e.voice].wave==PULSE) pulse_note_on(e.voice);
+
+            // Also trigger "note ons" for the LFO source, if we have one
+            if(synth[e.voice].lfo_source >= 0) {
+                if(synth[synth[e.voice].lfo_source].wave==SINE) sine_note_on(synth[e.voice].lfo_source);
+                if(synth[synth[e.voice].lfo_source].wave==SAW) saw_note_on(synth[e.voice].lfo_source);
+                if(synth[synth[e.voice].lfo_source].wave==TRIANGLE) triangle_note_on(synth[e.voice].lfo_source);
+                if(synth[synth[e.voice].lfo_source].wave==PULSE) pulse_note_on(synth[e.voice].lfo_source);
+            }
+
         }
     } else if(synth[e.voice].velocity > 0 && e.velocity == 0) { // new note off
         synth[e.voice].velocity = e.velocity;
@@ -447,6 +464,7 @@ uint8_t deserialize_event(char * message, uint16_t length) {
             if(mode=='L') e.lfo_source=atoi(message + start);
             if(mode=='n') e.midi_note=atoi(message + start);
             if(mode=='p') e.patch=atoi(message + start);
+            if(mode=='P') e.phase=atof(message + start);
             if(mode=='r') ipv4=atoi(message + start);
             if(mode=='R') e.resonance=atof(message + start);
             if(mode=='s') sync = atol(message + start); 
@@ -455,7 +473,7 @@ uint8_t deserialize_event(char * message, uint16_t length) {
                 if(voice > VOICES-1) { reset_voices(); } else { reset_voice(voice); }
             }
             if(mode=='T') e.adsr_target = atoi(message + start); 
-            if(mode=='v') e.voice=atoi(message + start);
+            if(mode=='v') e.voice=(atoi(message + start) % VOICES); // allow voice wraparound
             if(mode=='V') { e.volume = atof(message + start); debug_voices(); }
             if(mode=='w') e.wave=atoi(message + start);
             mode=b;

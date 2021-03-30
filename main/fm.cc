@@ -36,6 +36,9 @@ extern "C" void render_fm(float * buf, uint8_t voice) {
 
         note[voice].compute(int32_t_buf, 0, 0, &controllers[voice]);
 
+    
+
+
         // Now make an int32 an int16_t, and put it in buf, this is from their wav writer
         int32_t delta = 0x100;
         for(int j=0;j<N;j++) {
