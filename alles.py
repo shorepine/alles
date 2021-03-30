@@ -156,12 +156,24 @@ def sync(count=10, delay_ms=100):
     # Return this as a map for future use
     return clients
 
+def reset(voice=None):
+    if(voice):
+        send(reset=voice)
+    else:
+        send(reset=100) # reset > VOICES resets all voices
 
-def note_on(voice=-1, wave=-1, freq=-1, note=-1, client=-1, vel=1, patch=-1):
-    send(voice=voice, wave=wave, freq=freq, client=client, note=note, patch=patch, vel=vel)
+def volume(volume, client = -1):
+    send(0, client=client, volume=volume, timestamp=-1)
 
-def note_off(voice=-1, client=-1):
-    send(voice=voice, client=client, vel=0)
+def filter(center, q, client = -1):
+    send(0, filter_freq = center, resonance = q, client = client, timestamp=-1)
+
+
+def note_on(vel=1, **kwargs):
+    send(vel=vel, **kwargs)
+
+def note_off(**kwargs):
+    send(vel=0, **kwargs)
 
 
 def send(voice=0, wave=-1, patch=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
@@ -191,25 +203,6 @@ def send(voice=0, wave=-1, patch=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback
         sock.sendto(m.encode('ascii'), multicast_group)
 
 
-def beating_tones(wave=SINE, vol=0.5, cycle_len_ms = 20000, resolution_ms=100):
-    start_f = 220
-    end_f = 880
-    clients = sync()
-    # Increase freq slowly from like 220 to 440 but in phase on each one? 
-    tic = 0
-    beat = 0
-    while 1:
-        for i,client_id in enumerate(clients.keys()):
-            distance = float(tic) / cycle_len_ms # 0 - 1
-            base_freq = start_f + (distance * (end_f-start_f))
-            freq = base_freq
-            if(freq > end_f): freq = freq - (end_f - start_f)
-            send(wave=wave, client=client_id, vel=vol, freq=freq, retries=1)
-        beat = beat + 1
-        tic = tic + resolution_ms
-        if(tic > cycle_len_ms): tic = 0
-        time.sleep(resolution_ms / 1000.0)
-
 def battery_test():
     tic = time.time()
     clients = 1
@@ -227,48 +220,30 @@ def battery_test():
 
 
 def test():
-    # Plays a test suite
-    try:
-        while(True):
-            for wave in [SINE, SAW, PULSE, TRIANGLE, FM, NOISE]:
-                for i in range(12):
-                    note_on(voice=0, wave=wave, note=40+i, patch=i)
-                    time.sleep(0.5)
-    except KeyboardInterrupt:
-        pass
-    off()
+    while True:
+        for wave in [SINE, SAW, PULSE, TRIANGLE, FM, NOISE]:
+            for i in range(12):
+                note_on(voice=0, wave=wave, note=40+i, patch=i)
+                time.sleep(0.5)
 
-def circle(wave=KS, amp=0.5, clients=6):
-    i = 0
-    warble=-40
-    direction =1
-    while 1:
-        send(voice=0,wave=wave, freq=440+warble, amp=amp, client=i)
-        i = (i + 1) % clients
-        warble = warble + direction
-        if warble > 40:
-            direction = -1
-        if warble < -40:
-            direction = 1
-        time.sleep(0.25)
 
-def play_patches(voice=0, wave=FM, amp=0.5 ,forever=True, vel=100, wait=0.750, duty=0.5, patch_total = 100):
+def play_patches(wait=0.500, patch_total = 100, **kwargs):
     once = True
     patch_count = 0
-    while (forever or once):
-        once=False
+    while True:
         for i in range(24):
             patch = patch_count % patch_total
             patch_count = patch_count + 1
-            send(voice=i % 10, wave=wave, amp=amp, vel=vel, note=40+i, patch=patch, duty=duty)
+            note_on(voice=i % 10, note=i+50, wave=FM, patch=patch, **kwargs)
             time.sleep(wait)
+            note_off(voice=i % 10)
 
 
 def polyphony():
     voice = 0
     note = 0
     while(1):
-        send(voice=voice, wave=FM, patch=note, note=50+note, client = -1)
+        note_on(voice=voice, wave=FM, patch=note, note=50+note, client = -1)
         time.sleep(0.5)
         voice =(voice + 1) % 9
         note =(note + 1) % 24
@@ -281,9 +256,9 @@ def sweep(speed=0.100, res=0.5, loops = -1):
         for i in [0, 1, 4, 5, 1, 3, 4, 5]:
             cur = (cur + 100) % end
             filter(cur, res)
-            send(voice=0,wave=PULSE, note=50+i, duty=0.50)
-            send(voice=1,wave=PULSE, note=50+12+i, duty=0.25)
-            send(voice=2,wave=PULSE, note=50+6+i, duty=0.90)
+            note_on(voice=0,wave=PULSE, note=50+i, duty=0.50)
+            note_on(voice=1,wave=PULSE, note=50+12+i, duty=0.25)
+            note_on(voice=2,wave=PULSE, note=50+6+i, duty=0.90)
             time.sleep(speed)
 
 def drums(speed=0.250):
@@ -292,14 +267,13 @@ def drums(speed=0.250):
     preset(7, voice=3) # hat
     [bass, snare, hat, silent] = [1, 2, 4, 8]
     pattern = [bass+hat, hat, bass+hat+snare, hat, hat, hat+bass, snare+hat, hat]
-    time.sleep(ALLES_LATENCY_MS/1000.0) # give the presets a chance to get to the unit
+    time.sleep(ALLES_LATENCY_MS/1000.0) # give the presets (which get sent without timestamp) a chance to get to the unit
     while True:
         for i,x in enumerate(pattern):
             if(x & bass): note_on(voice=0, note=50, vel=1.5)
             if(x & snare): note_on(voice=2, note=60, vel=0.5)
             if(x & hat): note_on(voice=3, note=70, vel=0.3)
             time.sleep(speed)
-
 
 def complex(speed=0.250, vol=1, client =-1, loops=-1):
     while(loops != 0): # -1 means forever 
@@ -314,31 +288,11 @@ def complex(speed=0.250, vol=1, client =-1, loops=-1):
             time.sleep(speed)
         loops = loops - 1
 
-def reset(voice=None):
-    # Turn off amp per voice and back on again with no wave
-    if(voice):
-        send(reset=voice)
-    else:
-        send(reset=100)
 
-def volume(volume, client = -1):
-    send(0, client=client, volume=volume, timestamp=-1)
-
-def filter(center, q, client = -1):
-    send(0, filter_freq = center, resonance = q, client = client, timestamp=-1)
-
-def c_major(octave=2,wave=SINE, vol=0.2):
-    send(voice=0,freq=220.5*octave,amp=vol/3.0, wave=wave)
-    send(voice=1,freq=138.5*octave,amp=vol/3.0, wave=wave)
-    send(voice=2,freq=164.5*octave,amp=vol/3.0, wave=wave)
-
-def many_voices_fast(wave=KS, vol=0.5):
-    # debug the weird underwater effect of many KS voices
-    while 1:
-        for voice in range(10):
-            send(voice=(voice % 10), note=50+voice, amp=vol/10, wave=wave)
-            time.sleep(0.2)
-
+def c_major(octave=2,wave=SINE):
+    note_on(voice=0, freq=220.5*octave, wave=wave)
+    note_on(voice=1, freq=138.5*octave, wave=wave)
+    note_on(voice=2, freq=164.5*octave, wave=wave)
 
 
 def generate_patches_header(how_many = 1000):
