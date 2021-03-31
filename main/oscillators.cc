@@ -3,6 +3,7 @@
 extern "C" { 
     #include "alles.h"
     #include "sineLUT.h"
+    #include "pcm.h"
 }
 
 static Blip_Buffer blipbuf;
@@ -31,6 +32,18 @@ extern "C" void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) {
     }
     blipbuf.end_frame(len);
     blipbuf.read_samples(obuf, len, 0);
+}
+
+extern "C" void pcm_note_on(uint8_t voice) {
+    synth[voice].step = PCM_LENGTH * synth[voice].phase;    
+}
+extern "C" void render_pcm(float * buf, uint8_t voice) {
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+        float sample = pcm[(int)(synth[voice].step)];
+        synth[voice].step = (synth[voice].step + 0.5);
+        if(synth[voice].step >= PCM_LENGTH) synth[voice].step = 0;
+        buf[i] = buf[i] + (sample * msynth[voice].amp);
+    }
 }
 
 

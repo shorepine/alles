@@ -254,6 +254,7 @@ void play_event(struct event e) {
             if(synth[e.voice].wave==SAW) saw_note_on(e.voice);
             if(synth[e.voice].wave==TRIANGLE) triangle_note_on(e.voice);
             if(synth[e.voice].wave==PULSE) pulse_note_on(e.voice);
+            if(synth[e.voice].wave==PCM) pcm_note_on(e.voice);
 
             // Also trigger "note ons" for the LFO source, if we have one
             if(synth[e.voice].lfo_source >= 0) {
@@ -261,6 +262,7 @@ void play_event(struct event e) {
                 if(synth[synth[e.voice].lfo_source].wave==SAW) saw_note_on(synth[e.voice].lfo_source);
                 if(synth[synth[e.voice].lfo_source].wave==TRIANGLE) triangle_note_on(synth[e.voice].lfo_source);
                 if(synth[synth[e.voice].lfo_source].wave==PULSE) pulse_note_on(synth[e.voice].lfo_source);
+                if(synth[synth[e.voice].lfo_source].wave==PCM) pcm_note_on(synth[e.voice].lfo_source);
             }
 
         }
@@ -342,6 +344,7 @@ void fill_audio_buffer(float seconds) {
                 if(synth[voice].wave == TRIANGLE) render_triangle(floatblock, voice);
                 if(synth[voice].wave == SINE) render_sine(floatblock, voice);
                 if(synth[voice].wave == KS) render_ks(floatblock, voice);
+                if(synth[voice].wave == PCM) render_pcm(floatblock, voice);
             }
         }
 

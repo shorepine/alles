@@ -4,7 +4,7 @@ import time
 
 # Some constants shared with the synth that help
 ALLES_VOICES = 10
-[SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, OFF] = range(8)
+[SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, PCM, OFF] = range(9)
 TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE = (1, 2, 4, 8, 16)
 
 

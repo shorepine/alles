@@ -193,12 +193,15 @@ extern void render_pulse(float * buf, uint8_t voice);
 extern void render_saw(float * buf, uint8_t voice); 
 extern void render_triangle(float * buf, uint8_t voice); 
 extern void render_noise(float * buf, uint8_t voice); 
+extern void render_pcm(float * buf, uint8_t voice);
 extern void ks_note_on(uint8_t voice); 
 extern void ks_note_off(uint8_t voice);
 extern void sine_note_on(uint8_t voice); 
 extern void saw_note_on(uint8_t voice); 
 extern void triangle_note_on(uint8_t voice); 
 extern void pulse_note_on(uint8_t voice); 
+extern void pcm_note_on(uint8_t voice);
+
 
 
 // filters
@@ -229,7 +232,8 @@ extern void read_midi();
 #define NOISE 4
 #define FM 5
 #define KS 6
-#define OFF 7
+#define PCM 7
+#define OFF 8
 
 #define EMPTY 0
 #define SCHEDULED 1

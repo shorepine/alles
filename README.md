@@ -12,6 +12,8 @@ Our friends at [Blinkinlabs](https://blinkinlabs.com) are helping us produce sma
 
 ## Synthesizer specs
 
+Each individual synthesizer supports:
+
  * 10 voices, each voice with adjustable frequency and amplitude:
    * pulse (+ adjustable duty cycle)
    * sine
@@ -23,13 +25,13 @@ Our friends at [Blinkinlabs](https://blinkinlabs.com) are helping us produce sma
  * Biquad low-pass filter with cutoff and resonance at the last stage
  * Voices can be specified by frequency in floating point or midi note 
  * Each voice has a dedicated ADSR VCA, which can modify any combination of amplitude, frequency, duty, filter cutoff or resonance
- * Each voice (except for those using KS or FM) can also act as an LFO to modify the parameters of another voice
+ * Each voice (except for those using KS or FM) can also act as an LFO to modify any comvination of parameters of another voice, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave. 
  * Speaker gain control
 
 
 ## Using it
 
-On first boot, each synth will create a captive wifi network called `alles-synth-X` where X is some ID of the synth. Join it, and you should get redirected to a captive wifi setup page. If not, go to `http://10.10.0.1` in your browser after joining the network. Once you tell each synth what the wifi SSID and password you want it to join are, it will reboot. You only need to do that once per synth.
+On first boot, each synth will create a captive wifi network called `alles-synth-X` where X is some ID of the synth. Join it (preferably on a mobile device), and you should get redirected to a captive wifi setup page. If not, go to `http://10.10.0.1` in your browser after joining the network. Once you tell each synth what the wifi SSID and password you want it to join are, it will reboot. You only need to do that once per synth.
 
 Alles can be used two ways: 
 
@@ -89,7 +91,7 @@ Alles is not designed as a low latency real-time performance instrument, where y
 Your host should send along the `time` parameter of the relative time when you expect the sound to play. I'd suggest using the number of milliseconds since your host started, e.g. in Python:
 
 ```
-def alles_ms():
+def millis():
     d = datetime.datetime.now()
     return int((datetime.datetime.utcnow() - datetime.datetime(d.year, d.month, d.day)).total_seconds()*1000)
 ```
