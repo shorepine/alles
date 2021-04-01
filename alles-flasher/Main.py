@@ -58,6 +58,19 @@ class VersionThread(threading.Thread):
         self._parent = parent
         self._config = config
         self.version = None
+        self.project_name = None
+        self.date = None
+        self.time = None
+        self.idf_version = None
+
+    def parse_app_desc(self, filename):
+        bits = open(filename, "r").read()
+        self.version = bits[0:32].rstrip('\0')
+        self.project_name = bits[32:64].rstrip('\0')
+        self.time = bits[64:80].rstrip('\0')
+        self.date = bits[80:96].rstrip('\0')
+        self.idf_version = bits[96:128].rstrip('\0')
+
 
     def run(self):
         try:
@@ -67,14 +80,14 @@ class VersionThread(threading.Thread):
                 command.append("--port")
                 command.append(self._config.port)
 
+            # Read APP_DESC from flash
             command.extend(["read_flash",
-                            "0x10030", "0x10", "version.bin"])
-
+                            "0x10030", "0x80", "app_desc.bin"])
             print("Command: esptool.py %s\n" % " ".join(command))
-
             esptool.main(command)
-            self.version = open("version.bin", "r").read()[0:7]
-            print("\nVersion read. It is: %s\n" % self.version)
+            self.parse_app_desc("app_desc.bin")
+            print("\nApp description read.\nVersion: %s\nProject: %s\nDate: %s %s\nIDF: %s\n" % \
+                (self.version, self.project_name, self.date, self.time, self.idf_version))
 
         except SerialException as e:
             self._parent.report_error(e.strerror)
