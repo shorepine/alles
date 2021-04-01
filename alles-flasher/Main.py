@@ -64,6 +64,7 @@ class VersionThread(threading.Thread):
         self.idf_version = None
 
     def parse_app_desc(self, filename):
+        # https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/app_image_format.html#_CPPv414esp_app_desc_t
         bits = open(filename, "r").read()
         self.version = bits[0:32].rstrip('\0')
         self.project_name = bits[32:64].rstrip('\0')
@@ -75,12 +76,13 @@ class VersionThread(threading.Thread):
     def run(self):
         try:
             command = []
-
             if not self._config.port.startswith(__auto_select__):
                 command.append("--port")
                 command.append(self._config.port)
 
             # Read APP_DESC from flash
+            # APP_DESC starts at 0x20 from the app image offset (0x10000) but we skip the first 16 bytes as we don't need them
+            # We read 128 bytes of APP_DESC and parse it above
             command.extend(["read_flash",
                             "0x10030", "0x80", "app_desc.bin"])
             print("Command: esptool.py %s\n" % " ".join(command))
