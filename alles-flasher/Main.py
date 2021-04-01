@@ -16,7 +16,7 @@ from serial.tools import list_ports
 
 __version__ = "5.0.0"
 __auto_select__ = "Auto-select"
-__auto_select_explanation__ = "(first port with Alles device)"
+__auto_select_explanation__ = "(first port with Alles synth)"
 __supported_baud_rates__ = [9600, 57600, 74880, 115200, 230400, 460800, 921600]
 
 # ---------------------------------------------------------------------------
@@ -49,9 +49,37 @@ class RedirectText:
         return True
 
 # ---------------------------------------------------------------------------
-
-
 # ---------------------------------------------------------------------------
+
+class VersionThread(threading.Thread):
+    def __init__(self, parent, config):
+        threading.Thread.__init__(self)
+        self.daemon = True
+        self._parent = parent
+        self._config = config
+        self.version = None
+
+    def run(self):
+        try:
+            command = []
+
+            if not self._config.port.startswith(__auto_select__):
+                command.append("--port")
+                command.append(self._config.port)
+
+            command.extend(["read_flash",
+                            "0x10030", "0x10", "version.bin"])
+
+            print("Command: esptool.py %s\n" % " ".join(command))
+
+            esptool.main(command)
+            self.version = open("version.bin", "r").read()[0:7]
+            print("\nVersion read. It is: %s\n" % self.version)
+
+        except SerialException as e:
+            self._parent.report_error(e.strerror)
+            raise e
+
 class FlashingThread(threading.Thread):
     def __init__(self, parent, config):
         threading.Thread.__init__(self)
@@ -155,6 +183,12 @@ class NodeMcuFlasher(wx.Frame):
             worker = FlashingThread(self, self._config)
             worker.start()
 
+        def on_version_clicked(event):
+            sys.stderr.write("a\n")
+            self.console_ctrl.SetValue("")
+            worker = VersionThread(self, self._config)
+            worker.start()
+
         def on_select_port(event):
             choice = event.GetEventObject()
             self._config.port = choice.GetString(choice.GetSelection())
@@ -219,6 +253,10 @@ class NodeMcuFlasher(wx.Frame):
         button = wx.Button(panel, -1, "Flash Alles Synth")
         button.Bind(wx.EVT_BUTTON, on_clicked)
 
+        version_button = wx.Button(panel, -1, "Get Alles Synth Version")
+        version_button.Bind(wx.EVT_BUTTON, on_version_clicked)
+
+
         self.console_ctrl = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
         self.console_ctrl.SetFont(wx.Font((0, 13), wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL,
                                           wx.FONTWEIGHT_NORMAL))
@@ -240,8 +278,9 @@ class NodeMcuFlasher(wx.Frame):
                     baud_label, baud_boxsizer,
                     erase_label, erase_boxsizer,
                     (wx.StaticText(panel, label="")), (button, 1, wx.EXPAND),
+                    (wx.StaticText(panel, label="")), (version_button, 1, wx.EXPAND),
                     (console_label, 1, wx.EXPAND), (self.console_ctrl, 1, wx.EXPAND)])
-        fgs.AddGrowableRow(5, 1)
+        fgs.AddGrowableRow(6, 1)
         fgs.AddGrowableCol(1, 1)
         hbox.Add(fgs, proportion=2, flag=wx.ALL | wx.EXPAND, border=15)
         panel.SetSizer(hbox)
