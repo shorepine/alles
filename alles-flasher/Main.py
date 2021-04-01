@@ -105,27 +105,7 @@ class FlashConfig:
         self.baud = 460800
         self.erase_before_flash = False
         self.firmware_path = None
-        self.port = None
-
-    @classmethod
-    def load(cls, file_path):
-        conf = cls()
-        if os.path.exists(file_path):
-            with open(file_path, 'r') as f:
-                data = json.load(f)
-            conf.port = data['port']
-            conf.baud = data['baud']
-            conf.erase_before_flash = data['erase']
-        return conf
-
-    def safe(self, file_path):
-        data = {
-            'port': self.port,
-            'baud': self.baud,
-            'erase': self.erase_before_flash,
-        }
-        with open(file_path, 'w') as f:
-            json.dump(data, f)
+        self.port = __auto_select__ + " " + __auto_select_explanation__
 
     def is_complete(self):
         return self.firmware_path is not None and self.port is not None
@@ -139,7 +119,7 @@ class NodeMcuFlasher(wx.Frame):
     def __init__(self, parent, title):
         wx.Frame.__init__(self, parent, -1, title, size=(725, 650),
                           style=wx.DEFAULT_FRAME_STYLE | wx.NO_FULL_REPAINT_ON_RESIZE)
-        self._config = FlashConfig.load(self._get_config_file_path())
+        self._config = FlashConfig()
 
         self._build_status_bar()
         self._set_icons()
@@ -265,7 +245,7 @@ class NodeMcuFlasher(wx.Frame):
         fgs.AddGrowableCol(1, 1)
         hbox.Add(fgs, proportion=2, flag=wx.ALL | wx.EXPAND, border=15)
         panel.SetSizer(hbox)
-        self.choice.SetSelection(0)
+
 
 
     def _select_configured_port(self):
@@ -305,13 +285,9 @@ class NodeMcuFlasher(wx.Frame):
 
         self.SetMenuBar(self.menuBar)
 
-    @staticmethod
-    def _get_config_file_path():
-        return wx.StandardPaths.Get().GetUserConfigDir() + "/nodemcu-pyflasher.json"
-
+  
     # Menu methods
     def _on_exit_app(self, event):
-        self._config.safe(self._get_config_file_path())
         self.Close(True)
 
     def report_error(self, message):
