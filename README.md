@@ -20,6 +20,7 @@ Each individual synthesizer supports:
    * saw
    * triangle
    * noise
+   * PCM, reading from a baked-in buffer of percussive and misc samples
    * karplus-strong string (+ adjustable feedback)
    * FM, using a DX7 simulation, with support for DX7 patches and 10,000 presets 
  * Biquad low-pass filter with cutoff and resonance at the last stage
@@ -52,14 +53,14 @@ A = ADSR envelope, string, in commas, like 100,50,0.5,200 -- A, D, R are in ms, 
 b = feedback, float 0-1 for karplus-strong. default 0.996
 c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_id % (x-255) == 0) for groups, default all clients
 d = duty cycle, float 0.001-0.999. duty cycle for pulse wave, default 0.5
-f = frequency, float 0-22050. default 0
+f = frequency, float 0-44100 (and above). default 0. Sampling rate of synth is 44,100Hz but higher numbers can be used for PCM waveforms
 F = center frequency of biquad filter. 0 is off. default 0. applies to entire synth audio
 g = LFO target mask. Which parameter LFO controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
 L = LFO source voice. 0-9. Which voice is used as an LFO for this voice. Source voice will be silent. 
 l = velocity (amplitude), float 0-1, >0 to trigger note on, 0 to trigger note off.  
 n = midinote, uint, 0-127 (note that this will also set f). default 0
-p = patch, uint, 0-999, choose a preloaded DX7 patch number for FM waveforms. See patches.h and alles.py. default 0
-P = phase, float 0-1. where in the oscillator's cycle to start sampling from. default 0
+p = patch, uint, 0-999, choose a preloaded PCM sample or DX7 patch number for FM waveforms. See patches.h, pcm.h. default 0
+P = phase, float 0-1. where in the oscillator's cycle to start sampling from (also works on the PCM buffer). default 0
 R = q factor / "resonance" of biquad filter. float. in practice, 0 to 10.0. default 0.7.
 S = reset voice, uint 0-9 or for all voices, anything >=10. resets every voice parameter to default.
 s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py
@@ -67,10 +68,34 @@ T = ADSR target mask. Which parameter ADSR controls. 1=amp, 2=duty, 4=freq, 8=fi
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can.
 v = voice, uint, 0 to 9. default: 0
 V = volume, float 0 to about 10 in practice. volume knob for the entire synth / speaker. default 0.5
-w = waveform, uint, 0 to 7 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, OFF]. default: 0/SINE
+w = waveform, uint, 0 to 8 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, PCM, OFF]. default: 0/SINE
 ```
 
 Commands are cumulative, state is held per voice. If voice is not given it's assumed to be 0. 
+
+## alles.py 
+
+Alles comes with its own full-featured client, written in Python. Feel free to adapt it or use it in your own clients. It can be seen as documentation, an API as well as a testing suite. You simply `import alles` and can control the entire mesh.
+
+```
+$ python3
+>>> import alles
+>>> alles.drums() # plays a drum pattern on all synths
+>>> alles.drums(client=2) # just on one 
+```
+
+Or experiment with oscillators:
+
+```
+>>> # use a a 0.25Hz sine wave at half phase (going down) to modify frequency of another sine wave
+>>> alles.reset()
+>>> alles.send(voice=1, wave=alles.SINE, vel=0.50, freq=0.25, phase=0.5) # LFO source voice
+>>> alles.send(voice=0, wave=SINE, vel=0, envelope="0,500,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=1)
+>>> alles.note_on(voice=0, note=60, vel=1.5) # Bass drum!
+>>> alles.lowpass(800, 1.5) # filter it
+>>> alles.note_on(voice=0, note=50, vel=1.5)
+```
+
 
 ## Addressing individual synthesizers
 
@@ -237,6 +262,8 @@ Currently supported are program / bank changes and note on / offs. Will be addin
 * ~~case / battery setup~~
 * ~~overloading the volume (I think only on FM) crashes~~
 * ~~UDP message clicks~~
+* more MIDI parameters 
+* desktop USB flasher
 * BT / app based config instead of captive portal (later)
 
 

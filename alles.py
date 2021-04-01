@@ -105,42 +105,42 @@ def sweep(speed=0.100, res=0.5, loops = -1):
 """
     An example drum machine using oscillator+PCM presets
 """
-def drums(bpm=120):
-    preset(5, voice=0) # sine bass drum
-    preset(8, voice=3) # sample hat
-    preset(9, voice=4) # sample cow
-    preset(10, voice=5) # sample hi cow
-    preset(11, voice=2) # sample snare
-    preset(12, voice=7) # FM bass
+def drums(bpm=120, **kwargs):
+    preset(5, voice=0, **kwargs) # sine bass drum
+    preset(8, voice=3, **kwargs) # sample hat
+    preset(9, voice=4, **kwargs) # sample cow
+    preset(10, voice=5, **kwargs) # sample hi cow
+    preset(11, voice=2, **kwargs) # sample snare
+    preset(12, voice=7, **kwargs) # FM bass
     [bass, snare, hat, cow, hicow, silent] = [1, 2, 4, 8, 16, 32]
     pattern = [bass+hat, hat+hicow, bass+hat+snare, hat+cow, hat, hat+bass, snare+hat, hat]
     bassline = [50, 0, 0, 0, 50, 52, 51, 0]
     while True:
         for i,x in enumerate(pattern):
-            if(x & bass): note_on(voice=0, note=50, vel=1.5)
-            if(x & snare): note_on(voice=2, vel=1.5)
-            if(x & hat): note_on(voice=3, vel=1)
-            if(x & cow): note_on(voice=4, vel=1)
-            if(x & hicow): note_on(voice=5, vel=1)
+            if(x & bass): note_on(voice=0, note=50, vel=1.5, **kwargs)
+            if(x & snare): note_on(voice=2, vel=1.5, **kwargs)
+            if(x & hat): note_on(voice=3, vel=1, **kwargs)
+            if(x & cow): note_on(voice=4, vel=1, **kwargs)
+            if(x & hicow): note_on(voice=5, vel=1, **kwargs)
             if(bassline[i]>0):
-                note_on(voice=7, note=bassline[i], vel=0.25)
+                note_on(voice=7, note=bassline[i], vel=0.25, **kwargs)
             else:
-                note_off(voice=7)
+                note_off(voice=7, **kwargs)
             time.sleep(1.0/(bpm*2/60))
 
 """
     A small pattern using FM + sine oscillators
 """    
-def complex(speed=0.250, vol=1, client =-1, loops=-1):
+def complex(speed=0.250, loops=-1, **kwargs):
     while(loops != 0): # -1 means forever 
         for i in [0,2,4,5, 0, 4, 0, 2]:
-            note_on(voice=0, wave=FM, vel=0.8, note=50+i, patch=15, client=client)
+            note_on(voice=0, wave=FM, vel=0.8, note=50+i, patch=15, **kwargs)
             time.sleep(speed)
-            note_on(voice=1, wave=FM, vel=0.6, note=50+i, patch=8, client=client)
+            note_on(voice=1, wave=FM, vel=0.6, note=50+i, patch=8, **kwargs)
             time.sleep(speed)
-            note_on(voice=2, wave=SINE, vel=0.5, note=62+i, patch=2, client=client)
+            note_on(voice=2, wave=SINE, vel=0.5, note=62+i, patch=2, **kwargs)
             time.sleep(speed)
-            note_on(voice=2, wave=SINE, vel=1, freq = 20, client=client)
+            note_on(voice=2, wave=SINE, vel=1, freq = 20, **kwargs)
             time.sleep(speed)
         loops = loops - 1
 
@@ -148,10 +148,10 @@ def complex(speed=0.250, vol=1, client =-1, loops=-1):
 """
     C-major chord
 """
-def c_major(octave=2,wave=SINE):
-    note_on(voice=0, freq=220.5*octave, wave=wave)
-    note_on(voice=1, freq=138.5*octave, wave=wave)
-    note_on(voice=2, freq=164.5*octave, wave=wave)
+def c_major(octave=2,wave=SINE, **kwargs):
+    note_on(voice=0, freq=220.5*octave, wave=wave, **kwargs)
+    note_on(voice=1, freq=138.5*octave, wave=wave, **kwargs)
+    note_on(voice=2, freq=164.5*octave, wave=wave, **kwargs)
 
 
 
