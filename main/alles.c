@@ -131,7 +131,7 @@ void reset_voice(uint8_t i ) {
     synth[i].wave = SINE;
     synth[i].duty = 0.5;
     msynth[i].duty = 0.5;
-    synth[i].patch = 0;
+    synth[i].patch = -1;
     synth[i].midi_note = 0;
     synth[i].freq = 0;
     msynth[i].freq = 0;

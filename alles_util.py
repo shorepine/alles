@@ -23,39 +23,6 @@ if(os.uname().nodename=='colossus'):
 
 sock = 0
 ALLES_LATENCY_MS = 1000
-# Copied from pcm.h
-pcm_map = [
-	0, 707, #/* 808-MARACA-D */
-	707, 13745, #/* 808-KIK 1-D */
-	14452, 1778, #/* 808-KIK 3-D */
-	16230, 8186, #/* 808-KIK 4-D */
-	24416, 13992, #/* 808-KIK 5-D */
-	38408, 2415, #/* 808-SNR 1-D */
-	40823, 2526, #/* 808-SNR 2-D */
-	43349, 2044, #/* 808-SNR 3-D */
-	45393, 2766, #/* 808-SNR 4-D */
-	48159, 2411, #/* 808-SNR 5-D */
-	50570, 1934, #/* 808-SNR 6-D */
-	52504, 1311, #/* 808-SNR 7-D */
-	53815, 1882, #/* 808-SNR 8-D */
-	55697, 2245, #/* 808-SNR 9-D */
-	57942, 2276, #/* 808-SNR 10D */
-	60218, 2390, #/* 808-SNR 11-D */
-	62608, 2872, #/* 808-SNR 12-D */
-	65480, 1751, #/* 808-C-HAT1-D */
-	67231, 15400, #/* 808-O-HAT1-D */
-	82631, 12395, #/* 808-CYMBAL-D */
-	95026, 8995, #/* 808-LTOM M-D */
-	104021, 4707, #/* 808-HTOM M-D */
-	108728, 291, #/* 808-RIM   -D */
-	109019, 3027, #/* 808-DRYCLP-D */
-	112046, 9505, #/* 808-WETCLP-D */
-	121551, 3762, #/* 808-CWBELL-D */
-	125313, 7486, #/* 808-CNGLO2-D */
-	132799, 4285, #/* 808-CNGAM2-D */
-	137084, 3673, #/* 808-CNGHI2-D */
-	140757, 731, #/* 808-CLAVE -D */
-]
 
 
 def connect():
@@ -189,7 +156,7 @@ def battery_test():
 
 
 def reset(voice=None):
-    if(voice):
+    if(voice is not None):
         send(reset=voice)
     else:
         send(reset=100) # reset > VOICES resets all voices
@@ -261,7 +228,7 @@ def generate_patches_header(how_many = 1000):
     p.close()
 
 
-def generate_pcm_header(sf2_filename):
+def generate_pcm_header(sf2_filename, pcm_sample_rate = 22050):
 	# Given an sf2 file, extract some pcm
 	from sf2utils.sf2parse import Sf2File
 	import resampy
@@ -280,7 +247,7 @@ def generate_pcm_header(sf2_filename):
 				s = {}
 				s["name"] = sample.name
 				floaty =(np.frombuffer(bytes(sample.raw_sample_data),dtype='int16'))/32768.0
-				resampled = resampy.resample(floaty, sample.sample_rate, 22050)
+				resampled = resampy.resample(floaty, sample.sample_rate, pcm_sample_rate)
 				samples = np.int16(resampled*32768)
 				int16s.append(samples)
 				s["offset"] = offset 
@@ -290,7 +257,7 @@ def generate_pcm_header(sf2_filename):
 		except AttributeError:
 			pass
 	all_samples = np.hstack(int16s)
-	p.write("#define PCM_SAMPLES %d\n#define PCM_LENGTH %d\n" % (len(offsets), all_samples.shape[0]))
+	p.write("#define PCM_SAMPLES %d\n#define PCM_LENGTH %d\n#define PCM_SAMPLE_RATE %d\n" % (len(offsets), all_samples.shape[0]), pcm_sample_rate)
 	p.write("const uint32_t offset_map[%d] = {\n" % (len(offsets)*2))
 	for o in offsets:
 		p.write("\t%d, %d, /* %s */\n" %(o["offset"], o["length"], o["name"]))

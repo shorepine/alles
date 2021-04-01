@@ -27,6 +27,7 @@ void bleep() {
     add_event(e);
     e.time = sysclock + 300;
     e.velocity = 0;
+    e.freq = 0;
     add_event(e);
 }
 

@@ -3,6 +3,7 @@
 #define __PCM_H
 #define PCM_SAMPLES 30
 #define PCM_LENGTH 141488
+#define PCM_SAMPLE_RATE 22050
 const uint32_t offset_map[60] = {
 	0, 707, /* 808-MARACA-D */
 	707, 13745, /* 808-KIK 1-D */

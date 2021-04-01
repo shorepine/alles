@@ -1,5 +1,5 @@
 # Import all the utilities from alles_util needed to make sounds
-from alles_util import send, sync, lowpass, volume, note_on, note_off, reset, connect, disconnect, millis, ALLES_LATENCY_MS, pcm_map
+from alles_util import send, sync, lowpass, volume, note_on, note_off, reset, connect, disconnect, millis
 import time
 
 # Some constants shared with the synth that help
@@ -9,7 +9,7 @@ TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE = (1,
 
 
 """
-    A bunch of useful presets using the oscillators
+    A bunch of useful presets
 """
 def preset(which,voice=0, **kwargs):
     # Reset the voice first
@@ -22,36 +22,32 @@ def preset(which,voice=0, **kwargs):
     if(which==2): # long square pad to test ADSR
         send(voice=voice, wave=PULSE, envelope="500,1000,0.25,750", adsr_target=TARGET_AMP, **kwargs)
     if(which==3): # amp LFO example
-        reset(voice+1)
+        reset(voice=voice+1)
         send(voice=voice+1, wave=SINE, vel=0.50, freq=1.5, **kwargs)
         send(voice=voice, wave=PULSE, envelope="150,250,0.25,250", adsr_target=TARGET_AMP, lfo_target=TARGET_AMP, lfo_source=voice+1, **kwargs)
     if(which==4): # pitch LFO going up 
-        reset(voice+1)
+        reset(voice=voice+1)
         send(voice=voice+1, wave=SINE, vel=0.50, freq=0.25, **kwargs)
         send(voice=voice, wave=PULSE, envelope="150,400,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=voice+1, **kwargs)
     if(which==5): # bass drum
-        reset(voice+1)
+        # Uses a 0.25Hz sine wave at half phase (going down) to modify frequency of another sine wave
+        reset(voice=voice+1)
         send(voice=voice+1, wave=SINE, vel=0.50, freq=0.25, phase=0.5, **kwargs)
         send(voice=voice, wave=SINE, vel=0, envelope="0,500,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=voice+1, **kwargs)
     if(which==6): # noise snare
         send(voice=voice, wave=NOISE, vel=0, envelope="0,250,0,0", adsr_target=TARGET_AMP, **kwargs)
     if(which==7): # closed hat
         send(voice=voice, wave=NOISE, vel=0, envelope="25,75,0,0", adsr_target=TARGET_AMP, **kwargs)
-
-"""
-    Set a voice to play back one of the PCM samples
-"""
-def pcm_preset(which, voice=0, **kwargs):
-    offset = pcm_map[which*2]
-    length = pcm_map[which*2+1]
-    total = sum(pcm_map[-2:])
-    send(voice=voice, wave=PCM, vel=0, phase=offset/total, envelope="0,%d,0,0" % (int((length/22050)*1000.0)), adsr_target=TARGET_AMP, **kwargs)
-
-"""
-    Set a FM preset on a voice
-"""
-def fm_preset(which, voice=0, **kwargs):
-    send(voice=voice, wave=FM, vel=0, patch=which, **kwargs)
+    if(which==8): # closed hat from PCM 
+        send(voice=voice, wave=PCM, vel=0, patch=17, freq=22050, **kwargs)
+    if(which==9): # cowbell from PCM
+        send(voice=voice, wave=PCM, vel=0, patch=25, freq=22050, **kwargs)
+    if(which==10): # high cowbell from PCM
+        send(voice=voice, wave=PCM, vel=0, patch=25, freq=31000, **kwargs)
+    if(which==11): # snare from PCM
+        send(voice=voice, wave=PCM, vel=0, patch=5, freq=22050, **kwargs)
+    if(which==12): # FM bass 
+        send(voice=voice, wave=FM, vel=0, patch=15, **kwargs)
 
 
 """
@@ -111,25 +107,25 @@ def sweep(speed=0.100, res=0.5, loops = -1):
 """
 def drums(bpm=120):
     preset(5, voice=0) # sine bass drum
-    pcm_preset(5, voice=2) # sample snare
-    pcm_preset(17, voice=3) # sample hat
-    pcm_preset(25, voice=4) # sample cow
-    pcm_preset(21, voice=5) # sample h tom
-    fm_preset(15, voice=6) # FM bass
-    [bass, snare, hat, cow, htom, silent] = [1, 2, 4, 8, 16, 32]
-    pattern = [bass+hat, hat, bass+hat+snare, hat+cow, hat, hat+bass, snare+hat, hat]
+    preset(8, voice=3) # sample hat
+    preset(9, voice=4) # sample cow
+    preset(10, voice=5) # sample hi cow
+    preset(11, voice=2) # sample snare
+    preset(12, voice=7) # FM bass
+    [bass, snare, hat, cow, hicow, silent] = [1, 2, 4, 8, 16, 32]
+    pattern = [bass+hat, hat+hicow, bass+hat+snare, hat+cow, hat, hat+bass, snare+hat, hat]
     bassline = [50, 0, 0, 0, 50, 52, 51, 0]
     while True:
         for i,x in enumerate(pattern):
             if(x & bass): note_on(voice=0, note=50, vel=1.5)
-            if(x & snare): note_on(voice=2, note=60, vel=1.5)
-            if(x & hat): note_on(voice=3, note=70, vel=1)
-            if(x & cow): note_on(voice=4, note=70, vel=1)
-            if(x & htom): note_on(voice=5, note=70, vel=0.8)
+            if(x & snare): note_on(voice=2, vel=1.5)
+            if(x & hat): note_on(voice=3, vel=1)
+            if(x & cow): note_on(voice=4, vel=1)
+            if(x & hicow): note_on(voice=5, vel=1)
             if(bassline[i]>0):
-                note_on(voice=6, note=bassline[i], vel=0.25)
+                note_on(voice=7, note=bassline[i], vel=0.25)
             else:
-                note_off(voice=6)
+                note_off(voice=7)
             time.sleep(1.0/(bpm*2/60))
 
 """

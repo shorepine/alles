@@ -35,13 +35,31 @@ extern "C" void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) {
 }
 
 extern "C" void pcm_note_on(uint8_t voice) {
-    synth[voice].step = PCM_LENGTH * synth[voice].phase;    
+    // If not freq given, we set it to default PCM freq 
+    if(synth[voice].freq <= 0) synth[voice].freq = PCM_SAMPLE_RATE;
+    // If patch is given, set step directly from patch's offset
+    if(synth[voice].patch>=0) {
+        synth[voice].step = offset_map[synth[voice].patch*2]; // start sample
+        synth[voice].substep = synth[voice].step + offset_map[synth[voice].patch*2 + 1]; // end sample
+        //printf("patch %d step %f substep %f freq %f\n", synth[voice].patch, synth[voice].step, synth[voice].substep, synth[voice].freq);
+    } else { // use phase as index into PCM buffer
+        synth[voice].step = PCM_LENGTH * synth[voice].phase; // start at phase offset
+        synth[voice].substep = PCM_LENGTH; // play until end of buffer
+    }
 }
+
+// TODO -- this just does one shot, no frequency scaling, looping (will need extra loop parameter?)
 extern "C" void render_pcm(float * buf, uint8_t voice) {
+    // you want skip to be 0.5 when freq is ... 22050 
+    // maybe set that as default freq for PCM wave? 
+    float skip = msynth[voice].freq / (float)SAMPLE_RATE;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         float sample = pcm[(int)(synth[voice].step)];
-        synth[voice].step = (synth[voice].step + 0.5);
-        if(synth[voice].step >= PCM_LENGTH) synth[voice].step = 0;
+        synth[voice].step = (synth[voice].step + skip);
+        if(synth[voice].step >= synth[voice].substep ) { // end
+            synth[voice].status=OFF;
+            sample = 0;
+        }
         buf[i] = buf[i] + (sample * msynth[voice].amp);
     }
 }

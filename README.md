@@ -158,6 +158,7 @@ This assumes you're using the suggested ESP32 dev board with its pin layout. If 
 
 Alles is completely open source, and can be a fun platform to adapt beyond its current capabilities. To build your own firmware, [start by setting up `esp-idf`](http://esp-idf.readthedocs.io/en/latest/get-started/). Once installed, connect to your board over USB, clone and cd into this repository and run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board.
 
+Use `idf.py -p /dev/YOUR_SERIAL_TTY monitor` to reboot the board and see stdout/stderr. Use Ctrl-] to exit the monitor.
 
 ## Clients
 
