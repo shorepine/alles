@@ -48,7 +48,7 @@ extern "C" void pcm_note_on(uint8_t voice) {
     }
 }
 
-// TODO -- this just does one shot, no frequency scaling, looping (will need extra loop parameter?)
+// TODO -- this just does one shot, no looping (will need extra loop parameter?)
 extern "C" void render_pcm(float * buf, uint8_t voice) {
     // you want skip to be 0.5 when freq is ... 22050 
     // maybe set that as default freq for PCM wave? 
@@ -66,7 +66,6 @@ extern "C" void render_pcm(float * buf, uint8_t voice) {
 
 
 extern "C" void sine_note_on(uint8_t voice) {
-    // So i reset step to some phase math, right? yeah
     synth[voice].step = (float)SINE_LUT_SIZE * synth[voice].phase;
 }
 
