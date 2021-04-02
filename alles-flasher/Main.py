@@ -83,11 +83,12 @@ class VersionThread(threading.Thread):
             # Read APP_DESC from flash
             # APP_DESC starts at 0x20 from the app image offset (0x10000) but we skip the first 16 bytes as we don't need them
             # We read 128 bytes of APP_DESC and parse it above
+            # TODO - NamedTemporaryFile so it works on windows 
             command.extend(["read_flash",
-                            "0x10030", "0x80", "app_desc.bin"])
+                            "0x10030", "0x80", "/tmp/app_desc.bin"])
             print("Command: esptool.py %s\n" % " ".join(command))
             esptool.main(command)
-            self.parse_app_desc("app_desc.bin")
+            self.parse_app_desc("/tmp/app_desc.bin")
             print("\nApp description read.\nVersion: %s\nProject: %s\nDate: %s %s\nIDF: %s\n" % \
                 (self.version, self.project_name, self.date, self.time, self.idf_version))
 
@@ -95,6 +96,8 @@ class VersionThread(threading.Thread):
             self._parent.report_error(e.strerror)
             raise e
 
+# TODO -- we need to load the *.bins in a bundle here, or pull them down from github along with alles.bin
+# https://pyinstaller.readthedocs.io/en/stable/spec-files.html
 class FlashingThread(threading.Thread):
     def __init__(self, parent, config):
         threading.Thread.__init__(self)
@@ -130,8 +133,6 @@ class FlashingThread(threading.Thread):
 
             esptool.main(command)
 
-            # The last line printed by esptool is "Staying in bootloader." -> some indication that the process is
-            # done is needed
             print("\nFirmware successfully flashed.")
         except SerialException as e:
             self._parent.report_error(e.strerror)
