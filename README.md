@@ -245,6 +245,7 @@ Alles comes prebaked with 1,000 DX7 patches from the [learnFM](https://github.co
 * blargg for [BlipBuffer](http://slack.net/~ant/libs/audio.html#Blip_Buffer)'s bandlimiting
 * [BLE-MIDI-IDF](https://github.com/mathiasbredholt/blemidi-idf)
 * Matt Mets / [Blinkinlabs](https://blinkinlabs.com)
+* [nodemcu-pyflasher](https://github.com/marcelstoer/nodemcu-pyflasher)
 
 
 ## TODO

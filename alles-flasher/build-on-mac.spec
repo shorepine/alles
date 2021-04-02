@@ -4,7 +4,7 @@ block_cipher = None
 
 a = Analysis(['alles-flasher.py'],
              binaries=None,
-             datas=[("images", "images")],
+             datas=[("images", "images"), ("bootloader.bin","."), ("partition-table.bin",".")],
              hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],

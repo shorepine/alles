@@ -11,6 +11,7 @@ static Blip_Buffer blipbuf;
 static Blip_Synth<blip_good_quality,655350> blipsynth;
 
 
+// TODO -- i could save a lot of heap by only mallocing this when needed 
 #define MAX_KS_BUFFER_LEN 802 // 44100/55  -- 55Hz (A1) lowest we can go for KS
 float ** ks_buffer; 
 
@@ -193,6 +194,7 @@ extern "C" void oscillators_init(void) {
     blipbuf.bass_freq( 0 ); // makes waveforms perfectly flat
     blipsynth.volume(global.volume);
     blipsynth.output(&blipbuf);
+    // TODO -- i could save a lot of heap by only mallocing this when needed 
     ks_buffer = (float**) malloc(sizeof(float*)*VOICES);
     for(int i=0;i<VOICES;i++) ks_buffer[i] = (float*)malloc(sizeof(float)*MAX_KS_BUFFER_LEN); 
 }

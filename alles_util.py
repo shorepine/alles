@@ -119,7 +119,6 @@ def sync(count=10, delay_ms=100):
         delay_period = 1 + (ALLES_LATENCY_MS / delay_ms)
         if((i-delay_period) > count):
             break
-    print (str(rtt))
     # Compute average rtt in ms and reliability (number of rt packets we got)
     for ipv4 in rtt.keys():
         hit = 0
