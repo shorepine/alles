@@ -186,7 +186,7 @@ Currently supported are program / bank changes and note on / offs. Will be addin
 
 ## Building your own DIY Alles 
 
-We are currently testing rev2 of a all-in-one design for Alles. The self-contained version has its own rechargable battery, 4ohm speaker, case and buttons for configuration & setup. We're hoping to be able to sell these in packs for anyone to use. More details soon. 
+We are currently testing [rev2 of a all-in-one design for Alles](https://github.com/bwhitman/alles/blob/master/pcbs/2021-03-22_Alles_RevB.pdf). The self-contained version has its own rechargable battery, 4ohm speaker, case and buttons for configuration & setup. We're hoping to be able to sell these in packs for anyone to use. More details soon. 
 
 ![blinkinlabs PCB](https://raw.githubusercontent.com/bwhitman/alles/master/pics/alles_reva.png)
 
