@@ -38,7 +38,7 @@ Alles can be used two ways:
 
  * **Direct mode**, where you directly control the entire mesh from a computer or mobile device: This is the preferred way and gives you the most functionality. You can control every synth on the mesh from a single host, using UDP over WiFi. You can address any synth in the mesh or all of them at once with one message, or use groups. You can specify synth parameters down to 32 bits of precision, far more than MIDI. This method can be used in music environments like Max or Pd, or by musicians or developers using languages like Python, or for plug-in developers who want to bridge Alles's full features to DAWs.
 
- * **MIDI mode**, using MIDI over Bluetooth or a MIDI cable: A single Alles synth can be set up as a MIDI relay, by hitting the `MIDI` (or `BOOT0 / GPIO0`) button. Once in MIDI relay mode, that synth stops making its own sound and acts as a relay to the rest of the mesh. You can connect to the relay over MIDI cable (details below) or wirelessly via MIDI bluetooth, supported by most OSes. You can then control the mesh using any MIDI sequencer or DAW of your choice. You are limited to directly addressing 16 synths in this mode (vs 100s), and lose control over fine grained parameter tuning. 
+ * **MIDI mode**, using MIDI over Bluetooth or a MIDI cable: A single Alles synth can be set up as a MIDI relay, by hitting the `MIDI` (or `BOOT0 / GPIO0` on DIY Alles) button. Once in MIDI relay mode, that synth stops making its own sound and acts as a relay to the rest of the mesh. You can connect to the relay over MIDI cable (details below) or wirelessly via MIDI bluetooth, supported by most OSes. You can then control the mesh using any MIDI sequencer or DAW of your choice. You are limited to directly addressing 16 synths in this mode (vs 100s), and lose some control over fine grained parameter tuning. 
 
 
 In direct mode, Alles responds to commands via UDP in ASCII delimited by a character, like
@@ -71,7 +71,8 @@ V = volume, float 0 to about 10 in practice. volume knob for the entire synth / 
 w = waveform, uint, 0 to 8 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, PCM, OFF]. default: 0/SINE
 ```
 
-Commands are cumulative, state is held per voice. If voice is not given it's assumed to be 0. 
+Synthesizer state is held per voice, so you can optionally send only changes in parameters each message per voice.
+
 
 ## alles.py 
 
@@ -129,13 +130,13 @@ The `time` parameter is not meant to schedule things far in the future on the cl
 
 ## Enumerating synths
 
-The `sync` command in `alles.py`'s triggers an immediate response back from each on-line synthesizer. The response looks like `_s65201i4c248y2`, where s is the time on the client, i is the index it is responding to, y has battery status (for versions that support that) and c is the client id. This lets you build a map of not only each booted synthesizer, but if you send many messages with different indexes, will also let you figure the round-trip latency for each one along with the reliability. 
+The `sync` command (see `alles.sync()`) triggers an immediate response back from each on-line synthesizer. The response looks like `_s65201i4c248y2`, where s is the time on the client, i is the index it is responding to, y has battery status (for versions that support that) and c is the client id. This lets you build a map of not only each booted synthesizer, but if you send many messages with different indexes, will also let you figure the round-trip latency for each one along with the reliability. 
 
 ## WiFi & reliability 
 
 UDP multicast is naturally 'lossy' -- there is no guarantee that a message will be received by a synth. Depending on a lot of factors, but most especially your wireless router and the presence of other devices, that reliability can go as low as 70%. In my home network, a many-client Google WiFi mesh, my average round trip latencies are in the high 200 ms range, and my reliability is in the 75% range. On a direct wired Netgear Nighthawk AC2300 with only synthesizers as clients, latencies are well under 50ms and reliability is close to 100%. For performance purposes, I highly suggest using a dedicated wireless router instead of an existing WiFi network. You'll want to be able to turn off many "quality of service" features (these prioritize a randomly chosen synth and will make sync hard to work with), and you'll want to in the best case only have synthesizers as direct WiFi clients.
 
-An easy way to do this is to set up a dedicated router but not wire any internet into it. Connect your laptop or host machine to the router over a wired connection (via a USB-ethernet adapter if you need one) from the router, but keep your laptop's wifi or other internet network active. In your controlling software, you simply set the source network address to send and receive multicast packets from. This will keep your host machine on its normal network but allow you to control the synths from a second interface.
+An easy way to do this is to set up a dedicated router but not wire any internet into it. Connect your laptop or host machine to the router over a wired connection (via a USB-ethernet adapter if you need one) from the router, but keep your laptop's wifi or other internet network active. In your controlling software, you simply set the source network address to send and receive multicast packets from. `alles_util.py` has setup code for this. This will keep your host machine on its normal network but allow you to control the synths from a second interface.
 
 If you're in a place where you can't control your network, you can mitigate reliability by simply sending messages N times (2-4). Sending multiple duplicate messages do not have any adverse effect on the synths.
 
@@ -174,6 +175,8 @@ Use the MIDI toggle button on the Alles V1 PCB to enter MIDI mode. If using a de
 To use BLE MIDI: On a Mac, open Audio MIDI Setup, then show MIDI Studio, then the Bluetooth button, and connect to "Alles MIDI." The Alles MIDI port will then show up in all your MIDI capable software.
 
 To use hardwired MIDI: I recommend using a pre-built MIDI breakout with the support hardware -- like this one from [Sparkfun](https://www.sparkfun.com/products/12898) or [Adafruit](https://www.adafruit.com/product/4740) to make it easier to wire up. Connect 3.3V, GND and MIDI to either the devboard (GPIO 19) or the Alles V1 PCB (MIDI header.)
+
+![MIDI on DIY Alles]((https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/alles_midi.png)
 
 `CHANNEL: 1-16`: sets which synth ID in the mesh you want to send the message to. `1` sends the message to all synths, and `2-16`sends the message to only that ID, minus 1. So to send a message to only the first booted synth, use the second channel.
 
