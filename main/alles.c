@@ -209,6 +209,77 @@ void voices_deinit() {
     filters_deinit();
 }
 
+
+
+
+#if (DANDAC)
+uint8_t dac_counter = 0;
+uint8_t dac_render = 0;
+#include "driver/timer.h"
+#include "driver/dac.h"
+#include "hal/dac_types.h"
+// Setup 8-bit dac for Dan Ellis 
+// pin D25
+static void IRAM_ATTR timer0_ISR(void *ptr) {
+    timer_group_clr_intr_status_in_isr(TIMER_GROUP_0, TIMER_0);
+    timer_group_enable_alarm_in_isr(TIMER_GROUP_0, TIMER_0);
+    uint8_t sample = (block[dac_counter++] + 32767) >> 8;
+    dac_output_voltage(DAC_CHANNEL_1, sample); 
+}
+
+static void timerInit() {
+    timer_config_t config = {
+        .divider = 8, 
+        .counter_dir = TIMER_COUNT_UP,
+        .counter_en = TIMER_PAUSE, 
+        .alarm_en = TIMER_ALARM_EN, 
+        .intr_type = TIMER_INTR_LEVEL,
+        .auto_reload = 1, 
+    };
+
+    ESP_ERROR_CHECK(timer_init(TIMER_GROUP_0, TIMER_0, &config));
+    ESP_ERROR_CHECK(timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0x00000000ULL));
+    ESP_ERROR_CHECK(timer_set_alarm_value(TIMER_GROUP_0, TIMER_0, TIMER_BASE_CLK / config.divider / SAMPLE_RATE));
+    ESP_ERROR_CHECK(timer_enable_intr(TIMER_GROUP_0, TIMER_0));
+    timer_isr_register(TIMER_GROUP_0, TIMER_0, timer0_ISR, (void *)NULL, ESP_INTR_FLAG_IRAM, NULL);
+    timer_start(TIMER_GROUP_0, TIMER_0);
+}
+
+esp_err_t setup_dac(void) {
+    ESP_ERROR_CHECK(dac_output_enable(DAC_CHANNEL_1));
+    timerInit();
+    return ESP_OK;
+}
+
+#else
+// Setup I2S
+esp_err_t setup_i2s(void) {
+    //i2s configuration
+    i2s_config_t i2s_config = {
+         .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
+         .sample_rate = SAMPLE_RATE,
+         .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+         .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
+         .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_STAND_I2S),
+         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1, // high interrupt priority
+         .dma_buf_count = 8,
+         .dma_buf_len = 64   //Interrupt level 1
+        };
+        
+    i2s_pin_config_t pin_config = {
+        .bck_io_num = CONFIG_I2S_BCLK, 
+        .ws_io_num = CONFIG_I2S_LRCLK,  
+        .data_out_num = CONFIG_I2S_DIN, 
+        .data_in_num = -1   //Not used
+    };
+    i2s_driver_install((i2s_port_t)CONFIG_I2S_NUM, &i2s_config, 0, NULL);
+    i2s_set_pin((i2s_port_t)CONFIG_I2S_NUM, &pin_config);
+    i2s_set_sample_rates((i2s_port_t)CONFIG_I2S_NUM, SAMPLE_RATE);
+    return ESP_OK;
+}
+
+#endif
+
 // Play an event, now -- tell the audio loop to start making noise
 void play_event(struct event e) {
     if(e.midi_note >= 0) { synth[e.voice].midi_note = e.midi_note; synth[e.voice].freq = freq_for_midi_note(e.midi_note); } 
@@ -218,7 +289,6 @@ void play_event(struct event e) {
     if(e.duty >= 0) synth[e.voice].duty = e.duty;
     if(e.feedback >= 0) synth[e.voice].feedback = e.feedback;
     if(e.freq >= 0) synth[e.voice].freq = e.freq;
-    //if(e.amp >= 0) synth[e.voice].amp = e.amp;
     
     if(e.adsr_target >= 0) synth[e.voice].adsr_target = e.adsr_target;
     if(e.adsr_a >= 0) synth[e.voice].adsr_a = e.adsr_a;
@@ -226,22 +296,21 @@ void play_event(struct event e) {
     if(e.adsr_s >= 0) synth[e.voice].adsr_s = e.adsr_s;
     if(e.adsr_r >= 0) synth[e.voice].adsr_r = e.adsr_r;
 
-    // Todo , how to turn off LFO source once set
     if(e.lfo_source >= 0) { synth[e.voice].lfo_source = e.lfo_source; synth[e.lfo_source].status = LFO_SOURCE; }
     if(e.lfo_target >= 0) synth[e.voice].lfo_target = e.lfo_target;
 
-    // For volume (and later off, reset, etc) just make the change, no need to update the per-voice synth
+    // For global changes, just make the change, no need to update the per-voice synth
     if(e.volume >= 0) global.volume = e.volume; 
     if(e.filter_freq >= 0) global.filter_freq = e.filter_freq; 
     if(e.resonance >= 0) global.resonance = e.resonance; 
 
     // Triggers / envelopes 
-    // The only way a sound is made is if velocity (note on) is set.
+    // The only way a sound is made is if velocity (note on) is >0.
     if(e.velocity>0 ) { // New note on (even if something is already playing on this voice)
         synth[e.voice].amp = e.velocity; 
         synth[e.voice].velocity = e.velocity;
         synth[e.voice].status = AUDIBLE;
-        // Take care of FM & KS first -- no special treatment for ADSR/LFO (although KS could use one? unclear)
+        // Take care of FM & KS first -- no special treatment for ADSR/LFO
         if(synth[e.voice].wave==FM) { fm_note_on(e.voice); } 
         else if(synth[e.voice].wave==KS) { ks_note_on(e.voice); } 
         else {
@@ -286,7 +355,7 @@ void hold_and_modify(uint8_t voice) {
     msynth[voice].duty = synth[voice].duty;
     msynth[voice].freq = synth[voice].freq;
 
-    // Modify the synth params by scale
+    // Modify the synth params by scale -- ADSR scale is (original * scale)
     float scale = compute_adsr_scale(voice);
     if(synth[voice].adsr_target & TARGET_AMP) msynth[voice].amp = msynth[voice].amp * scale;
     if(synth[voice].adsr_target & TARGET_DUTY) msynth[voice].duty = msynth[voice].duty * scale;
@@ -294,7 +363,7 @@ void hold_and_modify(uint8_t voice) {
     if(synth[voice].adsr_target & TARGET_FILTER_FREQ) mglobal.filter_freq = (mglobal.filter_freq * scale);
     if(synth[voice].adsr_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
 
-    // And the LFO -- scaled by original + (original * scale)
+    // And the LFO -- LFO scale is (original + (original * scale))
     scale = compute_lfo_scale(voice);
     if(synth[voice].lfo_target & TARGET_AMP) msynth[voice].amp = msynth[voice].amp + (msynth[voice].amp * scale);
     if(synth[voice].lfo_target & TARGET_DUTY) msynth[voice].duty = msynth[voice].duty + (msynth[voice].duty * scale);
@@ -357,41 +426,22 @@ void fill_audio_buffer(float seconds) {
             filter_process_ints(block);
         }
 
+#if (DANDAC)
+        // "block" until the dac is done writing the current buffer
+        while(dac_counter < BLOCK_SIZE) {
+            ets_delay_us(200); 
+        }
+        dac_counter = 0;
+#else
         // And write to I2S
         size_t written = 0;
         i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
         if(written != BLOCK_SIZE*2) {
             printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*2);
         }
+#endif
     }
 }
-
-// Setup I2S
-esp_err_t setup_i2s(void) {
-    //i2s configuration
-    i2s_config_t i2s_config = {
-         .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
-         .sample_rate = SAMPLE_RATE,
-         .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-         .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
-         .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_STAND_I2S),
-         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1, // high interrupt priority
-         .dma_buf_count = 8,
-         .dma_buf_len = 64   //Interrupt level 1
-        };
-        
-    i2s_pin_config_t pin_config = {
-        .bck_io_num = CONFIG_I2S_BCLK, 
-        .ws_io_num = CONFIG_I2S_LRCLK,  
-        .data_out_num = CONFIG_I2S_DIN, 
-        .data_in_num = -1   //Not used
-    };
-    i2s_driver_install((i2s_port_t)CONFIG_I2S_NUM, &i2s_config, 0, NULL);
-    i2s_set_pin((i2s_port_t)CONFIG_I2S_NUM, &pin_config);
-    i2s_set_sample_rates((i2s_port_t)CONFIG_I2S_NUM, SAMPLE_RATE);
-    return ESP_OK;
-}
-
 
 // Helper to parse the special ADSR string
 void parse_adsr(struct event * e, char* message) {
@@ -454,7 +504,6 @@ uint8_t deserialize_event(char * message, uint16_t length) {
                 }
             }
             if(mode=='A') parse_adsr(&e, message+start);
-            //if(mode=='a') e.amp=atof(message + start);
             if(mode=='b') e.feedback=atof(message+start);
             if(mode=='c') client = atoi(message + start); 
             if(mode=='d') e.duty=atof(message + start);
@@ -519,7 +568,7 @@ uint8_t deserialize_event(char * message, uint16_t length) {
                 for_me = 0;
                 if(client <= 255) {
                     // If they gave an individual client ID check that it exists
-                    if(alive>0) { // alive may get to 0 in a bad situation, and will reboot the box here div0
+                    if(alive>0) { // alive may get to 0 in a bad situation
                         if(client >= alive) {
                             client = client % alive;
                         } 
@@ -672,7 +721,11 @@ void ip5306_monitor() {
 void app_main() {
     check_init(&global_init, "global state");
     check_init(&esp_event_loop_create_default, "Event");
+#if(DANDAC)
+    check_init(&setup_dac, "dac");
+#else
     check_init(&setup_i2s, "i2s");
+#endif
     check_init(&voices_init, "voices");
     check_init(&buttons_init, "buttons"); // only one button for the protoboard, 4 for the blinkinlabs
 

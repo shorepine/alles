@@ -11,6 +11,7 @@ static Blip_Buffer blipbuf;
 static Blip_Synth<blip_good_quality,655350> blipsynth;
 
 
+// TODO -- i could save a lot of heap by only mallocing this when needed 
 #define MAX_KS_BUFFER_LEN 802 // 44100/55  -- 55Hz (A1) lowest we can go for KS
 float ** ks_buffer; 
 
@@ -35,23 +36,22 @@ extern "C" void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) {
 }
 
 extern "C" void pcm_note_on(uint8_t voice) {
-    // If not freq given, we set it to default PCM freq 
+    // If no freq given, we set it to default PCM SR. e.g. freq=11025 plays PCM at half speed, freq=44100 double speed 
     if(synth[voice].freq <= 0) synth[voice].freq = PCM_SAMPLE_RATE;
     // If patch is given, set step directly from patch's offset
     if(synth[voice].patch>=0) {
         synth[voice].step = offset_map[synth[voice].patch*2]; // start sample
+        // Use substep here as "end sample" so we don't have to add another field to the struct
         synth[voice].substep = synth[voice].step + offset_map[synth[voice].patch*2 + 1]; // end sample
-        //printf("patch %d step %f substep %f freq %f\n", synth[voice].patch, synth[voice].step, synth[voice].substep, synth[voice].freq);
-    } else { // use phase as index into PCM buffer
+    } else { // no patch # given? use phase as index into PCM buffer
         synth[voice].step = PCM_LENGTH * synth[voice].phase; // start at phase offset
-        synth[voice].substep = PCM_LENGTH; // play until end of buffer
+        synth[voice].substep = PCM_LENGTH; // play until end of buffer and stop 
     }
 }
 
-// TODO -- this just does one shot, no frequency scaling, looping (will need extra loop parameter?)
+// TODO -- this just does one shot, no looping (will need extra loop parameter? what about sample metadata looping?) 
+// TODO -- this should just be like render_LUT(float * buf, uint8_t voice, int16_t **LUT) as it's the same for sine & PCM?
 extern "C" void render_pcm(float * buf, uint8_t voice) {
-    // you want skip to be 0.5 when freq is ... 22050 
-    // maybe set that as default freq for PCM wave? 
     float skip = msynth[voice].freq / (float)SAMPLE_RATE;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         float sample = pcm[(int)(synth[voice].step)];
@@ -66,24 +66,21 @@ extern "C" void render_pcm(float * buf, uint8_t voice) {
 
 
 extern "C" void sine_note_on(uint8_t voice) {
-    // So i reset step to some phase math, right? yeah
     synth[voice].step = (float)SINE_LUT_SIZE * synth[voice].phase;
 }
 
 extern "C" void render_sine(float * buf, uint8_t voice) { 
     float skip = msynth[voice].freq / 44100.0 * SINE_LUT_SIZE;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        //if(skip >= 0) { 
-            uint16_t u0 = sine_LUT[(uint16_t)floor(synth[voice].step)];
-            uint16_t u1 = sine_LUT[(uint16_t)(floor(synth[voice].step)+1 % SINE_LUT_SIZE)];
-            float x0 = (float)u0 - 32768.0;
-            float x1 = (float)u1 - 32768.0;
-            float frac = synth[voice].step - floor(synth[voice].step);
-            float sample = x0 + ((x1 - x0) * frac);
-            buf[i] = buf[i] + (sample * msynth[voice].amp);
-            synth[voice].step = synth[voice].step + skip;
-            if(synth[voice].step >= SINE_LUT_SIZE) synth[voice].step = synth[voice].step - SINE_LUT_SIZE;
-        //}
+        uint16_t u0 = sine_LUT[(uint16_t)floor(synth[voice].step)];
+        uint16_t u1 = sine_LUT[(uint16_t)(floor(synth[voice].step)+1 % SINE_LUT_SIZE)];
+        float x0 = (float)u0 - 32768.0;
+        float x1 = (float)u1 - 32768.0;
+        float frac = synth[voice].step - floor(synth[voice].step);
+        float sample = x0 + ((x1 - x0) * frac);
+        buf[i] = buf[i] + (sample * msynth[voice].amp);
+        synth[voice].step = synth[voice].step + skip;
+        if(synth[voice].step >= SINE_LUT_SIZE) synth[voice].step = synth[voice].step - SINE_LUT_SIZE;
     }
 }
 
@@ -194,6 +191,7 @@ extern "C" void oscillators_init(void) {
     blipbuf.bass_freq( 0 ); // makes waveforms perfectly flat
     blipsynth.volume(global.volume);
     blipsynth.output(&blipbuf);
+    // TODO -- i could save a lot of heap by only mallocing this when needed 
     ks_buffer = (float**) malloc(sizeof(float*)*VOICES);
     for(int i=0;i<VOICES;i++) ks_buffer[i] = (float*)malloc(sizeof(float)*MAX_KS_BUFFER_LEN); 
 }

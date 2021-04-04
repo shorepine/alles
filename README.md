@@ -22,11 +22,11 @@ Each individual synthesizer supports:
    * noise
    * PCM, reading from a baked-in buffer of percussive and misc samples
    * karplus-strong string (+ adjustable feedback)
-   * FM, using a DX7 simulation, with support for DX7 patches and 10,000 presets 
+   * FM, using a DX7 simulation, with support for DX7 patches and 1000 presets 
  * Biquad low-pass filter with cutoff and resonance at the last stage
  * Voices can be specified by frequency in floating point or midi note 
  * Each voice has a dedicated ADSR VCA, which can modify any combination of amplitude, frequency, duty, filter cutoff or resonance
- * Each voice (except for those using KS or FM) can also act as an LFO to modify any comvination of parameters of another voice, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave. 
+ * Each voice (except for those using KS or FM) can also act as an LFO to modify any combination of parameters of another voice, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave. 
  * Speaker gain control
 
 
@@ -90,7 +90,7 @@ Or experiment with oscillators:
 >>> # use a a 0.25Hz sine wave at half phase (going down) to modify frequency of another sine wave
 >>> alles.reset()
 >>> alles.send(voice=1, wave=alles.SINE, vel=0.50, freq=0.25, phase=0.5) # LFO source voice
->>> alles.send(voice=0, wave=SINE, vel=0, envelope="0,500,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=1)
+>>> alles.send(voice=0, wave=alles.SINE, vel=0, envelope="0,500,0,0", adsr_target=alles.TARGET_AMP, lfo_target=alles.TARGET_FREQ, lfo_source=1)
 >>> alles.note_on(voice=0, note=60, vel=1.5) # Bass drum!
 >>> alles.lowpass(800, 1.5) # filter it
 >>> alles.note_on(voice=0, note=50, vel=1.5)
@@ -140,51 +140,6 @@ An easy way to do this is to set up a dedicated router but not wire any internet
 If you're in a place where you can't control your network, you can mitigate reliability by simply sending messages N times (2-4). Sending multiple duplicate messages do not have any adverse effect on the synths.
 
 
-## Putting it together 
-
-We are currently testing rev2 of a all-in-one design for Alles. The self-contained version has its own rechargable battery, 4ohm speaker, case and buttons for configuration & setup. We're hoping to be able to sell these in packs for anyone to use. More details soon. 
-
-![blinkinlabs PCB](https://raw.githubusercontent.com/bwhitman/alles/master/pics/alles_reva.png)
-
-But it's still very simple to make one yourself with parts you can get from electronics distributors like Sparkfun, Adafruit or Amazon. 
-
-To make an Alles synth yourself, you need
-
-* [ESP32 dev board (any one will do, but you want pins broken out)](https://www.amazon.com/gp/product/B07Q576VWZ/) (pack of 2, $7.45 each)
-* [The Adafruit I2S mono amplifier](https://www.adafruit.com/product/3006) ($5.95)
-* [4 ohm speaker, this one is especially nice](https://www.parts-express.com/peerless-by-tymphany-tc6fd00-04-2-full-range-paper-cone-woofer-4-ohm--264-1126?gclid=EAIaIQobChMIwcX3-vXi5wIVgpOzCh0a7gjuEAYYASABEgLwf_D_BwE) ($9.77, but you can save a lot of money here going lower-end if you're ok with the sound quality). I also like speakers with prebuilt cases, like [these bookshelf speakers](https://www.amazon.com/Pyle-PCB3BK-100-Watt-Bookshelf-Speakers/dp/B000MCGF1O/ref=sr_1_1?dchild=1&keywords=pyle+home+speaker&qid=1592156929&s=electronics&sr=1-1).
-* A breadboard, custom PCB, or just some hookup wire!
-
-A 5V input (USB battery, USB input, rechargeable batteries direct to power input) powers both boards and speaker at pretty good volumes. A 3.7V LiPo battery will also work, but note the I2S amp will not get as loud (without distorting) if you give it 3.7V. If you want your DIY Alles to be portable, I recommend using a USB battery pack that does not do [low current shutoff](https://www.element14.com/community/groups/test-and-measurement/blog/2018/10/15/on-using-a-usb-battery-for-a-portable-project-power-supply). The draw of the whole unit at loud volumes is around 90mA, and at idle 40mA. 
-
-Wire up your DIY Alles like this (I2S -> ESP)
-
-```
-LRC -> GPIO25
-BCLK -> GPIO26
-DIN -> GPIO27
-GAIN -> I2S Vin (i jumper this on the I2S board)
-SD -> not connected
-GND -> GND
-Vin -> Vin / USB / 3.3 (or direct to your 5V power source)
-Speaker connectors -> speaker
-```
-
-### DIY bridge PCB
-
-*You don't need this PCB made to build a DIY Alles!* -- it will work with just hookup wire. But if you're making a lot of DIY Alleses want more stability, I had a tiny little board made to join the boards together, like so:
-
-![closeup](https://raw.githubusercontent.com/bwhitman/alles/master/pics/adapter.jpg)
-
-This assumes you're using the suggested ESP32 dev board with its pin layout. If you use another one, you can probably change the GPIO assignments in `alles.h`. Fritzing file in the `pcbs` folder of this repository, and [it's here on Aisler](https://aisler.net/p/TEBMDZWQ). This is a lot more stable and easier to wire up than snipping small bits of hookup wire, especially for the GAIN connection. 
-
-
-## Firmware
-
-Alles is completely open source, and can be a fun platform to adapt beyond its current capabilities. To build your own firmware, [start by setting up `esp-idf`](http://esp-idf.readthedocs.io/en/latest/get-started/). Once installed, connect to your board over USB, clone and cd into this repository and run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board.
-
-Use `idf.py -p /dev/YOUR_SERIAL_TTY monitor` to reboot the board and see stdout/stderr. Use Ctrl-] to exit the monitor.
-
 ## Clients
 
 Minimal Python example:
@@ -227,6 +182,58 @@ To use hardwired MIDI: I recommend using a pre-built MIDI breakout with the supp
 Currently supported are program / bank changes and note on / offs. Will be adding more CCs soon.
 
 
+# Developer & DIY Zone
+
+## Building your own DIY Alles 
+
+We are currently testing [rev2 of a all-in-one design for Alles](https://github.com/bwhitman/alles/blob/master/pcbs/2021-03-22_Alles_RevB.pdf). The self-contained version has its own rechargable battery, 4ohm speaker, case and buttons for configuration & setup. We're hoping to be able to sell these in packs for anyone to use. More details soon. 
+
+![blinkinlabs PCB](https://raw.githubusercontent.com/bwhitman/alles/master/pics/alles_reva.png)
+
+But it's still very simple to make one yourself with parts you can get from electronics distributors like Sparkfun, Adafruit or Amazon. 
+
+To make an Alles synth yourself, you need
+
+* [ESP32 dev board (any one will do, but you want pins broken out)](https://www.amazon.com/gp/product/B07Q576VWZ/) (pack of 2, $7.45 each)
+* [The Adafruit I2S mono amplifier](https://www.adafruit.com/product/3006) ($5.95)
+* [4 ohm speaker, this one is especially nice](https://www.parts-express.com/peerless-by-tymphany-tc6fd00-04-2-full-range-paper-cone-woofer-4-ohm--264-1126?gclid=EAIaIQobChMIwcX3-vXi5wIVgpOzCh0a7gjuEAYYASABEgLwf_D_BwE) ($9.77, but you can save a lot of money here going lower-end if you're ok with the sound quality). I also like speakers with prebuilt cases, like [these bookshelf speakers](https://www.amazon.com/Pyle-PCB3BK-100-Watt-Bookshelf-Speakers/dp/B000MCGF1O/ref=sr_1_1?dchild=1&keywords=pyle+home+speaker&qid=1592156929&s=electronics&sr=1-1).
+* A breadboard, custom PCB, or just some hookup wire!
+
+A 5V input (USB battery, USB input, rechargeable batteries direct to power input) powers both boards and speaker at pretty good volumes. A 3.7V LiPo battery will also work, but note the I2S amp will not get as loud (without distorting) if you give it 3.7V. If you want your DIY Alles to be portable, I recommend using a USB battery pack that does not do [low current shutoff](https://www.element14.com/community/groups/test-and-measurement/blog/2018/10/15/on-using-a-usb-battery-for-a-portable-project-power-supply). The draw of the whole unit at loud volumes is around 90mA, and at idle 40mA. 
+
+Wire up your DIY Alles like this (I2S -> ESP)
+
+```
+LRC -> GPIO25
+BCLK -> GPIO26
+DIN -> GPIO27
+GAIN -> I2S Vin (i jumper this on the I2S board)
+SD -> not connected
+GND -> GND
+Vin -> Vin / USB / 3.3 (or direct to your 5V power source)
+Speaker connectors -> speaker
+```
+
+### DIY bridge PCB
+
+*You don't need this PCB made to build a DIY Alles!* -- it will work with just hookup wire. But if you're making a lot of DIY Alleses want more stability, I had a tiny little board made to join the boards together, like so:
+
+![closeup](https://raw.githubusercontent.com/bwhitman/alles/master/pics/adapter.jpg)
+
+This assumes you're using the suggested ESP32 dev board with its pin layout. If you use another one, you can probably change the GPIO assignments in `alles.h`. Fritzing file in the `pcbs` folder of this repository, and [it's here on Aisler](https://aisler.net/p/TEBMDZWQ). This is a lot more stable and easier to wire up than snipping small bits of hookup wire, especially for the GAIN connection. 
+
+
+## Firmware
+
+Alles is completely open source, and can be a fun platform to adapt beyond its current capabilities. To build your own firmware, [start by setting up `esp-idf`](http://esp-idf.readthedocs.io/en/latest/get-started/). If using macOS, you'll want to install the [CP210X drivers](https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers) if you haven't already. Once you've installed esp-idf and the serial drivers if you need them, run `. ./esp-idf/export.sh`, then connect to your board over USB, clone and cd into this repository and run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board.
+
+Use `idf.py -p /dev/YOUR_SERIAL_TTY monitor` to reboot the board and see stdout/stderr. Use Ctrl-] to exit the monitor.
+
+## Generating new FM patches or changing the PCM bank
+
+Alles comes prebaked with 1,000 DX7 patches from the [learnFM](https://github.com/bwhitman/learnfm) project. It also comes prebaked with a long buffer of PCM samples, mostly ones that are more complex to synthesize using additive oscillators, for example, closed hi-hats or cymbals. If you build your own firmware, you're free to change both. In [`alles_util.py`](https://github.com/bwhitman/alles/blob/master/alles_util.py) you'll see functions that can regenerate `pcm.h` and `patches.h` for you, by giving it other FM patches, PCM buffers or even SoundFonts. 
+
+
 ## THANK YOU TO
 
 * douglas repetto
@@ -238,6 +245,7 @@ Currently supported are program / bank changes and note on / offs. Will be addin
 * blargg for [BlipBuffer](http://slack.net/~ant/libs/audio.html#Blip_Buffer)'s bandlimiting
 * [BLE-MIDI-IDF](https://github.com/mathiasbredholt/blemidi-idf)
 * Matt Mets / [Blinkinlabs](https://blinkinlabs.com)
+* [nodemcu-pyflasher](https://github.com/marcelstoer/nodemcu-pyflasher)
 
 
 ## TODO
