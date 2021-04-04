@@ -217,6 +217,11 @@ Vin -> Vin / USB / 3.3 (or direct to your 5V power source)
 Speaker connectors -> speaker
 ```
 
+
+![DIY Alles 1](https://raw.githubusercontent.com/bwhitman/alles/master/pics/diy_alles_1.png)
+![DIY Alles 2](https://raw.githubusercontent.com/bwhitman/alles/master/pics/diy_alles_2.png)
+
+
 ### DIY bridge PCB
 
 *You don't need this PCB made to build a DIY Alles!* -- it will work with just hookup wire. But if you're making a lot of DIY Alleses want more stability, I had a tiny little board made to join the boards together, like so:
