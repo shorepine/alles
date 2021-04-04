@@ -176,7 +176,7 @@ To use BLE MIDI: On a Mac, open Audio MIDI Setup, then show MIDI Studio, then th
 
 To use hardwired MIDI: I recommend using a pre-built MIDI breakout with the support hardware -- like this one from [Sparkfun](https://www.sparkfun.com/products/12898) or [Adafruit](https://www.adafruit.com/product/4740) to make it easier to wire up. Connect 3.3V, GND and MIDI to either the devboard (GPIO 19) or the Alles V1 PCB (MIDI header.)
 
-![MIDI on DIY Alles]((https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/alles_midi.png)
+![MIDI on Alles](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/alles_midi.png)
 
 `CHANNEL: 1-16`: sets which synth ID in the mesh you want to send the message to. `1` sends the message to all synths, and `2-16`sends the message to only that ID, minus 1. So to send a message to only the first booted synth, use the second channel.
 
