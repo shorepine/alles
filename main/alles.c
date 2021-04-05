@@ -27,7 +27,7 @@ esp_err_t global_init() {
     global.next_event_write = 0;
     global.board_level = ALLES_BOARD_V1;
     global.status = RUNNING;
-    global.volume = 0.5;
+    global.volume = 1;
     global.resonance = 0.7;
     global.filter_freq = 0;
     return ESP_OK;

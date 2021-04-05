@@ -162,7 +162,7 @@ See [`alles.py`](https://github.com/bwhitman/alles/blob/master/alles.py) for a b
 
 You can also easily use it in Max or Pd:
 
-![Max](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/max.png)
+![Max](https://raw.githubusercontent.com/bwhitman/alles/master/pics/max.png)
 
 ## MIDI mode
 
@@ -172,9 +172,12 @@ Use the MIDI toggle button on the Alles V1 PCB to enter MIDI mode. If using a de
 
 To use BLE MIDI: On a Mac, open Audio MIDI Setup, then show MIDI Studio, then the Bluetooth button, and connect to "Alles MIDI." The Alles MIDI port will then show up in all your MIDI capable software.
 
+![BLE MIDI on Alles](https://raw.githubusercontent.com/bwhitman/alles/master/pics/alles_midi_setup.png)
+
+
 To use hardwired MIDI: I recommend using a pre-built MIDI breakout with the support hardware -- like this one from [Sparkfun](https://www.sparkfun.com/products/12898) or [Adafruit](https://www.adafruit.com/product/4740) to make it easier to wire up. Connect 3.3V, GND and MIDI to either the devboard (GPIO 19) or the Alles V1 PCB (MIDI header.)
 
-![MIDI on Alles](https://raw.githubusercontent.com/bwhitman/synthserver/master/pics/alles_midi.png)
+![MIDI on Alles](https://raw.githubusercontent.com/bwhitman/alles/master/pics/alles_midi.png)
 
 `CHANNEL: 1-16`: sets which synth ID in the mesh you want to send the message to. `1` sends the message to all synths, and `2-16`sends the message to only that ID, minus 1. So to send a message to only the first booted synth, use the second channel.
 
