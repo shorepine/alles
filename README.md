@@ -56,7 +56,7 @@ d = duty cycle, float 0.001-0.999. duty cycle for pulse wave, default 0.5
 f = frequency, float 0-44100 (and above). default 0. Sampling rate of synth is 44,100Hz but higher numbers can be used for PCM waveforms
 F = center frequency of biquad filter. 0 is off. default 0. applies to entire synth audio
 g = LFO target mask. Which parameter LFO controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
-L = LFO source voice. 0-9. Which voice is used as an LFO for this voice. Source voice will be silent. 
+L = LFO source voice. 0-9. Which voice is used as an LFO source for this voice. Source voice will be silent. 
 l = velocity (amplitude), float 0-1, >0 to trigger note on, 0 to trigger note off.  
 n = midinote, uint, 0-127 (note that this will also set f). default 0
 p = patch, uint, 0-999, choose a preloaded PCM sample or DX7 patch number for FM waveforms. See patches.h, pcm.h. default 0
@@ -67,7 +67,7 @@ s = sync, int64, same as time but used alone to do an enumeration / sync, see al
 T = ADSR target mask. Which parameter ADSR controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can.
 v = voice, uint, 0 to 9. default: 0
-V = volume, float 0 to about 10 in practice. volume knob for the entire synth / speaker. default 0.5
+V = volume, float 0 to about 10 in practice. volume knob for the entire synth / speaker. default 1.0
 w = waveform, uint, 0 to 8 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, PCM, OFF]. default: 0/SINE
 ```
 
