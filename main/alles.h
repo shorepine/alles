@@ -244,8 +244,8 @@ extern void read_midi();
 #define LFO_SOURCE 4
 
 
-#define UP    16383
-#define DOWN -16384
+#define UP    32767
+#define DOWN -32768
 
 
 #ifdef __cplusplus

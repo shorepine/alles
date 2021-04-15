@@ -19,6 +19,8 @@ finally:
 # This, for example, is my dev machine's 2nd network interface IP, that I have wired to a separate wifi router
 if(os.uname().nodename=='colossus'):
     local_ip = '192.168.1.2'
+elif(os.uname().nodename=='cedar.local'):
+    local_ip = '192.168.1.2'
 
 
 sock = 0
