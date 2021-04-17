@@ -19,7 +19,7 @@ struct mod_event * msynth;
 
 // floatblock -- accumulative for mixing
 float * floatblock;
-// block -- what gets sent to the DAC -- -32767...32768 (wave file, int16 LE)
+// block -- what gets sent to the DAC -- -32768...32767 (wave file, int16 LE)
 int16_t * block;
 
 
