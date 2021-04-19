@@ -221,9 +221,6 @@ extern void midi_init();
 extern void midi_deinit();
 extern void read_midi();
 
-#define SINE_LUT_SIZE 16383
-
-
 #define NUM_WAVES 8
 #define SINE 0
 #define PULSE 1

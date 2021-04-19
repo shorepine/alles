@@ -2,7 +2,8 @@
 
 extern "C" { 
     #include "alles.h"
-    #include "sineLUT.h"
+  //#include "sineLUT.h"
+    #include "sinLUT16384.h"
     #include "pcm.h"
 }
 
@@ -74,15 +75,23 @@ extern "C" void render_sine(float * buf, uint8_t voice) {
     float skip = msynth[voice].freq / 44100.0 * SINE_LUT_SIZE;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         //if(skip >= 0) { 
-            uint16_t u0 = sine_LUT[(uint16_t)floor(synth[voice].step)];
-            uint16_t u1 = sine_LUT[(uint16_t)(floor(synth[voice].step)+1 % SINE_LUT_SIZE)];
-            float x0 = (float)u0 - 32768.0;
-            float x1 = (float)u1 - 32768.0;
-            float frac = synth[voice].step - floor(synth[voice].step);
-            float sample = x0 + ((x1 - x0) * frac);
-            buf[i] = buf[i] + (sample * msynth[voice].amp);
-            synth[voice].step = synth[voice].step + skip;
-            if(synth[voice].step >= SINE_LUT_SIZE) synth[voice].step = synth[voice].step - SINE_LUT_SIZE;
+      uint16_t base_index = (uint16_t)floor(synth[voice].step);
+      float f = synth[voice].step - (float)base_index;
+      float ym = (float)sine_LUT[(base_index - 1) & SINE_LUT_MASK];
+      float y0 = (float)sine_LUT[(base_index + 0) & SINE_LUT_MASK];
+      float y1 = (float)sine_LUT[(base_index + 1) & SINE_LUT_MASK];
+      float y2 = (float)sine_LUT[(base_index + 2) & SINE_LUT_MASK];
+      // linear interpolation.
+      //float sample = y0 + ((y1 - y0) * f);
+      // cubic interpolation (TTEM p.46).
+      float sample = 
+	- f * (f - 1) * (f - 2) / 6.0 * ym 
+	+ (f + 1) * (f - 1) * (f - 2) / 2.0 * y0
+	- (f + 1) * f * (f - 2) / 2.0 * y1 
+	+ (f + 1) * f * (f - 1) / 6.0 * y2;
+      buf[i] = buf[i] + (sample * msynth[voice].amp);
+      synth[voice].step = synth[voice].step + skip;
+      if(synth[voice].step >= SINE_LUT_SIZE) synth[voice].step -= SINE_LUT_SIZE;
         //}
     }
 }

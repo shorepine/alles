@@ -20,7 +20,8 @@ struct mod_event * msynth;
 // floatblock -- accumulative for mixing
 float * floatblock;
 // block -- what gets sent to the DAC -- -32767...32768 (wave file, int16 LE)
-int16_t * block;
+typedef uint16_t BLOCK_T;
+BLOCK_T * block;
 
 
 esp_err_t global_init() {
@@ -172,7 +173,7 @@ esp_err_t voices_init() {
     synth = (struct event*) malloc(sizeof(struct event) * VOICES);
     msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * VOICES);
     floatblock = (float*) malloc(sizeof(float) * BLOCK_SIZE);
-    block = (int16_t *) malloc(sizeof(int16_t) * BLOCK_SIZE);
+    block = (BLOCK_T *) malloc(sizeof(BLOCK_T) * BLOCK_SIZE);
 
     reset_voices();
     // Fill the FIFO with default events, as the audio thread reads from it immediately
@@ -349,13 +350,22 @@ void fill_audio_buffer(float seconds) {
         }
 
         // Bandlimit the buffer all at once
-        blip_the_buffer(floatblock, block, BLOCK_SIZE);
+        //blip_the_buffer(floatblock, block, BLOCK_SIZE);
+	
+        // Offset for internal DAC
+	//for(int16_t i=0; i < BLOCK_SIZE; ++i) {
+	//  block[i] += 32768;
+	//}
 
+        for(int16_t i=0; i < BLOCK_SIZE; ++i) {
+	  block[i] = (BLOCK_T)(floatblock[i] + 32768.0); 
+	}
+	
         // If filtering is on, filter the mixed signal
-        if(mglobal.filter_freq > 0) {
-            filter_update();
-            filter_process_ints(block);
-        }
+        //if(mglobal.filter_freq > 0) {
+        //    filter_update();
+        //    filter_process_ints(block);
+        //}
 
         // And write to I2S
         size_t written = 0;
@@ -370,7 +380,8 @@ void fill_audio_buffer(float seconds) {
 esp_err_t setup_i2s(void) {
     //i2s configuration
     i2s_config_t i2s_config = {
-         .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
+      //     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
+	 .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_DAC_BUILT_IN),
          .sample_rate = SAMPLE_RATE,
          .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
          .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
@@ -387,7 +398,10 @@ esp_err_t setup_i2s(void) {
         .data_in_num = -1   //Not used
     };
     i2s_driver_install((i2s_port_t)CONFIG_I2S_NUM, &i2s_config, 0, NULL);
-    i2s_set_pin((i2s_port_t)CONFIG_I2S_NUM, &pin_config);
+    //i2s_set_pin((i2s_port_t)CONFIG_I2S_NUM, &pin_config);
+    i2s_set_pin((i2s_port_t)CONFIG_I2S_NUM, NULL);
+    i2s_set_dac_mode(I2S_DAC_CHANNEL_BOTH_EN);
+
     i2s_set_sample_rates((i2s_port_t)CONFIG_I2S_NUM, SAMPLE_RATE);
     return ESP_OK;
 }
