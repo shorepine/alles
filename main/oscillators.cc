@@ -3,7 +3,8 @@
 extern "C" { 
     #include "alles.h"
   //#include "sineLUT.h"
-    #include "sinLUT16384.h"
+  //#include "sinLUT16384.h"
+    #include "sinLUT1024.h"
     #include "pcm.h"
 }
 
