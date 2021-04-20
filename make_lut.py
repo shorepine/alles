@@ -20,9 +20,15 @@ def cosines(num_cosines, args):
 
 #basename = "impulse64"
 #function = partial(cosines, 64)
-basename = "impulse10"
-function = partial(cosines, 10)
-function.__name__ = "impulse10"
+
+#basename = "impulse10"
+#function = partial(cosines, 10)
+#function.__name__ = "impulse10"
+
+num_harmonics = 32
+basename = "impulse{:d}".format(num_harmonics)
+function = partial(cosines, num_harmonics)
+function.__name__ = basename
 
 filename = "{:s}_{:d}.h".format(basename, tab_size) 
 

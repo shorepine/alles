@@ -5,7 +5,7 @@ extern "C" {
   //#include "sineLUT.h"
   //#include "sinLUT16384.h"
     #include "sinLUT_1024.h"
-    #include "impulse10_1024.h"
+    #include "impulse32_1024.h"
     #include "pcm.h"
 }
 
@@ -72,24 +72,53 @@ extern "C" float render_lut(float * buf, float step, float skip, float amp, cons
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         //if(skip >= 0) { 
       uint16_t base_index = (uint16_t)floor(step);
-      float f = step - (float)base_index;
-      float ym = (float)lut[(base_index - 1) & SINLUT_MASK];
-      float y0 = (float)lut[(base_index + 0) & SINLUT_MASK];
-      float y1 = (float)lut[(base_index + 1) & SINLUT_MASK];
-      float y2 = (float)lut[(base_index + 2) & SINLUT_MASK];
+      float frac = step - (float)base_index;
+      float a = (float)lut[(base_index - 1) & SINLUT_MASK];
+      float b = (float)lut[(base_index + 0) & SINLUT_MASK];
+      float c = (float)lut[(base_index + 1) & SINLUT_MASK];
+      float d = (float)lut[(base_index + 2) & SINLUT_MASK];
       // linear interpolation.
-      //float sample = y0 + ((y1 - y0) * f);
+      //float sample = b + ((c - b) * frac);
       // cubic interpolation (TTEM p.46).
-      float sample = 
-	- f * (f - 1) * (f - 2) / 6.0 * ym 
-	+ (f + 1) * (f - 1) * (f - 2) / 2.0 * y0
-	- (f + 1) * f * (f - 2) / 2.0 * y1 
-	+ (f + 1) * f * (f - 1) / 6.0 * y2;
-      buf[i] = buf[i] + (sample * amp);
+      //      float sample = 
+      //	- frac * (frac - 1) * (frac - 2) / 6.0 * a
+      //	+ (frac + 1) * (frac - 1) * (frac - 2) / 2.0 * b
+      //	- (frac + 1) * frac * (frac - 2) / 2.0 * c
+      //	+ (frac + 1) * frac * (frac - 1) / 6.0 * d;
+      // Miller's optimization - https://github.com/pure-data/pure-data/blob/master/src/d_array.c#L440
+      float cminusb = c - b;
+      //float sample = y0 + frac * (cminusb - 0.16666667f * (1.0f - frac) * ((y2 - ym - 3.0f * cminusb) * frac + (y2 + 2.0f * ym - 3.0f * y0)));
+      float sample = b + frac * (cminusb - 0.1666667f * (1.-frac) * ((d - a - 3.0f * cminusb) * frac + (d + 2.0f*a - 3.0f*b)));
+      buf[i] += sample * amp;
       step += skip;
       if(step >= SINLUT_SIZE) step -= SINLUT_SIZE;
     }
     return step;
+}
+
+extern "C" void pulse_note_on(uint8_t voice) {
+    // So i reset step to some phase math, right? yeah
+    synth[voice].step = (float)SINLUT_SIZE * synth[voice].phase;
+}
+
+extern "C" void lpf_buf(float *buf) {
+  // Implement first-order low-pass (leaky integrator).
+  static float lastbuf = 0;
+  for (uint16_t i = 0; i < BLOCK_SIZE; ++i) {
+    buf[i] += 0.99 * (lastbuf - buf[i]);
+    lastbuf = buf[i];
+  }
+}
+
+extern "C" void render_pulse(float * buf, uint8_t voice) {
+    if(msynth[voice].duty < 0.001 || msynth[voice].duty > 0.999) msynth[voice].duty = 0.5;
+
+    float skip = msynth[voice].freq / 44100.0 * SINLUT_SIZE;
+    float pwm_step = synth[voice].step + msynth[voice].duty * SINLUT_SIZE;
+    if (pwm_step >= SINLUT_SIZE)  pwm_step -= SINLUT_SIZE;
+    synth[voice].step = render_lut(buf, synth[voice].step, skip, -msynth[voice].amp, impulse32);
+    render_lut(buf, pwm_step, skip, msynth[voice].amp, impulse32);
+    lpf_buf(buf);
 }
 
 extern "C" void sine_note_on(uint8_t voice) {
@@ -184,18 +213,6 @@ extern "C" void bw_render_pulse(float * buf, uint8_t voice) {
         buf[i] = buf[i] + synth[voice].sample * msynth[voice].amp;
         synth[voice].step++;
     }
-}
-
-extern "C" void pulse_note_on(uint8_t voice) {
-    // So i reset step to some phase math, right? yeah
-    synth[voice].step = (float)SINLUT_SIZE * synth[voice].phase;
-}
-
-extern "C" void render_pulse(float * buf, uint8_t voice) {
-    if(msynth[voice].duty < 0.001 || msynth[voice].duty > 0.999) msynth[voice].duty = 0.5;
-
-    float skip = msynth[voice].freq / 44100.0 * SINLUT_SIZE;
-    synth[voice].step = render_lut(buf, synth[voice].step, skip, msynth[voice].amp, impulse10);
 }
 
 extern "C" void ks_note_on(uint8_t voice) {
