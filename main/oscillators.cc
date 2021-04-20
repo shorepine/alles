@@ -4,7 +4,8 @@ extern "C" {
     #include "alles.h"
   //#include "sineLUT.h"
   //#include "sinLUT16384.h"
-    #include "sinLUT1024.h"
+    #include "sinLUT_1024.h"
+    #include "impulse10_1024.h"
     #include "pcm.h"
 }
 
@@ -67,21 +68,15 @@ extern "C" void render_pcm(float * buf, uint8_t voice) {
 }
 
 
-extern "C" void sine_note_on(uint8_t voice) {
-    // So i reset step to some phase math, right? yeah
-    synth[voice].step = (float)SINE_LUT_SIZE * synth[voice].phase;
-}
-
-extern "C" void render_sine(float * buf, uint8_t voice) { 
-    float skip = msynth[voice].freq / 44100.0 * SINE_LUT_SIZE;
+extern "C" float render_lut(float * buf, float step, float skip, float amp, const int16_t* lut) { 
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         //if(skip >= 0) { 
-      uint16_t base_index = (uint16_t)floor(synth[voice].step);
-      float f = synth[voice].step - (float)base_index;
-      float ym = (float)sine_LUT[(base_index - 1) & SINE_LUT_MASK];
-      float y0 = (float)sine_LUT[(base_index + 0) & SINE_LUT_MASK];
-      float y1 = (float)sine_LUT[(base_index + 1) & SINE_LUT_MASK];
-      float y2 = (float)sine_LUT[(base_index + 2) & SINE_LUT_MASK];
+      uint16_t base_index = (uint16_t)floor(step);
+      float f = step - (float)base_index;
+      float ym = (float)lut[(base_index - 1) & SINLUT_MASK];
+      float y0 = (float)lut[(base_index + 0) & SINLUT_MASK];
+      float y1 = (float)lut[(base_index + 1) & SINLUT_MASK];
+      float y2 = (float)lut[(base_index + 2) & SINLUT_MASK];
       // linear interpolation.
       //float sample = y0 + ((y1 - y0) * f);
       // cubic interpolation (TTEM p.46).
@@ -90,11 +85,21 @@ extern "C" void render_sine(float * buf, uint8_t voice) {
 	+ (f + 1) * (f - 1) * (f - 2) / 2.0 * y0
 	- (f + 1) * f * (f - 2) / 2.0 * y1 
 	+ (f + 1) * f * (f - 1) / 6.0 * y2;
-      buf[i] = buf[i] + (sample * msynth[voice].amp);
-      synth[voice].step = synth[voice].step + skip;
-      if(synth[voice].step >= SINE_LUT_SIZE) synth[voice].step -= SINE_LUT_SIZE;
-        //}
+      buf[i] = buf[i] + (sample * amp);
+      step += skip;
+      if(step >= SINLUT_SIZE) step -= SINLUT_SIZE;
     }
+    return step;
+}
+
+extern "C" void sine_note_on(uint8_t voice) {
+    // So i reset step to some phase math, right? yeah
+    synth[voice].step = (float)SINLUT_SIZE * synth[voice].phase;
+}
+
+extern "C" void render_sine(float * buf, uint8_t voice) { 
+    float skip = msynth[voice].freq / 44100.0 * SINLUT_SIZE;
+    synth[voice].step = render_lut(buf, synth[voice].step, skip, msynth[voice].amp, sinLUT);
 }
 
 extern "C" void render_noise(float *buf, uint8_t voice) {
@@ -156,12 +161,12 @@ extern "C" void render_triangle(float * buf, uint8_t voice) {
     }
 }
 
-extern "C" void pulse_note_on(uint8_t voice) {
+extern "C" void bw_pulse_note_on(uint8_t voice) {
     float period = 1. / (synth[voice].freq/(float)SAMPLE_RATE);
     synth[voice].step = period * synth[voice].phase;
 }
 
-extern "C" void render_pulse(float * buf, uint8_t voice) {
+extern "C" void bw_render_pulse(float * buf, uint8_t voice) {
     if(msynth[voice].duty < 0.001 || msynth[voice].duty > 0.999) msynth[voice].duty = 0.5;
     float period = 1. / (msynth[voice].freq/(float)SAMPLE_RATE);
     float period2 = msynth[voice].duty * period; // if duty is 0.5, square wave
@@ -179,6 +184,18 @@ extern "C" void render_pulse(float * buf, uint8_t voice) {
         buf[i] = buf[i] + synth[voice].sample * msynth[voice].amp;
         synth[voice].step++;
     }
+}
+
+extern "C" void pulse_note_on(uint8_t voice) {
+    // So i reset step to some phase math, right? yeah
+    synth[voice].step = (float)SINLUT_SIZE * synth[voice].phase;
+}
+
+extern "C" void render_pulse(float * buf, uint8_t voice) {
+    if(msynth[voice].duty < 0.001 || msynth[voice].duty > 0.999) msynth[voice].duty = 0.5;
+
+    float skip = msynth[voice].freq / 44100.0 * SINLUT_SIZE;
+    synth[voice].step = render_lut(buf, synth[voice].step, skip, msynth[voice].amp, impulse10);
 }
 
 extern "C" void ks_note_on(uint8_t voice) {

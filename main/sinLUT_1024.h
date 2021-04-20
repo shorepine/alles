@@ -1,21 +1,12 @@
-// >>> import numpy as np
-// >>> tab_size = 1024
-// >>> sins = np.sin(np.arange(tab_size) / tab_size * 2 * np.pi)
-// >>> row_len = 8
-// >>> with open("sinLUT{:d}.h".format(tab_size), "w") as f:
-// ...   for base in np.arange(0, tab_size, row_len):
-// ...     for offset in np.arange(row_len):
-// ...       val = int(round(32767 * sins[base + offset]))
-// ...       _ = f.write("{:d},".format(val))
-// ...     _ = f.write("\n")
-// ... 
-// >>>
+// sinLUT_1024.h - lookup table
+// tab_size = 1024
+// function = sin
 
-#ifndef __SINELUT_H
-#define __SINELUT_H
-#define SINE_LUT_SIZE 1024
-#define SINE_LUT_MASK 0x03FF
-const int16_t sine_LUT[SINE_LUT_SIZE] = {
+#ifndef __SINLUT_H
+#define __SINLUT_H
+#define SINLUT_SIZE 1024
+#define SINLUT_MASK 0x3ff
+const int16_t sinLUT[SINLUT_SIZE] = {
 0,201,402,603,804,1005,1206,1407,
 1608,1809,2009,2210,2410,2611,2811,3012,
 3212,3412,3612,3811,4011,4210,4410,4609,
@@ -143,8 +134,7 @@ const int16_t sine_LUT[SINE_LUT_SIZE] = {
 -6393,-6195,-5998,-5800,-5602,-5404,-5205,-5007,
 -4808,-4609,-4410,-4210,-4011,-3811,-3612,-3412,
 -3212,-3012,-2811,-2611,-2410,-2210,-2009,-1809,
--1608,-1407,-1206,-1005,-804,-603,-402,-201
+-1608,-1407,-1206,-1005,-804,-603,-402,-201,
 };
 
 #endif
-
