@@ -33,8 +33,6 @@ extern "C" {
 #include "http_app.h"
 #include "blemidi.h"
 
-// If >0, sets the output to be pin 25's 8bit dac instead of i2s. used for debugging on an oscilloscope
-#define DANDAC 0
 
 // Constants you can change if you want
 #define BLOCK_SIZE 64       // i2s buffer block size in samples

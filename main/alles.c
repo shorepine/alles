@@ -212,46 +212,7 @@ void voices_deinit() {
 
 
 
-#if (DANDAC)
-uint8_t dac_counter = 0;
-uint8_t dac_render = 0;
-#include "driver/timer.h"
-#include "driver/dac.h"
-#include "hal/dac_types.h"
-// Setup 8-bit dac for Dan Ellis 
-// pin D25
-static void IRAM_ATTR timer0_ISR(void *ptr) {
-    timer_group_clr_intr_status_in_isr(TIMER_GROUP_0, TIMER_0);
-    timer_group_enable_alarm_in_isr(TIMER_GROUP_0, TIMER_0);
-    uint8_t sample = (block[dac_counter++] + 32767) >> 8;
-    dac_output_voltage(DAC_CHANNEL_1, sample); 
-}
 
-static void timerInit() {
-    timer_config_t config = {
-        .divider = 8, 
-        .counter_dir = TIMER_COUNT_UP,
-        .counter_en = TIMER_PAUSE, 
-        .alarm_en = TIMER_ALARM_EN, 
-        .intr_type = TIMER_INTR_LEVEL,
-        .auto_reload = 1, 
-    };
-
-    ESP_ERROR_CHECK(timer_init(TIMER_GROUP_0, TIMER_0, &config));
-    ESP_ERROR_CHECK(timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0x00000000ULL));
-    ESP_ERROR_CHECK(timer_set_alarm_value(TIMER_GROUP_0, TIMER_0, TIMER_BASE_CLK / config.divider / SAMPLE_RATE));
-    ESP_ERROR_CHECK(timer_enable_intr(TIMER_GROUP_0, TIMER_0));
-    timer_isr_register(TIMER_GROUP_0, TIMER_0, timer0_ISR, (void *)NULL, ESP_INTR_FLAG_IRAM, NULL);
-    timer_start(TIMER_GROUP_0, TIMER_0);
-}
-
-esp_err_t setup_dac(void) {
-    ESP_ERROR_CHECK(dac_output_enable(DAC_CHANNEL_1));
-    timerInit();
-    return ESP_OK;
-}
-
-#else
 // Setup I2S
 esp_err_t setup_i2s(void) {
     //i2s configuration
@@ -278,7 +239,6 @@ esp_err_t setup_i2s(void) {
     return ESP_OK;
 }
 
-#endif
 
 // Play an event, now -- tell the audio loop to start making noise
 void play_event(struct event e) {
@@ -426,20 +386,12 @@ void fill_audio_buffer(float seconds) {
             filter_process_ints(block);
         }
 
-#if (DANDAC)
-        // "block" until the dac is done writing the current buffer
-        while(dac_counter < BLOCK_SIZE) {
-            ets_delay_us(200); 
-        }
-        dac_counter = 0;
-#else
         // And write to I2S
         size_t written = 0;
         i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
         if(written != BLOCK_SIZE*2) {
             printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*2);
         }
-#endif
     }
 }
 
@@ -721,11 +673,7 @@ void ip5306_monitor() {
 void app_main() {
     check_init(&global_init, "global state");
     check_init(&esp_event_loop_create_default, "Event");
-#if(DANDAC)
-    check_init(&setup_dac, "dac");
-#else
     check_init(&setup_i2s, "i2s");
-#endif
     check_init(&voices_init, "voices");
     check_init(&buttons_init, "buttons"); // only one button for the protoboard, 4 for the blinkinlabs
 
