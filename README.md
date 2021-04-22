@@ -158,7 +158,7 @@ def c_major(octave=2):
 
 ```
 
-See [`alles.py`](https://github.com/bwhitman/alles/blob/master/alles.py) for a better example. Any language that supports sockets and mulitcast can work, I encourage pull requests with new clients!
+See [`alles.py`](https://github.com/bwhitman/alles/blob/master/alles.py) for a better example. Any language that supports sockets and multicast can work, I encourage pull requests with new clients!
 
 You can also easily use it in Max or Pd:
 
