@@ -6,6 +6,7 @@ extern "C" {
   //#include "sinLUT16384.h"
     #include "sinLUT_1024.h"
     #include "impulse32_1024.h"
+    #include "impulse128_1024.h"
     #include "pcm.h"
 }
 
@@ -111,13 +112,21 @@ extern "C" void lpf_buf(float *buf) {
 }
 
 extern "C" void render_pulse(float * buf, uint8_t voice) {
+  const int16_t *table;
+
+  // Switch between two impulse tables for odd/even midi notes.
+  if ((synth[voice].midi_note & 1)) {
+    table = impulse128;
+  } else {
+    table = impulse32;
+  }
     if(msynth[voice].duty < 0.001 || msynth[voice].duty > 0.999) msynth[voice].duty = 0.5;
 
     float skip = msynth[voice].freq / 44100.0 * SINLUT_SIZE;
     float pwm_step = synth[voice].step + msynth[voice].duty * SINLUT_SIZE;
     if (pwm_step >= SINLUT_SIZE)  pwm_step -= SINLUT_SIZE;
-    synth[voice].step = render_lut(buf, synth[voice].step, skip, -msynth[voice].amp, impulse32);
-    render_lut(buf, pwm_step, skip, msynth[voice].amp, impulse32);
+    synth[voice].step = render_lut(buf, synth[voice].step, skip, -msynth[voice].amp, table);
+    render_lut(buf, pwm_step, skip, msynth[voice].amp, table);
     lpf_buf(buf);
 }
 

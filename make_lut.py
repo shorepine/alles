@@ -25,7 +25,7 @@ def cosines(num_cosines, args):
 #function = partial(cosines, 10)
 #function.__name__ = "impulse10"
 
-num_harmonics = 32
+num_harmonics = 128
 basename = "impulse{:d}".format(num_harmonics)
 function = partial(cosines, num_harmonics)
 function.__name__ = basename

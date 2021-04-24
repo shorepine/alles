@@ -173,7 +173,11 @@ esp_err_t voices_init() {
     synth = (struct event*) malloc(sizeof(struct event) * VOICES);
     msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * VOICES);
     floatblock = (float*) malloc(sizeof(float) * BLOCK_SIZE);
-    block = (BLOCK_T *) malloc(sizeof(BLOCK_T) * BLOCK_SIZE);
+    block = (BLOCK_T *) malloc(sizeof(BLOCK_T) * BLOCK_SIZE * 2);
+    // Pre-clear the blcok
+    for(int i=0;i<BLOCK_SIZE * 2;i++) {
+      block[i] = 0;
+    }
 
     reset_voices();
     // Fill the FIFO with default events, as the audio thread reads from it immediately
@@ -360,8 +364,38 @@ void fill_audio_buffer(float seconds) {
 	//  block[i] += 32768;
 	//}
 
+#define SAMPLE_MAX 32767
+#define SOFT_CLIP
+
         for(int16_t i=0; i < BLOCK_SIZE; ++i) {
-	  block[i] = (BLOCK_T)(floatblock[i]);   // for internal DAC:  + 32768.0); 
+	  //block[i] = (BLOCK_T)(floatblock[i]);   // for internal DAC:  + 32768.0); 
+#ifdef SOFT_CLIP
+	  // soft clip
+	  // D is how close the sample gets to the clip limit before the nonlinearity engages.  
+	  // So D=0.1 means output is linear for -0.9..0.9, then starts clipping.
+#define D 0.1
+	  float s = 1;  // s = sign(floatblock[i]);
+	  if (floatblock[i] < 0) s = -1;
+	  float val = fabs(0.1 * global.volume * floatblock[i] / ((float)SAMPLE_MAX));
+	  float outval = val;
+	  // if (val < (1 - D))  outval = val;
+	  if (val > (1.0 + 0.5 * D))  outval = 1.0;
+	  else if (val > (1.0 - D)) {
+	    // cubic transition from linear to saturated.
+	    float xdash = (val - (1.0 - D)) / (1.5 * D);
+	    outval = (1.0 - D) + 1.5 * D * (xdash - xdash * xdash * xdash / 3.0);
+	  }
+
+	  BLOCK_T sample = (BLOCK_T)round(SAMPLE_MAX * s * outval);
+#else /* HARD_CLIP */
+	  // hard clip.
+	  float val = round(0.1 * global.volume * floatblock[i]);
+	  BLOCK_T sample = (BLOCK_T)val;
+	  if (val > SAMPLE_MAX) sample = SAMPLE_MAX;
+	  else if (val < -SAMPLE_MAX) sample = -SAMPLE_MAX;
+#endif /* SOFT/HARD_CLIP */
+	  // ^ 0x01 implements word-swapping, needed for ESP32 I2S_CHANNEL_FMT_ONLY_LEFT
+	  block[i ^ 0x01] = sample;   // for internal DAC:  + 32768.0); 
 	}
 	
         // If filtering is on, filter the mixed signal
