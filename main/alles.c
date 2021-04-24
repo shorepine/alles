@@ -252,7 +252,8 @@ void play_event(struct event e) {
 
             // Restart the waveforms, adjusting for phase if given
             if(synth[e.voice].wave==SINE) sine_note_on(e.voice);
-            if(synth[e.voice].wave==SAW) saw_note_on(e.voice);
+            //if(synth[e.voice].wave==SAW) saw_note_on(e.voice);
+            if(synth[e.voice].wave==SAW) bw_pulse_note_on(e.voice);
             if(synth[e.voice].wave==TRIANGLE) triangle_note_on(e.voice);
             if(synth[e.voice].wave==PULSE) pulse_note_on(e.voice);
             if(synth[e.voice].wave==PCM) pcm_note_on(e.voice);
@@ -260,7 +261,8 @@ void play_event(struct event e) {
             // Also trigger "note ons" for the LFO source, if we have one
             if(synth[e.voice].lfo_source >= 0) {
                 if(synth[synth[e.voice].lfo_source].wave==SINE) sine_note_on(synth[e.voice].lfo_source);
-                if(synth[synth[e.voice].lfo_source].wave==SAW) saw_note_on(synth[e.voice].lfo_source);
+                //if(synth[synth[e.voice].lfo_source].wave==SAW) saw_note_on(synth[e.voice].lfo_source);
+                if(synth[synth[e.voice].lfo_source].wave==SAW) bw_pulse_note_on(synth[e.voice].lfo_source);
                 if(synth[synth[e.voice].lfo_source].wave==TRIANGLE) triangle_note_on(synth[e.voice].lfo_source);
                 if(synth[synth[e.voice].lfo_source].wave==PULSE) pulse_note_on(synth[e.voice].lfo_source);
                 if(synth[synth[e.voice].lfo_source].wave==PCM) pcm_note_on(synth[e.voice].lfo_source);
@@ -340,7 +342,8 @@ void fill_audio_buffer(float seconds) {
                 hold_and_modify(voice); // apply ADSR / LFO
                 if(synth[voice].wave == FM) render_fm(floatblock, voice);
                 if(synth[voice].wave == NOISE) render_noise(floatblock, voice);
-                if(synth[voice].wave == SAW) render_saw(floatblock, voice);
+                //if(synth[voice].wave == SAW) render_saw(floatblock, voice);
+                if(synth[voice].wave == SAW) bw_render_pulse(floatblock, voice);
                 if(synth[voice].wave == PULSE) render_pulse(floatblock, voice);
                 if(synth[voice].wave == TRIANGLE) render_triangle(floatblock, voice);
                 if(synth[voice].wave == SINE) render_sine(floatblock, voice);
@@ -358,7 +361,7 @@ void fill_audio_buffer(float seconds) {
 	//}
 
         for(int16_t i=0; i < BLOCK_SIZE; ++i) {
-	  block[i] = (BLOCK_T)(floatblock[i] + 32768.0); 
+	  block[i] = (BLOCK_T)(floatblock[i]);   // for internal DAC:  + 32768.0); 
 	}
 	
         // If filtering is on, filter the mixed signal
@@ -380,8 +383,10 @@ void fill_audio_buffer(float seconds) {
 esp_err_t setup_i2s(void) {
     //i2s configuration
     i2s_config_t i2s_config = {
-      //     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
-	 .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_DAC_BUILT_IN),
+      // i2s out
+         .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
+      // internal DAC
+	 //.mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_DAC_BUILT_IN),
          .sample_rate = SAMPLE_RATE,
          .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
          .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
@@ -398,9 +403,11 @@ esp_err_t setup_i2s(void) {
         .data_in_num = -1   //Not used
     };
     i2s_driver_install((i2s_port_t)CONFIG_I2S_NUM, &i2s_config, 0, NULL);
-    //i2s_set_pin((i2s_port_t)CONFIG_I2S_NUM, &pin_config);
-    i2s_set_pin((i2s_port_t)CONFIG_I2S_NUM, NULL);
-    i2s_set_dac_mode(I2S_DAC_CHANNEL_BOTH_EN);
+    // i2s output
+    i2s_set_pin((i2s_port_t)CONFIG_I2S_NUM, &pin_config);
+    // internal DAC
+    //i2s_set_pin((i2s_port_t)CONFIG_I2S_NUM, NULL);
+    //i2s_set_dac_mode(I2S_DAC_CHANNEL_BOTH_EN);
 
     i2s_set_sample_rates((i2s_port_t)CONFIG_I2S_NUM, SAMPLE_RATE);
     return ESP_OK;
