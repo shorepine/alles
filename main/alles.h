@@ -113,7 +113,12 @@ struct event {
     int16_t adsr_d;
     float adsr_s;
     int16_t adsr_r;
-
+    // State variables for the impulse-integrating oscillators.
+    float lpf_state[2];
+    // Decay alpha of LPF filter (e.g. 0.99 or 0.999).
+    float lpf_alpha;
+    // Decay for 2nd lpf in triangle osc.
+    float lpf_alpha_1;
 };
 
 // only the things that LFOs/env can change per voice

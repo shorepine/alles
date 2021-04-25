@@ -19,6 +19,9 @@ struct mod_event * msynth;
 
 // floatblock -- accumulative for mixing
 float * floatblock;
+// A second floatblock for independently generating e.g. triangle.
+// This can be used within a given render_* function as scratch space.
+float * scratchbuf;
 // block -- what gets sent to the DAC -- -32768...32767 (wave file, int16 LE)
 int16_t * block;
 
@@ -156,7 +159,10 @@ void reset_voice(uint8_t i ) {
     synth[i].adsr_d = 0;
     synth[i].adsr_s = 1.0;
     synth[i].adsr_r = 0;
-
+    synth[i].lpf_state[0] = 0;
+    synth[i].lpf_state[1] = 0;
+    synth[i].lpf_alpha = 0;
+    synth[i].lpf_alpha_1 = 0;
 }
 
 void reset_voices() {
@@ -172,6 +178,7 @@ esp_err_t voices_init() {
     synth = (struct event*) malloc(sizeof(struct event) * VOICES);
     msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * VOICES);
     floatblock = (float*) malloc(sizeof(float) * BLOCK_SIZE);
+    scratchbuf = (float*) malloc(sizeof(float) * BLOCK_SIZE);
     block = (int16_t *) malloc(sizeof(int16_t) * BLOCK_SIZE);
 
     reset_voices();
@@ -397,6 +404,7 @@ void fill_audio_buffer(float seconds) {
 
 	  int16_t sample = (int16_t)round(SAMPLE_MAX * sign * clipped_val);
 	  // ^ 0x01 implements word-swapping, needed for ESP32 I2S_CHANNEL_FMT_ONLY_LEFT
+	  // see https://www.esp32.com/viewtopic.php?t=11023
 	  block[i ^ 0x01] = sample;   // for internal DAC:  + 32768.0); 
 	}
 	
