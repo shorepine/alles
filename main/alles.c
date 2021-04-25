@@ -377,9 +377,29 @@ void fill_audio_buffer(float seconds) {
             }
         }
 
-        // Bandlimit the buffer all at once
-        blip_the_buffer(floatblock, block, BLOCK_SIZE);
+#define SAMPLE_MAX 32767
+	// D is how close the sample gets to the clip limit before the nonlinearity engages.  
+	// So D=0.1 means output is linear for -0.9..0.9, then starts clipping.
+#define D 0.1
+        for(int16_t i=0; i < BLOCK_SIZE; ++i) {
+	  // Soft clipping.
+	  float sign = 1;
+	  if (floatblock[i] < 0) sign = -1;  // sign  = sign(floatblock[i]);
+	  // Global volume is supposed to max out at 10, so scale by 0.1.
+	  float val = fabs(0.1 * global.volume * floatblock[i] / ((float)SAMPLE_MAX));
+	  float clipped_val = val;
+	  if (val > (1.0 + 0.5 * D))  clipped_val = 1.0;
+	  else if (val > (1.0 - D)) {
+	    // Cubic transition from linear to saturated - classic x - (x^3)/3.
+	    float xdash = (val - (1.0 - D)) / (1.5 * D);
+	    clipped_val = (1.0 - D) + 1.5 * D * (xdash - xdash * xdash * xdash / 3.0);
+	  }
 
+	  int16_t sample = (int16_t)round(SAMPLE_MAX * sign * clipped_val);
+	  // ^ 0x01 implements word-swapping, needed for ESP32 I2S_CHANNEL_FMT_ONLY_LEFT
+	  block[i ^ 0x01] = sample;   // for internal DAC:  + 32768.0); 
+	}
+	
         // If filtering is on, filter the mixed signal
         if(mglobal.filter_freq > 0) {
             filter_update();
