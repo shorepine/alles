@@ -1,6 +1,7 @@
 extern "C" { 
     #include "alles.h"
-    #include "sineLUT.h"
+    #include "sinLUT_1024.h"
+    #include "impulse32_1024.h"
     #include "pcm.h"
 }
 
@@ -44,23 +45,70 @@ extern "C" void render_pcm(float * buf, uint8_t voice) {
 }
 
 
+// This is copying from Pure Data's tabread4~.
+extern "C" float render_lut(float * buf, float step, float skip, float amp, const int16_t* lut, int16_t lut_size) { 
+    // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
+    int lut_mask = lut_size - 1;
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+      uint16_t base_index = (uint16_t)floor(step);
+      float frac = step - (float)base_index;
+      float a = (float)lut[(base_index - 1) & lut_mask];
+      float b = (float)lut[(base_index + 0) & lut_mask];
+      float c = (float)lut[(base_index + 1) & lut_mask];
+      float d = (float)lut[(base_index + 2) & lut_mask];
+      // linear interpolation.
+      //float sample = b + ((c - b) * frac);
+      // cubic interpolation (TTEM p.46).
+      //      float sample = 
+      //	- frac * (frac - 1) * (frac - 2) / 6.0 * a
+      //	+ (frac + 1) * (frac - 1) * (frac - 2) / 2.0 * b
+      //	- (frac + 1) * frac * (frac - 2) / 2.0 * c
+      //	+ (frac + 1) * frac * (frac - 1) / 6.0 * d;
+      // Miller's optimization - https://github.com/pure-data/pure-data/blob/master/src/d_array.c#L440
+      float cminusb = c - b;
+      float sample = b + frac * (cminusb - 0.1666667f * (1.-frac) * ((d - a - 3.0f * cminusb) * frac + (d + 2.0f*a - 3.0f*b)));
+      buf[i] += sample * amp;
+      step += skip;
+      if(step >= lut_size) step -= lut_size;
+    }
+    return step;
+}
+
+extern "C" void pulse_note_on(uint8_t voice) {
+    // So i reset step to some phase math, right? yeah
+    synth[voice].step = (float)IMPULSE32_SIZE * synth[voice].phase;
+}
+
+extern "C" void lpf_buf(float *buf, float scale) {
+  // Implement first-order low-pass (leaky integrator).
+  static float lastbuf = 0;
+  for (uint16_t i = 0; i < BLOCK_SIZE; ++i) {
+    buf[i] *= scale;
+    buf[i] += 0.99 * (lastbuf - buf[i]);
+    lastbuf = buf[i];
+  }
+}
+
+extern "C" void render_pulse(float * buf, uint8_t voice) {
+    float duty = msynth[voice].duty;
+    if (duty < 0.01) duty = 0.01;
+    if (duty > 0.99) duty = 0.99;
+    float skip = msynth[voice].freq / 44100.0 * IMPULSE32_SIZE;
+    float pwm_step = synth[voice].step + msynth[voice].duty * IMPULSE32_SIZE;
+    if (pwm_step >= IMPULSE32_SIZE)  pwm_step -= IMPULSE32_SIZE;
+    synth[voice].step = render_lut(buf, synth[voice].step, skip, msynth[voice].amp, impulse32, IMPULSE32_SIZE);
+    render_lut(buf, pwm_step, skip, -msynth[voice].amp, impulse32, IMPULSE32_SIZE);
+    lpf_buf(buf, 400);
+}
+
 extern "C" void sine_note_on(uint8_t voice) {
-    synth[voice].step = (float)SINE_LUT_SIZE * synth[voice].phase;
+    // So i reset step to some phase math, right? yeah
+    synth[voice].step = (float)SINLUT_SIZE * synth[voice].phase;
 }
 
 extern "C" void render_sine(float * buf, uint8_t voice) { 
-    float skip = msynth[voice].freq / 44100.0 * SINE_LUT_SIZE;
-    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        uint16_t u0 = sine_LUT[(uint16_t)floor(synth[voice].step)];
-        uint16_t u1 = sine_LUT[(uint16_t)(floor(synth[voice].step)+1 % SINE_LUT_SIZE)];
-        float x0 = (float)u0 - 32768.0;
-        float x1 = (float)u1 - 32768.0;
-        float frac = synth[voice].step - floor(synth[voice].step);
-        float sample = x0 + ((x1 - x0) * frac);
-        buf[i] = buf[i] + (sample * msynth[voice].amp);
-        synth[voice].step = synth[voice].step + skip;
-        if(synth[voice].step >= SINE_LUT_SIZE) synth[voice].step = synth[voice].step - SINE_LUT_SIZE;
-    }
+    float skip = msynth[voice].freq / 44100.0 * SINLUT_SIZE;
+    synth[voice].step = render_lut(buf, synth[voice].step, skip, msynth[voice].amp, sinLUT, SINLUT_SIZE);
 }
 
 extern "C" void render_noise(float *buf, uint8_t voice) {
@@ -115,31 +163,6 @@ extern "C" void render_triangle(float * buf, uint8_t voice) {
                 synth[voice].sample = DOWN + (synth[voice].step * ((UP-DOWN) / period * 2));
             } else {
                 synth[voice].sample = UP - ((synth[voice].step-(period/2)) * ((UP-DOWN) / period * 2));
-            }
-        }
-        buf[i] = buf[i] + synth[voice].sample * msynth[voice].amp;
-        synth[voice].step++;
-    }
-}
-
-extern "C" void pulse_note_on(uint8_t voice) {
-    float period = 1. / (synth[voice].freq/(float)SAMPLE_RATE);
-    synth[voice].step = period * synth[voice].phase;
-}
-
-extern "C" void render_pulse(float * buf, uint8_t voice) {
-    if(msynth[voice].duty < 0.001 || msynth[voice].duty > 0.999) msynth[voice].duty = 0.5;
-    float period = 1. / (msynth[voice].freq/(float)SAMPLE_RATE);
-    float period2 = msynth[voice].duty * period; // if duty is 0.5, square wave
-    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        if(synth[voice].step >= period || synth[voice].step == 0)  {
-            synth[voice].sample = UP;
-            synth[voice].substep = 0; // start the duty cycle counter
-            synth[voice].step = 0;
-        } 
-        if(synth[voice].sample == UP) {
-            if(synth[voice].substep++ > period2) {
-                synth[voice].sample = DOWN;
             }
         }
         buf[i] = buf[i] + synth[voice].sample * msynth[voice].amp;
