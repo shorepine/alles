@@ -1,15 +1,8 @@
-#include "blip/Blip_Buffer.h"
-
 extern "C" { 
     #include "alles.h"
     #include "sineLUT.h"
     #include "pcm.h"
 }
-
-static Blip_Buffer blipbuf;
-// 10 voices * -32767 to 32767
-static Blip_Synth<blip_good_quality,655350> blipsynth;
-
 
 // TODO -- i could save a lot of heap by only mallocing this when needed 
 #define MAX_KS_BUFFER_LEN 802 // 44100/55  -- 55Hz (A1) lowest we can go for KS
@@ -20,20 +13,6 @@ extern struct event *synth;
 extern struct mod_event *msynth; // the synth that is being modified by LFOs & envelopes
 extern struct state global; 
 
-
-
-// Use the Blip_Buffer library to bandlimit signals
-extern "C" void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) {
-    // OK, now we've got a bunch of 16-bit floats all added up in ibuf
-    // we want some non-linear curve scaling those #s into -32767 to +32767
-    // blipbuf may do this for me
-    blipsynth.volume(global.volume);
-    for(uint16_t i=0;i<len;i++) {
-        blipsynth.update(i, ibuf[i]);
-    }
-    blipbuf.end_frame(len);
-    blipbuf.read_samples(obuf, len, 0);
-}
 
 extern "C" void pcm_note_on(uint8_t voice) {
     // If no freq given, we set it to default PCM SR. e.g. freq=11025 plays PCM at half speed, freq=44100 double speed 
@@ -185,12 +164,6 @@ extern "C" void ks_note_off(uint8_t voice) {
 
 extern "C" void oscillators_init(void) {
     // 6ms buffer
-    if ( blipbuf.set_sample_rate( SAMPLE_RATE ) )
-        exit( EXIT_FAILURE );
-    blipbuf.clock_rate( blipbuf.sample_rate() );
-    blipbuf.bass_freq( 0 ); // makes waveforms perfectly flat
-    blipsynth.volume(global.volume);
-    blipsynth.output(&blipbuf);
     // TODO -- i could save a lot of heap by only mallocing this when needed 
     ks_buffer = (float**) malloc(sizeof(float*)*VOICES);
     for(int i=0;i<VOICES;i++) ks_buffer[i] = (float*)malloc(sizeof(float)*MAX_KS_BUFFER_LEN); 
