@@ -66,10 +66,10 @@ extern "C" float render_lut(float * buf, float step, float skip, float amp, cons
         float d = (float)lut[(base_index + 2) & lut_mask];
         // cubic interpolation (TTEM p.46).
         //      float sample = 
-        //	- frac * (frac - 1) * (frac - 2) / 6.0 * a
-        //	+ (frac + 1) * (frac - 1) * (frac - 2) / 2.0 * b
-        //	- (frac + 1) * frac * (frac - 2) / 2.0 * c
-        //	+ (frac + 1) * frac * (frac - 1) / 6.0 * d;
+        //    - frac * (frac - 1) * (frac - 2) / 6.0 * a
+        //    + (frac + 1) * (frac - 1) * (frac - 2) / 2.0 * b
+        //    - (frac + 1) * frac * (frac - 2) / 2.0 * c
+        //    + (frac + 1) * frac * (frac - 1) / 6.0 * d;
         // Miller's optimization - https://github.com/pure-data/pure-data/blob/master/src/d_array.c#L440
         float cminusb = c - b;
         float sample = b + frac * (cminusb - 0.1666667f * (1.-frac) * ((d - a - 3.0f * cminusb) * frac + (d + 2.0f*a - 3.0f*b)));
