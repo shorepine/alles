@@ -18,12 +18,15 @@ struct event * synth;
 struct mod_event * msynth;
 
 // floatblock -- accumulative for mixing
-float * floatblock;
+float * floatblock_c0;
+float * floatblock_c1;
 // A second floatblock for independently generating e.g. triangle.
 // This can be used within a given render_* function as scratch space.
 float * scratchbuf;
 // block -- what gets sent to the DAC -- -32768...32767 (wave file, int16 LE)
 int16_t * block;
+uint8_t core0 = 0;
+uint8_t core1 = 1;
 
 
 esp_err_t global_init() {
@@ -169,6 +172,12 @@ void reset_voices() {
     for(uint8_t i=0;i<VOICES;i++) reset_voice(i);
 }
 
+
+static TaskHandle_t renderTask0 = NULL;
+static TaskHandle_t renderTask1 = NULL;
+static TaskHandle_t mainTask = NULL;
+
+
 // The synth object keeps held state, whereas events are only deltas/changes
 esp_err_t voices_init() {
     // FM init happens later for mem reason
@@ -177,7 +186,8 @@ esp_err_t voices_init() {
     events = (struct event*) malloc(sizeof(struct event) * EVENT_FIFO_LEN);
     synth = (struct event*) malloc(sizeof(struct event) * VOICES);
     msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * VOICES);
-    floatblock = (float*) malloc(sizeof(float) * BLOCK_SIZE);
+    floatblock_c0 = (float*) malloc(sizeof(float) * BLOCK_SIZE);
+    floatblock_c1 = (float*) malloc(sizeof(float) * BLOCK_SIZE);
     scratchbuf = (float*) malloc(sizeof(float) * BLOCK_SIZE);
     block = (int16_t *) malloc(sizeof(int16_t) * BLOCK_SIZE);
 
@@ -190,12 +200,39 @@ esp_err_t voices_init() {
     for(int i=0;i<EVENT_FIFO_LEN;i++) {
         add_event(default_event());
     }
+
+    // Create a rendering thread on each core so we can deal with dan ellis float math
+    xTaskCreatePinnedToCore(&render_task, "render_task_0", 4096, &core0, 1, &renderTask0, 0);
+    xTaskCreatePinnedToCore(&render_task, "render_task_1", 4096, &core1, 1, &renderTask1, 1);
+    mainTask = xTaskGetCurrentTaskHandle();
+
     return ESP_OK;
 }
 
 void debug_voices() {
     // print out all the voice data
-
+    char usage[40*15]; // 15 tasks running last i looked
+/*
+mcast_task      254348      <1
+render_task_1   20852909        49
+IDLE            19139465        45
+IDLE            21115722        49
+tiT             45785       <1
+ipc1            37825       <1
+httpd           1206        <1
+ipc0            6505        <1
+sys_evt         5842        <1
+wifi_manager    76034       <1
+esp_timer       22512       <1
+wifi            1193764     2
+render_task_0   13010973        30
+main            8950820     21
+Tmr Svc         15      <1
+gpio_task       36      <1
+*/
+    vTaskGetRunTimeStats(usage);
+    printf(usage);
+    // print out all the voice data
     printf("global: filter %f resonance %f volume %f status %d\n", global.filter_freq, global.resonance, global.volume, global.status);
     printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
     for(uint8_t i=0;i<VOICES;i++) {
@@ -208,7 +245,8 @@ void debug_voices() {
 }
 void voices_deinit() {
     free(block);
-    free(floatblock);
+    free(floatblock_c0);
+    free(floatblock_c1);
     free(synth);
     free(msynth);
     free(events);
@@ -340,6 +378,38 @@ void hold_and_modify(uint8_t voice) {
 }
 
 
+void render_task(void *c) {
+    uint8_t core = *(uint8_t*)c;
+    uint8_t start, end;
+    float *fbl = NULL;
+    if(core==0) { 
+        start = 0; end = VOICES / 2; 
+        fbl = floatblock_c0; 
+    }
+    if(core==1) {
+        start = VOICES /2; end = VOICES; 
+        fbl = floatblock_c1; 
+    }
+    while(1) {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        for(uint16_t i=0;i<BLOCK_SIZE;i++) fbl[i] = 0; 
+        for(uint8_t voice=start;voice<end;voice++) {
+            if(synth[voice].status==AUDIBLE) { // skip voices that are silent or LFO sources from playback
+                hold_and_modify(voice); // apply ADSR / LFO
+                if(synth[voice].wave == FM) render_fm(fbl, voice);
+                if(synth[voice].wave == NOISE) render_noise(fbl, voice);
+                if(synth[voice].wave == SAW) render_saw(fbl, voice);
+                if(synth[voice].wave == PULSE) render_pulse(fbl, voice);
+                if(synth[voice].wave == TRIANGLE) render_triangle(fbl, voice);
+                if(synth[voice].wave == SINE) render_sine(fbl, voice);
+                if(synth[voice].wave == KS) render_ks(fbl, voice);
+                if(synth[voice].wave == PCM) render_pcm(fbl, voice);
+            }
+        }
+        // Tell the main task that i'm done rendering (TODO, fill_audio_buffer should be a task, not main)
+        xTaskNotifyGive(mainTask);
+    }
+}
 
 // This takes scheduled events and plays them at the right time
 void fill_audio_buffer(float seconds) {
@@ -362,52 +432,42 @@ void fill_audio_buffer(float seconds) {
                 }
             }
         }
-
-        // Clear out the accumulator buffer
-        for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
-
         // Save the current global synth state to the modifiers         
         mglobal.resonance = global.resonance;
         mglobal.filter_freq = global.filter_freq;
 
-        for(uint8_t voice=0;voice<VOICES;voice++) {
-            if(synth[voice].status==AUDIBLE) { // skip voices that are silent or LFO sources from playback
-                hold_and_modify(voice); // apply ADSR / LFO
-                if(synth[voice].wave == FM) render_fm(floatblock, voice);
-                if(synth[voice].wave == NOISE) render_noise(floatblock, voice);
-                if(synth[voice].wave == SAW) render_saw(floatblock, voice);
-                if(synth[voice].wave == PULSE) render_pulse(floatblock, voice);
-                if(synth[voice].wave == TRIANGLE) render_triangle(floatblock, voice);
-                if(synth[voice].wave == SINE) render_sine(floatblock, voice);
-                if(synth[voice].wave == KS) render_ks(floatblock, voice);
-                if(synth[voice].wave == PCM) render_pcm(floatblock, voice);
-            }
-        }
+        // Tell the two rendering threads to start rendering
+        xTaskNotifyGive(renderTask0);
+        xTaskNotifyGive(renderTask1);
+        // And wait for each of them to come back
+        ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+        ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
 
 #define SAMPLE_MAX 32767
-	// D is how close the sample gets to the clip limit before the nonlinearity engages.  
-	// So D=0.1 means output is linear for -0.9..0.9, then starts clipping.
-#define D 0.1
+        // D is how close the sample gets to the clip limit before the nonlinearity engages.  
+        // So D=0.1 means output is linear for -0.9..0.9, then starts clipping.
+#define CLIP_D 0.1
         for(int16_t i=0; i < BLOCK_SIZE; ++i) {
-	  // Soft clipping.
-	  float sign = 1;
-	  if (floatblock[i] < 0) sign = -1;  // sign  = sign(floatblock[i]);
-	  // Global volume is supposed to max out at 10, so scale by 0.1.
-	  float val = fabs(0.1 * global.volume * floatblock[i] / ((float)SAMPLE_MAX));
-	  float clipped_val = val;
-	  if (val > (1.0 + 0.5 * D))  clipped_val = 1.0;
-	  else if (val > (1.0 - D)) {
-	    // Cubic transition from linear to saturated - classic x - (x^3)/3.
-	    float xdash = (val - (1.0 - D)) / (1.5 * D);
-	    clipped_val = (1.0 - D) + 1.5 * D * (xdash - xdash * xdash * xdash / 3.0);
-	  }
+            // Soft clipping.
+            float sign = 1;
+            float fsample = floatblock_c0[i] + floatblock_c1[i];
+            if (fsample < 0) sign = -1;  // sign  = sign(floatblock[i]);
+            // Global volume is supposed to max out at 10, so scale by 0.1.
+            float val = fabs(0.1 * global.volume * fsample / ((float)SAMPLE_MAX));
+            float clipped_val = val;
+            if (val > (1.0 + 0.5 * CLIP_D)) {
+                clipped_val = 1.0;
+            } else if (val > (1.0 - CLIP_D)) {
+                // Cubic transition from linear to saturated - classic x - (x^3)/3.
+                float xdash = (val - (1.0 - CLIP_D)) / (1.5 * CLIP_D);
+                clipped_val = (1.0 - CLIP_D) + 1.5 * CLIP_D * (xdash - xdash * xdash * xdash / 3.0);
+            }
 
-	  int16_t sample = (int16_t)round(SAMPLE_MAX * sign * clipped_val);
-	  // ^ 0x01 implements word-swapping, needed for ESP32 I2S_CHANNEL_FMT_ONLY_LEFT
-	  // see https://www.esp32.com/viewtopic.php?t=11023
-	  block[i ^ 0x01] = sample;   // for internal DAC:  + 32768.0); 
-	}
-	
+            int16_t sample = (int16_t)round(SAMPLE_MAX * sign * clipped_val);
+            // ^ 0x01 implements word-swapping, needed for ESP32 I2S_CHANNEL_FMT_ONLY_LEFT
+            block[i ^ 0x01] = sample;   // for internal DAC:  + 32768.0); 
+        }
+    
         // If filtering is on, filter the mixed signal
         if(mglobal.filter_freq > 0) {
             filter_update();
@@ -422,6 +482,7 @@ void fill_audio_buffer(float seconds) {
         }
     }
 }
+
 
 // Helper to parse the special ADSR string
 void parse_adsr(struct event * e, char* message) {
