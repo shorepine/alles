@@ -10,7 +10,6 @@ idf_component_register(SRCS alles.c
 							sounds.c
 							ip5306.c
 							master_i2c.c
-							blip/Blip_Buffer.cpp
 							dx7/dx7note.cc
 							dx7/env.cc
 							dx7/exp2.cc

@@ -1,9 +1,7 @@
-extern "C" { 
-    #include "alles.h"
-    #include "sinLUT_1024.h"
-    #include "impulse32_1024.h"
-    #include "pcm.h"
-}
+#include "alles.h"
+#include "sinLUT_1024.h"
+#include "impulse32_1024.h"
+#include "pcm.h"
 
 // TODO -- i could save a lot of heap by only mallocing this when needed 
 #define MAX_KS_BUFFER_LEN 802 // 44100/55  -- 55Hz (A1) lowest we can go for KS
@@ -16,7 +14,7 @@ extern struct state global;
 
 extern float *scratchbuf;
 
-extern "C" void pcm_note_on(uint8_t voice) {
+void pcm_note_on(uint8_t voice) {
     // If no freq given, we set it to default PCM SR. e.g. freq=11025 plays PCM at half speed, freq=44100 double speed 
     if(synth[voice].freq <= 0) synth[voice].freq = PCM_SAMPLE_RATE;
     // If patch is given, set step directly from patch's offset
@@ -32,7 +30,7 @@ extern "C" void pcm_note_on(uint8_t voice) {
 
 // TODO -- this just does one shot, no looping (will need extra loop parameter? what about sample metadata looping?) 
 // TODO -- this should just be like render_LUT(float * buf, uint8_t voice, int16_t **LUT) as it's the same for sine & PCM?
-extern "C" void render_pcm(float * buf, uint8_t voice) {
+void render_pcm(float * buf, uint8_t voice) {
     float skip = msynth[voice].freq / (float)SAMPLE_RATE;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         float sample = pcm[(int)(synth[voice].step)];
@@ -50,7 +48,7 @@ extern "C" void render_pcm(float * buf, uint8_t voice) {
 #define CUBIC_INTERP
 
 // This is copying from Pure Data's tabread4~.
-extern "C" float render_lut(float * buf, float step, float skip, float amp, const int16_t* lut, int16_t lut_size) { 
+float render_lut(float * buf, float step, float skip, float amp, const int16_t* lut, int16_t lut_size) { 
     // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
     int lut_mask = lut_size - 1;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -81,7 +79,7 @@ extern "C" float render_lut(float * buf, float step, float skip, float amp, cons
     return step;
 }
 
-extern "C" void lpf_buf(float *buf, float decay, float &state) {
+void lpf_buf(float *buf, float decay, float &state) {
     // Implement first-order low-pass (leaky integrator).
     for (uint16_t i = 0; i < BLOCK_SIZE; ++i) {
       buf[i] = decay * state + buf[i];
@@ -89,24 +87,24 @@ extern "C" void lpf_buf(float *buf, float decay, float &state) {
     }
 }
 
-extern "C" void clear_buf(float *buf) {
+void clear_buf(float *buf) {
     // Clear a block-sized buf.
     memset(buf, 0, BLOCK_SIZE * sizeof(float));
 }
 
-extern "C" void cumulate_buf(const float *from, float *dest) {
+void cumulate_buf(const float *from, float *dest) {
     for (uint16_t i = 0; i < BLOCK_SIZE; ++i) {
         dest[i] += from[i];
     }
 }
 
-extern "C" void pulse_note_on(uint8_t voice) {
+void pulse_note_on(uint8_t voice) {
     // So i reset step to some phase math, right? yeah
     synth[voice].step = (float)IMPULSE32_SIZE * synth[voice].phase;
     synth[voice].lpf_state[0] = 0;
 }
 
-extern "C" void render_pulse(float * buf, uint8_t voice) {
+void render_pulse(float * buf, uint8_t voice) {
     // LPF time constant should be ~ 10x oscillator period, so droop is minimal.
     float period_samples = 44100.0 / msynth[voice].freq;
     synth[voice].lpf_alpha = 1.0 - 1.0 / (10.0 * period_samples);
@@ -127,12 +125,12 @@ extern "C" void render_pulse(float * buf, uint8_t voice) {
     cumulate_buf(scratchbuf, buf);
 }
 
-extern "C" void saw_note_on(uint8_t voice) {
+void saw_note_on(uint8_t voice) {
     synth[voice].step = (float)IMPULSE32_SIZE * synth[voice].phase;
     synth[voice].lpf_state[0] = 0;
 }
 
-extern "C" void render_saw(float * buf, uint8_t voice) {
+void render_saw(float * buf, uint8_t voice) {
     // For saw, we *want* the lpf to droop across the period, so use a smaller alpha.
     float period_samples = 44100.0 / msynth[voice].freq;
     synth[voice].lpf_alpha = 1.0 - 1.0 / period_samples;
@@ -147,13 +145,13 @@ extern "C" void render_saw(float * buf, uint8_t voice) {
     cumulate_buf(scratchbuf, buf);
 }
 
-extern "C" void triangle_note_on(uint8_t voice) {
+void triangle_note_on(uint8_t voice) {
     synth[voice].step = (float)IMPULSE32_SIZE * synth[voice].phase;
     synth[voice].lpf_state[0] = 0;
     synth[voice].lpf_state[1] = 0;
 }
 
-extern "C" void render_triangle(float * buf, uint8_t voice) {
+void render_triangle(float * buf, uint8_t voice) {
     // Triangle has two lpfs, one to build the square, and one to integrate the pulse.
     float period_samples = 44100.0 / msynth[voice].freq;
     synth[voice].lpf_alpha = 1.0 - 1.0 / (10 * period_samples);
@@ -178,23 +176,23 @@ extern "C" void render_triangle(float * buf, uint8_t voice) {
     cumulate_buf(scratchbuf, buf);
 }
 
-extern "C" void sine_note_on(uint8_t voice) {
+void sine_note_on(uint8_t voice) {
     // So i reset step to some phase math, right? yeah
     synth[voice].step = (float)SINLUT_SIZE * synth[voice].phase;
 }
 
-extern "C" void render_sine(float * buf, uint8_t voice) { 
+void render_sine(float * buf, uint8_t voice) { 
     float skip = msynth[voice].freq / 44100.0 * SINLUT_SIZE;
     synth[voice].step = render_lut(buf, synth[voice].step, skip, msynth[voice].amp, sinLUT, SINLUT_SIZE);
 }
 
-extern "C" void render_noise(float *buf, uint8_t voice) {
+void render_noise(float *buf, uint8_t voice) {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         buf[i] = buf[i] + ( (int16_t) ((esp_random() >> 16) - 32768) * msynth[voice].amp);
     }
 }
 
-extern "C" void render_ks(float * buf, uint8_t voice) {
+void render_ks(float * buf, uint8_t voice) {
     if(msynth[voice].freq >= 55) { // lowest note we can play
         uint16_t buflen = floor(SAMPLE_RATE / msynth[voice].freq);
         for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -207,7 +205,7 @@ extern "C" void render_ks(float * buf, uint8_t voice) {
     }
 }
 
-extern "C" void ks_note_on(uint8_t voice) {
+void ks_note_on(uint8_t voice) {
     if(msynth[voice].freq<=0) msynth[voice].freq = 1;
     uint16_t buflen = floor(SAMPLE_RATE / msynth[voice].freq);
     if(buflen > MAX_KS_BUFFER_LEN) buflen = MAX_KS_BUFFER_LEN;
@@ -217,19 +215,19 @@ extern "C" void ks_note_on(uint8_t voice) {
     }
 }
 
-extern "C" void ks_note_off(uint8_t voice) {
+void ks_note_off(uint8_t voice) {
     msynth[voice].amp = 0;
 }
 
 
-extern "C" void oscillators_init(void) {
+void oscillators_init(void) {
     // 6ms buffer
     // TODO -- i could save a lot of heap by only mallocing this when needed 
     ks_buffer = (float**) malloc(sizeof(float*)*VOICES);
     for(int i=0;i<VOICES;i++) ks_buffer[i] = (float*)malloc(sizeof(float)*MAX_KS_BUFFER_LEN); 
 }
 
-extern "C" void oscillators_deinit(void) {
+void oscillators_deinit(void) {
     for(int i=0;i<VOICES;i++) free(ks_buffer[i]);
     free(ks_buffer);
 }

@@ -194,7 +194,6 @@ extern void fm_note_off(uint8_t voice);
 // bandlimted oscillators
 extern void oscillators_init();
 extern void oscillators_deinit();
-extern void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) ;
 extern void render_ks(float * buf, uint8_t voice); 
 extern void render_sine(float * buf, uint8_t voice); 
 extern void render_pulse(float * buf, uint8_t voice); 
