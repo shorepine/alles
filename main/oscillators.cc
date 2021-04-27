@@ -46,46 +46,47 @@ extern "C" void render_pcm(float * buf, uint8_t voice) {
 }
 
 
-#define LINEAR_INTERP
+//#define LINEAR_INTERP
+#define CUBIC_INTERP
 
 // This is copying from Pure Data's tabread4~.
 extern "C" float render_lut(float * buf, float step, float skip, float amp, const int16_t* lut, int16_t lut_size) { 
     // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
     int lut_mask = lut_size - 1;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-      uint16_t base_index = (uint16_t)floor(step);
-      float frac = step - (float)base_index;
-      float b = (float)lut[(base_index + 0) & lut_mask];
-      float c = (float)lut[(base_index + 1) & lut_mask];
+        uint16_t base_index = (uint16_t)floor(step);
+        float frac = step - (float)base_index;
+        float b = (float)lut[(base_index + 0) & lut_mask];
+        float c = (float)lut[(base_index + 1) & lut_mask];
 #ifdef LINEAR_INTERP
-      // linear interpolation.
-      float sample = b + ((c - b) * frac);
+        // linear interpolation.
+        float sample = b + ((c - b) * frac);
 #else /* !LINEAR_INTERP => CUBIC_INTERP */
-      float a = (float)lut[(base_index - 1) & lut_mask];
-      float d = (float)lut[(base_index + 2) & lut_mask];
-      // cubic interpolation (TTEM p.46).
-      //      float sample = 
-      //	- frac * (frac - 1) * (frac - 2) / 6.0 * a
-      //	+ (frac + 1) * (frac - 1) * (frac - 2) / 2.0 * b
-      //	- (frac + 1) * frac * (frac - 2) / 2.0 * c
-      //	+ (frac + 1) * frac * (frac - 1) / 6.0 * d;
-      // Miller's optimization - https://github.com/pure-data/pure-data/blob/master/src/d_array.c#L440
-      float cminusb = c - b;
-      float sample = b + frac * (cminusb - 0.1666667f * (1.-frac) * ((d - a - 3.0f * cminusb) * frac + (d + 2.0f*a - 3.0f*b)));
+        float a = (float)lut[(base_index - 1) & lut_mask];
+        float d = (float)lut[(base_index + 2) & lut_mask];
+        // cubic interpolation (TTEM p.46).
+        //      float sample = 
+        //	- frac * (frac - 1) * (frac - 2) / 6.0 * a
+        //	+ (frac + 1) * (frac - 1) * (frac - 2) / 2.0 * b
+        //	- (frac + 1) * frac * (frac - 2) / 2.0 * c
+        //	+ (frac + 1) * frac * (frac - 1) / 6.0 * d;
+        // Miller's optimization - https://github.com/pure-data/pure-data/blob/master/src/d_array.c#L440
+        float cminusb = c - b;
+        float sample = b + frac * (cminusb - 0.1666667f * (1.-frac) * ((d - a - 3.0f * cminusb) * frac + (d + 2.0f*a - 3.0f*b)));
 #endif /* LINEAR_INTERP */
-      buf[i] += sample * amp;
-      step += skip;
-      if(step >= lut_size) step -= lut_size;
+        buf[i] += sample * amp;
+        step += skip;
+        if(step >= lut_size) step -= lut_size;
     }
     return step;
 }
 
 extern "C" void lpf_buf(float *buf, float decay, float &state) {
-  // Implement first-order low-pass (leaky integrator).
-  for (uint16_t i = 0; i < BLOCK_SIZE; ++i) {
-    buf[i] = decay * state + buf[i];
-    state = buf[i];
-  }
+    // Implement first-order low-pass (leaky integrator).
+    for (uint16_t i = 0; i < BLOCK_SIZE; ++i) {
+      buf[i] = decay * state + buf[i];
+      state = buf[i];
+    }
 }
 
 extern "C" void clear_buf(float *buf) {
@@ -95,7 +96,7 @@ extern "C" void clear_buf(float *buf) {
 
 extern "C" void cumulate_buf(const float *from, float *dest) {
     for (uint16_t i = 0; i < BLOCK_SIZE; ++i) {
-      dest[i] += from[i];
+        dest[i] += from[i];
     }
 }
 

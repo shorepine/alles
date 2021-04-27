@@ -10,6 +10,8 @@ extern "C" {
 #include <stdio.h>
 #include <stddef.h>
 #include <math.h>
+#define configUSE_TASK_NOTIFICATIONS 1
+#define configTASK_NOTIFICATION_ARRAY_ENTRIES 2
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -36,7 +38,7 @@ extern "C" {
 
 // Constants you can change if you want
 #define BLOCK_SIZE 64       // i2s buffer block size in samples
-#define VOICES 10            // # of simultaneous voices to keep track of 
+#define VOICES 8            // # of simultaneous voices to keep track of 
 #define EVENT_FIFO_LEN 400   // number of events the queue can store
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #define SAMPLE_RATE 44100    // playback sample rate
@@ -130,6 +132,7 @@ struct mod_event {
 
 struct event default_event();
 void add_event(struct event e);
+void render_task(void *core);
 
 
 // Status mask 
