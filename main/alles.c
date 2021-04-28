@@ -567,7 +567,7 @@ uint8_t deserialize_event(char * message, uint16_t length) {
             }
             if(mode=='T') e.adsr_target = atoi(message + start); 
             if(mode=='v') e.voice=(atoi(message + start) % VOICES); // allow voice wraparound
-            if(mode=='V') { e.volume = atof(message + start); debug_voices(); }
+            if(mode=='V') { e.volume = atof(message + start); /*debug_voices(); */ }
             if(mode=='w') e.wave=atoi(message + start);
             mode=b;
             start=c+1;
