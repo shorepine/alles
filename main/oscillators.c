@@ -79,11 +79,12 @@ float render_lut(float * buf, float step, float skip, float amp, const int16_t* 
     return step;
 }
 
-void lpf_buf(float *buf, float decay, float &state) {
+void lpf_buf(float *buf, float decay, float *state) {
     // Implement first-order low-pass (leaky integrator).
+    float s = *state;
     for (uint16_t i = 0; i < BLOCK_SIZE; ++i) {
-      buf[i] = decay * state + buf[i];
-      state = buf[i];
+      buf[i] = decay * s + buf[i];
+      *state = buf[i];
     }
 }
 
@@ -120,7 +121,7 @@ void render_pulse(float * buf, uint8_t voice) {
     clear_buf(scratchbuf);
     synth[voice].step = render_lut(scratchbuf, synth[voice].step, skip, amp, impulse32, IMPULSE32_SIZE);
     render_lut(scratchbuf, pwm_step, skip, -amp, impulse32, IMPULSE32_SIZE);
-    lpf_buf(scratchbuf, synth[voice].lpf_alpha, synth[voice].lpf_state[0]);
+    lpf_buf(scratchbuf, synth[voice].lpf_alpha, &synth[voice].lpf_state[0]);
     // Accumulate into actual output buffer.
     cumulate_buf(scratchbuf, buf);
 }
@@ -141,7 +142,7 @@ void render_saw(float * buf, uint8_t voice) {
     clear_buf(scratchbuf);
     synth[voice].step = render_lut(
           scratchbuf, synth[voice].step, skip, amp, impulse32, IMPULSE32_SIZE);
-    lpf_buf(scratchbuf, synth[voice].lpf_alpha, synth[voice].lpf_state[0]);
+    lpf_buf(scratchbuf, synth[voice].lpf_alpha, &synth[voice].lpf_state[0]);
     cumulate_buf(scratchbuf, buf);
 }
 
@@ -170,9 +171,9 @@ void render_triangle(float * buf, uint8_t voice) {
     synth[voice].step = render_lut(scratchbuf, synth[voice].step, skip, amp, impulse32, IMPULSE32_SIZE);
     render_lut(scratchbuf, pwm_step, skip, -amp, impulse32, IMPULSE32_SIZE);
     // Integrate once to get square wave.
-    lpf_buf(scratchbuf, synth[voice].lpf_alpha, synth[voice].lpf_state[0]);
+    lpf_buf(scratchbuf, synth[voice].lpf_alpha, &synth[voice].lpf_state[0]);
     // Integrate again to get trianlge wave.
-    lpf_buf(scratchbuf, synth[voice].lpf_alpha_1, synth[voice].lpf_state[1]);
+    lpf_buf(scratchbuf, synth[voice].lpf_alpha_1, &synth[voice].lpf_state[1]);
     cumulate_buf(scratchbuf, buf);
 }
 

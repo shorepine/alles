@@ -2,7 +2,7 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/alles/master/pics/set.jpg)
 
-**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 10 additive oscillators, a full FM stage, biquad filter, with LFOs and ADSRs per voice. They're open source, cheap and easy to make -- you can build one yourself for about US$20.
+**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 8 additive oscillators, a full FM stage, biquad filter, with LFOs and ADSRs per voice. They're open source, cheap and easy to make -- you can build one yourself for about US$20.
 
 The synthesizers automatically form a mesh and listen to multicast WiFi messages. You can control the mesh from a host computer using any programming language or environments like Max or Pd. You can also wire one synth up to MIDI or MIDI over Bluetooth, and use any MIDI software or controller; the directly connected synth will broadcast to the rest of the mesh for you. 
 
@@ -66,7 +66,7 @@ S = reset voice, uint 0-9 or for all voices, anything >=10. resets every voice p
 s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py
 T = ADSR target mask. Which parameter ADSR controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can.
-v = voice, uint, 0 to 9. default: 0
+v = voice, uint, 0 to 7. default: 0
 V = volume, float 0 to about 10 in practice. volume knob for the entire synth / speaker. default 1.0
 w = waveform, uint, 0 to 8 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, PCM, OFF]. default: 0/SINE
 ```
@@ -245,8 +245,8 @@ Alles comes prebaked with 1,000 DX7 patches from the [learnFM](https://github.co
 
 ## THANK YOU TO
 
+* dan ellis, for many great changes and fixes to the oscillators, and finding out about that weird word-swapping i2s bug!!
 * douglas repetto
-* dan ellis
 * [MSFA](https://github.com/google/music-synthesizer-for-android) for their FM impl
 * mark fell
 * [esp32 WiFi Manager](https://github.com/tonyp7/esp32-wifi-manager)
