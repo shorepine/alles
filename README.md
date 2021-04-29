@@ -2,7 +2,7 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/alles/master/pics/set.jpg)
 
-**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 8 additive oscillators, a full FM stage, biquad filter, with LFOs and ADSRs per voice. They're open source, cheap and easy to make -- you can build one yourself for about US$20.
+**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 8 additive oscillators, a full FM stage, biquad filter, with LFOs and ADSRs per oscillator. They're open source, cheap and easy to make -- you can build one yourself for about US$20.
 
 The synthesizers automatically form a mesh and listen to multicast WiFi messages. You can control the mesh from a host computer using any programming language or environments like Max or Pd. You can also wire one synth up to MIDI or MIDI over Bluetooth, and use any MIDI software or controller; the directly connected synth will broadcast to the rest of the mesh for you. 
 
@@ -14,7 +14,7 @@ Our friends at [Blinkinlabs](https://blinkinlabs.com) are helping us produce sma
 
 Each individual synthesizer supports:
 
- * 10 voices, each voice with adjustable frequency and amplitude:
+ * 8 oscillators, each with adjustable frequency and amplitude:
    * pulse (+ adjustable duty cycle)
    * sine
    * saw
@@ -24,9 +24,9 @@ Each individual synthesizer supports:
    * karplus-strong string (+ adjustable feedback)
    * FM, using a DX7 simulation, with support for DX7 patches and 1000 presets 
  * Biquad low-pass filter with cutoff and resonance at the last stage
- * Voices can be specified by frequency in floating point or midi note 
- * Each voice has a dedicated ADSR VCA, which can modify any combination of amplitude, frequency, duty, filter cutoff or resonance
- * Each voice (except for those using KS or FM) can also act as an LFO to modify any combination of parameters of another voice, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave. 
+ * Oscillators can be specified by frequency in floating point or midi note 
+ * Each oscillator has a dedicated ADSR VCA, which can modify any combination of amplitude, frequency, duty, filter cutoff or resonance
+ * Each oscillator (except for those using KS or FM) can also act as an LFO to modify any combination of parameters of another oscillator, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave. 
  * Speaker gain control
 
 
@@ -56,22 +56,22 @@ d = duty cycle, float 0.001-0.999. duty cycle for pulse wave, default 0.5
 f = frequency, float 0-44100 (and above). default 0. Sampling rate of synth is 44,100Hz but higher numbers can be used for PCM waveforms
 F = center frequency of biquad filter. 0 is off. default 0. applies to entire synth audio
 g = LFO target mask. Which parameter LFO controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
-L = LFO source voice. 0-9. Which voice is used as an LFO source for this voice. Source voice will be silent. 
+L = LFO source oscillator. 0-7. Which oscillator is used as an LFO source for this oscillator. Source oscillator will be silent. 
 l = velocity (amplitude), float 0-1, >0 to trigger note on, 0 to trigger note off.  
 n = midinote, uint, 0-127 (note that this will also set f). default 0
 p = patch, uint, 0-999, choose a preloaded PCM sample or DX7 patch number for FM waveforms. See patches.h, pcm.h. default 0
 P = phase, float 0-1. where in the oscillator's cycle to start sampling from (also works on the PCM buffer). default 0
 R = q factor / "resonance" of biquad filter. float. in practice, 0 to 10.0. default 0.7.
-S = reset voice, uint 0-9 or for all voices, anything >=10. resets every voice parameter to default.
+S = reset oscillator, uint 0-7 or for all oscillators, anything >=8. resets every oscillator parameter to default.
 s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py
 T = ADSR target mask. Which parameter ADSR controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can.
-v = voice, uint, 0 to 7. default: 0
+v = oscillator, uint, 0 to 7. default: 0
 V = volume, float 0 to about 10 in practice. volume knob for the entire synth / speaker. default 1.0
 w = waveform, uint, 0 to 8 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, PCM, OFF]. default: 0/SINE
 ```
 
-Synthesizer state is held per voice, so you can optionally send only changes in parameters each message per voice.
+Synthesizer state is held per oscillator, so you can optionally send only changes in parameters each message per oscillator.
 
 
 ## alles.py 
@@ -90,11 +90,11 @@ Or experiment with oscillators:
 ```
 >>> # use a a 0.25Hz sine wave at half phase (going down) to modify frequency of another sine wave
 >>> alles.reset()
->>> alles.send(voice=1, wave=alles.SINE, vel=0.50, freq=0.25, phase=0.5) # LFO source voice
->>> alles.send(voice=0, wave=alles.SINE, vel=0, envelope="0,500,0,0", adsr_target=alles.TARGET_AMP, lfo_target=alles.TARGET_FREQ, lfo_source=1)
->>> alles.note_on(voice=0, note=60, vel=1.5) # Bass drum!
+>>> alles.send(oscillator=1, wave=alles.SINE, vel=0.50, freq=0.25, phase=0.5) # LFO source oscillator
+>>> alles.send(oscillator=0, wave=alles.SINE, vel=0, envelope="0,500,0,0", adsr_target=alles.TARGET_AMP, lfo_target=alles.TARGET_FREQ, lfo_source=1)
+>>> alles.note_on(oscillator=0, note=60, vel=1.5) # Bass drum!
 >>> alles.lowpass(800, 1.5) # filter it
->>> alles.note_on(voice=0, note=50, vel=1.5)
+>>> alles.note_on(oscillator=0, note=50, vel=1.5)
 ```
 
 
@@ -148,13 +148,13 @@ import socket
 multicast_group = ('232.10.11.12', 3333)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-def send(voice=0, freq=0, vel=1):
-    sock.sendto("v%df%fl%f" % (voice, freq, vel), multicast_group)
+def send(oscillator=0, freq=0, vel=1):
+    sock.sendto("v%df%fl%f" % (oscillator, freq, vel), multicast_group)
 
 def c_major(octave=2):
-    send(voice=0,freq=220.5*octave)
-    send(voice=1,freq=138.5*octave)
-    send(voice=2,freq=164.5*octave)
+    send(oscillator=0,freq=220.5*octave)
+    send(oscillator=1,freq=138.5*octave)
+    send(oscillator=2,freq=164.5*octave)
 
 ```
 

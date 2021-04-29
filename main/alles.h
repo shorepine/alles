@@ -38,7 +38,7 @@ extern "C" {
 
 // Constants you can change if you want
 #define BLOCK_SIZE 64       // i2s buffer block size in samples
-#define VOICES 8            // # of simultaneous voices to keep track of 
+#define OSCILLATORS 8            // # of simultaneous oscillators to keep track of 
 #define EVENT_FIFO_LEN 400   // number of events the queue can store
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #define SAMPLE_RATE 44100    // playback sample rate
@@ -89,7 +89,7 @@ extern "C" {
 // Events
 struct event {
     int64_t time;
-    int16_t voice;
+    int16_t oscillator;
     int16_t wave;
     int16_t patch;
     int16_t midi_note;
@@ -123,7 +123,7 @@ struct event {
     float lpf_alpha_1;
 };
 
-// only the things that LFOs/env can change per voice
+// only the things that LFOs/env can change per osc
 struct mod_event {
     float amp;
     float duty;
@@ -186,28 +186,28 @@ extern int16_t client_id;
 // FM 
 extern void fm_init();
 extern void fm_deinit();
-extern void render_fm(float * buf, uint8_t voice); 
-extern void fm_note_on(uint8_t voice);
-extern void fm_note_off(uint8_t voice);
+extern void render_fm(float * buf, uint8_t oscillator); 
+extern void fm_note_on(uint8_t oscillator);
+extern void fm_note_off(uint8_t oscillator);
 
 
 // bandlimted oscillators
-extern void oscillators_init();
-extern void oscillators_deinit();
-extern void render_ks(float * buf, uint8_t voice); 
-extern void render_sine(float * buf, uint8_t voice); 
-extern void render_pulse(float * buf, uint8_t voice); 
-extern void render_saw(float * buf, uint8_t voice); 
-extern void render_triangle(float * buf, uint8_t voice); 
-extern void render_noise(float * buf, uint8_t voice); 
-extern void render_pcm(float * buf, uint8_t voice);
-extern void ks_note_on(uint8_t voice); 
-extern void ks_note_off(uint8_t voice);
-extern void sine_note_on(uint8_t voice); 
-extern void saw_note_on(uint8_t voice); 
-extern void triangle_note_on(uint8_t voice); 
-extern void pulse_note_on(uint8_t voice); 
-extern void pcm_note_on(uint8_t voice);
+extern void ks_init();
+extern void ks_deinit();
+extern void render_ks(float * buf, uint8_t oscillator); 
+extern void render_sine(float * buf, uint8_t oscillator); 
+extern void render_pulse(float * buf, uint8_t oscillator); 
+extern void render_saw(float * buf, uint8_t oscillator); 
+extern void render_triangle(float * buf, uint8_t oscillator); 
+extern void render_noise(float * buf, uint8_t oscillator); 
+extern void render_pcm(float * buf, uint8_t oscillator);
+extern void ks_note_on(uint8_t oscillator); 
+extern void ks_note_off(uint8_t oscillator);
+extern void sine_note_on(uint8_t oscillator); 
+extern void saw_note_on(uint8_t oscillator); 
+extern void triangle_note_on(uint8_t oscillator); 
+extern void pulse_note_on(uint8_t oscillator); 
+extern void pcm_note_on(uint8_t oscillator);
 
 
 
@@ -219,9 +219,9 @@ extern void filter_update();
 extern void filter_process_ints(int16_t * block);
 
 // envelopes
-extern float compute_adsr_scale(uint8_t voice);
-extern float compute_lfo_scale(uint8_t voice);
-extern void retrigger_lfo_source(uint8_t voice);
+extern float compute_adsr_scale(uint8_t oscillator);
+extern float compute_lfo_scale(uint8_t oscillator);
+extern void retrigger_lfo_source(uint8_t oscillator);
 
 // MIDI
 extern void midi_init();

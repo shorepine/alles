@@ -156,11 +156,11 @@ def battery_test():
     print("Took %d seconds to stop" %(time.time() - tic))
 
 
-def reset(voice=None):
-    if(voice is not None):
-        send(reset=voice)
+def reset(oscillator=None):
+    if(oscillator is not None):
+        send(reset=oscillator)
     else:
-        send(reset=100) # reset > VOICES resets all voices
+        send(reset=100) # reset > ALLES_OSCILLATORS resets all oscillators
         lowpass(0, 0.7) # also reset the filter in this case
 
 def volume(volume, client = -1):
@@ -177,13 +177,13 @@ def note_off(**kwargs):
     send(vel=0, **kwargs)
 
 
-def send(voice=0, wave=-1, patch=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
+def send(oscillator=0, wave=-1, patch=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, adsr_target=-1, lfo_target=-1, \
         debug=-1, lfo_source=-1):
     global sock
     if(timestamp is None): timestamp = millis()
     m = "t%d" % (timestamp)
-    if(voice>=0): m = m + "v%d" % (voice)
+    if(oscillator>=0): m = m + "v%d" % (oscillator)
     if(wave>=0): m = m + "w%d" % (wave)
     if(duty>=0): m = m + "d%f" % (duty)
     if(feedback>=0): m = m + "b%f" % (feedback)

@@ -14,32 +14,32 @@ extern struct state global;
 
 extern float *scratchbuf;
 
-void pcm_note_on(uint8_t voice) {
+void pcm_note_on(uint8_t oscillator) {
     // If no freq given, we set it to default PCM SR. e.g. freq=11025 plays PCM at half speed, freq=44100 double speed 
-    if(synth[voice].freq <= 0) synth[voice].freq = PCM_SAMPLE_RATE;
+    if(synth[oscillator].freq <= 0) synth[oscillator].freq = PCM_SAMPLE_RATE;
     // If patch is given, set step directly from patch's offset
-    if(synth[voice].patch>=0) {
-        synth[voice].step = offset_map[synth[voice].patch*2]; // start sample
+    if(synth[oscillator].patch>=0) {
+        synth[oscillator].step = offset_map[synth[oscillator].patch*2]; // start sample
         // Use substep here as "end sample" so we don't have to add another field to the struct
-        synth[voice].substep = synth[voice].step + offset_map[synth[voice].patch*2 + 1]; // end sample
+        synth[oscillator].substep = synth[oscillator].step + offset_map[synth[oscillator].patch*2 + 1]; // end sample
     } else { // no patch # given? use phase as index into PCM buffer
-        synth[voice].step = PCM_LENGTH * synth[voice].phase; // start at phase offset
-        synth[voice].substep = PCM_LENGTH; // play until end of buffer and stop 
+        synth[oscillator].step = PCM_LENGTH * synth[oscillator].phase; // start at phase offset
+        synth[oscillator].substep = PCM_LENGTH; // play until end of buffer and stop 
     }
 }
 
 // TODO -- this just does one shot, no looping (will need extra loop parameter? what about sample metadata looping?) 
-// TODO -- this should just be like render_LUT(float * buf, uint8_t voice, int16_t **LUT) as it's the same for sine & PCM?
-void render_pcm(float * buf, uint8_t voice) {
-    float skip = msynth[voice].freq / (float)SAMPLE_RATE;
+// TODO -- this should just be like render_LUT(float * buf, uint8_t oscillator, int16_t **LUT) as it's the same for sine & PCM?
+void render_pcm(float * buf, uint8_t oscillator) {
+    float skip = msynth[oscillator].freq / (float)SAMPLE_RATE;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        float sample = pcm[(int)(synth[voice].step)];
-        synth[voice].step = (synth[voice].step + skip);
-        if(synth[voice].step >= synth[voice].substep ) { // end
-            synth[voice].status=OFF;
+        float sample = pcm[(int)(synth[oscillator].step)];
+        synth[oscillator].step = (synth[oscillator].step + skip);
+        if(synth[oscillator].step >= synth[oscillator].substep ) { // end
+            synth[oscillator].status=OFF;
             sample = 0;
         }
-        buf[i] = buf[i] + (sample * msynth[voice].amp);
+        buf[i] = buf[i] + (sample * msynth[oscillator].amp);
     }
 }
 
@@ -99,137 +99,137 @@ void cumulate_buf(const float *from, float *dest) {
     }
 }
 
-void pulse_note_on(uint8_t voice) {
+void pulse_note_on(uint8_t oscillator) {
     // So i reset step to some phase math, right? yeah
-    synth[voice].step = (float)IMPULSE32_SIZE * synth[voice].phase;
-    synth[voice].lpf_state[0] = 0;
+    synth[oscillator].step = (float)IMPULSE32_SIZE * synth[oscillator].phase;
+    synth[oscillator].lpf_state[0] = 0;
 }
 
-void render_pulse(float * buf, uint8_t voice) {
+void render_pulse(float * buf, uint8_t oscillator) {
     // LPF time constant should be ~ 10x oscillator period, so droop is minimal.
-    float period_samples = 44100.0 / msynth[voice].freq;
-    synth[voice].lpf_alpha = 1.0 - 1.0 / (10.0 * period_samples);
-    float duty = msynth[voice].duty;
+    float period_samples = 44100.0 / msynth[oscillator].freq;
+    synth[oscillator].lpf_alpha = 1.0 - 1.0 / (10.0 * period_samples);
+    float duty = msynth[oscillator].duty;
     if (duty < 0.01) duty = 0.01;
     if (duty > 0.99) duty = 0.99;
-    float skip = msynth[voice].freq / 44100.0 * IMPULSE32_SIZE;
+    float skip = msynth[oscillator].freq / 44100.0 * IMPULSE32_SIZE;
     // Scale the impulse proportional to the skip so its integral remains ~constant.
     // 0.5 is to compensate for typical skip of ~2.
-    float amp = msynth[voice].amp * skip * 0.1;  // was 0.5
-    float pwm_step = synth[voice].step + duty * IMPULSE32_SIZE;
+    float amp = msynth[oscillator].amp * skip * 0.1;  // was 0.5
+    float pwm_step = synth[oscillator].step + duty * IMPULSE32_SIZE;
     if (pwm_step >= IMPULSE32_SIZE)  pwm_step -= IMPULSE32_SIZE;
     clear_buf(scratchbuf);
-    synth[voice].step = render_lut(scratchbuf, synth[voice].step, skip, amp, impulse32, IMPULSE32_SIZE);
+    synth[oscillator].step = render_lut(scratchbuf, synth[oscillator].step, skip, amp, impulse32, IMPULSE32_SIZE);
     render_lut(scratchbuf, pwm_step, skip, -amp, impulse32, IMPULSE32_SIZE);
-    lpf_buf(scratchbuf, synth[voice].lpf_alpha, &synth[voice].lpf_state[0]);
+    lpf_buf(scratchbuf, synth[oscillator].lpf_alpha, &synth[oscillator].lpf_state[0]);
     // Accumulate into actual output buffer.
     cumulate_buf(scratchbuf, buf);
 }
 
-void saw_note_on(uint8_t voice) {
-    synth[voice].step = (float)IMPULSE32_SIZE * synth[voice].phase;
-    synth[voice].lpf_state[0] = 0;
+void saw_note_on(uint8_t oscillator) {
+    synth[oscillator].step = (float)IMPULSE32_SIZE * synth[oscillator].phase;
+    synth[oscillator].lpf_state[0] = 0;
 }
 
-void render_saw(float * buf, uint8_t voice) {
+void render_saw(float * buf, uint8_t oscillator) {
     // For saw, we *want* the lpf to droop across the period, so use a smaller alpha.
-    float period_samples = 44100.0 / msynth[voice].freq;
-    synth[voice].lpf_alpha = 1.0 - 1.0 / period_samples;
-    float skip = msynth[voice].freq / 44100.0 * IMPULSE32_SIZE;
+    float period_samples = 44100.0 / msynth[oscillator].freq;
+    synth[oscillator].lpf_alpha = 1.0 - 1.0 / period_samples;
+    float skip = msynth[oscillator].freq / 44100.0 * IMPULSE32_SIZE;
     // Scale the impulse proportional to the skip so its integral remains ~constant.
     // 0.5 is to compensate for typical skip of ~2.
-    float amp = msynth[voice].amp * skip * 0.1;
+    float amp = msynth[oscillator].amp * skip * 0.1;
     clear_buf(scratchbuf);
-    synth[voice].step = render_lut(
-          scratchbuf, synth[voice].step, skip, amp, impulse32, IMPULSE32_SIZE);
-    lpf_buf(scratchbuf, synth[voice].lpf_alpha, &synth[voice].lpf_state[0]);
+    synth[oscillator].step = render_lut(
+          scratchbuf, synth[oscillator].step, skip, amp, impulse32, IMPULSE32_SIZE);
+    lpf_buf(scratchbuf, synth[oscillator].lpf_alpha, &synth[oscillator].lpf_state[0]);
     cumulate_buf(scratchbuf, buf);
 }
 
-void triangle_note_on(uint8_t voice) {
-    synth[voice].step = (float)IMPULSE32_SIZE * synth[voice].phase;
-    synth[voice].lpf_state[0] = 0;
-    synth[voice].lpf_state[1] = 0;
+void triangle_note_on(uint8_t oscillator) {
+    synth[oscillator].step = (float)IMPULSE32_SIZE * synth[oscillator].phase;
+    synth[oscillator].lpf_state[0] = 0;
+    synth[oscillator].lpf_state[1] = 0;
 }
 
-void render_triangle(float * buf, uint8_t voice) {
+void render_triangle(float * buf, uint8_t oscillator) {
     // Triangle has two lpfs, one to build the square, and one to integrate the pulse.
-    float period_samples = 44100.0 / msynth[voice].freq;
-    synth[voice].lpf_alpha = 1.0 - 1.0 / (10 * period_samples);
-    synth[voice].lpf_alpha_1 = 1.0 - 1.0 / period_samples;
-    float duty = msynth[voice].duty;
+    float period_samples = 44100.0 / msynth[oscillator].freq;
+    synth[oscillator].lpf_alpha = 1.0 - 1.0 / (10 * period_samples);
+    synth[oscillator].lpf_alpha_1 = 1.0 - 1.0 / period_samples;
+    float duty = msynth[oscillator].duty;
     if (duty < 0.01) duty = 0.01;
     if (duty > 0.99) duty = 0.99;
-    float skip = msynth[voice].freq / 44100.0 * IMPULSE32_SIZE;
+    float skip = msynth[oscillator].freq / 44100.0 * IMPULSE32_SIZE;
     // Scale impulses by skip to make integral independent of skip.
     // Scale by skip again so integral of each cycle of square wave is same total amp.
     // Divide by duty(1-duty) so peak integral is const regardless of duty.
-    float amp = msynth[voice].amp * skip * skip / (duty - duty * duty) * 0.0001;
-    float pwm_step = synth[voice].step + duty * IMPULSE32_SIZE;
+    float amp = msynth[oscillator].amp * skip * skip / (duty - duty * duty) * 0.0001;
+    float pwm_step = synth[oscillator].step + duty * IMPULSE32_SIZE;
     if (pwm_step >= IMPULSE32_SIZE)  pwm_step -= IMPULSE32_SIZE;
     clear_buf(scratchbuf);
-    synth[voice].step = render_lut(scratchbuf, synth[voice].step, skip, amp, impulse32, IMPULSE32_SIZE);
+    synth[oscillator].step = render_lut(scratchbuf, synth[oscillator].step, skip, amp, impulse32, IMPULSE32_SIZE);
     render_lut(scratchbuf, pwm_step, skip, -amp, impulse32, IMPULSE32_SIZE);
     // Integrate once to get square wave.
-    lpf_buf(scratchbuf, synth[voice].lpf_alpha, &synth[voice].lpf_state[0]);
+    lpf_buf(scratchbuf, synth[oscillator].lpf_alpha, &synth[oscillator].lpf_state[0]);
     // Integrate again to get trianlge wave.
-    lpf_buf(scratchbuf, synth[voice].lpf_alpha_1, &synth[voice].lpf_state[1]);
+    lpf_buf(scratchbuf, synth[oscillator].lpf_alpha_1, &synth[oscillator].lpf_state[1]);
     cumulate_buf(scratchbuf, buf);
 }
 
-void sine_note_on(uint8_t voice) {
+void sine_note_on(uint8_t oscillator) {
     // So i reset step to some phase math, right? yeah
-    synth[voice].step = (float)SINLUT_SIZE * synth[voice].phase;
+    synth[oscillator].step = (float)SINLUT_SIZE * synth[oscillator].phase;
 }
 
-void render_sine(float * buf, uint8_t voice) { 
-    float skip = msynth[voice].freq / 44100.0 * SINLUT_SIZE;
-    synth[voice].step = render_lut(buf, synth[voice].step, skip, msynth[voice].amp, sinLUT, SINLUT_SIZE);
+void render_sine(float * buf, uint8_t oscillator) { 
+    float skip = msynth[oscillator].freq / 44100.0 * SINLUT_SIZE;
+    synth[oscillator].step = render_lut(buf, synth[oscillator].step, skip, msynth[oscillator].amp, sinLUT, SINLUT_SIZE);
 }
 
-void render_noise(float *buf, uint8_t voice) {
+void render_noise(float *buf, uint8_t oscillator) {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        buf[i] = buf[i] + ( (int16_t) ((esp_random() >> 16) - 32768) * msynth[voice].amp);
+        buf[i] = buf[i] + ( (int16_t) ((esp_random() >> 16) - 32768) * msynth[oscillator].amp);
     }
 }
 
-void render_ks(float * buf, uint8_t voice) {
-    if(msynth[voice].freq >= 55) { // lowest note we can play
-        uint16_t buflen = floor(SAMPLE_RATE / msynth[voice].freq);
+void render_ks(float * buf, uint8_t oscillator) {
+    if(msynth[oscillator].freq >= 55) { // lowest note we can play
+        uint16_t buflen = floor(SAMPLE_RATE / msynth[oscillator].freq);
         for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-            uint16_t index = floor(synth[voice].step);
-            synth[voice].sample = ks_buffer[voice][index];
-            ks_buffer[voice][index] = (ks_buffer[voice][index] + ks_buffer[voice][(index + 1) % buflen]) * 0.5 * synth[voice].feedback;
-            synth[voice].step = (index + 1) % buflen;
-            buf[i] = buf[i] + synth[voice].sample * msynth[voice].amp;
+            uint16_t index = floor(synth[oscillator].step);
+            synth[oscillator].sample = ks_buffer[oscillator][index];
+            ks_buffer[oscillator][index] = (ks_buffer[oscillator][index] + ks_buffer[oscillator][(index + 1) % buflen]) * 0.5 * synth[oscillator].feedback;
+            synth[oscillator].step = (index + 1) % buflen;
+            buf[i] = buf[i] + synth[oscillator].sample * msynth[oscillator].amp;
         }
     }
 }
 
-void ks_note_on(uint8_t voice) {
-    if(msynth[voice].freq<=0) msynth[voice].freq = 1;
-    uint16_t buflen = floor(SAMPLE_RATE / msynth[voice].freq);
+void ks_note_on(uint8_t oscillator) {
+    if(msynth[oscillator].freq<=0) msynth[oscillator].freq = 1;
+    uint16_t buflen = floor(SAMPLE_RATE / msynth[oscillator].freq);
     if(buflen > MAX_KS_BUFFER_LEN) buflen = MAX_KS_BUFFER_LEN;
     // init KS buffer with noise up to max
     for(uint16_t i=0;i<buflen;i++) {
-        ks_buffer[voice][i] = ( (int16_t) ((esp_random() >> 16) - 32768) );
+        ks_buffer[oscillator][i] = ( (int16_t) ((esp_random() >> 16) - 32768) );
     }
 }
 
-void ks_note_off(uint8_t voice) {
-    msynth[voice].amp = 0;
+void ks_note_off(uint8_t oscillator) {
+    msynth[oscillator].amp = 0;
 }
 
 
-void oscillators_init(void) {
+void ks_init(void) {
     // 6ms buffer
     // TODO -- i could save a lot of heap by only mallocing this when needed 
-    ks_buffer = (float**) malloc(sizeof(float*)*VOICES);
-    for(int i=0;i<VOICES;i++) ks_buffer[i] = (float*)malloc(sizeof(float)*MAX_KS_BUFFER_LEN); 
+    ks_buffer = (float**) malloc(sizeof(float*)*OSCILLATORS);
+    for(int i=0;i<OSCILLATORS;i++) ks_buffer[i] = (float*)malloc(sizeof(float)*MAX_KS_BUFFER_LEN); 
 }
 
-void oscillators_deinit(void) {
-    for(int i=0;i<VOICES;i++) free(ks_buffer[i]);
+void ks_deinit(void) {
+    for(int i=0;i<OSCILLATORS;i++) free(ks_buffer[i]);
     free(ks_buffer);
 }
 
