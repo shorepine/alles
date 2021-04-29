@@ -44,8 +44,12 @@ static const char TAG[] = "main";
 // Button event
 extern xQueueHandle gpio_evt_queue;
 
-// Multicast task handle 
+// Task handles for the renderers, multicast listener and main
 TaskHandle_t multicast_handle = NULL;
+static TaskHandle_t renderTask0 = NULL;
+static TaskHandle_t renderTask1 = NULL;
+static TaskHandle_t mainTask = NULL;
+
 
 // Battery status for V1 board. If no v1 board, will stay at 0
 uint8_t battery_mask = 0;
@@ -173,10 +177,6 @@ void reset_voices() {
 }
 
 
-static TaskHandle_t renderTask0 = NULL;
-static TaskHandle_t renderTask1 = NULL;
-static TaskHandle_t mainTask = NULL;
-
 
 // The synth object keeps held state, whereas events are only deltas/changes
 esp_err_t voices_init() {
@@ -211,7 +211,7 @@ esp_err_t voices_init() {
 
 void debug_voices() {
     // print out all the voice data
-    char usage[40*15]; // 15 tasks running last i looked
+    char usage[40*16]; // 16 tasks running last i looked
 /*
 mcast_task      254348      <1
 render_task_1   20852909        49
@@ -548,6 +548,7 @@ uint8_t deserialize_event(char * message, uint16_t length) {
             if(mode=='b') e.feedback=atof(message+start);
             if(mode=='c') client = atoi(message + start); 
             if(mode=='d') e.duty=atof(message + start);
+            if(mode=='D') debug_voices(); 
             // reminder: don't use "E" or "e", lol 
             if(mode=='f') e.freq=atof(message + start); 
             if(mode=='F') e.filter_freq=atof(message + start);
