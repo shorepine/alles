@@ -15,9 +15,9 @@ float compute_lfo_scale(uint8_t oscillator) {
     if(synth[oscillator].lfo_target >= 1 && source >= 0) {
         if(source != oscillator) {  // that would be weird
             // Render the wave. you only need / get the first sample, so maybe there's a faster way to do this
-            msynth[source].amp = synth[oscillator].amp;
-            msynth[source].duty = synth[oscillator].duty;
-            msynth[source].freq = synth[oscillator].freq;
+            msynth[source].amp = synth[source].amp;
+            msynth[source].duty = synth[source].duty;
+            msynth[source].freq = synth[source].freq;
             float floatblock[BLOCK_SIZE];
             for(uint16_t i=0;i<BLOCK_SIZE;i++) { floatblock[i] = 0; }
             if(synth[source].wave == NOISE) render_noise(floatblock, source);
