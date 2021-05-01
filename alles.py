@@ -111,7 +111,7 @@ def drums(bpm=120, **kwargs):
     preset(9, oscillator=4, **kwargs) # sample cow
     preset(10, oscillator=5, **kwargs) # sample hi cow
     preset(11, oscillator=2, **kwargs) # sample snare
-    #preset(12, oscillator=7, **kwargs) # FM bass
+    preset(12, oscillator=7, **kwargs) # FM bass
     [bass, snare, hat, cow, hicow, silent] = [1, 2, 4, 8, 16, 32]
     pattern = [bass+hat, hat+hicow, bass+hat+snare, hat+cow, hat, hat+bass, snare+hat, hat]
     bassline = [50, 0, 0, 0, 50, 52, 51, 0]
@@ -122,10 +122,10 @@ def drums(bpm=120, **kwargs):
             if(x & hat): note_on(oscillator=3, vel=1, **kwargs)
             if(x & cow): note_on(oscillator=4, vel=1, **kwargs)
             if(x & hicow): note_on(oscillator=5, vel=1, **kwargs)
-            #if(bassline[i]>0):
-            #    note_on(oscillator=7, note=bassline[i], vel=0.25, **kwargs)
-            #else:
-            #    note_off(oscillator=7, **kwargs)
+            if(bassline[i]>0):
+                note_on(oscillator=7, note=bassline[i], vel=0.25, **kwargs)
+            else:
+                note_off(oscillator=7, **kwargs)
             time.sleep(1.0/(bpm*2/60))
 
 """

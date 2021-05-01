@@ -44,8 +44,8 @@ void render_pcm(float * buf, uint8_t oscillator) {
 }
 
 
-#define LINEAR_INTERP
-//#define CUBIC_INTERP
+//#define LINEAR_INTERP
+#define CUBIC_INTERP
 
 // This is copying from Pure Data's tabread4~.
 float render_lut(float * buf, float step, float skip, float amp, const int16_t* lut, int16_t lut_size) { 
