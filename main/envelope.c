@@ -14,19 +14,16 @@ float compute_lfo_scale(uint8_t oscillator) {
     int8_t source = synth[oscillator].lfo_source;
     if(synth[oscillator].lfo_target >= 1 && source >= 0) {
         if(source != oscillator) {  // that would be weird
-            // Render the wave. you only need / get the first sample, so maybe there's a faster way to do this
             msynth[source].amp = synth[source].amp;
             msynth[source].duty = synth[source].duty;
             msynth[source].freq = synth[source].freq;
-            float floatblock[BLOCK_SIZE];
-            for(uint16_t i=0;i<BLOCK_SIZE;i++) { floatblock[i] = 0; }
-            if(synth[source].wave == NOISE) render_noise(floatblock, source);
-            if(synth[source].wave == SAW) render_saw(floatblock, source);
-            if(synth[source].wave == PULSE) render_pulse(floatblock, source);
-            if(synth[source].wave == TRIANGLE) render_triangle(floatblock, source);
-            if(synth[source].wave == SINE) render_sine(floatblock, source);
-            return floatblock[0] / 16384.0; // will be between -1 and 1
-          }
+            if(synth[source].wave == NOISE) return compute_lfo_noise(source);
+            if(synth[source].wave == SAW) return compute_lfo_saw(source);
+            if(synth[source].wave == PULSE) return compute_lfo_pulse(source);
+            if(synth[source].wave == TRIANGLE) return compute_lfo_triangle(source);
+            if(synth[source].wave == SINE) return compute_lfo_sine(source);
+            if(synth[source].wave == PCM) return compute_lfo_pcm(source);
+        }
     }
     return 0; // 0 is no change, unlike ADSR scale
 }

@@ -194,6 +194,7 @@ extern void fm_note_off(uint8_t oscillator);
 // bandlimted oscillators
 extern void ks_init();
 extern void ks_deinit();
+
 extern void render_ks(float * buf, uint8_t oscillator); 
 extern void render_sine(float * buf, uint8_t oscillator); 
 extern void render_pulse(float * buf, uint8_t oscillator); 
@@ -201,6 +202,14 @@ extern void render_saw(float * buf, uint8_t oscillator);
 extern void render_triangle(float * buf, uint8_t oscillator); 
 extern void render_noise(float * buf, uint8_t oscillator); 
 extern void render_pcm(float * buf, uint8_t oscillator);
+
+extern float compute_lfo_pulse(uint8_t oscillator);
+extern float compute_lfo_noise(uint8_t oscillator);
+extern float compute_lfo_sine(uint8_t oscillator);
+extern float compute_lfo_saw(uint8_t oscillator);
+extern float compute_lfo_triangle(uint8_t oscillator);
+extern float compute_lfo_pcm(uint8_t oscillator);
+
 extern void ks_note_on(uint8_t oscillator); 
 extern void ks_note_off(uint8_t oscillator);
 extern void sine_note_on(uint8_t oscillator); 
@@ -208,6 +217,12 @@ extern void saw_note_on(uint8_t oscillator);
 extern void triangle_note_on(uint8_t oscillator); 
 extern void pulse_note_on(uint8_t oscillator); 
 extern void pcm_note_on(uint8_t oscillator);
+
+extern void sine_lfo_trigger(uint8_t oscillator);
+extern void saw_lfo_trigger(uint8_t oscillator);
+extern void triangle_lfo_trigger(uint8_t oscillator);
+extern void pulse_lfo_trigger(uint8_t oscillator);
+extern void pcm_lfo_trigger(uint8_t oscillator);
 
 
 

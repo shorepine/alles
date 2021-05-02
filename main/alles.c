@@ -330,13 +330,13 @@ void play_event(struct event e) {
             if(synth[e.oscillator].wave==PULSE) pulse_note_on(e.oscillator);
             if(synth[e.oscillator].wave==PCM) pcm_note_on(e.oscillator);
 
-            // Also trigger "note ons" for the LFO source, if we have one
+            // Also trigger the LFO source, if we have one
             if(synth[e.oscillator].lfo_source >= 0) {
-                if(synth[synth[e.oscillator].lfo_source].wave==SINE) sine_note_on(synth[e.oscillator].lfo_source);
-                if(synth[synth[e.oscillator].lfo_source].wave==SAW) saw_note_on(synth[e.oscillator].lfo_source);
-                if(synth[synth[e.oscillator].lfo_source].wave==TRIANGLE) triangle_note_on(synth[e.oscillator].lfo_source);
-                if(synth[synth[e.oscillator].lfo_source].wave==PULSE) pulse_note_on(synth[e.oscillator].lfo_source);
-                if(synth[synth[e.oscillator].lfo_source].wave==PCM) pcm_note_on(synth[e.oscillator].lfo_source);
+                if(synth[synth[e.oscillator].lfo_source].wave==SINE) sine_lfo_trigger(synth[e.oscillator].lfo_source);
+                if(synth[synth[e.oscillator].lfo_source].wave==SAW) saw_lfo_trigger(synth[e.oscillator].lfo_source);
+                if(synth[synth[e.oscillator].lfo_source].wave==TRIANGLE) triangle_lfo_trigger(synth[e.oscillator].lfo_source);
+                if(synth[synth[e.oscillator].lfo_source].wave==PULSE) pulse_lfo_trigger(synth[e.oscillator].lfo_source);
+                if(synth[synth[e.oscillator].lfo_source].wave==PCM) pcm_lfo_trigger(synth[e.oscillator].lfo_source);
             }
 
         }
