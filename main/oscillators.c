@@ -245,7 +245,8 @@ void triangle_lfo_trigger(uint8_t oscillator) {
 }
 
 float compute_lfo_triangle(uint8_t oscillator) {
-    float period = 1. / (msynth[oscillator].freq/(float)SAMPLE_RATE);
+    float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;    
+    float period = 1. / (msynth[oscillator].freq/lfo_sr);
     if(synth[oscillator].step >= period || synth[oscillator].step == 0) {
         synth[oscillator].sample = DOWN;
         synth[oscillator].step = 0; // reset the period counter
