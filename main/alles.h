@@ -34,7 +34,7 @@ extern "C" {
 #include "wifi_manager.h"
 #include "http_app.h"
 #include "blemidi.h"
-
+#include "power.h"
 
 // Constants you can change if you want
 #define BLOCK_SIZE 64       // i2s buffer block size in samples
@@ -48,13 +48,15 @@ extern "C" {
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
 #define PING_TIME_MS 10000   // ms between boards pinging each other
 #define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
+//#define LINEAR_INTERP      // use linear interp for oscillators
+#define CUBIC_INTERP         // use cubic interpolation for oscillators
 
 #define DEVBOARD 0
 #define ALLES_BOARD_V1 1
 #define ALLES_BOARD_V2 2
 
-#include "ip5306.h"
-#include "master_i2c.h"
+//#include "ip5306.h"
+//#include "master_i2c.h"
 #define BATTERY_STATE_CHARGING 0x01
 #define BATTERY_STATE_CHARGED 0x02
 #define BATTERY_STATE_DISCHARGING 0x04
@@ -63,12 +65,13 @@ extern "C" {
 #define BATTERY_VOLTAGE_3 0x20
 #define BATTERY_VOLTAGE_2 0x40
 #define BATTERY_VOLTAGE_1 0x80
-#define BUTTON_POWER_SHORT 100  // Button state from IP5306
-#define BUTTON_POWER_LONG 101   // Button state from IP5306
+
 
 // Buttons set on the blinkinlabs board, by default only MIDI on most prototype boards
-#define BUTTON_EXTRA 16
+
+#define BUTTON_WAKEUP 34
 #define BUTTON_WIFI 17
+#define BUTTON_EXTRA 16
 #define BUTTON_MIDI 0
 #define ESP_INTR_FLAG_DEFAULT 0
 
@@ -78,7 +81,13 @@ extern "C" {
 #define CONFIG_I2S_DIN 27
 #define CONFIG_I2S_NUM 0 
 #define MIDI_IN 19
+#define BAT_SENSE_EN 32
+#define CHARGE_STAT 33
+#define POWER_5V_EN 21
 
+#define BATT_SENSE_CHANNEL ADC_CHANNEL_7 // GPIO35 / ADC1_7
+#define WALL_SENSE_CHANNEL ADC_CHANNEL_3 // GPIO39 / ADC1_3
+    
 // LFO/ADSR target mask
 #define TARGET_AMP 1
 #define TARGET_DUTY 2

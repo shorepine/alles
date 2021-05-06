@@ -11,56 +11,11 @@ float ** ks_buffer;
 extern struct event *synth;
 extern struct mod_event *msynth; // the synth that is being modified by LFOs & envelopes
 extern struct state global; 
-
 extern float *scratchbuf;
 
-void pcm_note_on(uint8_t oscillator) {
-    // If no freq given, we set it to default PCM SR. e.g. freq=11025 plays PCM at half speed, freq=44100 double speed 
-    if(synth[oscillator].freq <= 0) synth[oscillator].freq = PCM_SAMPLE_RATE;
-    // If patch is given, set step directly from patch's offset
-    if(synth[oscillator].patch>=0) {
-        synth[oscillator].step = offset_map[synth[oscillator].patch*2]; // start sample
-        // Use substep here as "end sample" so we don't have to add another field to the struct
-        synth[oscillator].substep = synth[oscillator].step + offset_map[synth[oscillator].patch*2 + 1]; // end sample
-    } else { // no patch # given? use phase as index into PCM buffer
-        synth[oscillator].step = PCM_LENGTH * synth[oscillator].phase; // start at phase offset
-        synth[oscillator].substep = PCM_LENGTH; // play until end of buffer and stop 
-    }
-}
-void pcm_lfo_trigger(uint8_t oscillator) {
-    pcm_note_on(oscillator);
-}
 
-// TODO -- this just does one shot, no looping (will need extra loop parameter? what about sample metadata looping?) 
-// TODO -- this should just be like render_LUT(float * buf, uint8_t oscillator, int16_t **LUT) as it's the same for sine & PCM?
-void render_pcm(float * buf, uint8_t oscillator) {
-    float skip = msynth[oscillator].freq / (float)SAMPLE_RATE;
-    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        float sample = pcm[(int)(synth[oscillator].step)];
-        synth[oscillator].step = (synth[oscillator].step + skip);
-        if(synth[oscillator].step >= synth[oscillator].substep ) { // end
-            synth[oscillator].status=OFF;
-            sample = 0;
-        }
-        buf[i] = buf[i] + (sample * msynth[oscillator].amp);
-    }
-}
 
-float compute_lfo_pcm(uint8_t oscillator) {
-    float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
-    float skip = msynth[oscillator].freq / lfo_sr;
-    float sample = pcm[(int)(synth[oscillator].step)];
-    synth[oscillator].step = (synth[oscillator].step + skip);
-    if(synth[oscillator].step >= synth[oscillator].substep ) { // end
-        synth[oscillator].status=OFF;
-        sample = 0;
-    }
-    return (sample * msynth[oscillator].amp) / 16384.0; // -1 .. 1
-    
-}
-
-//#define LINEAR_INTERP
-#define CUBIC_INTERP
+/* Dan Ellis libblosca functions */
 
 // This is copying from Pure Data's tabread4~.
 float render_lut(float * buf, float step, float skip, float amp, const int16_t* lut, int16_t lut_size) { 
@@ -113,6 +68,55 @@ void cumulate_buf(const float *from, float *dest) {
         dest[i] += from[i];
     }
 }
+
+/* PCM */
+
+void pcm_note_on(uint8_t oscillator) {
+    // If no freq given, we set it to default PCM SR. e.g. freq=11025 plays PCM at half speed, freq=44100 double speed 
+    if(synth[oscillator].freq <= 0) synth[oscillator].freq = PCM_SAMPLE_RATE;
+    // If patch is given, set step directly from patch's offset
+    if(synth[oscillator].patch>=0) {
+        synth[oscillator].step = offset_map[synth[oscillator].patch*2]; // start sample
+        // Use substep here as "end sample" so we don't have to add another field to the struct
+        synth[oscillator].substep = synth[oscillator].step + offset_map[synth[oscillator].patch*2 + 1]; // end sample
+    } else { // no patch # given? use phase as index into PCM buffer
+        synth[oscillator].step = PCM_LENGTH * synth[oscillator].phase; // start at phase offset
+        synth[oscillator].substep = PCM_LENGTH; // play until end of buffer and stop 
+    }
+}
+void pcm_lfo_trigger(uint8_t oscillator) {
+    pcm_note_on(oscillator);
+}
+
+// TODO -- this just does one shot, no looping (will need extra loop parameter? what about sample metadata looping?) 
+// TODO -- this should just be like render_LUT(float * buf, uint8_t oscillator, int16_t **LUT) as it's the same for sine & PCM?
+void render_pcm(float * buf, uint8_t oscillator) {
+    float skip = msynth[oscillator].freq / (float)SAMPLE_RATE;
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+        float sample = pcm[(int)(synth[oscillator].step)];
+        synth[oscillator].step = (synth[oscillator].step + skip);
+        if(synth[oscillator].step >= synth[oscillator].substep ) { // end
+            synth[oscillator].status=OFF;
+            sample = 0;
+        }
+        buf[i] = buf[i] + (sample * msynth[oscillator].amp);
+    }
+}
+
+float compute_lfo_pcm(uint8_t oscillator) {
+    float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
+    float skip = msynth[oscillator].freq / lfo_sr;
+    float sample = pcm[(int)(synth[oscillator].step)];
+    synth[oscillator].step = (synth[oscillator].step + skip);
+    if(synth[oscillator].step >= synth[oscillator].substep ) { // end
+        synth[oscillator].status=OFF;
+        sample = 0;
+    }
+    return (sample * msynth[oscillator].amp) / 16384.0; // -1 .. 1
+    
+}
+
+/* Pulse wave */
 
 void pulse_note_on(uint8_t oscillator) {
     // So i reset step to some phase math, right? yeah
@@ -168,6 +172,8 @@ float compute_lfo_pulse(uint8_t oscillator) {
 }
 
 
+/* Saw wave */
+
 void saw_note_on(uint8_t oscillator) {
     synth[oscillator].step = (float)IMPULSE32_SIZE * synth[oscillator].phase;
     synth[oscillator].lpf_state[0] = 0;
@@ -187,6 +193,30 @@ void render_saw(float * buf, uint8_t oscillator) {
     lpf_buf(scratchbuf, synth[oscillator].lpf_alpha, &synth[oscillator].lpf_state[0]);
     cumulate_buf(scratchbuf, buf);
 }
+
+
+
+void saw_lfo_trigger(uint8_t oscillator) {
+    float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
+    float period = 1. / (synth[oscillator].freq/lfo_sr);
+    synth[oscillator].step = period * synth[oscillator].phase;
+}
+
+float compute_lfo_saw(uint8_t oscillator) {
+    float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
+    float period = 1. / (msynth[oscillator].freq/lfo_sr);
+    if(synth[oscillator].step >= period || synth[oscillator].step == 0) {
+        synth[oscillator].sample = DOWN;
+        synth[oscillator].step = 0; // reset the period counter
+    } else {
+        synth[oscillator].sample = DOWN + (synth[oscillator].step * ((UP-DOWN) / period));
+    }
+    synth[oscillator].step++;
+    return (synth[oscillator].sample * msynth[oscillator].amp)/16384.0; // -1 .. 1    
+}
+
+
+/* triangle wave */
 
 void triangle_note_on(uint8_t oscillator) {
     synth[oscillator].step = (float)IMPULSE32_SIZE * synth[oscillator].phase;
@@ -219,24 +249,6 @@ void render_triangle(float * buf, uint8_t oscillator) {
     cumulate_buf(scratchbuf, buf);
 }
 
-void saw_lfo_trigger(uint8_t oscillator) {
-    float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
-    float period = 1. / (synth[oscillator].freq/lfo_sr);
-    synth[oscillator].step = period * synth[oscillator].phase;
-}
-
-float compute_lfo_saw(uint8_t oscillator) {
-    float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
-    float period = 1. / (msynth[oscillator].freq/lfo_sr);
-    if(synth[oscillator].step >= period || synth[oscillator].step == 0) {
-        synth[oscillator].sample = DOWN;
-        synth[oscillator].step = 0; // reset the period counter
-    } else {
-        synth[oscillator].sample = DOWN + (synth[oscillator].step * ((UP-DOWN) / period));
-    }
-    synth[oscillator].step++;
-    return (synth[oscillator].sample * msynth[oscillator].amp)/16384.0; // -1 .. 1    
-}
 
 void triangle_lfo_trigger(uint8_t oscillator) {
     float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
@@ -262,8 +274,9 @@ float compute_lfo_triangle(uint8_t oscillator) {
     
 }
 
+/* sine */
+
 void sine_note_on(uint8_t oscillator) {
-    // So i reset step to some phase math, right? yeah
     synth[oscillator].step = (float)SINLUT_SIZE * synth[oscillator].phase;
 }
 
@@ -281,7 +294,7 @@ float compute_lfo_sine(uint8_t oscillator) {
     float frac = synth[oscillator].step - (float)base_index;
     float b = (float)sinLUT[(base_index + 0) & lut_mask];
     float c = (float)sinLUT[(base_index + 1) & lut_mask];
-    // linear interpolation.
+    // linear interpolation for the LFO 
     float sample = b + ((c - b) * frac);
     synth[oscillator].step += skip;
     if(synth[oscillator].step >= SINLUT_SIZE) synth[oscillator].step -= SINLUT_SIZE;
@@ -293,6 +306,8 @@ void sine_lfo_trigger(uint8_t oscillator) {
     sine_note_on(oscillator);
 }
 
+/* noise */
+
 void render_noise(float *buf, uint8_t oscillator) {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         buf[i] = buf[i] + ( (int16_t) ((esp_random() >> 16) - 32768) * msynth[oscillator].amp);
@@ -302,6 +317,8 @@ void render_noise(float *buf, uint8_t oscillator) {
 float compute_lfo_noise(uint8_t oscillator) {
     return ( (int16_t) ((esp_random() >> 16) - 32768) * msynth[oscillator].amp) / 16384.0; // -1..1
 }
+
+/* karplus-strong */
 
 void render_ks(float * buf, uint8_t oscillator) {
     if(msynth[oscillator].freq >= 55) { // lowest note we can play

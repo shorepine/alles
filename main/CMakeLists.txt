@@ -8,8 +8,7 @@ idf_component_register(SRCS alles.c
 							midi.c
 							buttons.c
 							sounds.c
-							ip5306.c
-							master_i2c.c
+							power.c
 							dx7/dx7note.cc
 							dx7/env.cc
 							dx7/exp2.cc

@@ -51,7 +51,7 @@ static TaskHandle_t renderTask1 = NULL;
 static TaskHandle_t mainTask = NULL;
 
 
-// Battery status for V1 board. If no v1 board, will stay at 0
+// Battery status for V2 board. If no v2 board, will stay at 0
 uint8_t battery_mask = 0;
 
 
@@ -694,69 +694,25 @@ void toggle_midi() {
     }
 }
 
+void power_monitor() {
+    power_status_t power_status;
 
-// Periodic task to poll the ip5306 for the battery charge and button states.
-// Intented to be run from a low-priority timer at 1-2 Hz
-void ip5306_monitor() {
-    esp_err_t ret;
-
-    // Check if the power button was pressed
-    int buttons;
-    ret = ip5306_button_press_get(&buttons);
-    if(ret!= ESP_OK) {
-        printf("Error reading button press\n");
+    const esp_err_t ret = power_read_status(&power_status);
+    if(ret != ESP_OK)
         return;
-    }
 
-    if(buttons & BUTTON_LONG_PRESS) {
-        printf("button long\n");
-        const uint32_t button = BUTTON_POWER_LONG;
-        xQueueSend(gpio_evt_queue, &button, 0);
-    }
-    if(buttons & BUTTON_SHORT_PRESS) {
-        printf("button short\n");
-        const uint32_t button = BUTTON_POWER_SHORT;
-        xQueueSend(gpio_evt_queue, &button, 0);
-    }
+    char buf[100];
 
-    // Update the battery charge state
-    ip5306_charge_state_t charge_state;
+    snprintf(buf, sizeof(buf),
+        "powerStatus: power_source=\"%s\",charge_status=\"%s\",wall_v=%0.3f,battery_v=%0.3f\n",
+        (power_status.power_source == POWER_SOURCE_WALL ? "wall" : "battery"),
+        (power_status.charge_status == POWER_CHARGE_STATUS_CHARGING ? "charging" :
+            (power_status.charge_status == POWER_CHARGE_STATUS_CHARGED ? "charged" : " discharging")),
+        power_status.wall_voltage/1000.0,
+        power_status.battery_voltage/1000.0
+        );
 
-    ret = ip5306_charge_state_get(&charge_state);
-    if(ret != ESP_OK) {
-        printf("Error reading battery charge state\n");
-        return;
-    }
-    
-    battery_mask = 0;
-
-    switch(charge_state) {
-    case CHARGE_STATE_CHARGED:
-        battery_mask = battery_mask | BATTERY_STATE_CHARGED;
-        break;
-    case CHARGE_STATE_CHARGING:
-        battery_mask = battery_mask | BATTERY_STATE_CHARGING;
-        break;
-    case CHARGE_STATE_DISCHARGING:
-        battery_mask = battery_mask | BATTERY_STATE_DISCHARGING;
-        break;
-    case CHARGE_STATE_DISCHARGING_LOW_BAT:
-        battery_mask = battery_mask | BATTERY_STATE_LOW;
-        break;
-    }
-
-    ip5306_battery_voltage_t battery_voltage;
-
-    ret = ip5306_battery_voltage_get(&battery_voltage);
-    if(ret != ESP_OK) {
-        //printf("Error getting battery voltage\n");
-        return;
-    } else {
-        if(battery_voltage == BATTERY_OVER_395) battery_mask = battery_mask | BATTERY_VOLTAGE_4;
-        if(battery_voltage == BATTERY_38_395) battery_mask = battery_mask | BATTERY_VOLTAGE_3;
-        if(battery_voltage == BATTERY_36_38) battery_mask = battery_mask | BATTERY_VOLTAGE_2;
-        if(battery_voltage == BATTERY_33_36) battery_mask = battery_mask | BATTERY_VOLTAGE_1;
-    }
+    printf(buf);
 }
 
 
@@ -775,19 +731,16 @@ void app_main() {
         vTaskDelay(100 / portTICK_PERIOD_MS);
     };
 
-    // Do the blinkinlabs battery setup
-    check_init(&master_i2c_init, "master_i2c");
-    
-    // if ip5306 init fails, we don't have blinkinlabs board, set board level to 0
-    if(check_init(&ip5306_init, "ip5306")) global.board_level = DEVBOARD; 
+    // if power init fails, we don't have blinkinlabs board, set board level to 0
+    if(check_init(&power_init, "power")) global.board_level = DEVBOARD; 
     if(global.board_level == ALLES_BOARD_V1) {
-        TimerHandle_t ip5306_monitor_timer =xTimerCreate(
-            "ip5306_monitor",
-            pdMS_TO_TICKS(500),
+        TimerHandle_t power_monitor_timer = xTimerCreate(
+            "power_monitor",
+            pdMS_TO_TICKS(5000),
             pdTRUE,
             NULL,
-            ip5306_monitor);
-        xTimerStart(ip5306_monitor_timer, 0);
+            power_monitor);
+        xTimerStart(power_monitor_timer, 0);
     }
 
     create_multicast_ipv4_socket();
@@ -820,17 +773,18 @@ void app_main() {
     debleep();
     fill_audio_buffer(1.0);
 
-#if(ALLES_V1_BOARD)
-    // Enable the low-current shutdown mode of the battery IC.
-    // Apparently after 8s it will stop providing power from the battery
-    ip5306_auto_poweroff_enable();
-#endif
     // Stop mulitcast listening, wifi, midi
     vTaskDelete(multicast_handle);
     esp_wifi_stop();
     if(global.status & MIDI_MODE) midi_deinit();
 
-    // Go into deep_sleep
+
+    // TODO: Where did these come from? JTAG?
+    gpio_pullup_dis(14);
+    gpio_pullup_dis(15);
+
+    esp_sleep_enable_ext1_wakeup((1ULL<<BUTTON_WAKEUP),ESP_EXT1_WAKEUP_ALL_LOW);
+
     esp_deep_sleep_start();
 }
 
