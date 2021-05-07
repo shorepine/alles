@@ -42,6 +42,11 @@ extern "C" {
 #define EVENT_FIFO_LEN 400   // number of events the queue can store
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #define SAMPLE_RATE 44100    // playback sample rate
+#define SAMPLE_MAX 32767
+// D is how close the sample gets to the clip limit before the nonlinearity engages.  
+// So D=0.1 means output is linear for -0.9..0.9, then starts clipping.
+#define CLIP_D 0.1
+
 #define MAX_RECEIVE_LEN 127  // max length of each message
 #define UDP_PORT 3333        // port to listen on
 #define MULTICAST_TTL 1      // hops multicast packets can take
@@ -139,6 +144,7 @@ struct mod_event {
 struct event default_event();
 void add_event(struct event e);
 void render_task(void *core);
+void fill_audio_buffer_task();
 
 
 // Status mask 

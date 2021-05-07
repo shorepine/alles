@@ -92,7 +92,7 @@ esp_err_t buttons_init() {
     if(ret != ESP_OK)
         return ret;
 
-    if(global.board_level == ALLES_BOARD_V1) {
+    if(global.board_level == ALLES_BOARD_V2) {
         //hook isr handler for specific gpio pin
 
         ret = gpio_isr_handler_add(BUTTON_WAKEUP, gpio_isr_handler, (void*) BUTTON_WAKEUP);

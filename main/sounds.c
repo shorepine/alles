@@ -5,12 +5,40 @@
 
 // Play a sonar ping -- searching for wifi
 void wifi_tone() {
-    
+    struct event e = default_event();
+    int64_t sysclock = esp_timer_get_time() / 1000;
+    e.time = sysclock;
+    e.wave = SINE;
+    e.freq = 440;
+    e.status = SCHEDULED;
+    e.velocity = 1;
+    e.adsr_a = 10;
+    e.adsr_d = 500;
+    e.adsr_s = 0;
+    e.adsr_r = 0;
+    e.adsr_target = TARGET_AMP;
+    add_event(e);
+    e.freq = 840;
+    add_event(e);
 }
 
 // Play the "i'm going into midi mode" tone
 void midi_tone() {
-
+    struct event e = default_event();
+    int64_t sysclock = esp_timer_get_time() / 1000;
+    e.time = sysclock;
+    e.wave = SINE;
+    e.freq = 440;
+    e.status = SCHEDULED;
+    e.velocity = 1;
+    add_event(e);
+    e.time = sysclock + 150;
+    e.freq = 660;
+    add_event(e);
+    e.time = sysclock + 300;
+    e.velocity = 0;
+    e.freq = 0;
+    add_event(e);
 }
 // Schedule a bleep now
 void bleep() {

@@ -31,7 +31,7 @@ uint8_t core1 = 1;
 
 esp_err_t global_init() {
     global.next_event_write = 0;
-    global.board_level = ALLES_BOARD_V1;
+    global.board_level = ALLES_BOARD_V2;
     global.status = RUNNING;
     global.volume = 1;
     global.resonance = 0.7;
@@ -48,6 +48,7 @@ extern xQueueHandle gpio_evt_queue;
 TaskHandle_t multicast_handle = NULL;
 static TaskHandle_t renderTask0 = NULL;
 static TaskHandle_t renderTask1 = NULL;
+static TaskHandle_t fillbufferTask = NULL;
 static TaskHandle_t mainTask = NULL;
 
 
@@ -204,6 +205,7 @@ esp_err_t oscillators_init() {
     // Create a rendering thread on each core so we can deal with dan ellis float math
     xTaskCreatePinnedToCore(&render_task, "render_task_0", 4096, &core0, 1, &renderTask0, 0);
     xTaskCreatePinnedToCore(&render_task, "render_task_1", 4096, &core1, 1, &renderTask1, 1);
+    xTaskCreatePinnedToCore(&fill_audio_buffer_task, "fill_audio_buffer", 4096, NULL, 1, &fillbufferTask, 0);
     mainTask = xTaskGetCurrentTaskHandle();
 
     return ESP_OK;
@@ -406,19 +408,14 @@ void render_task(void *c) {
                 if(synth[oscillator].wave == PCM) render_pcm(fbl, oscillator);
             }
         }
-        // Tell the main task that i'm done rendering (TODO, fill_audio_buffer should be a task, not main)
-        xTaskNotifyGive(mainTask);
+        // Tell the fill buffer task that i'm done rendering
+        xTaskNotifyGive(fillbufferTask);
     }
 }
 
 // This takes scheduled events and plays them at the right time
-void fill_audio_buffer(float seconds) {
-    // if seconds < 0, just do this once, but otherwise, compute iterations
-    uint16_t iterations = 1;
-    if(seconds > 0) {
-        iterations = ((seconds * SAMPLE_RATE) / BLOCK_SIZE)+1;
-    }
-    for(uint16_t iter=0;iter<iterations;iter++) {
+void fill_audio_buffer_task() {
+    while(1) {
         // Check to see which sounds to play 
         int64_t sysclock = esp_timer_get_time() / 1000;
         
@@ -443,10 +440,6 @@ void fill_audio_buffer(float seconds) {
         ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
         ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
 
-#define SAMPLE_MAX 32767
-        // D is how close the sample gets to the clip limit before the nonlinearity engages.  
-        // So D=0.1 means output is linear for -0.9..0.9, then starts clipping.
-#define CLIP_D 0.1
         for(int16_t i=0; i < BLOCK_SIZE; ++i) {
             // Soft clipping.
             float sign = 1;
@@ -675,22 +668,35 @@ void wifi_reconfigure() {
 
 // Called when the MIDI button is hit. Toggle between MIDI on and off mode
 void toggle_midi() {
+
     if(global.status & MIDI_MODE) { 
         // just restart, easier that way
         esp_restart();
     } else {
+        printf("toggle midi1\n");
         // If button pushed before wifi connects, wait for wifi to connect.
         while(!(global.status & WIFI_MANAGER_OK)) {
             vTaskDelay(100 / portTICK_PERIOD_MS);
         }
+        printf("toggle midi2\n");
         // turn on midi
         global.status = MIDI_MODE | RUNNING;
+                printf("toggle midi3\n");
+
         // Play a MIDI sound before shutting down oscs
         midi_tone();
-        fill_audio_buffer(1.0);
+                printf("toggle midi35\n");
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+                printf("toggle midi4\n");
+        // stop rendering
+        vTaskDelete(fillbufferTask);
+
         fm_deinit(); // have to free RAM to start the BLE stack
         oscillators_deinit();
+                printf("toggle midi5\n");
         midi_init();
+                printf("toggle midi6\n");
+
     }
 }
 
@@ -701,7 +707,7 @@ void power_monitor() {
     if(ret != ESP_OK)
         return;
 
-
+    /*
     char buf[100];
     snprintf(buf, sizeof(buf),
         "powerStatus: power_source=\"%s\",charge_status=\"%s\",wall_v=%0.3f,battery_v=%0.3f\n",
@@ -713,7 +719,7 @@ void power_monitor() {
         );
 
     printf(buf);
-
+    */
     battery_mask = 0;
 
     switch(power_status.charge_status) {
@@ -741,7 +747,7 @@ void app_main() {
     check_init(&esp_event_loop_create_default, "Event");
     // if power init fails, we don't have blinkinlabs board, set board level to 0
     if(check_init(&power_init, "power")) global.board_level = DEVBOARD; 
-    if(global.board_level == ALLES_BOARD_V1) {
+    if(global.board_level == ALLES_BOARD_V2) {
         TimerHandle_t power_monitor_timer = xTimerCreate(
             "power_monitor",
             pdMS_TO_TICKS(5000),
@@ -756,11 +762,12 @@ void app_main() {
 
     wifi_manager_start();
     wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &wifi_connected);
-
     // Wait for wifi to connect
     while(!(global.status & WIFI_MANAGER_OK)) {
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        wifi_tone();
     };
+    vTaskDelay(500 / portTICK_PERIOD_MS);
 
 
 
@@ -778,21 +785,16 @@ void app_main() {
 
     // Spin this core until the power off button is pressed, parsing events and making sounds
     while(global.status & RUNNING) {
-        // Only emit sounds if MIDI is not on
-        if(!(global.status & MIDI_MODE)) {
-            fill_audio_buffer(-1); 
-        } else {
-            vTaskDelay(10 / portTICK_PERIOD_MS);
-        }
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
-    // If we got here, the power off button was pressed (long hold on power.) 
+    // If we got here, the power off button was pressed 
     // The idea here is we go into a low power deep sleep mode waiting for a GPIO pin to turn us back on
     // The battery can still charge during this, but let's turn off audio, wifi, multicast, midi 
 
     // Play a "turning off" sound
     debleep();
-    fill_audio_buffer(1.0);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
 
     // Stop mulitcast listening, wifi, midi
     vTaskDelete(multicast_handle);
