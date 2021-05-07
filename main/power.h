@@ -33,9 +33,9 @@ typedef enum {
 } power_source_t;
 
 typedef enum {
-    POWER_CHARGE_STATUS_CHARGING,           //! Battery is discharging
+    POWER_CHARGE_STATUS_CHARGING,           //! Battery is charging
     POWER_CHARGE_STATUS_CHARGED,            //! Battery is fully charged
-    POWER_CHARGE_STATUS_DISCHARGING         //! Battery is charging
+    POWER_CHARGE_STATUS_DISCHARGING         //! Battery is discharging
 } power_charge_status_t;
 
 typedef struct {

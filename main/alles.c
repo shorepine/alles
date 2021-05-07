@@ -701,8 +701,8 @@ void power_monitor() {
     if(ret != ESP_OK)
         return;
 
-    char buf[100];
 
+    char buf[100];
     snprintf(buf, sizeof(buf),
         "powerStatus: power_source=\"%s\",charge_status=\"%s\",wall_v=%0.3f,battery_v=%0.3f\n",
         (power_status.power_source == POWER_SOURCE_WALL ? "wall" : "battery"),
@@ -713,12 +713,43 @@ void power_monitor() {
         );
 
     printf(buf);
+
+    battery_mask = 0;
+
+    switch(power_status.charge_status) {
+        case POWER_CHARGE_STATUS_CHARGED:
+            battery_mask = battery_mask | BATTERY_STATE_CHARGED;
+            break;
+        case POWER_CHARGE_STATUS_CHARGING:
+            battery_mask = battery_mask | BATTERY_STATE_CHARGING;
+            break;
+        case POWER_CHARGE_STATUS_DISCHARGING:
+            battery_mask = battery_mask | BATTERY_STATE_DISCHARGING;
+            break;        
+    }
+
+    float voltage = power_status.wall_voltage/1000.0;
+    if(voltage > 3.95) battery_mask = battery_mask | BATTERY_VOLTAGE_4; else 
+    if(voltage > 3.80) battery_mask = battery_mask | BATTERY_VOLTAGE_3; else 
+    if(voltage > 3.60) battery_mask = battery_mask | BATTERY_VOLTAGE_2; else 
+    if(voltage > 3.30) battery_mask = battery_mask | BATTERY_VOLTAGE_1;
 }
 
 
 void app_main() {
     check_init(&global_init, "global state");
     check_init(&esp_event_loop_create_default, "Event");
+    // if power init fails, we don't have blinkinlabs board, set board level to 0
+    if(check_init(&power_init, "power")) global.board_level = DEVBOARD; 
+    if(global.board_level == ALLES_BOARD_V1) {
+        TimerHandle_t power_monitor_timer = xTimerCreate(
+            "power_monitor",
+            pdMS_TO_TICKS(5000),
+            pdTRUE,
+            NULL,
+            power_monitor);
+        xTimerStart(power_monitor_timer, 0);
+    }
     check_init(&setup_i2s, "i2s");
     check_init(&oscillators_init, "oscillators");
     check_init(&buttons_init, "buttons"); // only one button for the protoboard, 4 for the blinkinlabs
@@ -731,17 +762,7 @@ void app_main() {
         vTaskDelay(100 / portTICK_PERIOD_MS);
     };
 
-    // if power init fails, we don't have blinkinlabs board, set board level to 0
-    if(check_init(&power_init, "power")) global.board_level = DEVBOARD; 
-    if(global.board_level == ALLES_BOARD_V1) {
-        TimerHandle_t power_monitor_timer = xTimerCreate(
-            "power_monitor",
-            pdMS_TO_TICKS(5000),
-            pdTRUE,
-            NULL,
-            power_monitor);
-        xTimerStart(power_monitor_timer, 0);
-    }
+
 
     create_multicast_ipv4_socket();
 

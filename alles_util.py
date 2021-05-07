@@ -70,7 +70,6 @@ def decode_battery_mask(mask):
     if (mask & 0x01): state = "charging"
     if (mask & 0x02): state = "charged"
     if (mask & 0x04): state = "discharging"
-    if (mask & 0x08): state = "low"
     if (mask & 0x10): level = 4
     if (mask & 0x20): level = 3 
     if (mask & 0x40): level = 2

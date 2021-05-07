@@ -55,12 +55,9 @@ extern "C" {
 #define ALLES_BOARD_V1 1
 #define ALLES_BOARD_V2 2
 
-//#include "ip5306.h"
-//#include "master_i2c.h"
 #define BATTERY_STATE_CHARGING 0x01
 #define BATTERY_STATE_CHARGED 0x02
 #define BATTERY_STATE_DISCHARGING 0x04
-#define BATTERY_STATE_LOW 0x08
 #define BATTERY_VOLTAGE_4 0x10
 #define BATTERY_VOLTAGE_3 0x20
 #define BATTERY_VOLTAGE_2 0x40
