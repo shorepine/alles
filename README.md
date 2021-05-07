@@ -21,7 +21,7 @@ Each individual synthesizer supports:
    * triangle
    * noise
    * PCM, reading from a baked-in buffer of percussive and misc samples
-   * karplus-strong string (+ adjustable feedback)
+   * karplus-strong string with adjustable feedback (can have up to 2 per synth)
    * FM, using a DX7 simulation, with support for DX7 patches and 1000 presets 
  * Biquad low-pass filter with cutoff and resonance at the last stage
  * Oscillators can be specified by frequency in floating point or midi note 

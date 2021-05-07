@@ -3,9 +3,11 @@
 #include "impulse32_1024.h"
 #include "pcm.h"
 
-// TODO -- alloc these when needed or figure out a different way, or remove KS 
+// We only allow a couple of KS oscillators as they're RAM hogs 
 #define MAX_KS_BUFFER_LEN 802 // 44100/55  -- 55Hz (A1) lowest we can go for KS
+#define KS_OSCILLATORS 2
 float ** ks_buffer; 
+uint8_t ks_polyphony_index = 0; 
 
 
 extern struct event *synth;
@@ -325,8 +327,8 @@ void render_ks(float * buf, uint8_t oscillator) {
         uint16_t buflen = floor(SAMPLE_RATE / msynth[oscillator].freq);
         for(uint16_t i=0;i<BLOCK_SIZE;i++) {
             uint16_t index = floor(synth[oscillator].step);
-            synth[oscillator].sample = ks_buffer[oscillator][index];
-            ks_buffer[oscillator][index] = (ks_buffer[oscillator][index] + ks_buffer[oscillator][(index + 1) % buflen]) * 0.5 * synth[oscillator].feedback;
+            synth[oscillator].sample = ks_buffer[ks_polyphony_index][index];
+            ks_buffer[ks_polyphony_index][index] = (ks_buffer[ks_polyphony_index][index] + ks_buffer[ks_polyphony_index][(index + 1) % buflen]) * 0.5 * synth[oscillator].feedback;
             synth[oscillator].step = (index + 1) % buflen;
             buf[i] = buf[i] + synth[oscillator].sample * msynth[oscillator].amp;
         }
@@ -339,8 +341,10 @@ void ks_note_on(uint8_t oscillator) {
     if(buflen > MAX_KS_BUFFER_LEN) buflen = MAX_KS_BUFFER_LEN;
     // init KS buffer with noise up to max
     for(uint16_t i=0;i<buflen;i++) {
-        ks_buffer[oscillator][i] = ( (int16_t) ((esp_random() >> 16) - 32768) );
+        ks_buffer[ks_polyphony_index][i] = ( (int16_t) ((esp_random() >> 16) - 32768) );
     }
+    ks_polyphony_index++;
+    if(ks_polyphony_index == KS_OSCILLATORS) ks_polyphony_index = 0;
 }
 
 void ks_note_off(uint8_t oscillator) {
@@ -350,13 +354,12 @@ void ks_note_off(uint8_t oscillator) {
 
 void ks_init(void) {
     // 6ms buffer
-    // TODO -- i could save a lot of heap by only mallocing this when needed 
-    ks_buffer = (float**) malloc(sizeof(float*)*OSCILLATORS);
-    for(int i=0;i<OSCILLATORS;i++) ks_buffer[i] = (float*)malloc(sizeof(float)*MAX_KS_BUFFER_LEN); 
+    ks_buffer = (float**) malloc(sizeof(float*)*KS_OSCILLATORS);
+    for(int i=0;i<KS_OSCILLATORS;i++) ks_buffer[i] = (float*)malloc(sizeof(float)*MAX_KS_BUFFER_LEN); 
 }
 
 void ks_deinit(void) {
-    for(int i=0;i<OSCILLATORS;i++) free(ks_buffer[i]);
+    for(int i=0;i<KS_OSCILLATORS;i++) free(ks_buffer[i]);
     free(ks_buffer);
 }
 
