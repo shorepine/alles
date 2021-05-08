@@ -78,11 +78,11 @@ def play_patches(wait=0.500, patch_total = 100, **kwargs):
 """
     Play up to ALLES_OSCS FM patches at once
 """
-def polyphony():
+def polyphony(**kwargs):
     osc = 0
     note = 0
     while(1):
-        note_on(osc=osc, wave=FM, patch=note, note=50+note, client = -1)
+        note_on(osc=osc, **kwargs, patch=note, note=50+note, client = -1)
         time.sleep(0.5)
         osc =(osc + 1) % ALLES_OSCS
         note =(note + 1) % 24

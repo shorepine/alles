@@ -5,7 +5,7 @@
 
 // We only allow a couple of KS oscs as they're RAM hogs 
 #define MAX_KS_BUFFER_LEN 802 // 44100/55  -- 55Hz (A1) lowest we can go for KS
-#define KS_OSCS 2
+#define KS_OSCS 1
 float ** ks_buffer; 
 uint8_t ks_polyphony_index = 0; 
 

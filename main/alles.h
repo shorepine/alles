@@ -38,7 +38,7 @@ extern "C" {
 
 // Constants you can change if you want
 #define BLOCK_SIZE 64       // i2s buffer block size in samples
-#define OSCS 8            // # of simultaneous oscs to keep track of 
+#define OSCS 10            // # of simultaneous oscs to keep track of 
 #define EVENT_FIFO_LEN 400   // number of events the queue can store
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #define SAMPLE_RATE 44100    // playback sample rate
@@ -53,8 +53,8 @@ extern "C" {
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
 #define PING_TIME_MS 10000   // ms between boards pinging each other
 #define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
-//#define LINEAR_INTERP      // use linear interp for oscs
-#define CUBIC_INTERP         // use cubic interpolation for oscs
+#define LINEAR_INTERP      // use linear interp for oscs
+//#define CUBIC_INTERP         // use cubic interpolation for oscs
 
 #define DEVBOARD 0
 #define ALLES_BOARD_V1 1

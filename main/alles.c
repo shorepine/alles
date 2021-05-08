@@ -204,10 +204,13 @@ esp_err_t oscs_init() {
     }
 
     // Create a rendering thread per osc, alternating core so we can deal with dan ellis float math
+    uint8_t osc_idx[OSCS];
     for(uint8_t osc=0;osc<OSCS;osc++) {
         fbl[osc] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
-        xTaskCreatePinnedToCore(&render_task, "render_task", 4096, &osc, 1, &renderTask[osc], osc % 2);
+        osc_idx[osc] = osc;
+        xTaskCreatePinnedToCore(&render_task, "render_task", 4096, &osc_idx[osc], 1, &renderTask[osc], osc % 2);
     }
+    delay_ms(500);
     // And the fill audio buffer thread, combines, does volume & filters
     xTaskCreatePinnedToCore(&fill_audio_buffer_task, "fill_audio_buffer", 4096, NULL, 1, &fillbufferTask, 0);
 
@@ -218,55 +221,42 @@ esp_err_t oscs_init() {
     return ESP_OK;
 }
 
+uint64_t last_osc_counter[OSCS] = {0};
+uint64_t last_fill_counter = 0;
+uint64_t last_idle0_counter = 0;
+uint64_t last_idle1_counter = 0;
+
 void debug_oscs() {
-    // print out all the osc data
-    //char usage[40*16]; // 16 tasks running last i looked
-/*
-mcast_task      254348      <1
-render_task_1   20852909        49
-IDLE            19139465        45
-IDLE            21115722        49
-tiT             45785       <1
-ipc1            37825       <1
-httpd           1206        <1
-ipc0            6505        <1
-sys_evt         5842        <1
-wifi_manager    76034       <1
-esp_timer       22512       <1
-wifi            1193764     2
-render_task_0   13010973        30
-main            8950820     21
-Tmr Svc         15      <1
-gpio_task       36      <1
-*/
     // Get the run time counters for each oscillator task and so on, to show CPU usage
+    // We show usage since the last time you called this
     TaskStatus_t xTaskDetails;
     uint64_t osc_counter[OSCS];
     uint64_t total = 0;
     // Each oscillator 
     for(uint8_t osc=0;osc<OSCS;osc++) {
         vTaskGetInfo(renderTask[osc], &xTaskDetails, pdFALSE, eRunning);
-        osc_counter[osc] = xTaskDetails.ulRunTimeCounter;
+        osc_counter[osc] = xTaskDetails.ulRunTimeCounter - last_osc_counter[osc];
+        last_osc_counter[osc] = xTaskDetails.ulRunTimeCounter;
         total += osc_counter[osc];
     }
     // The global volume + filter + send to i2s thread
     vTaskGetInfo(fillbufferTask, &xTaskDetails, pdFALSE, eRunning);
-    uint64_t fill_counter = xTaskDetails.ulRunTimeCounter;
+    uint64_t fill_counter = xTaskDetails.ulRunTimeCounter - last_fill_counter;
+    last_fill_counter = xTaskDetails.ulRunTimeCounter;
     // idle for core0 and 1, "free space"
     vTaskGetInfo(idleTask0, &xTaskDetails, pdFALSE, eRunning);
-    uint64_t idle0_counter = xTaskDetails.ulRunTimeCounter;
+    uint64_t idle0_counter = xTaskDetails.ulRunTimeCounter - last_idle0_counter;
+    last_idle0_counter = xTaskDetails.ulRunTimeCounter;
     vTaskGetInfo(idleTask1, &xTaskDetails, pdFALSE, eRunning);
-    uint64_t idle1_counter = xTaskDetails.ulRunTimeCounter;
-    // The main task, parses multicast messages, sequences, etc 
-    vTaskGetInfo(mainTask, &xTaskDetails, pdFALSE, eRunning);
-    uint64_t main_counter = xTaskDetails.ulRunTimeCounter;
-    // Total -- there's still some left, like wifi, esp_timer, mcast_task, but they're small 
-    total += fill_counter + idle0_counter + idle1_counter + main_counter;
+    uint64_t idle1_counter = xTaskDetails.ulRunTimeCounter - last_idle1_counter;
+    last_idle1_counter = xTaskDetails.ulRunTimeCounter;
+
+    // Total -- there's still some left, like wifi, esp_timer, mcast_task, main, but they're small 
+    total += fill_counter + idle0_counter + idle1_counter;
     for(uint8_t osc=0;osc<OSCS;osc++) {
         printf("osc %d %2.4f%%\n", osc, ((float)osc_counter[osc] / (float)total)*100.0);
     }
     printf("fill  %2.4f%%\n", ((float)fill_counter / (float)total)*100.0);
-    printf("main  %2.4f%%\n", ((float)main_counter / (float)total)*100.0);
     printf("idle0 %2.4f%%\n", ((float)idle0_counter / (float)total)*100.0);
     printf("idle1 %2.4f%%\n", ((float)idle1_counter / (float)total)*100.0);
 
@@ -799,7 +789,6 @@ void app_main() {
     
     // Allocate the FM RAM after the captive portal HTTP server is passed, as you can't have both at once
     fm_init();
-    printf("Synth running on core %d\n", xPortGetCoreID());
 
     // Schedule a "turning on" sound
     bleep();
