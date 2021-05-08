@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// Low frequency oscillator, compatible with DX7
+// Low frequency osc, compatible with DX7
 
 class Lfo {
  public:

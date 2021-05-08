@@ -12,9 +12,9 @@ struct mod_state mglobal;
 
 // set of events for the fifo to be played
 struct event * events;
-// state per oscillator as multi-channel synthesizer that the scheduler renders into
+// state per osc as multi-channel synthesizer that the scheduler renders into
 struct event * synth;
-// envelope-modified per-oscillator state
+// envelope-modified per-osc state
 struct mod_event * msynth;
 
 // floatblock -- accumulative for mixing
@@ -66,7 +66,7 @@ struct event default_event() {
     struct event e;
     e.status = EMPTY;
     e.time = 0;
-    e.oscillator = 0;
+    e.osc = 0;
     e.step = 0;
     e.substep = 0;
     e.sample = DOWN;
@@ -103,7 +103,7 @@ void add_event(struct event e) {
         // We should drop these messages, the queue is full
         printf("queue (size %d) is full at index %d, skipping\n", EVENT_FIFO_LEN, ew);
     } else {
-        events[ew].oscillator = e.oscillator;
+        events[ew].osc = e.osc;
         events[ew].velocity = e.velocity;
         events[ew].volume = e.volume;
         events[ew].filter_freq = e.filter_freq;
@@ -136,9 +136,9 @@ void add_event(struct event e) {
     }
 }
 
-void reset_oscillator(uint8_t i ) {
+void reset_osc(uint8_t i ) {
     // set all the synth state to defaults
-    synth[i].oscillator = i; // self-reference to make updating oscillators easier
+    synth[i].osc = i; // self-reference to make updating oscs easier
     synth[i].wave = SINE;
     synth[i].duty = 0.5;
     msynth[i].duty = 0.5;
@@ -173,26 +173,26 @@ void reset_oscillator(uint8_t i ) {
     synth[i].lpf_alpha_1 = 0;
 }
 
-void reset_oscillators() {
-    for(uint8_t i=0;i<OSCILLATORS;i++) reset_oscillator(i);
+void reset_oscs() {
+    for(uint8_t i=0;i<OSCS;i++) reset_osc(i);
 }
 
 
 
 // The synth object keeps held state, whereas events are only deltas/changes
-esp_err_t oscillators_init() {
+esp_err_t oscs_init() {
     // FM init happens later for mem reason
     ks_init();
     filters_init();
     events = (struct event*) malloc(sizeof(struct event) * EVENT_FIFO_LEN);
-    synth = (struct event*) malloc(sizeof(struct event) * OSCILLATORS);
-    msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * OSCILLATORS);
+    synth = (struct event*) malloc(sizeof(struct event) * OSCS);
+    msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * OSCS);
     floatblock_c0 = (float*) malloc(sizeof(float) * BLOCK_SIZE);
     floatblock_c1 = (float*) malloc(sizeof(float) * BLOCK_SIZE);
     scratchbuf = (float*) malloc(sizeof(float) * BLOCK_SIZE);
     block = (int16_t *) malloc(sizeof(int16_t) * BLOCK_SIZE);
 
-    reset_oscillators();
+    reset_oscs();
     // Fill the FIFO with default events, as the audio thread reads from it immediately
     for(int i=0;i<EVENT_FIFO_LEN;i++) {
         // First clear out the malloc'd events so it doesn't seem like the queue is full
@@ -211,7 +211,7 @@ esp_err_t oscillators_init() {
     return ESP_OK;
 }
 
-void debug_oscillators() {
+void debug_oscs() {
     // print out all the osc data
     char usage[40*16]; // 16 tasks running last i looked
 /*
@@ -237,7 +237,7 @@ gpio_task       36      <1
     // print out all the osc data
     printf("global: filter %f resonance %f volume %f status %d\n", global.filter_freq, global.resonance, global.volume, global.status);
     printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
-    for(uint8_t i=0;i<OSCILLATORS;i++) {
+    for(uint8_t i=0;i<OSCS;i++) {
         printf("osc %d: status %d amp %f wave %d freq %f duty %f adsr_target %d lfo_target %d lfo source %d velocity %f E: %d,%d,%2.2f,%d step %f \n",
             i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].adsr_target, synth[i].lfo_target, synth[i].lfo_source, 
             synth[i].velocity, synth[i].adsr_a, synth[i].adsr_d, synth[i].adsr_s, synth[i].adsr_r, synth[i].step);
@@ -245,7 +245,7 @@ gpio_task       36      <1
             i, msynth[i].amp, msynth[i].freq, msynth[i].duty);
     }
 }
-void oscillators_deinit() {
+void oscs_deinit() {
     free(block);
     free(floatblock_c0);
     free(floatblock_c1);
@@ -289,94 +289,94 @@ esp_err_t setup_i2s(void) {
 
 // Play an event, now -- tell the audio loop to start making noise
 void play_event(struct event e) {
-    if(e.midi_note >= 0) { synth[e.oscillator].midi_note = e.midi_note; synth[e.oscillator].freq = freq_for_midi_note(e.midi_note); } 
-    if(e.wave >= 0) synth[e.oscillator].wave = e.wave;
-    if(e.phase >= 0) synth[e.oscillator].phase = e.phase;
-    if(e.patch >= 0) synth[e.oscillator].patch = e.patch;
-    if(e.duty >= 0) synth[e.oscillator].duty = e.duty;
-    if(e.feedback >= 0) synth[e.oscillator].feedback = e.feedback;
-    if(e.freq >= 0) synth[e.oscillator].freq = e.freq;
+    if(e.midi_note >= 0) { synth[e.osc].midi_note = e.midi_note; synth[e.osc].freq = freq_for_midi_note(e.midi_note); } 
+    if(e.wave >= 0) synth[e.osc].wave = e.wave;
+    if(e.phase >= 0) synth[e.osc].phase = e.phase;
+    if(e.patch >= 0) synth[e.osc].patch = e.patch;
+    if(e.duty >= 0) synth[e.osc].duty = e.duty;
+    if(e.feedback >= 0) synth[e.osc].feedback = e.feedback;
+    if(e.freq >= 0) synth[e.osc].freq = e.freq;
     
-    if(e.adsr_target >= 0) synth[e.oscillator].adsr_target = e.adsr_target;
-    if(e.adsr_a >= 0) synth[e.oscillator].adsr_a = e.adsr_a;
-    if(e.adsr_d >= 0) synth[e.oscillator].adsr_d = e.adsr_d;
-    if(e.adsr_s >= 0) synth[e.oscillator].adsr_s = e.adsr_s;
-    if(e.adsr_r >= 0) synth[e.oscillator].adsr_r = e.adsr_r;
+    if(e.adsr_target >= 0) synth[e.osc].adsr_target = e.adsr_target;
+    if(e.adsr_a >= 0) synth[e.osc].adsr_a = e.adsr_a;
+    if(e.adsr_d >= 0) synth[e.osc].adsr_d = e.adsr_d;
+    if(e.adsr_s >= 0) synth[e.osc].adsr_s = e.adsr_s;
+    if(e.adsr_r >= 0) synth[e.osc].adsr_r = e.adsr_r;
 
-    if(e.lfo_source >= 0) { synth[e.oscillator].lfo_source = e.lfo_source; synth[e.lfo_source].status = LFO_SOURCE; }
-    if(e.lfo_target >= 0) synth[e.oscillator].lfo_target = e.lfo_target;
+    if(e.lfo_source >= 0) { synth[e.osc].lfo_source = e.lfo_source; synth[e.lfo_source].status = LFO_SOURCE; }
+    if(e.lfo_target >= 0) synth[e.osc].lfo_target = e.lfo_target;
 
-    // For global changes, just make the change, no need to update the per-oscillator synth
+    // For global changes, just make the change, no need to update the per-osc synth
     if(e.volume >= 0) global.volume = e.volume; 
     if(e.filter_freq >= 0) global.filter_freq = e.filter_freq; 
     if(e.resonance >= 0) global.resonance = e.resonance; 
 
     // Triggers / envelopes 
     // The only way a sound is made is if velocity (note on) is >0.
-    if(e.velocity>0 ) { // New note on (even if something is already playing on this oscillator)
-        synth[e.oscillator].amp = e.velocity; 
-        synth[e.oscillator].velocity = e.velocity;
-        synth[e.oscillator].status = AUDIBLE;
+    if(e.velocity>0 ) { // New note on (even if something is already playing on this osc)
+        synth[e.osc].amp = e.velocity; 
+        synth[e.osc].velocity = e.velocity;
+        synth[e.osc].status = AUDIBLE;
         // Take care of FM & KS first -- no special treatment for ADSR/LFO
-        if(synth[e.oscillator].wave==FM) { fm_note_on(e.oscillator); } 
-        else if(synth[e.oscillator].wave==KS) { ks_note_on(e.oscillator); } 
+        if(synth[e.osc].wave==FM) { fm_note_on(e.osc); } 
+        else if(synth[e.osc].wave==KS) { ks_note_on(e.osc); } 
         else {
-            // an oscillator came in with a note on.
+            // an osc came in with a note on.
             // Start the ADSR clock
-            synth[e.oscillator].adsr_on_clock = esp_timer_get_time() / 1000;
+            synth[e.osc].adsr_on_clock = esp_timer_get_time() / 1000;
 
             // Restart the waveforms, adjusting for phase if given
-            if(synth[e.oscillator].wave==SINE) sine_note_on(e.oscillator);
-            if(synth[e.oscillator].wave==SAW) saw_note_on(e.oscillator);
-            if(synth[e.oscillator].wave==TRIANGLE) triangle_note_on(e.oscillator);
-            if(synth[e.oscillator].wave==PULSE) pulse_note_on(e.oscillator);
-            if(synth[e.oscillator].wave==PCM) pcm_note_on(e.oscillator);
+            if(synth[e.osc].wave==SINE) sine_note_on(e.osc);
+            if(synth[e.osc].wave==SAW) saw_note_on(e.osc);
+            if(synth[e.osc].wave==TRIANGLE) triangle_note_on(e.osc);
+            if(synth[e.osc].wave==PULSE) pulse_note_on(e.osc);
+            if(synth[e.osc].wave==PCM) pcm_note_on(e.osc);
 
             // Also trigger the LFO source, if we have one
-            if(synth[e.oscillator].lfo_source >= 0) {
-                if(synth[synth[e.oscillator].lfo_source].wave==SINE) sine_lfo_trigger(synth[e.oscillator].lfo_source);
-                if(synth[synth[e.oscillator].lfo_source].wave==SAW) saw_lfo_trigger(synth[e.oscillator].lfo_source);
-                if(synth[synth[e.oscillator].lfo_source].wave==TRIANGLE) triangle_lfo_trigger(synth[e.oscillator].lfo_source);
-                if(synth[synth[e.oscillator].lfo_source].wave==PULSE) pulse_lfo_trigger(synth[e.oscillator].lfo_source);
-                if(synth[synth[e.oscillator].lfo_source].wave==PCM) pcm_lfo_trigger(synth[e.oscillator].lfo_source);
+            if(synth[e.osc].lfo_source >= 0) {
+                if(synth[synth[e.osc].lfo_source].wave==SINE) sine_lfo_trigger(synth[e.osc].lfo_source);
+                if(synth[synth[e.osc].lfo_source].wave==SAW) saw_lfo_trigger(synth[e.osc].lfo_source);
+                if(synth[synth[e.osc].lfo_source].wave==TRIANGLE) triangle_lfo_trigger(synth[e.osc].lfo_source);
+                if(synth[synth[e.osc].lfo_source].wave==PULSE) pulse_lfo_trigger(synth[e.osc].lfo_source);
+                if(synth[synth[e.osc].lfo_source].wave==PCM) pcm_lfo_trigger(synth[e.osc].lfo_source);
             }
 
         }
-    } else if(synth[e.oscillator].velocity > 0 && e.velocity == 0) { // new note off
-        synth[e.oscillator].velocity = e.velocity;
-        if(synth[e.oscillator].wave==FM) { fm_note_off(e.oscillator); }
-        else if(synth[e.oscillator].wave==KS) { ks_note_off(e.oscillator); }
+    } else if(synth[e.osc].velocity > 0 && e.velocity == 0) { // new note off
+        synth[e.osc].velocity = e.velocity;
+        if(synth[e.osc].wave==FM) { fm_note_off(e.osc); }
+        else if(synth[e.osc].wave==KS) { ks_note_off(e.osc); }
         else {
             // osc note off, start release
-            synth[e.oscillator].adsr_on_clock = -1;
-            synth[e.oscillator].adsr_off_clock = esp_timer_get_time() / 1000;
+            synth[e.osc].adsr_on_clock = -1;
+            synth[e.osc].adsr_off_clock = esp_timer_get_time() / 1000;
         }
     }
 
 }
 
-// Apply an LFO & ADSR, if any, to the oscillator
-void hold_and_modify(uint8_t oscillator) {
+// Apply an LFO & ADSR, if any, to the osc
+void hold_and_modify(uint8_t osc) {
     // Copy all the modifier variables
-    msynth[oscillator].amp = synth[oscillator].amp;
-    msynth[oscillator].duty = synth[oscillator].duty;
-    msynth[oscillator].freq = synth[oscillator].freq;
+    msynth[osc].amp = synth[osc].amp;
+    msynth[osc].duty = synth[osc].duty;
+    msynth[osc].freq = synth[osc].freq;
 
     // Modify the synth params by scale -- ADSR scale is (original * scale)
-    float scale = compute_adsr_scale(oscillator);
-    if(synth[oscillator].adsr_target & TARGET_AMP) msynth[oscillator].amp = msynth[oscillator].amp * scale;
-    if(synth[oscillator].adsr_target & TARGET_DUTY) msynth[oscillator].duty = msynth[oscillator].duty * scale;
-    if(synth[oscillator].adsr_target & TARGET_FREQ) msynth[oscillator].freq = msynth[oscillator].freq * scale;
-    if(synth[oscillator].adsr_target & TARGET_FILTER_FREQ) mglobal.filter_freq = (mglobal.filter_freq * scale);
-    if(synth[oscillator].adsr_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
+    float scale = compute_adsr_scale(osc);
+    if(synth[osc].adsr_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp * scale;
+    if(synth[osc].adsr_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty * scale;
+    if(synth[osc].adsr_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq * scale;
+    if(synth[osc].adsr_target & TARGET_FILTER_FREQ) mglobal.filter_freq = (mglobal.filter_freq * scale);
+    if(synth[osc].adsr_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
 
     // And the LFO -- LFO scale is (original + (original * scale))
-    scale = compute_lfo_scale(oscillator);
-    if(synth[oscillator].lfo_target & TARGET_AMP) msynth[oscillator].amp = msynth[oscillator].amp + (msynth[oscillator].amp * scale);
-    if(synth[oscillator].lfo_target & TARGET_DUTY) msynth[oscillator].duty = msynth[oscillator].duty + (msynth[oscillator].duty * scale);
-    if(synth[oscillator].lfo_target & TARGET_FREQ) msynth[oscillator].freq = msynth[oscillator].freq + (msynth[oscillator].freq * scale);
-    if(synth[oscillator].lfo_target & TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq + (mglobal.filter_freq * scale);
-    if(synth[oscillator].lfo_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance + (mglobal.resonance * scale);
+    scale = compute_lfo_scale(osc);
+    if(synth[osc].lfo_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp + (msynth[osc].amp * scale);
+    if(synth[osc].lfo_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty + (msynth[osc].duty * scale);
+    if(synth[osc].lfo_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq + (msynth[osc].freq * scale);
+    if(synth[osc].lfo_target & TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq + (mglobal.filter_freq * scale);
+    if(synth[osc].lfo_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance + (mglobal.resonance * scale);
 }
 
 
@@ -385,27 +385,27 @@ void render_task(void *c) {
     uint8_t start, end;
     float *fbl = NULL;
     if(core==0) { 
-        start = 0; end = OSCILLATORS / 2; 
+        start = 0; end = OSCS / 2; 
         fbl = floatblock_c0; 
     }
     if(core==1) {
-        start = OSCILLATORS /2; end = OSCILLATORS; 
+        start = OSCS /2; end = OSCS; 
         fbl = floatblock_c1; 
     }
     while(1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         for(uint16_t i=0;i<BLOCK_SIZE;i++) fbl[i] = 0; 
-        for(uint8_t oscillator=start;oscillator<end;oscillator++) {
-            if(synth[oscillator].status==AUDIBLE) { // skip oscs that are silent or LFO sources from playback
-                hold_and_modify(oscillator); // apply ADSR / LFO
-                if(synth[oscillator].wave == FM) render_fm(fbl, oscillator);
-                if(synth[oscillator].wave == NOISE) render_noise(fbl, oscillator);
-                if(synth[oscillator].wave == SAW) render_saw(fbl, oscillator);
-                if(synth[oscillator].wave == PULSE) render_pulse(fbl, oscillator);
-                if(synth[oscillator].wave == TRIANGLE) render_triangle(fbl, oscillator);
-                if(synth[oscillator].wave == SINE) render_sine(fbl, oscillator);
-                if(synth[oscillator].wave == KS) render_ks(fbl, oscillator);
-                if(synth[oscillator].wave == PCM) render_pcm(fbl, oscillator);
+        for(uint8_t osc=start;osc<end;osc++) {
+            if(synth[osc].status==AUDIBLE) { // skip oscs that are silent or LFO sources from playback
+                hold_and_modify(osc); // apply ADSR / LFO
+                if(synth[osc].wave == FM) render_fm(fbl, osc);
+                if(synth[osc].wave == NOISE) render_noise(fbl, osc);
+                if(synth[osc].wave == SAW) render_saw(fbl, osc);
+                if(synth[osc].wave == PULSE) render_pulse(fbl, osc);
+                if(synth[osc].wave == TRIANGLE) render_triangle(fbl, osc);
+                if(synth[osc].wave == SINE) render_sine(fbl, osc);
+                if(synth[osc].wave == KS) render_ks(fbl, osc);
+                if(synth[osc].wave == PCM) render_pcm(fbl, osc);
             }
         }
         // Tell the fill buffer task that i'm done rendering
@@ -541,7 +541,7 @@ uint8_t deserialize_event(char * message, uint16_t length) {
             if(mode=='b') e.feedback=atof(message+start);
             if(mode=='c') client = atoi(message + start); 
             if(mode=='d') e.duty=atof(message + start);
-            if(mode=='D') debug_oscillators(); 
+            if(mode=='D') debug_oscs(); 
             // reminder: don't use "E" or "e", lol 
             if(mode=='f') e.freq=atof(message + start); 
             if(mode=='F') e.filter_freq=atof(message + start);
@@ -556,11 +556,11 @@ uint8_t deserialize_event(char * message, uint16_t length) {
             if(mode=='R') e.resonance=atof(message + start);
             if(mode=='s') sync = atol(message + start); 
             if(mode=='S') { 
-                uint8_t oscillator = atoi(message + start); 
-                if(oscillator > OSCILLATORS-1) { reset_oscillators(); } else { reset_oscillator(oscillator); }
+                uint8_t osc = atoi(message + start); 
+                if(osc > OSCS-1) { reset_oscs(); } else { reset_osc(osc); }
             }
             if(mode=='T') e.adsr_target = atoi(message + start); 
-            if(mode=='v') e.oscillator=(atoi(message + start) % OSCILLATORS); // allow osc wraparound
+            if(mode=='v') e.osc=(atoi(message + start) % OSCS); // allow osc wraparound
             if(mode=='V') { e.volume = atof(message + start); }
             if(mode=='w') e.wave=atoi(message + start);
             mode=b;
@@ -686,7 +686,7 @@ void toggle_midi() {
         vTaskDelete(fillbufferTask);
 
         fm_deinit(); // have to free RAM to start the BLE stack
-        oscillators_deinit();
+        oscs_deinit();
         midi_init();
     }
 }
@@ -748,7 +748,7 @@ void app_main() {
         xTimerStart(power_monitor_timer, 0);
     }
     check_init(&setup_i2s, "i2s");
-    check_init(&oscillators_init, "oscillators");
+    check_init(&oscs_init, "oscs");
     check_init(&buttons_init, "buttons"); // only one button for the protoboard, 4 for the blinkinlabs
 
     wifi_manager_start();
@@ -759,7 +759,7 @@ void app_main() {
         wifi_tone();
     };
     vTaskDelay(500 / portTICK_PERIOD_MS);
-    reset_oscillators();
+    reset_oscs();
 
 
     create_multicast_ipv4_socket();

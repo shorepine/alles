@@ -18,12 +18,12 @@ extern "C" {
     #include "alles.h"
 }
 
-// One note/controller object per oscillator
-Dx7Note note[OSCILLATORS];
-Controllers controllers[OSCILLATORS];
+// One note/controller object per osc
+Dx7Note note[OSCS];
+Controllers controllers[OSCS];
 extern struct event *synth;
 
-extern "C" void render_fm(float * buf, uint8_t oscillator) {
+extern "C" void render_fm(float * buf, uint8_t osc) {
     int32_t int32_t_buf[N];
     uint16_t rounds = BLOCK_SIZE / N;
     uint16_t count = 0;
@@ -34,7 +34,7 @@ extern "C" void render_fm(float * buf, uint8_t oscillator) {
         // Important -- clear out this first -- note.compute is accumulative
         for(int j=0;j<N;j++) int32_t_buf[j] = 0;
 
-        note[oscillator].compute(int32_t_buf, 0, 0, &controllers[oscillator]);
+        note[osc].compute(int32_t_buf, 0, 0, &controllers[osc]);
 
         // Now make an int32 an int16_t, and put it in buf, this is from their wav writer
         int32_t delta = 0x100;
@@ -42,26 +42,26 @@ extern "C" void render_fm(float * buf, uint8_t oscillator) {
             int32_t val = int32_t_buf[j] >> 3;
             int clip_val = val < -(1 << 24) ? 0x8000 : (val >= (1 << 24) ? 0x7fff : (val + delta) >> 9);
             delta = (delta + val) & 0x1ff;
-            buf[count] = buf[count] + clip_val * synth[oscillator].amp;
+            buf[count] = buf[count] + clip_val * synth[osc].amp;
             count++;
         }
     }
 }
 
-extern "C" void fm_note_on(uint8_t oscillator) {
+extern "C" void fm_note_on(uint8_t osc) {
     // If MIDI note was set manually, use it instead of the freq conversion
-    int16_t patch = synth[oscillator].patch;
+    int16_t patch = synth[osc].patch;
     if(patch < 0) patch = 0; // if default patch not changed
-    if(synth[oscillator].midi_note>0) {
-        note[oscillator].init(patches+(patch*156), synth[oscillator].midi_note, 100); 
+    if(synth[osc].midi_note>0) {
+        note[osc].init(patches+(patch*156), synth[osc].midi_note, 100); 
     } else {
-        note[oscillator].init_with_freq(patches+(patch*156), synth[oscillator].freq, 100);
+        note[osc].init_with_freq(patches+(patch*156), synth[osc].freq, 100);
     }
-    controllers[oscillator].values_[kControllerPitch] = 0x2000; // pitch wheel
+    controllers[osc].values_[kControllerPitch] = 0x2000; // pitch wheel
 }
 
-extern "C" void fm_note_off(uint8_t oscillator) {
-    note[oscillator].keyup();
+extern "C" void fm_note_off(uint8_t osc) {
+    note[osc].keyup();
 }
 
 extern "C" void fm_init(void) {

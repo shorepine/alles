@@ -38,7 +38,7 @@ extern "C" {
 
 // Constants you can change if you want
 #define BLOCK_SIZE 64       // i2s buffer block size in samples
-#define OSCILLATORS 8            // # of simultaneous oscillators to keep track of 
+#define OSCS 8            // # of simultaneous oscs to keep track of 
 #define EVENT_FIFO_LEN 400   // number of events the queue can store
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #define SAMPLE_RATE 44100    // playback sample rate
@@ -53,8 +53,8 @@ extern "C" {
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
 #define PING_TIME_MS 10000   // ms between boards pinging each other
 #define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
-//#define LINEAR_INTERP      // use linear interp for oscillators
-#define CUBIC_INTERP         // use cubic interpolation for oscillators
+//#define LINEAR_INTERP      // use linear interp for oscs
+#define CUBIC_INTERP         // use cubic interpolation for oscs
 
 #define DEVBOARD 0
 #define ALLES_BOARD_V1 1
@@ -100,7 +100,7 @@ extern "C" {
 // Events
 struct event {
     int64_t time;
-    int16_t oscillator;
+    int16_t osc;
     int16_t wave;
     int16_t patch;
     int16_t midi_note;
@@ -126,7 +126,7 @@ struct event {
     int16_t adsr_d;
     float adsr_s;
     int16_t adsr_r;
-    // State variables for the impulse-integrating oscillators.
+    // State variables for the impulse-integrating oscs.
     float lpf_state[2];
     // Decay alpha of LPF filter (e.g. 0.99 or 0.999).
     float lpf_alpha;
@@ -198,43 +198,43 @@ extern int16_t client_id;
 // FM 
 extern void fm_init();
 extern void fm_deinit();
-extern void render_fm(float * buf, uint8_t oscillator); 
-extern void fm_note_on(uint8_t oscillator);
-extern void fm_note_off(uint8_t oscillator);
+extern void render_fm(float * buf, uint8_t osc); 
+extern void fm_note_on(uint8_t osc);
+extern void fm_note_off(uint8_t osc);
 
 
-// bandlimted oscillators
+// bandlimted oscs
 extern void ks_init();
 extern void ks_deinit();
 
-extern void render_ks(float * buf, uint8_t oscillator); 
-extern void render_sine(float * buf, uint8_t oscillator); 
-extern void render_pulse(float * buf, uint8_t oscillator); 
-extern void render_saw(float * buf, uint8_t oscillator); 
-extern void render_triangle(float * buf, uint8_t oscillator); 
-extern void render_noise(float * buf, uint8_t oscillator); 
-extern void render_pcm(float * buf, uint8_t oscillator);
+extern void render_ks(float * buf, uint8_t osc); 
+extern void render_sine(float * buf, uint8_t osc); 
+extern void render_pulse(float * buf, uint8_t osc); 
+extern void render_saw(float * buf, uint8_t osc); 
+extern void render_triangle(float * buf, uint8_t osc); 
+extern void render_noise(float * buf, uint8_t osc); 
+extern void render_pcm(float * buf, uint8_t osc);
 
-extern float compute_lfo_pulse(uint8_t oscillator);
-extern float compute_lfo_noise(uint8_t oscillator);
-extern float compute_lfo_sine(uint8_t oscillator);
-extern float compute_lfo_saw(uint8_t oscillator);
-extern float compute_lfo_triangle(uint8_t oscillator);
-extern float compute_lfo_pcm(uint8_t oscillator);
+extern float compute_lfo_pulse(uint8_t osc);
+extern float compute_lfo_noise(uint8_t osc);
+extern float compute_lfo_sine(uint8_t osc);
+extern float compute_lfo_saw(uint8_t osc);
+extern float compute_lfo_triangle(uint8_t osc);
+extern float compute_lfo_pcm(uint8_t osc);
 
-extern void ks_note_on(uint8_t oscillator); 
-extern void ks_note_off(uint8_t oscillator);
-extern void sine_note_on(uint8_t oscillator); 
-extern void saw_note_on(uint8_t oscillator); 
-extern void triangle_note_on(uint8_t oscillator); 
-extern void pulse_note_on(uint8_t oscillator); 
-extern void pcm_note_on(uint8_t oscillator);
+extern void ks_note_on(uint8_t osc); 
+extern void ks_note_off(uint8_t osc);
+extern void sine_note_on(uint8_t osc); 
+extern void saw_note_on(uint8_t osc); 
+extern void triangle_note_on(uint8_t osc); 
+extern void pulse_note_on(uint8_t osc); 
+extern void pcm_note_on(uint8_t osc);
 
-extern void sine_lfo_trigger(uint8_t oscillator);
-extern void saw_lfo_trigger(uint8_t oscillator);
-extern void triangle_lfo_trigger(uint8_t oscillator);
-extern void pulse_lfo_trigger(uint8_t oscillator);
-extern void pcm_lfo_trigger(uint8_t oscillator);
+extern void sine_lfo_trigger(uint8_t osc);
+extern void saw_lfo_trigger(uint8_t osc);
+extern void triangle_lfo_trigger(uint8_t osc);
+extern void pulse_lfo_trigger(uint8_t osc);
+extern void pcm_lfo_trigger(uint8_t osc);
 
 
 
@@ -246,9 +246,9 @@ extern void filter_update();
 extern void filter_process_ints(int16_t * block);
 
 // envelopes
-extern float compute_adsr_scale(uint8_t oscillator);
-extern float compute_lfo_scale(uint8_t oscillator);
-extern void retrigger_lfo_source(uint8_t oscillator);
+extern float compute_adsr_scale(uint8_t osc);
+extern float compute_lfo_scale(uint8_t osc);
+extern void retrigger_lfo_source(uint8_t osc);
 
 // MIDI
 extern void midi_init();
