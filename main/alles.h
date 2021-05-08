@@ -145,7 +145,7 @@ struct event default_event();
 void add_event(struct event e);
 void render_task(void *core);
 void fill_audio_buffer_task();
-
+void delay_ms(uint32_t ms);
 
 // Status mask 
 #define RUNNING 1

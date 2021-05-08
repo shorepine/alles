@@ -28,6 +28,9 @@ int16_t * block;
 uint8_t core0 = 0;
 uint8_t core1 = 1;
 
+void delay_ms(uint32_t ms) {
+    vTaskDelay(ms / portTICK_PERIOD_MS);
+}
 
 esp_err_t global_init() {
     global.next_event_write = 0;
@@ -659,8 +662,7 @@ void wifi_reconfigure() {
     }
 
     wifi_manager_save_sta_config();
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-
+    delay_ms(100);
     esp_restart();
 }
 
@@ -675,13 +677,13 @@ void toggle_midi() {
     } else {
         // If button pushed before wifi connects, wait for wifi to connect.
         while(!(global.status & WIFI_MANAGER_OK)) {
-            vTaskDelay(100 / portTICK_PERIOD_MS);
+            delay_ms(100);
         }
         // turn on midi
         global.status = MIDI_MODE | RUNNING;
         // Play a MIDI sound before shutting down oscs
         midi_tone();
-        vTaskDelay(500 / portTICK_PERIOD_MS);
+        delay_ms(500);
         // stop rendering
         vTaskDelete(fillbufferTask);
 
@@ -755,10 +757,10 @@ void app_main() {
     wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &wifi_connected);
     // Wait for wifi to connect
     while(!(global.status & WIFI_MANAGER_OK)) {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        delay_ms(1000);
         wifi_tone();
     };
-    vTaskDelay(500 / portTICK_PERIOD_MS);
+    delay_ms(500);
     reset_oscs();
 
 
@@ -776,7 +778,7 @@ void app_main() {
 
     // Spin this core until the power off button is pressed, parsing events and making sounds
     while(global.status & RUNNING) {
-        vTaskDelay(10 / portTICK_PERIOD_MS);
+        delay_ms(10);
     }
 
     // If we got here, the power off button was pressed 
@@ -785,7 +787,7 @@ void app_main() {
 
     // Play a "turning off" sound
     debleep();
-    vTaskDelay(500 / portTICK_PERIOD_MS);
+    delay_ms(500);
 
     // Stop mulitcast listening, wifi, midi
     vTaskDelete(multicast_handle);

@@ -53,7 +53,7 @@ static void gpio_task(void* arg) {
             }
 
             // Ignore any other button presses that come in for the next 100ms
-            vTaskDelay(100/portTICK_PERIOD_MS);
+            delay_ms(100);
             xQueueReset(gpio_evt_queue);
         }
     }
