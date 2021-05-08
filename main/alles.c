@@ -17,16 +17,14 @@ struct event * synth;
 // envelope-modified per-osc state
 struct mod_event * msynth;
 
-// floatblock -- accumulative for mixing
-float * floatblock_c0;
-float * floatblock_c1;
+// One floatblock per osc, added up later
+float ** fbl;
+
 // A second floatblock for independently generating e.g. triangle.
 // This can be used within a given render_* function as scratch space.
 float * scratchbuf;
 // block -- what gets sent to the DAC -- -32768...32767 (wave file, int16 LE)
 int16_t * block;
-uint8_t core0 = 0;
-uint8_t core1 = 1;
 
 void delay_ms(uint32_t ms) {
     vTaskDelay(ms / portTICK_PERIOD_MS);
@@ -49,10 +47,11 @@ extern xQueueHandle gpio_evt_queue;
 
 // Task handles for the renderers, multicast listener and main
 TaskHandle_t multicast_handle = NULL;
-static TaskHandle_t renderTask0 = NULL;
-static TaskHandle_t renderTask1 = NULL;
+static TaskHandle_t renderTask[OSCS];
 static TaskHandle_t fillbufferTask = NULL;
 static TaskHandle_t mainTask = NULL;
+static TaskHandle_t idleTask0 = NULL;
+static TaskHandle_t idleTask1 = NULL;
 
 
 // Battery status for V2 board. If no v2 board, will stay at 0
@@ -190,8 +189,7 @@ esp_err_t oscs_init() {
     events = (struct event*) malloc(sizeof(struct event) * EVENT_FIFO_LEN);
     synth = (struct event*) malloc(sizeof(struct event) * OSCS);
     msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * OSCS);
-    floatblock_c0 = (float*) malloc(sizeof(float) * BLOCK_SIZE);
-    floatblock_c1 = (float*) malloc(sizeof(float) * BLOCK_SIZE);
+    fbl = (float**) malloc(sizeof(float*) * OSCS);
     scratchbuf = (float*) malloc(sizeof(float) * BLOCK_SIZE);
     block = (int16_t *) malloc(sizeof(int16_t) * BLOCK_SIZE);
 
@@ -205,18 +203,24 @@ esp_err_t oscs_init() {
         add_event(default_event());
     }
 
-    // Create a rendering thread on each core so we can deal with dan ellis float math
-    xTaskCreatePinnedToCore(&render_task, "render_task_0", 4096, &core0, 1, &renderTask0, 0);
-    xTaskCreatePinnedToCore(&render_task, "render_task_1", 4096, &core1, 1, &renderTask1, 1);
+    // Create a rendering thread per osc, alternating core so we can deal with dan ellis float math
+    for(uint8_t osc=0;osc<OSCS;osc++) {
+        fbl[osc] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
+        xTaskCreatePinnedToCore(&render_task, "render_task", 4096, &osc, 1, &renderTask[osc], osc % 2);
+    }
+    // And the fill audio buffer thread, combines, does volume & filters
     xTaskCreatePinnedToCore(&fill_audio_buffer_task, "fill_audio_buffer", 4096, NULL, 1, &fillbufferTask, 0);
-    mainTask = xTaskGetCurrentTaskHandle();
 
+    // Grab the main task and idle handles while we're here
+    mainTask = xTaskGetCurrentTaskHandle();
+    idleTask0 = xTaskGetIdleTaskHandleForCPU(0);
+    idleTask1 = xTaskGetIdleTaskHandleForCPU(1);
     return ESP_OK;
 }
 
 void debug_oscs() {
     // print out all the osc data
-    char usage[40*16]; // 16 tasks running last i looked
+    //char usage[40*16]; // 16 tasks running last i looked
 /*
 mcast_task      254348      <1
 render_task_1   20852909        49
@@ -235,8 +239,40 @@ main            8950820     21
 Tmr Svc         15      <1
 gpio_task       36      <1
 */
-    vTaskGetRunTimeStats(usage);
-    printf(usage);
+    // Get the run time counters for each oscillator task and so on, to show CPU usage
+    TaskStatus_t xTaskDetails;
+    uint64_t osc_counter[OSCS];
+    uint64_t total = 0;
+    // Each oscillator 
+    for(uint8_t osc=0;osc<OSCS;osc++) {
+        vTaskGetInfo(renderTask[osc], &xTaskDetails, pdFALSE, eRunning);
+        osc_counter[osc] = xTaskDetails.ulRunTimeCounter;
+        total += osc_counter[osc];
+    }
+    // The global volume + filter + send to i2s thread
+    vTaskGetInfo(fillbufferTask, &xTaskDetails, pdFALSE, eRunning);
+    uint64_t fill_counter = xTaskDetails.ulRunTimeCounter;
+    // idle for core0 and 1, "free space"
+    vTaskGetInfo(idleTask0, &xTaskDetails, pdFALSE, eRunning);
+    uint64_t idle0_counter = xTaskDetails.ulRunTimeCounter;
+    vTaskGetInfo(idleTask1, &xTaskDetails, pdFALSE, eRunning);
+    uint64_t idle1_counter = xTaskDetails.ulRunTimeCounter;
+    // The main task, parses multicast messages, sequences, etc 
+    vTaskGetInfo(mainTask, &xTaskDetails, pdFALSE, eRunning);
+    uint64_t main_counter = xTaskDetails.ulRunTimeCounter;
+    // Total -- there's still some left, like wifi, esp_timer, mcast_task, but they're small 
+    total += fill_counter + idle0_counter + idle1_counter + main_counter;
+    for(uint8_t osc=0;osc<OSCS;osc++) {
+        printf("osc %d %2.4f%%\n", osc, ((float)osc_counter[osc] / (float)total)*100.0);
+    }
+    printf("fill  %2.4f%%\n", ((float)fill_counter / (float)total)*100.0);
+    printf("main  %2.4f%%\n", ((float)main_counter / (float)total)*100.0);
+    printf("idle0 %2.4f%%\n", ((float)idle0_counter / (float)total)*100.0);
+    printf("idle1 %2.4f%%\n", ((float)idle1_counter / (float)total)*100.0);
+
+
+    //vTaskGetRunTimeStats(usage);
+    //printf(usage);
     // print out all the osc data
     printf("global: filter %f resonance %f volume %f status %d\n", global.filter_freq, global.resonance, global.volume, global.status);
     printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
@@ -250,8 +286,10 @@ gpio_task       36      <1
 }
 void oscs_deinit() {
     free(block);
-    free(floatblock_c0);
-    free(floatblock_c1);
+    for(uint8_t osc=0;osc<OSCS;osc++) free(fbl[osc]); 
+    free(fbl);
+    //free(floatblock_c0);
+    //free(floatblock_c1);
     free(synth);
     free(msynth);
     free(events);
@@ -383,33 +421,21 @@ void hold_and_modify(uint8_t osc) {
 }
 
 
-void render_task(void *c) {
-    uint8_t core = *(uint8_t*)c;
-    uint8_t start, end;
-    float *fbl = NULL;
-    if(core==0) { 
-        start = 0; end = OSCS / 2; 
-        fbl = floatblock_c0; 
-    }
-    if(core==1) {
-        start = OSCS /2; end = OSCS; 
-        fbl = floatblock_c1; 
-    }
+void render_task(void *o) {
+    uint8_t osc = *(uint8_t*)o;
     while(1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        for(uint16_t i=0;i<BLOCK_SIZE;i++) fbl[i] = 0; 
-        for(uint8_t osc=start;osc<end;osc++) {
-            if(synth[osc].status==AUDIBLE) { // skip oscs that are silent or LFO sources from playback
-                hold_and_modify(osc); // apply ADSR / LFO
-                if(synth[osc].wave == FM) render_fm(fbl, osc);
-                if(synth[osc].wave == NOISE) render_noise(fbl, osc);
-                if(synth[osc].wave == SAW) render_saw(fbl, osc);
-                if(synth[osc].wave == PULSE) render_pulse(fbl, osc);
-                if(synth[osc].wave == TRIANGLE) render_triangle(fbl, osc);
-                if(synth[osc].wave == SINE) render_sine(fbl, osc);
-                if(synth[osc].wave == KS) render_ks(fbl, osc);
-                if(synth[osc].wave == PCM) render_pcm(fbl, osc);
-            }
+        for(uint16_t i=0;i<BLOCK_SIZE;i++) fbl[osc][i] = 0; 
+        if(synth[osc].status==AUDIBLE) { // skip oscs that are silent or LFO sources from playback
+            hold_and_modify(osc); // apply ADSR / LFO
+            if(synth[osc].wave == FM) render_fm(fbl[osc], osc);
+            if(synth[osc].wave == NOISE) render_noise(fbl[osc], osc);
+            if(synth[osc].wave == SAW) render_saw(fbl[osc], osc);
+            if(synth[osc].wave == PULSE) render_pulse(fbl[osc], osc);
+            if(synth[osc].wave == TRIANGLE) render_triangle(fbl[osc], osc);
+            if(synth[osc].wave == SINE) render_sine(fbl[osc], osc);
+            if(synth[osc].wave == KS) render_ks(fbl[osc], osc);
+            if(synth[osc].wave == PCM) render_pcm(fbl[osc], osc);
         }
         // Tell the fill buffer task that i'm done rendering
         xTaskNotifyGive(fillbufferTask);
@@ -437,16 +463,18 @@ void fill_audio_buffer_task() {
         mglobal.filter_freq = global.filter_freq;
 
         // Tell the two rendering threads to start rendering
-        xTaskNotifyGive(renderTask0);
-        xTaskNotifyGive(renderTask1);
+        for(uint8_t osc=0;osc<OSCS;osc++) xTaskNotifyGive(renderTask[osc]);
         // And wait for each of them to come back
-        ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
-        ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+        for(uint8_t osc=0;osc<OSCS;osc++) ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
 
         for(int16_t i=0; i < BLOCK_SIZE; ++i) {
             // Soft clipping.
-            float sign = 1;
-            float fsample = floatblock_c0[i] + floatblock_c1[i];
+            float sign = 1; 
+
+            // Mix all the oscillator buffers into one
+            float fsample = 0;
+            for(uint8_t osc=0;osc<OSCS;osc++) fsample += fbl[osc][i];
+
             if (fsample < 0) sign = -1;  // sign  = sign(floatblock[i]);
             // Global volume is supposed to max out at 10, so scale by 0.1.
             float val = fabs(0.1 * global.volume * fsample / ((float)SAMPLE_MAX));
