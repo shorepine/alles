@@ -673,30 +673,21 @@ void toggle_midi() {
         // just restart, easier that way
         esp_restart();
     } else {
-        printf("toggle midi1\n");
         // If button pushed before wifi connects, wait for wifi to connect.
         while(!(global.status & WIFI_MANAGER_OK)) {
             vTaskDelay(100 / portTICK_PERIOD_MS);
         }
-        printf("toggle midi2\n");
         // turn on midi
         global.status = MIDI_MODE | RUNNING;
-                printf("toggle midi3\n");
-
         // Play a MIDI sound before shutting down oscs
         midi_tone();
-                printf("toggle midi35\n");
         vTaskDelay(500 / portTICK_PERIOD_MS);
-                printf("toggle midi4\n");
         // stop rendering
         vTaskDelete(fillbufferTask);
 
         fm_deinit(); // have to free RAM to start the BLE stack
         oscillators_deinit();
-                printf("toggle midi5\n");
         midi_init();
-                printf("toggle midi6\n");
-
     }
 }
 
@@ -768,7 +759,7 @@ void app_main() {
         wifi_tone();
     };
     vTaskDelay(500 / portTICK_PERIOD_MS);
-
+    reset_oscillators();
 
 
     create_multicast_ipv4_socket();
