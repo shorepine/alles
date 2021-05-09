@@ -38,7 +38,7 @@ extern "C" {
 
 // Constants you can change if you want
 #define RENDERING_TASKS 2   // how many rendering tasks to use, OSCS % RENDERING_TASKS must == 0 
-#define OSCS 10              // # of simultaneous oscs to keep track of 
+#define OSCS 28              // # of simultaneous oscs to keep track of 
 #define BLOCK_SIZE 64        // i2s buffer block size in samples
 #define EVENT_FIFO_LEN 400   // number of events the queue can store
 #define LATENCY_MS 1000      // fixed latency in milliseconds

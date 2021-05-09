@@ -3,7 +3,7 @@ from alles_util import send, sync, lowpass, volume, note_on, note_off, reset, co
 import time
 
 # Some constants shared with the synth that help
-ALLES_OSCS = 8
+ALLES_OSCS = 28
 [SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, PCM, OFF] = range(9)
 TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE = (1, 2, 4, 8, 16)
 
@@ -76,16 +76,16 @@ def play_patches(wait=0.500, patch_total = 100, **kwargs):
             note_off(osc=i % ALLES_OSCS)
 
 """
-    Play up to ALLES_OSCS FM patches at once
+    Play up to ALLES_OSCS patches at once
 """
-def polyphony(**kwargs):
+def polyphony(max_voices=ALLES_OSCS,**kwargs):
     osc = 0
     note = 0
     while(1):
-        note_on(osc=osc, **kwargs, patch=note, note=50+note, client = -1)
+        note_on(osc=osc, **kwargs, patch=note, note=40+(note*2), client = -1)
         time.sleep(0.5)
-        osc =(osc + 1) % ALLES_OSCS
-        note =(note + 1) % 24
+        osc =(osc + 1) % max_voices
+        note =(note + 1) % 36
 
 """
     Sweep the filter

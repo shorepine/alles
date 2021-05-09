@@ -409,8 +409,15 @@ void render_task(void *o) {
     uint8_t task = *(uint8_t*)o;
     // we know we are count of RENDERING_TASKS, so figure out which oscs we service
     // task = 1, tasks = 2, OSCS = 8, start = OSCS/tasks * task, end = OSCS/tasks * (task+1)
-    uint8_t start = (OSCS / RENDERING_TASKS) * task;
-    uint8_t end   = (OSCS / RENDERING_TASKS) * (task+1);
+    uint8_t start, end;
+    if(xPortGetCoreID() == 0) {
+        start = 0; end = (OSCS/2) - 2;
+    } else {
+        start = (OSCS/2) - 2; end = OSCS;
+    }
+    printf("I'm core %d and i'm handling oscs %d up until %d\n", xPortGetCoreID(), start, end);
+    //uint8_t start = (OSCS / RENDERING_TASKS) * task;
+    //uint8_t end   = (OSCS / RENDERING_TASKS) * (task+1);
     while(1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         for(uint16_t i=0;i<BLOCK_SIZE;i++) fbl[task][i] = 0; 
