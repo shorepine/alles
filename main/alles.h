@@ -37,8 +37,9 @@ extern "C" {
 #include "power.h"
 
 // Constants you can change if you want
-#define BLOCK_SIZE 64       // i2s buffer block size in samples
-#define OSCS 10            // # of simultaneous oscs to keep track of 
+#define RENDERING_TASKS 2   // how many rendering tasks to use, OSCS % RENDERING_TASKS must == 0 
+#define OSCS 10              // # of simultaneous oscs to keep track of 
+#define BLOCK_SIZE 64        // i2s buffer block size in samples
 #define EVENT_FIFO_LEN 400   // number of events the queue can store
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #define SAMPLE_RATE 44100    // playback sample rate
@@ -209,9 +210,9 @@ extern void ks_deinit();
 
 extern void render_ks(float * buf, uint8_t osc); 
 extern void render_sine(float * buf, uint8_t osc); 
-extern void render_pulse(float * buf, uint8_t osc); 
-extern void render_saw(float * buf, uint8_t osc); 
-extern void render_triangle(float * buf, uint8_t osc); 
+extern void render_pulse(float * buf, float * scratch, uint8_t osc); 
+extern void render_saw(float * buf, float * scratch, uint8_t osc); 
+extern void render_triangle(float * buf, float * scratch, uint8_t osc); 
 extern void render_noise(float * buf, uint8_t osc); 
 extern void render_pcm(float * buf, uint8_t osc);
 

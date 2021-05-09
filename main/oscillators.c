@@ -13,7 +13,7 @@ uint8_t ks_polyphony_index = 0;
 extern struct event *synth;
 extern struct mod_event *msynth; // the synth that is being modified by LFOs & envelopes
 extern struct state global; 
-extern float *scratchbuf;
+//extern float *scratchbuf;
 
 
 
@@ -126,7 +126,7 @@ void pulse_note_on(uint8_t osc) {
     synth[osc].lpf_state[0] = 0;
 }
 
-void render_pulse(float * buf, uint8_t osc) {
+void render_pulse(float * buf, float * scratch, uint8_t osc) {
     // LPF time constant should be ~ 10x osc period, so droop is minimal.
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lpf_alpha = 1.0 - 1.0 / (10.0 * period_samples);
@@ -139,12 +139,12 @@ void render_pulse(float * buf, uint8_t osc) {
     float amp = msynth[osc].amp * skip * 0.1;  // was 0.5
     float pwm_step = synth[osc].step + duty * IMPULSE32_SIZE;
     if (pwm_step >= IMPULSE32_SIZE)  pwm_step -= IMPULSE32_SIZE;
-    clear_buf(scratchbuf);
-    synth[osc].step = render_lut(scratchbuf, synth[osc].step, skip, amp, impulse32, IMPULSE32_SIZE);
-    render_lut(scratchbuf, pwm_step, skip, -amp, impulse32, IMPULSE32_SIZE);
-    lpf_buf(scratchbuf, synth[osc].lpf_alpha, &synth[osc].lpf_state[0]);
+    clear_buf(scratch);
+    synth[osc].step = render_lut(scratch, synth[osc].step, skip, amp, impulse32, IMPULSE32_SIZE);
+    render_lut(scratch, pwm_step, skip, -amp, impulse32, IMPULSE32_SIZE);
+    lpf_buf(scratch, synth[osc].lpf_alpha, &synth[osc].lpf_state[0]);
     // Accumulate into actual output buffer.
-    cumulate_buf(scratchbuf, buf);
+    cumulate_buf(scratch, buf);
 }
 
 void pulse_lfo_trigger(uint8_t osc) {
@@ -181,7 +181,7 @@ void saw_note_on(uint8_t osc) {
     synth[osc].lpf_state[0] = 0;
 }
 
-void render_saw(float * buf, uint8_t osc) {
+void render_saw(float * buf, float * scratch, uint8_t osc) {
     // For saw, we *want* the lpf to droop across the period, so use a smaller alpha.
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lpf_alpha = 1.0 - 1.0 / period_samples;
@@ -189,11 +189,11 @@ void render_saw(float * buf, uint8_t osc) {
     // Scale the impulse proportional to the skip so its integral remains ~constant.
     // 0.5 is to compensate for typical skip of ~2.
     float amp = msynth[osc].amp * skip * 0.1;
-    clear_buf(scratchbuf);
+    clear_buf(scratch);
     synth[osc].step = render_lut(
-          scratchbuf, synth[osc].step, skip, amp, impulse32, IMPULSE32_SIZE);
-    lpf_buf(scratchbuf, synth[osc].lpf_alpha, &synth[osc].lpf_state[0]);
-    cumulate_buf(scratchbuf, buf);
+          scratch, synth[osc].step, skip, amp, impulse32, IMPULSE32_SIZE);
+    lpf_buf(scratch, synth[osc].lpf_alpha, &synth[osc].lpf_state[0]);
+    cumulate_buf(scratch, buf);
 }
 
 
@@ -226,7 +226,7 @@ void triangle_note_on(uint8_t osc) {
     synth[osc].lpf_state[1] = 0;
 }
 
-void render_triangle(float * buf, uint8_t osc) {
+void render_triangle(float * buf, float * scratch, uint8_t osc) {
     // Triangle has two lpfs, one to build the square, and one to integrate the pulse.
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lpf_alpha = 1.0 - 1.0 / (10 * period_samples);
@@ -241,14 +241,14 @@ void render_triangle(float * buf, uint8_t osc) {
     float amp = msynth[osc].amp * skip * skip / (duty - duty * duty) * 0.0001;
     float pwm_step = synth[osc].step + duty * IMPULSE32_SIZE;
     if (pwm_step >= IMPULSE32_SIZE)  pwm_step -= IMPULSE32_SIZE;
-    clear_buf(scratchbuf);
-    synth[osc].step = render_lut(scratchbuf, synth[osc].step, skip, amp, impulse32, IMPULSE32_SIZE);
-    render_lut(scratchbuf, pwm_step, skip, -amp, impulse32, IMPULSE32_SIZE);
+    clear_buf(scratch);
+    synth[osc].step = render_lut(scratch, synth[osc].step, skip, amp, impulse32, IMPULSE32_SIZE);
+    render_lut(scratch, pwm_step, skip, -amp, impulse32, IMPULSE32_SIZE);
     // Integrate once to get square wave.
-    lpf_buf(scratchbuf, synth[osc].lpf_alpha, &synth[osc].lpf_state[0]);
+    lpf_buf(scratch, synth[osc].lpf_alpha, &synth[osc].lpf_state[0]);
     // Integrate again to get triangle wave.
-    lpf_buf(scratchbuf, synth[osc].lpf_alpha_1, &synth[osc].lpf_state[1]);
-    cumulate_buf(scratchbuf, buf);
+    lpf_buf(scratch, synth[osc].lpf_alpha_1, &synth[osc].lpf_state[1]);
+    cumulate_buf(scratch, buf);
 }
 
 
