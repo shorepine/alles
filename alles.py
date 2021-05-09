@@ -3,7 +3,7 @@ from alles_util import send, sync, lowpass, volume, note_on, note_off, reset, co
 import time
 
 # Some constants shared with the synth that help
-ALLES_OSCS = 28
+ALLES_OSCS = 24
 [SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, PCM, OFF] = range(9)
 TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE = (1, 2, 4, 8, 16)
 
