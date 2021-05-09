@@ -226,12 +226,12 @@ uint64_t last_idle0_counter = 0;
 uint64_t last_idle1_counter = 0;
 
 void debug_oscs() {
-    // Get the run time counters for each oscillator task and so on, to show CPU usage
+    // Get the run time counters for each rendering task and so on, to show CPU usage
     // We show usage since the last time you called this
     TaskStatus_t xTaskDetails;
     uint64_t osc_counter[RENDERING_TASKS];
     uint64_t total = 0;
-    // Each oscillator 
+    // Each rendering task 
     for(uint8_t task=0;task<RENDERING_TASKS;task++) {
         vTaskGetInfo(renderTask[task], &xTaskDetails, pdFALSE, eRunning);
         osc_counter[task] = xTaskDetails.ulRunTimeCounter - last_osc_counter[task];
@@ -413,8 +413,8 @@ void render_task(void *o) {
     uint8_t end   = (OSCS / RENDERING_TASKS) * (task+1);
     while(1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        for(uint16_t i=0;i<BLOCK_SIZE;i++) fbl[task][i] = 0; 
         for(uint8_t osc=start; osc<end; osc++) {
-            for(uint16_t i=0;i<BLOCK_SIZE;i++) fbl[task][i] = 0; 
             if(synth[osc].status==AUDIBLE) { // skip oscs that are silent or LFO sources from playback
                 hold_and_modify(osc); // apply ADSR / LFO
                 if(synth[osc].wave == FM) render_fm(fbl[task], osc);
