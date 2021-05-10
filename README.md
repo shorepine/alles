@@ -53,7 +53,7 @@ A = ADSR envelope, string, in commas, like 100,50,0.5,200 -- A, D, R are in ms, 
 b = feedback, float 0-1 for karplus-strong. default 0.996
 c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_id % (x-255) == 0) for groups, default all clients
 d = duty cycle, float 0.001-0.999. duty cycle for pulse wave, default 0.5
-D = debug, uint, 0 or 1. if 1, the monitor will print debug state for all oscillators and CPU usage. will interrupt audio!
+D = debug, uint, 1-3. 1 shows CPU usage on the serial console, 2 shows oscillator data, 3 shows modified oscillator. will interrupt audio!
 f = frequency, float 0-44100 (and above). default 0. Sampling rate of synth is 44,100Hz but higher numbers can be used for PCM waveforms
 F = center frequency of biquad filter. 0 is off. default 0. applies to entire synth audio
 g = LFO target mask. Which parameter LFO controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
