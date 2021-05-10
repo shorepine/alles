@@ -276,7 +276,7 @@ def generate_pcm_header(sf2_filename, pcm_sample_rate = 22050):
     p.write("};\n\n#endif  // __PCM_H\n")
 
 
-# 64 equal-amplitude cosines make a band-limited impulse.
+# N equal-amplitude cosines make a band-limited impulse.
 def cosines(num_cosines, args):
     import numpy as np
     num_points = len(args)

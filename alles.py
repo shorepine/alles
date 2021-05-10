@@ -80,7 +80,7 @@ def play_patches(wait=0.500, patch_total = 100, **kwargs):
 """
 def polyphony(max_voices=ALLES_OSCS,**kwargs):
     note = 0
-    oscs = [0, 12, 1, 13, 2, 14, 3, 15, 4, 16, 5, 17, 6, 18, 19, 20, 21,  22, 23]
+    oscs = [0, 12, 1, 13, 2, 14, 3, 15, 4, 16, 5, 17, 6, 18, 7, 19, 8, 20, 9, 21,  10, 22, 11, 23]
     while(1):
         osc = oscs[note % max_voices]
         print("osc %d note %d " % (osc, 40+note))

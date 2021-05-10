@@ -1,6 +1,9 @@
 #include "alles.h"
-#include "sinLUT_1024.h"
-#include "impulse32_1024.h"
+//#include "sinLUT_1024.h"
+//#include "impulse32_1024.h"
+#include "sinLUT_256.h"
+#include "impulse32_256.h"
+
 #include "pcm.h"
 
 // We only allow a couple of KS oscs as they're RAM hogs 
