@@ -79,12 +79,13 @@ def play_patches(wait=0.500, patch_total = 100, **kwargs):
     Play up to ALLES_OSCS patches at once
 """
 def polyphony(max_voices=ALLES_OSCS,**kwargs):
-    osc = 0
     note = 0
+    oscs = [0, 12, 1, 13, 2, 14, 3, 15, 4, 16, 5, 17, 6, 18, 19, 20, 21,  22, 23]
     while(1):
-        note_on(osc=osc, **kwargs, patch=note, note=40+(note*2), client = -1)
+        osc = oscs[note % max_voices]
+        print("osc %d note %d " % (osc, 40+note))
+        note_on(osc=osc, **kwargs, patch=note, note=50+(note), client = -1)
         time.sleep(0.5)
-        osc =(osc + 1) % max_voices
         note =(note + 1) % 36
 
 """

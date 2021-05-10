@@ -1,4 +1,4 @@
-// impulse32_1024.h - lookup table
+// main/impulse32_1024.h - lookup table
 // tab_size = 1024
 // function = impulse32
 

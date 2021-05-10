@@ -276,8 +276,54 @@ def generate_pcm_header(sf2_filename, pcm_sample_rate = 22050):
     p.write("};\n\n#endif  // __PCM_H\n")
 
 
+# 64 equal-amplitude cosines make a band-limited impulse.
+def cosines(num_cosines, args):
+    import numpy as np
+    num_points = len(args)
+    vals = np.zeros(num_points)
+    for i in range(num_cosines):
+        vals += np.cos((i + 1) * args)
+    return vals / float(num_cosines)
 
+def make_lut(basename, function, tab_size=1024):
+    import numpy as np
+    filename = "main/{:s}_{:d}.h".format(basename, tab_size) 
+    cpp_base = basename.upper()
+    cpp_flag = "__" + cpp_base + "_H"
+    size_sym = cpp_base + "_SIZE"
+    mask_sym = cpp_base + "_MASK"
 
+    sins = function(np.arange(tab_size) / tab_size * 2 * np.pi)
+    row_len = 8
+    with open(filename, "w") as f:
+        f.write("// {:s} - lookup table\n".format(filename))
+        f.write("// tab_size = {:d}\n".format(tab_size))
+        f.write("// function = {:s}\n".format(function.__name__))
+        f.write("\n")
+        f.write("#ifndef {:s}\n".format(cpp_flag))
+        f.write("#define {:s}\n".format(cpp_flag))
+        f.write("#define {:s} {:d}\n".format(size_sym, tab_size))
+        f.write("#define {:s} 0x{:x}\n".format(mask_sym, tab_size - 1))
+        f.write("const int16_t {:s}[{:s}] = {{\n".format(basename, size_sym))
+        for base in np.arange(0, tab_size, row_len):
+            for offset in np.arange(row_len):
+                val = int(round(32767 * sins[base + offset]))
+                _ = f.write("{:d},".format(val))
+            _ = f.write("\n")
+        f.write("};\n")
+        f.write("\n")
+        f.write("#endif\n")
+
+    print("wrote", filename)
+
+def make_luts(tab_size=1024, num_harmonics=32):
+    import numpy as np
+    from functools import partial
+    basename = "impulse{:d}".format(num_harmonics)
+    function = partial(cosines, num_harmonics)
+    function.__name__ = basename
+    make_lut(basename, function, tab_size=tab_size)
+    make_lut("sinLUT", np.sin, tab_size=tab_size)
 
 
 

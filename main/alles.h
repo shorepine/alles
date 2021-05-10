@@ -216,6 +216,12 @@ extern void fm_note_off(uint8_t osc);
 
 
 // bandlimted oscs
+
+extern void lpf_buf(float *buf, float decay, float *state);
+extern float render_lut(float * buf, float step, float skip, float amp, const int16_t* lut, int16_t lut_size);
+extern void clear_buf(float *buf);
+extern void cumulate_buf(const float *from, float *dest);
+
 extern void ks_init();
 extern void ks_deinit();
 
