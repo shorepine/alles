@@ -47,7 +47,7 @@ extern xQueueHandle gpio_evt_queue;
 
 // Task handles for the renderers, multicast listener and main
 TaskHandle_t multicast_handle = NULL;
-static TaskHandle_t renderTask[RENDERING_TASKS];
+static TaskHandle_t renderTask[2]; // one per core
 static TaskHandle_t fillbufferTask = NULL;
 static TaskHandle_t idleTask0 = NULL;
 static TaskHandle_t idleTask1 = NULL;
@@ -202,7 +202,7 @@ esp_err_t oscs_init() {
         add_event(default_event());
     }
 
-    // Create rendering threads, alternating core so we can deal with dan ellis float math
+    // Create rendering threads, one per core so we can deal with dan ellis float math
     fbl[0] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
     fbl[1] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
     scratchbuf[0] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
@@ -220,7 +220,7 @@ esp_err_t oscs_init() {
     return ESP_OK;
 }
 
-uint64_t last_osc_counter[2] = {0};
+uint64_t last_osc_counter[2] = {0, 0};
 uint64_t last_fill_counter = 0;
 uint64_t last_idle0_counter = 0;
 uint64_t last_idle1_counter = 0;
@@ -279,12 +279,15 @@ void oscs_deinit() {
     free(block);
     free(fbl[0]); 
     free(fbl[1]); 
+    free(fbl);
     free(scratchbuf[0]);
     free(scratchbuf[1]);
-    free(fbl);
+    free(scratchbuf);
+
     free(synth);
     free(msynth);
     free(events);
+
     ks_deinit();
     filters_deinit();
 }

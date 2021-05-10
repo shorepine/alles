@@ -37,7 +37,6 @@ extern "C" {
 #include "power.h"
 
 // Constants you can change if you want
-#define RENDERING_TASKS 2   // how many rendering tasks to use, OSCS % RENDERING_TASKS must == 0 
 #define OSCS 24              // # of simultaneous oscs to keep track of 
 #define BLOCK_SIZE 64        // i2s buffer block size in samples
 #define EVENT_FIFO_LEN 400   // number of events the queue can store
@@ -47,20 +46,22 @@ extern "C" {
 // D is how close the sample gets to the clip limit before the nonlinearity engages.  
 // So D=0.1 means output is linear for -0.9..0.9, then starts clipping.
 #define CLIP_D 0.1
-
 #define MAX_RECEIVE_LEN 127  // max length of each message
 #define UDP_PORT 3333        // port to listen on
 #define MULTICAST_TTL 1      // hops multicast packets can take
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
 #define PING_TIME_MS 10000   // ms between boards pinging each other
 #define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
-#define LINEAR_INTERP      // use linear interp for oscs
+#define LINEAR_INTERP        // use linear interp for oscs
 //#define CUBIC_INTERP         // use cubic interpolation for oscs
+// Sample values for LFOs
+#define UP    32767
+#define DOWN -32768
 
+// enums
 #define DEVBOARD 0
 #define ALLES_BOARD_V1 1
 #define ALLES_BOARD_V2 2
-
 #define BATTERY_STATE_CHARGING 0x01
 #define BATTERY_STATE_CHARGED 0x02
 #define BATTERY_STATE_DISCHARGING 0x04
@@ -68,17 +69,35 @@ extern "C" {
 #define BATTERY_VOLTAGE_3 0x20
 #define BATTERY_VOLTAGE_2 0x40
 #define BATTERY_VOLTAGE_1 0x80
+// LFO/ADSR target mask
+#define TARGET_AMP 1
+#define TARGET_DUTY 2
+#define TARGET_FREQ 4
+#define TARGET_FILTER_FREQ 8
+#define TARGET_RESONANCE 16
+#define SINE 0
+#define PULSE 1
+#define SAW 2
+#define TRIANGLE 3
+#define NOISE 4
+#define FM 5
+#define KS 6
+#define PCM 7
+#define OFF 8
+
+#define EMPTY 0
+#define SCHEDULED 1
+#define PLAYED 2
+#define AUDIBLE 3
+#define LFO_SOURCE 4
 
 
-// Buttons set on the blinkinlabs board, by default only MIDI on most prototype boards
-
+// Pins & buttons
 #define BUTTON_WAKEUP 34
 #define BUTTON_WIFI 17
 #define BUTTON_EXTRA 16
 #define BUTTON_MIDI 0
 #define ESP_INTR_FLAG_DEFAULT 0
-
-// pins
 #define CONFIG_I2S_LRCLK 25
 #define CONFIG_I2S_BCLK 26
 #define CONFIG_I2S_DIN 27
@@ -87,17 +106,9 @@ extern "C" {
 #define BAT_SENSE_EN 32
 #define CHARGE_STAT 33
 #define POWER_5V_EN 21
-
 #define BATT_SENSE_CHANNEL ADC_CHANNEL_7 // GPIO35 / ADC1_7
 #define WALL_SENSE_CHANNEL ADC_CHANNEL_3 // GPIO39 / ADC1_3
     
-// LFO/ADSR target mask
-#define TARGET_AMP 1
-#define TARGET_DUTY 2
-#define TARGET_FREQ 4
-#define TARGET_FILTER_FREQ 8
-#define TARGET_RESONANCE 16
-
 // Events
 struct event {
     int64_t time;
@@ -256,29 +267,10 @@ extern void midi_init();
 extern void midi_deinit();
 extern void read_midi();
 
-#define SINE_LUT_SIZE 16383
 
 
-#define NUM_WAVES 8
-#define SINE 0
-#define PULSE 1
-#define SAW 2
-#define TRIANGLE 3
-#define NOISE 4
-#define FM 5
-#define KS 6
-#define PCM 7
-#define OFF 8
-
-#define EMPTY 0
-#define SCHEDULED 1
-#define PLAYED 2
-#define AUDIBLE 3
-#define LFO_SOURCE 4
 
 
-#define UP    32767
-#define DOWN -32768
 
 
 #ifdef __cplusplus
