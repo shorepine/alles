@@ -2,7 +2,7 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/alles/master/pics/set.jpg)
 
-**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 24 additive oscillators, a full FM stage, biquad filter, with LFOs and ADSRs per oscillator. They're open source, cheap and easy to make -- you can build one yourself for about US$20.
+**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 64 additive oscillators, a full FM stage, biquad filter, with LFOs and ADSRs per oscillator. They're open source, cheap and easy to make -- you can build one yourself for about US$20.
 
 The synthesizers automatically form a mesh and listen to multicast WiFi messages. You can control the mesh from a host computer using any programming language or environments like Max or Pd. You can also wire one synth up to MIDI or MIDI over Bluetooth, and use any MIDI software or controller; the directly connected synth will broadcast to the rest of the mesh for you. 
 
@@ -14,7 +14,7 @@ Our friends at [Blinkinlabs](https://blinkinlabs.com) are helping us produce sma
 
 Each individual synthesizer supports:
 
- * 24 oscillators, each with adjustable frequency and amplitude:
+ * 64 oscillators, each with adjustable frequency and amplitude:
    * pulse (+ adjustable duty cycle)
    * sine
    * saw
@@ -22,7 +22,7 @@ Each individual synthesizer supports:
    * noise
    * PCM, reading from a baked-in buffer of percussive and misc samples
    * karplus-strong string with adjustable feedback (can have up to 2 per synth)
-   * FM, using a DX7 simulation, with support for DX7 patches and 1000 presets 
+   * FM, using a DX7 simulation, with support for DX7 patches and 1000 presets (1 per synth)
  * Biquad low-pass filter with cutoff and resonance at the last stage
  * Oscillators can be specified by frequency in floating point or midi note 
  * Each oscillator has a dedicated ADSR VCA, which can modify any combination of amplitude, frequency, duty, filter cutoff or resonance
@@ -63,11 +63,11 @@ n = midinote, uint, 0-127 (note that this will also set f). default 0
 p = patch, uint, 0-999, choose a preloaded PCM sample or DX7 patch number for FM waveforms. See patches.h, pcm.h. default 0
 P = phase, float 0-1. where in the oscillator's cycle to start sampling from (also works on the PCM buffer). default 0
 R = q factor / "resonance" of biquad filter. float. in practice, 0 to 10.0. default 0.7.
-S = reset oscillator, uint 0-23 or for all oscillators, anything >=24. resets every oscillator parameter to default.
+S = reset oscillator, uint 0-63 or for all oscillators, anything >63. resets every oscillator parameter to default.
 s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py
 T = ADSR target mask. Which parameter ADSR controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can.
-v = oscillator, uint, 0 to 23. default: 0
+v = oscillator, uint, 0 to 63. default: 0
 V = volume, float 0 to about 10 in practice. volume knob for the entire synth / speaker. default 1.0
 w = waveform, uint, 0 to 8 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, PCM, OFF]. default: 0/SINE
 ```
