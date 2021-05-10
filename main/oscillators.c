@@ -27,7 +27,9 @@ float render_lut(float * buf, float step, float skip, float amp, const int16_t* 
     // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
     int lut_mask = lut_size - 1;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        uint16_t base_index = (uint16_t)floor(step);
+        // Floor is very slow on the esp32, so we just cast. Dan told me to add this comment. -- baw
+        //uint16_t base_index = (uint16_t)floor(step);
+        uint16_t base_index = (uint16_t)step;
         float frac = step - (float)base_index;
         float b = (float)lut[(base_index + 0) & lut_mask];
         float c = (float)lut[(base_index + 1) & lut_mask];
@@ -295,7 +297,7 @@ float compute_lfo_sine(uint8_t osc) {
     float skip = msynth[osc].freq / lfo_sr * SINLUT_SIZE;
 
     int lut_mask = SINLUT_SIZE - 1;
-    uint16_t base_index = (uint16_t)floor(synth[osc].step);
+    uint16_t base_index = (uint16_t)(synth[osc].step);
     float frac = synth[osc].step - (float)base_index;
     float b = (float)sinLUT[(base_index + 0) & lut_mask];
     float c = (float)sinLUT[(base_index + 1) & lut_mask];
@@ -327,9 +329,9 @@ float compute_lfo_noise(uint8_t osc) {
 
 void render_ks(float * buf, uint8_t osc) {
     if(msynth[osc].freq >= 55) { // lowest note we can play
-        uint16_t buflen = floor(SAMPLE_RATE / msynth[osc].freq);
+        uint16_t buflen = (SAMPLE_RATE / msynth[osc].freq);
         for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-            uint16_t index = floor(synth[osc].step);
+            uint16_t index = (synth[osc].step);
             synth[osc].sample = ks_buffer[ks_polyphony_index][index];
             ks_buffer[ks_polyphony_index][index] = (ks_buffer[ks_polyphony_index][index] + ks_buffer[ks_polyphony_index][(index + 1) % buflen]) * 0.5 * synth[osc].feedback;
             synth[osc].step = (index + 1) % buflen;
@@ -340,7 +342,7 @@ void render_ks(float * buf, uint8_t osc) {
 
 void ks_note_on(uint8_t osc) {
     if(msynth[osc].freq<=0) msynth[osc].freq = 1;
-    uint16_t buflen = floor(SAMPLE_RATE / msynth[osc].freq);
+    uint16_t buflen = (SAMPLE_RATE / msynth[osc].freq);
     if(buflen > MAX_KS_BUFFER_LEN) buflen = MAX_KS_BUFFER_LEN;
     // init KS buffer with noise up to max
     for(uint16_t i=0;i<buflen;i++) {

@@ -37,8 +37,8 @@ extern "C" {
 #include "power.h"
 
 // Constants you can change if you want
-#define OSCS 24              // # of simultaneous oscs to keep track of 
-#define BLOCK_SIZE 64        // i2s buffer block size in samples
+#define OSCS 64              // # of simultaneous oscs to keep track of 
+#define BLOCK_SIZE 256        // i2s buffer block size in samples
 #define EVENT_FIFO_LEN 400   // number of events the queue can store
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #define SAMPLE_RATE 44100    // playback sample rate
@@ -53,6 +53,7 @@ extern "C" {
 #define PING_TIME_MS 10000   // ms between boards pinging each other
 #define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
 #define LINEAR_INTERP        // use linear interp for oscs
+// "The cubic stuff is just showing off.  One would only ever use linear in prod." -- dpwe, May 10 2021 
 //#define CUBIC_INTERP         // use cubic interpolation for oscs
 // Sample values for LFOs
 #define UP    32767

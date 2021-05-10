@@ -18,9 +18,9 @@ extern "C" {
     #include "alles.h"
 }
 
-// One note/controller object per osc
-Dx7Note note[OSCS];
-Controllers controllers[OSCS];
+// One note/controller object 
+Dx7Note note;
+Controllers controllers; 
 extern struct event *synth;
 
 extern "C" void render_fm(float * buf, uint8_t osc) {
@@ -34,7 +34,7 @@ extern "C" void render_fm(float * buf, uint8_t osc) {
         // Important -- clear out this first -- note.compute is accumulative
         for(int j=0;j<N;j++) int32_t_buf[j] = 0;
 
-        note[osc].compute(int32_t_buf, 0, 0, &controllers[osc]);
+        note.compute(int32_t_buf, 0, 0, &controllers);
 
         // Now make an int32 an int16_t, and put it in buf, this is from their wav writer
         int32_t delta = 0x100;
@@ -53,15 +53,15 @@ extern "C" void fm_note_on(uint8_t osc) {
     int16_t patch = synth[osc].patch;
     if(patch < 0) patch = 0; // if default patch not changed
     if(synth[osc].midi_note>0) {
-        note[osc].init(patches+(patch*156), synth[osc].midi_note, 100); 
+        note.init(patches+(patch*156), synth[osc].midi_note, 100); 
     } else {
-        note[osc].init_with_freq(patches+(patch*156), synth[osc].freq, 100);
+        note.init_with_freq(patches+(patch*156), synth[osc].freq, 100);
     }
-    controllers[osc].values_[kControllerPitch] = 0x2000; // pitch wheel
+    controllers.values_[kControllerPitch] = 0x2000; // pitch wheel
 }
 
 extern "C" void fm_note_off(uint8_t osc) {
-    note[osc].keyup();
+    note.keyup();
 }
 
 extern "C" void fm_init(void) {
