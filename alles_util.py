@@ -200,7 +200,7 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-
     if(lfo_target>=0): m = m + "g%d" % (lfo_target)
     if(lfo_source>=0): m = m + "L%d" % (lfo_source)
     if(reset>=0): m = m + "S%d" % (reset)
-    if(debug>=0): m = m + "D" 
+    if(debug>=0): m = m + "D%d" % (debug)
     for x in range(retries):
         sock.sendto(m.encode('ascii'), multicast_group)
 

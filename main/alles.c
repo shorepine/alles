@@ -225,7 +225,7 @@ uint64_t last_fill_counter = 0;
 uint64_t last_idle0_counter = 0;
 uint64_t last_idle1_counter = 0;
 
-void debug_oscs() {
+void show_debug(uint8_t type) {
     // Get the run time counters for each rendering task and so on, to show CPU usage
     // We show usage since the last time you called this
     TaskStatus_t xTaskDetails;
@@ -263,16 +263,16 @@ void debug_oscs() {
     printf("fillb %2.4f%%\n", ((float)fill_counter / (float)total)*100.0);
     printf("idle0 %2.4f%%\n", ((float)idle0_counter / (float)total)*100.0);
     printf("idle1 %2.4f%%\n", ((float)idle1_counter / (float)total)*100.0);
-
-    // print out all the osc data
-    printf("global: filter %f resonance %f volume %f status %d\n", global.filter_freq, global.resonance, global.volume, global.status);
-    printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
-    for(uint8_t i=0;i<OSCS;i++) {
-        printf("osc %d: status %d amp %f wave %d freq %f duty %f adsr_target %d lfo_target %d lfo source %d velocity %f E: %d,%d,%2.2f,%d step %f \n",
-            i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].adsr_target, synth[i].lfo_target, synth[i].lfo_source, 
-            synth[i].velocity, synth[i].adsr_a, synth[i].adsr_d, synth[i].adsr_s, synth[i].adsr_r, synth[i].step);
-        printf("mod osc %d: amp: %f, freq %f duty %f\n",
-            i, msynth[i].amp, msynth[i].freq, msynth[i].duty);
+    if(type>1) {
+        // print out all the osc data
+        printf("global: filter %f resonance %f volume %f status %d\n", global.filter_freq, global.resonance, global.volume, global.status);
+        printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
+        for(uint8_t i=0;i<OSCS;i++) {
+            printf("osc %d: status %d amp %f wave %d freq %f duty %f adsr_target %d lfo_target %d lfo source %d velocity %f E: %d,%d,%2.2f,%d step %f \n",
+                i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].adsr_target, synth[i].lfo_target, synth[i].lfo_source, 
+                synth[i].velocity, synth[i].adsr_a, synth[i].adsr_d, synth[i].adsr_s, synth[i].adsr_r, synth[i].step);
+            if(type>2) printf("mod osc %d: amp: %f, freq %f duty %f\n", i, msynth[i].amp, msynth[i].freq, msynth[i].duty);
+        }
     }
 }
 void oscs_deinit() {
@@ -578,7 +578,10 @@ uint8_t deserialize_event(char * message, uint16_t length) {
             if(mode=='b') e.feedback=atof(message+start);
             if(mode=='c') client = atoi(message + start); 
             if(mode=='d') e.duty=atof(message + start);
-            if(mode=='D') debug_oscs(); 
+            if(mode=='D') {
+                uint8_t type = atoi(message + start);
+                show_debug(type); 
+            }
             // reminder: don't use "E" or "e", lol 
             if(mode=='f') e.freq=atof(message + start); 
             if(mode=='F') e.filter_freq=atof(message + start);
