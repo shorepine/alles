@@ -733,7 +733,6 @@ void power_monitor() {
     const esp_err_t ret = power_read_status(&power_status);
     if(ret != ESP_OK)
         return;
-
     /*
     char buf[100];
     snprintf(buf, sizeof(buf),
@@ -773,8 +772,12 @@ void app_main() {
     check_init(&global_init, "global state");
     check_init(&esp_event_loop_create_default, "Event");
     // if power init fails, we don't have blinkinlabs board, set board level to 0
-    if(check_init(&power_init, "power")) global.board_level = DEVBOARD; 
+    if(check_init(&power_init, "power")) {
+        printf("No power IC, assuming DIY Alles\n");
+        global.board_level = DEVBOARD; 
+    }
     if(global.board_level == ALLES_BOARD_V2) {
+        printf("Detected revB Alles\n");
         TimerHandle_t power_monitor_timer = xTimerCreate(
             "power_monitor",
             pdMS_TO_TICKS(5000),
