@@ -1,6 +1,6 @@
 idf_component_register(SRCS alles.c
 							multicast.c
-							oscillators.c
+							oscillators.cc
 							envelope.c
 							filters.c
 							fm.cc

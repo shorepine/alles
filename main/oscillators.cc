@@ -1,7 +1,9 @@
+extern "C" {
 #include "alles.h"
 #include "sinLUT_1024.h"
 #include "impulse32_1024.h"
 #include "pcm.h"
+}
 
 // We only allow a couple of KS oscs as they're RAM hogs 
 #define MAX_KS_BUFFER_LEN 802 // 44100/55  -- 55Hz (A1) lowest we can go for KS
@@ -20,7 +22,7 @@ extern struct state global;
 /* Dan Ellis libblosca functions */
 
 // This is copying from Pure Data's tabread4~.
-float render_lut(float * buf, float step, float skip, float amp, const int16_t* lut, int16_t lut_size) { 
+extern "C" float render_lut(float * buf, float step, float skip, float amp, const int16_t* lut, int16_t lut_size) { 
     // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
     int lut_mask = lut_size - 1;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -51,21 +53,20 @@ float render_lut(float * buf, float step, float skip, float amp, const int16_t* 
     return step;
 }
 
-void lpf_buf(float *buf, float decay, float *state) {
+extern "C" void lpf_buf(float *buf, float decay, float &state) {
     // Implement first-order low-pass (leaky integrator).
-    float s = *state;
     for (uint16_t i = 0; i < BLOCK_SIZE; ++i) {
-      buf[i] = decay * s + buf[i];
-      *state = buf[i];
+      buf[i] = decay * state + buf[i];
+      state = buf[i];
     }
 }
 
-void clear_buf(float *buf) {
+extern "C" void clear_buf(float *buf) {
     // Clear a block-sized buf.
     memset(buf, 0, BLOCK_SIZE * sizeof(float));
 }
 
-void cumulate_buf(const float *from, float *dest) {
+extern "C" void cumulate_buf(const float *from, float *dest) {
     for (uint16_t i = 0; i < BLOCK_SIZE; ++i) {
         dest[i] += from[i];
     }
@@ -73,7 +74,7 @@ void cumulate_buf(const float *from, float *dest) {
 
 /* PCM */
 
-void pcm_note_on(uint8_t osc) {
+extern "C" void pcm_note_on(uint8_t osc) {
     // If no freq given, we set it to default PCM SR. e.g. freq=11025 plays PCM at half speed, freq=44100 double speed 
     if(synth[osc].freq <= 0) synth[osc].freq = PCM_SAMPLE_RATE;
     // If patch is given, set step directly from patch's offset
@@ -86,13 +87,13 @@ void pcm_note_on(uint8_t osc) {
         synth[osc].substep = PCM_LENGTH; // play until end of buffer and stop 
     }
 }
-void pcm_lfo_trigger(uint8_t osc) {
+extern "C" void pcm_lfo_trigger(uint8_t osc) {
     pcm_note_on(osc);
 }
 
 // TODO -- this just does one shot, no looping (will need extra loop parameter? what about sample metadata looping?) 
 // TODO -- this should just be like render_LUT(float * buf, uint8_t osc, int16_t **LUT) as it's the same for sine & PCM?
-void render_pcm(float * buf, uint8_t osc) {
+extern "C" void render_pcm(float * buf, uint8_t osc) {
     float skip = msynth[osc].freq / (float)SAMPLE_RATE;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         float sample = pcm[(int)(synth[osc].step)];
@@ -105,7 +106,7 @@ void render_pcm(float * buf, uint8_t osc) {
     }
 }
 
-float compute_lfo_pcm(uint8_t osc) {
+extern "C" float compute_lfo_pcm(uint8_t osc) {
     float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
     float skip = msynth[osc].freq / lfo_sr;
     float sample = pcm[(int)(synth[osc].step)];
@@ -120,13 +121,13 @@ float compute_lfo_pcm(uint8_t osc) {
 
 /* Pulse wave */
 
-void pulse_note_on(uint8_t osc) {
+extern "C" void pulse_note_on(uint8_t osc) {
     // So i reset step to some phase math, right? yeah
     synth[osc].step = (float)IMPULSE32_SIZE * synth[osc].phase;
     synth[osc].lpf_state[0] = 0;
 }
 
-void render_pulse(float * buf, float * scratch, uint8_t osc) {
+extern "C" void render_pulse(float * buf, float * scratch, uint8_t osc) {
     // LPF time constant should be ~ 10x osc period, so droop is minimal.
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lpf_alpha = 1.0 - 1.0 / (10.0 * period_samples);
@@ -142,18 +143,18 @@ void render_pulse(float * buf, float * scratch, uint8_t osc) {
     clear_buf(scratch);
     synth[osc].step = render_lut(scratch, synth[osc].step, skip, amp, impulse32, IMPULSE32_SIZE);
     render_lut(scratch, pwm_step, skip, -amp, impulse32, IMPULSE32_SIZE);
-    lpf_buf(scratch, synth[osc].lpf_alpha, &synth[osc].lpf_state[0]);
+    lpf_buf(scratch, synth[osc].lpf_alpha, synth[osc].lpf_state[0]);
     // Accumulate into actual output buffer.
     cumulate_buf(scratch, buf);
 }
 
-void pulse_lfo_trigger(uint8_t osc) {
+extern "C" void pulse_lfo_trigger(uint8_t osc) {
     float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
     float period = 1. / (synth[osc].freq/lfo_sr);
     synth[osc].step = period * synth[osc].phase;
 }
 
-float compute_lfo_pulse(uint8_t osc) {
+extern "C" float compute_lfo_pulse(uint8_t osc) {
     // do BW pulse gen at SR=44100/64
     float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
     if(msynth[osc].duty < 0.001 || msynth[osc].duty > 0.999) msynth[osc].duty = 0.5;
@@ -176,12 +177,12 @@ float compute_lfo_pulse(uint8_t osc) {
 
 /* Saw wave */
 
-void saw_note_on(uint8_t osc) {
+extern "C" void saw_note_on(uint8_t osc) {
     synth[osc].step = (float)IMPULSE32_SIZE * synth[osc].phase;
     synth[osc].lpf_state[0] = 0;
 }
 
-void render_saw(float * buf, float * scratch, uint8_t osc) {
+extern "C" void render_saw(float * buf, float * scratch, uint8_t osc) {
     // For saw, we *want* the lpf to droop across the period, so use a smaller alpha.
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lpf_alpha = 1.0 - 1.0 / period_samples;
@@ -192,19 +193,19 @@ void render_saw(float * buf, float * scratch, uint8_t osc) {
     clear_buf(scratch);
     synth[osc].step = render_lut(
           scratch, synth[osc].step, skip, amp, impulse32, IMPULSE32_SIZE);
-    lpf_buf(scratch, synth[osc].lpf_alpha, &synth[osc].lpf_state[0]);
+    lpf_buf(scratch, synth[osc].lpf_alpha, synth[osc].lpf_state[0]);
     cumulate_buf(scratch, buf);
 }
 
 
 
-void saw_lfo_trigger(uint8_t osc) {
+extern "C" void saw_lfo_trigger(uint8_t osc) {
     float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
     float period = 1. / (synth[osc].freq/lfo_sr);
     synth[osc].step = period * synth[osc].phase;
 }
 
-float compute_lfo_saw(uint8_t osc) {
+extern "C" float compute_lfo_saw(uint8_t osc) {
     float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
     float period = 1. / (msynth[osc].freq/lfo_sr);
     if(synth[osc].step >= period || synth[osc].step == 0) {
@@ -220,13 +221,13 @@ float compute_lfo_saw(uint8_t osc) {
 
 /* triangle wave */
 
-void triangle_note_on(uint8_t osc) {
+extern "C" void triangle_note_on(uint8_t osc) {
     synth[osc].step = (float)IMPULSE32_SIZE * synth[osc].phase;
     synth[osc].lpf_state[0] = 0;
     synth[osc].lpf_state[1] = 0;
 }
 
-void render_triangle(float * buf, float * scratch, uint8_t osc) {
+extern "C" void render_triangle(float * buf, float * scratch, uint8_t osc) {
     // Triangle has two lpfs, one to build the square, and one to integrate the pulse.
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lpf_alpha = 1.0 - 1.0 / (10 * period_samples);
@@ -245,20 +246,20 @@ void render_triangle(float * buf, float * scratch, uint8_t osc) {
     synth[osc].step = render_lut(scratch, synth[osc].step, skip, amp, impulse32, IMPULSE32_SIZE);
     render_lut(scratch, pwm_step, skip, -amp, impulse32, IMPULSE32_SIZE);
     // Integrate once to get square wave.
-    lpf_buf(scratch, synth[osc].lpf_alpha, &synth[osc].lpf_state[0]);
+    lpf_buf(scratch, synth[osc].lpf_alpha, synth[osc].lpf_state[0]);
     // Integrate again to get triangle wave.
-    lpf_buf(scratch, synth[osc].lpf_alpha_1, &synth[osc].lpf_state[1]);
+    lpf_buf(scratch, synth[osc].lpf_alpha_1, synth[osc].lpf_state[1]);
     cumulate_buf(scratch, buf);
 }
 
 
-void triangle_lfo_trigger(uint8_t osc) {
+extern "C" void triangle_lfo_trigger(uint8_t osc) {
     float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
     float period = 1. / (synth[osc].freq/lfo_sr);
     synth[osc].step = period * synth[osc].phase;
 }
 
-float compute_lfo_triangle(uint8_t osc) {
+extern "C" float compute_lfo_triangle(uint8_t osc) {
     float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;    
     float period = 1. / (msynth[osc].freq/lfo_sr);
     if(synth[osc].step >= period || synth[osc].step == 0) {
@@ -278,16 +279,16 @@ float compute_lfo_triangle(uint8_t osc) {
 
 /* sine */
 
-void sine_note_on(uint8_t osc) {
+extern "C" void sine_note_on(uint8_t osc) {
     synth[osc].step = (float)SINLUT_SIZE * synth[osc].phase;
 }
 
-void render_sine(float * buf, uint8_t osc) { 
+extern "C" void render_sine(float * buf, uint8_t osc) { 
     float skip = msynth[osc].freq / (float)SAMPLE_RATE * SINLUT_SIZE;
     synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp, sinLUT, SINLUT_SIZE);
 }
 
-float compute_lfo_sine(uint8_t osc) { 
+extern "C" float compute_lfo_sine(uint8_t osc) { 
     float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
     float skip = msynth[osc].freq / lfo_sr * SINLUT_SIZE;
 
@@ -304,25 +305,25 @@ float compute_lfo_sine(uint8_t osc) {
 }
 
 
-void sine_lfo_trigger(uint8_t osc) {
+extern "C" void sine_lfo_trigger(uint8_t osc) {
     sine_note_on(osc);
 }
 
 /* noise */
 
-void render_noise(float *buf, uint8_t osc) {
+extern "C" void render_noise(float *buf, uint8_t osc) {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         buf[i] = buf[i] + ( (int16_t) ((esp_random() >> 16) - 32768) * msynth[osc].amp);
     }
 }
 
-float compute_lfo_noise(uint8_t osc) {
+extern "C" float compute_lfo_noise(uint8_t osc) {
     return ( (int16_t) ((esp_random() >> 16) - 32768) * msynth[osc].amp) / 16384.0; // -1..1
 }
 
 /* karplus-strong */
 
-void render_ks(float * buf, uint8_t osc) {
+extern "C" void render_ks(float * buf, uint8_t osc) {
     if(msynth[osc].freq >= 55) { // lowest note we can play
         uint16_t buflen = floor(SAMPLE_RATE / msynth[osc].freq);
         for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -335,7 +336,7 @@ void render_ks(float * buf, uint8_t osc) {
     }
 }
 
-void ks_note_on(uint8_t osc) {
+extern "C" void ks_note_on(uint8_t osc) {
     if(msynth[osc].freq<=0) msynth[osc].freq = 1;
     uint16_t buflen = floor(SAMPLE_RATE / msynth[osc].freq);
     if(buflen > MAX_KS_BUFFER_LEN) buflen = MAX_KS_BUFFER_LEN;
@@ -347,18 +348,18 @@ void ks_note_on(uint8_t osc) {
     if(ks_polyphony_index == KS_OSCS) ks_polyphony_index = 0;
 }
 
-void ks_note_off(uint8_t osc) {
+extern "C" void ks_note_off(uint8_t osc) {
     msynth[osc].amp = 0;
 }
 
 
-void ks_init(void) {
+extern "C" void ks_init(void) {
     // 6ms buffer
     ks_buffer = (float**) malloc(sizeof(float*)*KS_OSCS);
     for(int i=0;i<KS_OSCS;i++) ks_buffer[i] = (float*)malloc(sizeof(float)*MAX_KS_BUFFER_LEN); 
 }
 
-void ks_deinit(void) {
+extern "C" void ks_deinit(void) {
     for(int i=0;i<KS_OSCS;i++) free(ks_buffer[i]);
     free(ks_buffer);
 }
