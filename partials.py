@@ -79,8 +79,7 @@ def play_partial_sequence(sequence, amp_mult=1, max_oscs=alles.ALLES_OSCS, **kwa
             if(not q.empty()):
                 osc_map[event[partial_idx]] = q.get()
                 m = m + 1
-                alles.send(osc = osc_map[event[partial_idx]], wave=alles.SINE, freq=event[freq], phase=event[phase], timestamp = event_time_ms, **kwargs)
-                alles.note_on(osc =osc_map[event[partial_idx]], vel=event[amp]*amp_mult, timestamp = event_time_ms)
+                alles.note_on(osc = osc_map[event[partial_idx]], wave=alles.SINE, freq=event[freq], phase=event[phase], timestamp = event_time_ms, vel=event[amp]*amp_mult, **kwargs)
             else:
                 # No oscs available for this partial, so skip it
                 continue
@@ -96,7 +95,7 @@ def play_partial_sequence(sequence, amp_mult=1, max_oscs=alles.ALLES_OSCS, **kwa
                     alles.send(osc = osc_map[event[partial_idx]], wave=alles.OFF, freq=0, amp=0, timestamp = event_time_ms, **kwargs)
                     q.put(osc_map[event[partial_idx]])
         if(alles.millis()-start > 1000):
-            #send(debug=1)
+            alles.send(debug=1)
             start = alles.millis()
     print("Voice allocator was able to send %d messages out of %d (%2.2f%%)" % (m, len(sequence), float(m)/len(sequence)*100.0))
     alles.reset()

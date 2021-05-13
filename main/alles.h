@@ -39,7 +39,7 @@ extern "C" {
 // Constants you can change if you want
 #define OSCS 64              // # of simultaneous oscs to keep track of 
 #define BLOCK_SIZE 256        // i2s buffer block size in samples
-#define EVENT_FIFO_LEN 1200   // number of events the queue can store
+#define EVENT_FIFO_LEN 3000   // number of events the queue can store
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #define SAMPLE_RATE 44100    // playback sample rate
 #define SAMPLE_MAX 32767
