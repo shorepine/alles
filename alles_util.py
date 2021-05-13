@@ -176,7 +176,7 @@ def note_off(**kwargs):
     send(vel=0, **kwargs)
 
 
-def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
+def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, adsr_target=-1, lfo_target=-1, \
         debug=-1, lfo_source=-1):
     global sock
@@ -191,6 +191,7 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-
     if(patch>=0): m = m + "p%d" % (patch)
     if(phase>=0): m = m + "P%f" % (phase)
     if(client>=0): m = m + "c%d" % (client)
+    if(amp>=0): m = m + "a%f" % (amp)
     if(vel>=0): m = m + "l%f" % (vel)
     if(volume>=0): m = m + "V%f" % (volume)
     if(resonance>=0): m = m + "R%f" % (resonance)

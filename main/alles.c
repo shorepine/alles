@@ -10,17 +10,17 @@ struct state global;
 // envelope-modified global state
 struct mod_state mglobal;
 
-// set of events for the fifo to be played
-struct event * events;
+// set of deltas for the fifo to be played
+struct delta * events;
 // state per osc as multi-channel synthesizer that the scheduler renders into
 struct event * synth;
 // envelope-modified per-osc state
 struct mod_event * msynth;
 
-// One floatblock per osc, added up later
+// One floatblock per core, added up later
 float ** fbl;
 
-// A second floatblock for independently generating e.g. triangle.
+// A second floatblock per core for independently generating e.g. triangle.
 // This can be used within a given render_* function as scratch space.
 float ** scratchbuf;
 // block -- what gets sent to the DAC -- -32768...32767 (wave file, int16 LE)
@@ -32,6 +32,8 @@ void delay_ms(uint32_t ms) {
 
 esp_err_t global_init() {
     global.next_event_write = 0;
+    global.event_start = NULL;
+    global.event_qsize = 0;
     global.board_level = ALLES_BOARD_V2;
     global.status = RUNNING;
     global.volume = 1;
@@ -46,7 +48,8 @@ static const char TAG[] = "main";
 extern xQueueHandle gpio_evt_queue;
 
 // Task handles for the renderers, multicast listener and main
-TaskHandle_t multicast_handle = NULL;
+TaskHandle_t mcastTask = NULL;
+TaskHandle_t wifiTask = NULL;
 static TaskHandle_t renderTask[2]; // one per core
 static TaskHandle_t fillbufferTask = NULL;
 static TaskHandle_t idleTask0 = NULL;
@@ -97,44 +100,77 @@ struct event default_event() {
     return e;
 }
 
-// deep copy an event to the fifo
-void add_event(struct event e) { 
-    int16_t ew = global.next_event_write;
-    if(events[ew].status == SCHEDULED) {
-        // We should drop these messages, the queue is full
-        printf("queue (size %d) is full at index %d, skipping\n", EVENT_FIFO_LEN, ew);
-    } else {
-        events[ew].osc = e.osc;
-        events[ew].velocity = e.velocity;
-        events[ew].volume = e.volume;
-        events[ew].filter_freq = e.filter_freq;
-        events[ew].resonance = e.resonance;
-        events[ew].duty = e.duty;
-        events[ew].feedback = e.feedback;
-        events[ew].midi_note = e.midi_note;
-        events[ew].wave = e.wave;
-        events[ew].patch = e.patch;
-        events[ew].freq = e.freq;
-        events[ew].amp = e.amp;
-        events[ew].phase = e.phase;
-        events[ew].time = e.time;
-        events[ew].status = e.status;
-        events[ew].sample = e.sample;
-        events[ew].step = e.step;
-        events[ew].substep = e.substep;
-      
-        events[ew].lfo_source = e.lfo_source;
-        events[ew].lfo_target = e.lfo_target;
-        events[ew].adsr_target = e.adsr_target;
-        events[ew].adsr_on_clock = e.adsr_on_clock;
-        events[ew].adsr_off_clock = e.adsr_off_clock;
-        events[ew].adsr_a = e.adsr_a;
-        events[ew].adsr_d = e.adsr_d;
-        events[ew].adsr_s = e.adsr_s;
-        events[ew].adsr_r = e.adsr_r;
+void add_delta_to_queue(struct delta d) {
+    if(global.event_qsize < EVENT_FIFO_LEN) {
+        // scan through the memory to find a free slot, starting at write pointer
+        uint16_t write_location = global.next_event_write;
+        int16_t found = -1;
+        // guaranteed to find eventually if qsize stays accurate
+        while(found<0) {
+            if(events[write_location].time == UINT32_MAX) found = write_location;
+            write_location = (write_location + 1) % EVENT_FIFO_LEN;
+        }
+        // Found a mem location. Copy the data in and update the write pointers.
+        events[found].time = d.time;
+        events[found].osc = d.osc;
+        events[found].param = d.param;
+        events[found].data = d.data;
+        global.next_event_write = write_location;
+        global.event_qsize++;
 
-        global.next_event_write = (ew + 1) % (EVENT_FIFO_LEN);
+        // Now insert it into the sorted list for fast playback
+        // First, see if it's eariler than the first item, special case
+        if(d.time < global.event_start->time) {
+            events[found].next = global.event_start;
+            global.event_start = &events[found];
+        } else {
+            // or it's got to be found somewhere
+            struct delta* ptr = global.event_start; 
+            int8_t inserted = -1;
+            while(inserted<0) {
+                if(d.time < ptr->next->time) { 
+                    // next should point to me, and my next should point to old next
+                    events[found].next = ptr->next;
+                    ptr->next = &events[found];
+                    inserted = 1;
+                }
+                ptr = ptr->next;
+            }
+        }
+
+    } else {
+        // If there's no room in the queue, just skip the message
+        printf("queue exhausted\n");
     }
+}
+
+void add_event(struct event e) {
+    // make delta objects out of the UDP event and add them to the queue
+    struct delta d;
+    d.osc = e.osc;
+    d.time = e.time;
+
+    if(e.wave>-1) { d.param=WAVE; d.data = (uint32_t)e.wave; add_delta_to_queue(d); }
+    if(e.patch>-1) { d.param=PATCH; d.data = (uint32_t)e.patch; add_delta_to_queue(d); }
+    if(e.midi_note>-1) { d.param=MIDI_NOTE; d.data = (uint32_t)e.midi_note; add_delta_to_queue(d); }
+    if(e.amp>-1) { d.param=AMP; d.data = (uint32_t)e.amp; add_delta_to_queue(d); }
+    if(e.duty>-1) { d.param=DUTY; d.data = (uint32_t)e.duty; add_delta_to_queue(d); }
+    if(e.feedback>-1) { d.param=FEEDBACK; d.data = (uint32_t)e.feedback; add_delta_to_queue(d); }
+    if(e.freq>-1) { d.param=FREQ; d.data = (uint32_t)e.freq; add_delta_to_queue(d); }
+    if(e.phase>-1) { d.param=PHASE; d.data = (uint32_t)e.phase; add_delta_to_queue(d); }
+    if(e.volume>-1) { d.param=VOLUME; d.data = (uint32_t)e.volume; add_delta_to_queue(d); }
+    if(e.filter_freq>-1) { d.param=FILTER_FREQ; d.data = (uint32_t)e.filter_freq; add_delta_to_queue(d); }
+    if(e.resonance>-1) { d.param=RESONANCE; d.data = (uint32_t)e.resonance; add_delta_to_queue(d); }
+    if(e.lfo_source>-1) { d.param=LFO_SOURCE; d.data = (uint32_t)e.lfo_source; add_delta_to_queue(d); }
+    if(e.lfo_target>-1) { d.param=LFO_TARGET; d.data = (uint32_t)e.lfo_target; add_delta_to_queue(d); }
+    if(e.adsr_target>-1) { d.param=ADSR_TARGET; d.data = (uint32_t)e.adsr_target; add_delta_to_queue(d); }
+    if(e.adsr_a>-1) { d.param=ADSR_A; d.data = (uint32_t)e.adsr_a; add_delta_to_queue(d); }
+    if(e.adsr_d>-1) { d.param=ADSR_D; d.data = (uint32_t)e.adsr_d; add_delta_to_queue(d); }
+    if(e.adsr_s>-1) { d.param=ADSR_S; d.data = (uint32_t)e.adsr_s; add_delta_to_queue(d); }
+    if(e.adsr_r>-1) { d.param=ADSR_R; d.data = (uint32_t)e.adsr_r; add_delta_to_queue(d); }
+
+    // Add this last -- this is a trigger, that if sent alongside osc setup parameters, you want to run after those
+    if(e.velocity>-1) { d.param=VELOCITY; d.data = (uint32_t)e.velocity; add_delta_to_queue(d); }
 }
 
 void reset_osc(uint8_t i ) {
@@ -185,7 +221,7 @@ esp_err_t oscs_init() {
     // FM init happens later for mem reason
     ks_init();
     filters_init();
-    events = (struct event*) malloc(sizeof(struct event) * EVENT_FIFO_LEN);
+    events = (struct delta*)malloc(sizeof(struct delta) * EVENT_FIFO_LEN);
     synth = (struct event*) malloc(sizeof(struct event) * OSCS);
     msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * OSCS);
     fbl = (float**) malloc(sizeof(float*) * 2); // one per core
@@ -193,14 +229,17 @@ esp_err_t oscs_init() {
     block = (int16_t *) malloc(sizeof(int16_t) * BLOCK_SIZE);
 
     reset_oscs();
-    // Fill the FIFO with default events, as the audio thread reads from it immediately
-    for(int i=0;i<EVENT_FIFO_LEN;i++) {
-        // First clear out the malloc'd events so it doesn't seem like the queue is full
-        events[i].status = EMPTY;
-    }
-    for(int i=0;i<EVENT_FIFO_LEN;i++) {
-        add_event(default_event());
-    }
+
+    // Set all the events to empty
+    for(uint16_t i=0;i<EVENT_FIFO_LEN;i++) events[i].time = UINT32_MAX;
+
+    // Make a fencepost last event with no next, time of end-1, and call it start
+    events[0].next = NULL;
+    events[0].time = UINT32_MAX - 1;
+    global.next_event_write = 1;
+    global.event_start = &events[0];
+
+
 
     // Create rendering threads, one per core so we can deal with dan ellis float math
     fbl[0] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
@@ -220,11 +259,15 @@ esp_err_t oscs_init() {
     return ESP_OK;
 }
 
+
 uint64_t last_osc_counter[2] = {0, 0};
 uint64_t last_fill_counter = 0;
+uint64_t last_mcast_counter = 0;
 uint64_t last_idle0_counter = 0;
 uint64_t last_idle1_counter = 0;
 
+
+// TODO -- rewrite this to call uxGetSystemState and do the math myself
 void show_debug(uint8_t type) {
     // Get the run time counters for each rendering task and so on, to show CPU usage
     // We show usage since the last time you called this
@@ -248,21 +291,30 @@ void show_debug(uint8_t type) {
     vTaskGetInfo(fillbufferTask, &xTaskDetails, pdFALSE, eRunning);
     uint64_t fill_counter = xTaskDetails.ulRunTimeCounter - last_fill_counter;
     last_fill_counter = xTaskDetails.ulRunTimeCounter;
+
+    vTaskGetInfo(mcastTask, &xTaskDetails, pdFALSE, eRunning);
+    uint64_t mcast_counter = xTaskDetails.ulRunTimeCounter - last_mcast_counter;
+    last_mcast_counter = xTaskDetails.ulRunTimeCounter;
+
+ 
     // idle for core0 and 1, "free space"
     vTaskGetInfo(idleTask0, &xTaskDetails, pdFALSE, eRunning);
     uint64_t idle0_counter = xTaskDetails.ulRunTimeCounter - last_idle0_counter;
     last_idle0_counter = xTaskDetails.ulRunTimeCounter;
+
     vTaskGetInfo(idleTask1, &xTaskDetails, pdFALSE, eRunning);
     uint64_t idle1_counter = xTaskDetails.ulRunTimeCounter - last_idle1_counter;
     last_idle1_counter = xTaskDetails.ulRunTimeCounter;
 
-    // Total -- there's still some left, like wifi, esp_timer, mcast_task, main, but they're small 
-    total += fill_counter + idle0_counter + idle1_counter;
+    // Total -- there's still some left, like wifi, esp_timer, main, but they're small 
+    total += fill_counter + idle0_counter + idle1_counter + mcast_counter; 
     printf("rend0 %2.4f%%\n", ((float)osc_counter[0] / (float)total)*100.0);
     printf("rend1 %2.4f%%\n", ((float)osc_counter[1] / (float)total)*100.0);
     printf("fillb %2.4f%%\n", ((float)fill_counter / (float)total)*100.0);
     printf("idle0 %2.4f%%\n", ((float)idle0_counter / (float)total)*100.0);
     printf("idle1 %2.4f%%\n", ((float)idle1_counter / (float)total)*100.0);
+    printf("mcast %2.4f%%\n", ((float)mcast_counter / (float)total)*100.0);
+
     if(type>1) {
         // print out all the osc data
         printf("global: filter %f resonance %f volume %f status %d\n", global.filter_freq, global.resonance, global.volume, global.status);
@@ -324,68 +376,68 @@ esp_err_t setup_i2s(void) {
 
 
 // Play an event, now -- tell the audio loop to start making noise
-void play_event(struct event e) {
-    if(e.midi_note >= 0) { synth[e.osc].midi_note = e.midi_note; synth[e.osc].freq = freq_for_midi_note(e.midi_note); } 
-    if(e.wave >= 0) synth[e.osc].wave = e.wave;
-    if(e.phase >= 0) synth[e.osc].phase = e.phase;
-    if(e.patch >= 0) synth[e.osc].patch = e.patch;
-    if(e.duty >= 0) synth[e.osc].duty = e.duty;
-    if(e.feedback >= 0) synth[e.osc].feedback = e.feedback;
-    if(e.freq >= 0) synth[e.osc].freq = e.freq;
-    
-    if(e.adsr_target >= 0) synth[e.osc].adsr_target = e.adsr_target;
-    if(e.adsr_a >= 0) synth[e.osc].adsr_a = e.adsr_a;
-    if(e.adsr_d >= 0) synth[e.osc].adsr_d = e.adsr_d;
-    if(e.adsr_s >= 0) synth[e.osc].adsr_s = e.adsr_s;
-    if(e.adsr_r >= 0) synth[e.osc].adsr_r = e.adsr_r;
+void play_event(struct delta d) {
+    if(d.param == MIDI_NOTE) { synth[d.osc].midi_note = (uint16_t) d.data; synth[d.osc].freq = freq_for_midi_note((uint16_t) d.data); } 
+    if(d.param == WAVE) synth[d.osc].wave = (int16_t) d.data; 
+    if(d.param == PHASE) synth[d.osc].phase = (float) d.data;
+    if(d.param == PATCH) synth[d.osc].patch = (int16_t) d.data;
+    if(d.param == DUTY) synth[d.osc].duty = (float) d.data;
+    if(d.param == FEEDBACK) synth[d.osc].feedback = (float) d.data;
+    if(d.param == FREQ) synth[d.osc].freq = (float) d.data;
+    if(d.param == ADSR_TARGET) synth[d.osc].adsr_target = (int8_t) d.data;
 
-    if(e.lfo_source >= 0) { synth[e.osc].lfo_source = e.lfo_source; synth[e.lfo_source].status = LFO_SOURCE; }
-    if(e.lfo_target >= 0) synth[e.osc].lfo_target = e.lfo_target;
+    if(d.param == ADSR_A) synth[d.osc].adsr_a = (int16_t) d.data;
+    if(d.param == ADSR_D) synth[d.osc].adsr_d = (int16_t) d.data;
+    if(d.param == ADSR_S) synth[d.osc].adsr_s = (float) d.data;
+    if(d.param == ADSR_R) synth[d.osc].adsr_r = (int16_t) d.data;
+
+    if(d.param == LFO_SOURCE) { synth[d.osc].lfo_source = (int8_t) d.data; synth[(int8_t) d.data].status = IS_LFO_SOURCE; }
+    if(d.param == LFO_TARGET) synth[d.osc].lfo_target = (int8_t) d.data; 
 
     // For global changes, just make the change, no need to update the per-osc synth
-    if(e.volume >= 0) global.volume = e.volume; 
-    if(e.filter_freq >= 0) global.filter_freq = e.filter_freq; 
-    if(e.resonance >= 0) global.resonance = e.resonance; 
+    if(d.param == VOLUME) global.volume = (float)d.data;
+    if(d.param == FILTER_FREQ) global.filter_freq = (float)d.data;
+    if(d.param == RESONANCE) global.resonance = (float)d.data;
 
     // Triggers / envelopes 
     // The only way a sound is made is if velocity (note on) is >0.
-    if(e.velocity>0 ) { // New note on (even if something is already playing on this osc)
-        synth[e.osc].amp = e.velocity; 
-        synth[e.osc].velocity = e.velocity;
-        synth[e.osc].status = AUDIBLE;
+    if(d.param == VELOCITY && (float)d.data > 0) { // New note on (even if something is already playing on this osc)
+        synth[d.osc].amp = (float)d.data; // these could be decoupled, later
+        synth[d.osc].velocity = (float) d.data;
+        synth[d.osc].status = AUDIBLE;
         // Take care of FM & KS first -- no special treatment for ADSR/LFO
-        if(synth[e.osc].wave==FM) { fm_note_on(e.osc); } 
-        else if(synth[e.osc].wave==KS) { ks_note_on(e.osc); } 
+        if(synth[d.osc].wave==FM) { fm_note_on(d.osc); } 
+        else if(synth[d.osc].wave==KS) { ks_note_on(d.osc); } 
         else {
             // an osc came in with a note on.
             // Start the ADSR clock
-            synth[e.osc].adsr_on_clock = esp_timer_get_time() / 1000;
+            synth[d.osc].adsr_on_clock = esp_timer_get_time() / 1000;
 
             // Restart the waveforms, adjusting for phase if given
-            if(synth[e.osc].wave==SINE) sine_note_on(e.osc);
-            if(synth[e.osc].wave==SAW) saw_note_on(e.osc);
-            if(synth[e.osc].wave==TRIANGLE) triangle_note_on(e.osc);
-            if(synth[e.osc].wave==PULSE) pulse_note_on(e.osc);
-            if(synth[e.osc].wave==PCM) pcm_note_on(e.osc);
+            if(synth[d.osc].wave==SINE) sine_note_on(d.osc);
+            if(synth[d.osc].wave==SAW) saw_note_on(d.osc);
+            if(synth[d.osc].wave==TRIANGLE) triangle_note_on(d.osc);
+            if(synth[d.osc].wave==PULSE) pulse_note_on(d.osc);
+            if(synth[d.osc].wave==PCM) pcm_note_on(d.osc);
 
             // Also trigger the LFO source, if we have one
-            if(synth[e.osc].lfo_source >= 0) {
-                if(synth[synth[e.osc].lfo_source].wave==SINE) sine_lfo_trigger(synth[e.osc].lfo_source);
-                if(synth[synth[e.osc].lfo_source].wave==SAW) saw_lfo_trigger(synth[e.osc].lfo_source);
-                if(synth[synth[e.osc].lfo_source].wave==TRIANGLE) triangle_lfo_trigger(synth[e.osc].lfo_source);
-                if(synth[synth[e.osc].lfo_source].wave==PULSE) pulse_lfo_trigger(synth[e.osc].lfo_source);
-                if(synth[synth[e.osc].lfo_source].wave==PCM) pcm_lfo_trigger(synth[e.osc].lfo_source);
+            if(synth[d.osc].lfo_source >= 0) {
+                if(synth[synth[d.osc].lfo_source].wave==SINE) sine_lfo_trigger(synth[d.osc].lfo_source);
+                if(synth[synth[d.osc].lfo_source].wave==SAW) saw_lfo_trigger(synth[d.osc].lfo_source);
+                if(synth[synth[d.osc].lfo_source].wave==TRIANGLE) triangle_lfo_trigger(synth[d.osc].lfo_source);
+                if(synth[synth[d.osc].lfo_source].wave==PULSE) pulse_lfo_trigger(synth[d.osc].lfo_source);
+                if(synth[synth[d.osc].lfo_source].wave==PCM) pcm_lfo_trigger(synth[d.osc].lfo_source);
             }
 
         }
-    } else if(synth[e.osc].velocity > 0 && e.velocity == 0) { // new note off
-        synth[e.osc].velocity = e.velocity;
-        if(synth[e.osc].wave==FM) { fm_note_off(e.osc); }
-        else if(synth[e.osc].wave==KS) { ks_note_off(e.osc); }
+    } else if(synth[d.osc].velocity > 0 && d.param == VELOCITY && (float)d.data == 0) { // new note off
+        synth[d.osc].velocity = 0;
+        if(synth[d.osc].wave==FM) { fm_note_off(d.osc); }
+        else if(synth[d.osc].wave==KS) { ks_note_off(d.osc); }
         else {
             // osc note off, start release
-            synth[e.osc].adsr_on_clock = -1;
-            synth[e.osc].adsr_off_clock = esp_timer_get_time() / 1000;
+            synth[d.osc].adsr_on_clock = -1;
+            synth[d.osc].adsr_off_clock = esp_timer_get_time() / 1000;
         }
     }
 
@@ -452,15 +504,11 @@ void fill_audio_buffer_task() {
         // Check to see which sounds to play 
         int64_t sysclock = esp_timer_get_time() / 1000;
         
-        // We could save some CPU by starting at a read pointer, depends on how big this gets
-        for(uint16_t i=0;i<EVENT_FIFO_LEN;i++) {
-            if(events[i].status == SCHEDULED) {
-                // By now event.time is corrected to our sysclock (from the host)
-                if(sysclock >= events[i].time) {
-                    play_event(events[i]);
-                    events[i].status = PLAYED;
-                }
-            }
+        while(global.event_start != NULL && sysclock >= global.event_start->time) {
+            play_event(*global.event_start);
+            global.event_start->time = UINT32_MAX;
+            global.event_qsize--;
+            global.event_start = global.event_start->next;
         }
         // Save the current global synth state to the modifiers         
         mglobal.resonance = global.resonance;
@@ -536,7 +584,8 @@ void parse_adsr(struct event * e, char* message) {
     }
 }
 
-// parse a received event string and add event to queue
+
+// parse a received event string and turn the message into deltas on the queue
 uint8_t deserialize_event(char * message, uint16_t length) {
     // Don't process new messages if we're in MIDI mode
     if(global.status & MIDI_MODE) return 0;
@@ -574,6 +623,7 @@ uint8_t deserialize_event(char * message, uint16_t length) {
                     computed_delta_set = 1;
                 }
             }
+            if(mode=='a') e.amp=atof(message+start);
             if(mode=='A') parse_adsr(&e, message+start);
             if(mode=='b') e.feedback=atof(message+start);
             if(mode=='c') client = atoi(message + start); 
@@ -807,7 +857,7 @@ void app_main() {
     create_multicast_ipv4_socket();
 
     // Pin the UDP task to the 2nd core so the audio / main core runs on its own without getting starved
-    xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 2, &multicast_handle, 1);
+    xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 2, &mcastTask, 1);
     
     // Allocate the FM RAM after the captive portal HTTP server is passed, as you can't have both at once
     fm_init();
@@ -829,7 +879,7 @@ void app_main() {
     delay_ms(500);
 
     // Stop mulitcast listening, wifi, midi
-    vTaskDelete(multicast_handle);
+    vTaskDelete(mcastTask);
     esp_wifi_stop();
     if(global.status & MIDI_MODE) midi_deinit();
 

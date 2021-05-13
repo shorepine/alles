@@ -39,10 +39,11 @@ extern "C" {
 // Constants you can change if you want
 #define OSCS 64              // # of simultaneous oscs to keep track of 
 #define BLOCK_SIZE 256        // i2s buffer block size in samples
-#define EVENT_FIFO_LEN 400   // number of events the queue can store
+#define EVENT_FIFO_LEN 1200   // number of events the queue can store
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #define SAMPLE_RATE 44100    // playback sample rate
 #define SAMPLE_MAX 32767
+
 // D is how close the sample gets to the clip limit before the nonlinearity engages.  
 // So D=0.1 means output is linear for -0.9..0.9, then starts clipping.
 #define CLIP_D 0.1
@@ -90,7 +91,7 @@ extern "C" {
 #define SCHEDULED 1
 #define PLAYED 2
 #define AUDIBLE 3
-#define LFO_SOURCE 4
+#define IS_LFO_SOURCE 4
 
 
 // Pins & buttons
@@ -110,10 +111,38 @@ extern "C" {
 #define BATT_SENSE_CHANNEL ADC_CHANNEL_7 // GPIO35 / ADC1_7
 #define WALL_SENSE_CHANNEL ADC_CHANNEL_3 // GPIO39 / ADC1_3
     
+// TODO -- maybe only store changes in this, as we want more ram to store events
+// events is 110 bytes per event, alighned and x 600 is a lot i bet
+// synth yes, but event no
+// maybe call the full struct synth or state
+// and .. just update the synth state from the string??? 
+// yeah we could store just the UDP string and deserialize it at event time?
+// what's wrong with that
+// well-- ascii is pretty wasteful, and you still need to parse time and client anyway
+// so instead, just make a struct that has deltas, like state_delta
+
+enum params{WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, RESONANCE, LFO_SOURCE, LFO_TARGET, ADSR_TARGET, ADSR_A, ADSR_D, ADSR_S, ADSR_R};
+
+struct sorted_delta {
+    struct delta * d;
+    struct sorted_delta * next;
+};
+
+struct delta {
+    uint32_t data; // casted to the right thing later
+    enum params param;
+    uint32_t time;
+    int8_t osc;
+    struct delta * next;
+
+};
+
+
 // Events
 struct event {
+    // todo -- i don't think we need 64-bit # here
     int64_t time;
-    int16_t osc;
+    int8_t osc;
     int16_t wave;
     int16_t patch;
     int16_t midi_note;
@@ -170,7 +199,9 @@ struct state {
     float volume;
     float resonance;
     float filter_freq;
+    uint16_t event_qsize;
     int16_t next_event_write;
+    struct delta * event_start; // start of the sorted list
     uint8_t board_level;
     uint8_t status;
 };

@@ -4,6 +4,7 @@ import time
 
 # Some constants shared with the synth that help
 ALLES_OSCS = 64
+ALLES_MAX_QUEUE = 400
 [SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, PCM, OFF] = range(9)
 TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE = (1, 2, 4, 8, 16)
 
@@ -122,13 +123,18 @@ def drums(bpm=120, **kwargs):
     bassline = [50, 0, 0, 0, 50, 52, 51, 0]
     while True:
         for i,x in enumerate(pattern):
-            if(x & bass): note_on(osc=0, note=50, vel=1.5, **kwargs)
-            if(x & snare): note_on(osc=2, vel=1.5, **kwargs)
-            if(x & hat): note_on(osc=3, vel=1, **kwargs)
-            if(x & cow): note_on(osc=4, vel=1, **kwargs)
-            if(x & hicow): note_on(osc=5, vel=1, **kwargs)
+            if(x & bass): 
+                note_on(osc=0, note=50, vel=1.5, **kwargs)
+            if(x & snare):
+                note_on(osc=2, vel=1.5)
+            if(x & hat): 
+                note_on(osc=3, vel=1)
+            if(x & cow): 
+                note_on(osc=4, vel=1)
+            if(x & hicow): 
+                note_on(osc=5, vel=1)
             if(bassline[i]>0):
-                note_on(osc=7, note=bassline[i], vel=0.25, **kwargs)
+                note_on(osc=7, vel=0.25, note=bassline[i], **kwargs)
             else:
                 note_off(osc=7, **kwargs)
             time.sleep(1.0/(bpm*2/60))
