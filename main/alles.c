@@ -26,6 +26,9 @@ float ** scratchbuf;
 // block -- what gets sent to the DAC -- -32768...32767 (wave file, int16 LE)
 int16_t * block;
 
+// Semaphore that locks writes to the delta queue
+SemaphoreHandle_t xQueueSemaphore;
+
 void delay_ms(uint32_t ms) {
     vTaskDelay(ms / portTICK_PERIOD_MS);
 }
@@ -100,6 +103,9 @@ struct event default_event() {
 }
 
 void add_delta_to_queue(struct delta d) {
+    //  Take the queue semaphore before starting
+    xSemaphoreTake(xQueueSemaphore, portMAX_DELAY);
+
     if(global.event_qsize < EVENT_FIFO_LEN) {
         // scan through the memory to find a free slot, starting at write pointer
         uint16_t write_location = global.next_event_write;
@@ -141,6 +147,8 @@ void add_delta_to_queue(struct delta d) {
         // TODO -- report this somehow? 
         // If there's no room in the queue, just skip the message
     }
+    xSemaphoreGive( xQueueSemaphore );
+
 
 }
 
@@ -239,6 +247,9 @@ esp_err_t oscs_init() {
     global.next_event_write = 1;
     global.event_start = &events[0];
     global.event_qsize = 1;
+
+    xQueueSemaphore = xSemaphoreCreateMutex();
+
 
     // Create rendering threads, one per core so we can deal with dan ellis float math
     fbl[0] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
@@ -504,13 +515,15 @@ void fill_audio_buffer_task() {
         // Check to see which sounds to play 
         int64_t sysclock = esp_timer_get_time() / 1000;
 
-        // TODO, put a semaphore around this so that the mcastTask doesn't touch these while i'm running        
+        // put a semaphore around this so that the mcastTask doesn't touch these while i'm running  
+        xSemaphoreTake(xQueueSemaphore, portMAX_DELAY);
         while(sysclock >= global.event_start->time) {
             play_event(*global.event_start);
             global.event_start->time = UINT32_MAX;
             global.event_qsize--;
             global.event_start = global.event_start->next;
         }
+        xSemaphoreGive(xQueueSemaphore);
 
         // Save the current global synth state to the modifiers         
         mglobal.resonance = global.resonance;
@@ -860,7 +873,7 @@ void app_main() {
 
     // Pin the UDP task to the 2nd core so the audio / main core runs on its own without getting starved
     xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 2, &mcastTask, 1);
-    
+
     // Allocate the FM RAM after the captive portal HTTP server is passed, as you can't have both at once
     fm_init();
 
