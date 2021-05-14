@@ -121,12 +121,7 @@ extern "C" {
 // well-- ascii is pretty wasteful, and you still need to parse time and client anyway
 // so instead, just make a struct that has deltas, like state_delta
 
-enum params{WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, RESONANCE, LFO_SOURCE, LFO_TARGET, ADSR_TARGET, ADSR_A, ADSR_D, ADSR_S, ADSR_R};
-
-struct sorted_delta {
-    struct delta * d;
-    struct sorted_delta * next;
-};
+enum params{WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, RESONANCE, LFO_SOURCE, LFO_TARGET, ADSR_TARGET, ADSR_A, ADSR_D, ADSR_S, ADSR_R, NO_PARAM};
 
 struct delta {
     uint32_t data; // casted to the right thing later
@@ -134,13 +129,12 @@ struct delta {
     uint32_t time;
     int8_t osc;
     struct delta * next;
-
 };
 
 
 // Events
 struct event {
-    // todo -- i don't think we need 64-bit # here
+    // todo -- clean up types here - many don't need to be signed anymore, and time doesn't need to be int64
     int64_t time;
     int8_t osc;
     int16_t wave;
@@ -237,6 +231,8 @@ extern uint8_t alive;
 extern int64_t computed_delta; // can be negative no prob, but usually host is larger # than client
 extern uint8_t computed_delta_set; // have we set a delta yet?
 extern int16_t client_id;
+extern char  last_udp_message[];
+extern int16_t last_udp_message_length;
 
 
 // FM 

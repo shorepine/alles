@@ -26,7 +26,7 @@ float ** scratchbuf;
 // block -- what gets sent to the DAC -- -32768...32767 (wave file, int16 LE)
 int16_t * block;
 
-// Semaphore that locks writes to the delta queue
+// mutex that locks writes to the delta queue
 SemaphoreHandle_t xQueueSemaphore;
 
 void delay_ms(uint32_t ms) {
@@ -52,6 +52,7 @@ extern xQueueHandle gpio_evt_queue;
 
 // Task handles for the renderers, multicast listener and main
 TaskHandle_t mcastTask = NULL;
+TaskHandle_t parseTask = NULL;
 static TaskHandle_t renderTask[2]; // one per core
 static TaskHandle_t fillbufferTask = NULL;
 static TaskHandle_t idleTask0 = NULL;
@@ -103,7 +104,7 @@ struct event default_event() {
 }
 
 void add_delta_to_queue(struct delta d) {
-    //  Take the queue semaphore before starting
+    //  Take the queue mutex before starting
     xSemaphoreTake(xQueueSemaphore, portMAX_DELAY);
 
     if(global.event_qsize < EVENT_FIFO_LEN) {
@@ -236,20 +237,30 @@ esp_err_t oscs_init() {
     scratchbuf = (float**) malloc(sizeof(float*) * 2); // one per core
     block = (int16_t *) malloc(sizeof(int16_t) * BLOCK_SIZE);
 
+    // Set all oscillators to their default values
     reset_oscs();
 
-    // Set all the events to empty
-    for(uint16_t i=0;i<EVENT_FIFO_LEN;i++) events[i].time = UINT32_MAX;
-
-    // Make a fencepost last event with no next, time of end-1, and call it start
+    // Make a fencepost last event with no next, time of end-1, and call it start for now, all other events get inserted before it
     events[0].next = NULL;
     events[0].time = UINT32_MAX - 1;
+    events[0].osc = 0;
+    events[0].data = 0;
+    events[0].param = NO_PARAM;
     global.next_event_write = 1;
     global.event_start = &events[0];
-    global.event_qsize = 1;
+    global.event_qsize = 1; // queue will always have at least 1 thing in it 
 
+    // Set all the other events to empty
+    for(uint16_t i=1;i<EVENT_FIFO_LEN;i++) { 
+        events[i].time = UINT32_MAX;
+        events[i].next = NULL;
+        events[i].osc = 0;
+        events[i].data = 0;
+        events[i].param = NO_PARAM;
+    }
+
+    // We create a mutex for changing the event queue and pointers as two tasks do it at once
     xQueueSemaphore = xSemaphoreCreateMutex();
-
 
     // Create rendering threads, one per core so we can deal with dan ellis float math
     fbl[0] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
@@ -259,31 +270,33 @@ esp_err_t oscs_init() {
     xTaskCreatePinnedToCore(&render_task, "render_task0", 4096, NULL, 1, &renderTask[0], 0);
     xTaskCreatePinnedToCore(&render_task, "render_task1", 4096, NULL, 1, &renderTask[1], 1);
 
-    delay_ms(500);
+    // Wait for the render tasks to get going before starting the i2s task
+    delay_ms(100);
+
     // And the fill audio buffer thread, combines, does volume & filters
     xTaskCreatePinnedToCore(&fill_audio_buffer_task, "fill_audio_buff", 4096, NULL, 1, &fillbufferTask, 0);
 
-    // Grab the idle handles while we're here
+    // Grab the idle handles while we're here, we use them for CPU usage reporting
     idleTask0 = xTaskGetIdleTaskHandleForCPU(0);
     idleTask1 = xTaskGetIdleTaskHandleForCPU(1);
     return ESP_OK;
 }
 
 
-#define MAX_TASKS 8
+// Show a CPU usage counter. This shows the delta in use since the last time you called it
+#define MAX_TASKS 9
 unsigned long last_task_counters[MAX_TASKS] = {0};
-
 void show_debug(uint8_t type) { 
     TaskStatus_t *pxTaskStatusArray;
     volatile UBaseType_t uxArraySize, x, i;
-    const char* const tasks[] = { "render_task0", "render_task1", "mcast_task", "main", "fill_audio_buff", "wifi", "idle0", "idle1", 0 }; 
+    const char* const tasks[] = { "render_task0", "render_task1", "mcast_task", "parse_task", "main", "fill_audio_buff", "wifi", "idle0", "idle1", 0 }; 
     uxArraySize = uxTaskGetNumberOfTasks();
     pxTaskStatusArray = pvPortMalloc( uxArraySize * sizeof( TaskStatus_t ) );
     uxArraySize = uxTaskGetSystemState( pxTaskStatusArray, uxArraySize, NULL );
     unsigned long counter_since_last[MAX_TASKS];
     unsigned long ulTotalRunTime = 0;
     TaskStatus_t xTaskDetails;
-
+    // We have to check for the names we want to track
     for(i=0;i<MAX_TASKS;i++) { // for each name
         for(x=0; x<uxArraySize; x++) { // for each task
             if(strcmp(pxTaskStatusArray[x].pcTaskName, tasks[i])==0) {
@@ -515,7 +528,7 @@ void fill_audio_buffer_task() {
         // Check to see which sounds to play 
         int64_t sysclock = esp_timer_get_time() / 1000;
 
-        // put a semaphore around this so that the mcastTask doesn't touch these while i'm running  
+        // put a mutex around this so that the mcastTask doesn't touch these while i'm running  
         xSemaphoreTake(xQueueSemaphore, portMAX_DELAY);
         while(sysclock >= global.event_start->time) {
             play_event(*global.event_start);
@@ -600,131 +613,138 @@ void parse_adsr(struct event * e, char* message) {
 }
 
 
-// parse a received event string and turn the message into deltas on the queue
-uint8_t deserialize_event(char * message, uint16_t length) {
-    // Don't process new messages if we're in MIDI mode
-    if(global.status & MIDI_MODE) return 0;
+// todo move all parse stuff to parse.c
+// loop forever, parsing a received event string and turn the message into deltas on the queue
+void parse_task() {
+    while(1) {
+        // Wait for a message, in last_udp_message / last_udp_message_length
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-    uint8_t mode = 0;
-    int64_t sync = -1;
-    int8_t sync_index = -1;
-    uint8_t ipv4 = 0; 
-    int16_t client = -1;
-    uint16_t start = 0;
-    uint16_t c = 0;
-    struct event e = default_event();
-    int64_t sysclock = esp_timer_get_time() / 1000;
-    uint8_t sync_response = 0;
-    // Put a null at the end for atoi
-    message[length] = 0;
+        uint8_t mode = 0;
+        int64_t sync = -1;
+        int8_t sync_index = -1;
+        uint8_t ipv4 = 0; 
+        int16_t client = -1;
+        uint16_t start = 0;
+        uint16_t c = 0;
+        char * message = last_udp_message;
+        int16_t length = last_udp_message_length;
 
-    // Cut the OSC cruft Max etc add, they put a 0 and then more things after the 0
-    int new_length = length; 
-    for(int d=0;d<length;d++) {
-        if(message[d] == 0) { new_length = d; d = length + 1;  } 
-    }
-    length = new_length;
+        struct event e = default_event();
+        int64_t sysclock = esp_timer_get_time() / 1000;
+        uint8_t sync_response = 0;
 
-    //printf("received message ###%s### len %d\n", message, length);
-    while(c < length+1) {
-        uint8_t b = message[c];
-        if(b == '_' && c==0) sync_response = 1;
-        if( ((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')) || b == 0) {  // new mode or end
-            if(mode=='t') {
-                e.time=atol(message + start);
-                // if we haven't yet synced our times, do it now
-                if(!computed_delta_set) {
-                    computed_delta = e.time - sysclock;
-                    computed_delta_set = 1;
-                }
-            }
-            if(mode=='a') e.amp=atof(message+start);
-            if(mode=='A') parse_adsr(&e, message+start);
-            if(mode=='b') e.feedback=atof(message+start);
-            if(mode=='c') client = atoi(message + start); 
-            if(mode=='d') e.duty=atof(message + start);
-            if(mode=='D') {
-                uint8_t type = atoi(message + start);
-                show_debug(type); 
-            }
-            // reminder: don't use "E" or "e", lol 
-            if(mode=='f') e.freq=atof(message + start); 
-            if(mode=='F') e.filter_freq=atof(message + start);
-            if(mode=='g') e.lfo_target = atoi(message + start); 
-            if(mode=='i') sync_index = atoi(message + start);
-            if(mode=='l') e.velocity=atof(message + start);
-            if(mode=='L') e.lfo_source=atoi(message + start);
-            if(mode=='n') e.midi_note=atoi(message + start);
-            if(mode=='p') e.patch=atoi(message + start);
-            if(mode=='P') e.phase=atof(message + start);
-            if(mode=='r') ipv4=atoi(message + start);
-            if(mode=='R') e.resonance=atof(message + start);
-            if(mode=='s') sync = atol(message + start); 
-            if(mode=='S') { 
-                uint8_t osc = atoi(message + start); 
-                if(osc > OSCS-1) { reset_oscs(); } else { reset_osc(osc); }
-            }
-            if(mode=='T') e.adsr_target = atoi(message + start); 
-            if(mode=='v') e.osc=(atoi(message + start) % OSCS); // allow osc wraparound
-            if(mode=='V') { e.volume = atof(message + start); }
-            if(mode=='w') e.wave=atoi(message + start);
-            mode=b;
-            start=c+1;
+        // Cut the OSC cruft Max etc add, they put a 0 and then more things after the 0
+        int new_length = length; 
+        for(int d=0;d<length;d++) {
+            if(message[d] == 0) { new_length = d; d = length + 1;  } 
         }
-        c++;
-    }
-    if(sync_response) {
-        // If this is a sync response, let's update our local map of who is booted
-        update_map(client, ipv4, sync);
-        length = 0; // don't need to do the rest
-    }
-    // Only do this if we got some data
-    if(length >0) {
-        // Now adjust time in some useful way:
-        // if we have a delta & got a time in this message, use it schedule it properly
-        if(computed_delta_set && e.time > 0) {
-            // OK, so check for potentially negative numbers here (or really big numbers-sysclock) 
-            int64_t potential_time = (e.time - computed_delta) + LATENCY_MS;
-            if(potential_time < 0 || (potential_time > sysclock + LATENCY_MS + MAX_DRIFT_MS)) {
-                printf("recomputing time base: message came in with %lld, mine is %lld, computed delta was %lld\n", e.time, sysclock, computed_delta);
-                computed_delta = e.time - sysclock;
-                printf("computed delta now %lld\n", computed_delta);
-            }
-            e.time = (e.time - computed_delta) + LATENCY_MS;
+        length = new_length;
 
-        } else { // else play it asap 
-            e.time = sysclock + LATENCY_MS;
-        }
-        e.status = SCHEDULED;
-
-        // Don't add sync messages to the event queue
-        if(sync >= 0 && sync_index >= 0) {
-            handle_sync(sync, sync_index);
-        } else {
-            // Assume it's for me
-            uint8_t for_me = 1;
-            // But wait, they specified, so don't assume
-            if(client >= 0) {
-                for_me = 0;
-                if(client <= 255) {
-                    // If they gave an individual client ID check that it exists
-                    if(alive>0) { // alive may get to 0 in a bad situation
-                        if(client >= alive) {
-                            client = client % alive;
-                        } 
+        //printf("received message ###%s### len %d\n", message, length);
+        while(c < length+1) {
+            uint8_t b = message[c];
+            if(b == '_' && c==0) sync_response = 1;
+            if( ((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')) || b == 0) {  // new mode or end
+                if(mode=='t') {
+                    e.time=atol(message + start);
+                    // if we haven't yet synced our times, do it now
+                    if(!computed_delta_set) {
+                        computed_delta = e.time - sysclock;
+                        computed_delta_set = 1;
                     }
                 }
-                // It's actually precisely for me
-                if(client == client_id) for_me = 1;
-                if(client > 255) {
-                    // It's a group message, see if i'm in the group
-                    if(client_id % (client-255) == 0) for_me = 1;
+                if(mode=='a') e.amp=atof(message+start);
+                if(mode=='A') parse_adsr(&e, message+start);
+                if(mode=='b') e.feedback=atof(message+start);
+                if(mode=='c') client = atoi(message + start); 
+                if(mode=='d') e.duty=atof(message + start);
+                if(mode=='D') {
+                    uint8_t type = atoi(message + start);
+                    show_debug(type); 
                 }
+                // reminder: don't use "E" or "e", lol 
+                if(mode=='f') e.freq=atof(message + start); 
+                if(mode=='F') e.filter_freq=atof(message + start);
+                if(mode=='g') e.lfo_target = atoi(message + start); 
+                if(mode=='i') sync_index = atoi(message + start);
+                if(mode=='l') e.velocity=atof(message + start);
+                if(mode=='L') e.lfo_source=atoi(message + start);
+                if(mode=='n') e.midi_note=atoi(message + start);
+                if(mode=='p') e.patch=atoi(message + start);
+                if(mode=='P') e.phase=atof(message + start);
+                if(mode=='r') ipv4=atoi(message + start);
+                if(mode=='R') e.resonance=atof(message + start);
+                if(mode=='s') sync = atol(message + start); 
+                if(mode=='S') { 
+                    uint8_t osc = atoi(message + start); 
+                    if(osc > OSCS-1) { reset_oscs(); } else { reset_osc(osc); }
+                }
+                if(mode=='T') e.adsr_target = atoi(message + start); 
+                if(mode=='v') e.osc=(atoi(message + start) % OSCS); // allow osc wraparound
+                if(mode=='V') { e.volume = atof(message + start); }
+                if(mode=='w') e.wave=atoi(message + start);
+                mode=b;
+                start=c+1;
             }
-            if(for_me) add_event(e);
+            c++;
         }
-    }
-    return 0;
+        if(sync_response) {
+            // If this is a sync response, let's update our local map of who is booted
+            update_map(client, ipv4, sync);
+            length = 0; // don't need to do the rest
+        }
+        // Only do this if we got some data
+        if(length >0) {
+            // Now adjust time in some useful way:
+            // if we have a delta & got a time in this message, use it schedule it properly
+            if(computed_delta_set && e.time > 0) {
+                // OK, so check for potentially negative numbers here (or really big numbers-sysclock) 
+                int64_t potential_time = (e.time - computed_delta) + LATENCY_MS;
+                if(potential_time < 0 || (potential_time > sysclock + LATENCY_MS + MAX_DRIFT_MS)) {
+                    printf("recomputing time base: message came in with %lld, mine is %lld, computed delta was %lld\n", e.time, sysclock, computed_delta);
+                    computed_delta = e.time - sysclock;
+                    printf("computed delta now %lld\n", computed_delta);
+                }
+                e.time = (e.time - computed_delta) + LATENCY_MS;
+
+            } else { // else play it asap 
+                e.time = sysclock + LATENCY_MS;
+            }
+            e.status = SCHEDULED;
+
+            // Don't add sync messages to the event queue
+            if(sync >= 0 && sync_index >= 0) {
+                handle_sync(sync, sync_index);
+            } else {
+                // Assume it's for me
+                uint8_t for_me = 1;
+                // But wait, they specified, so don't assume
+                if(client >= 0) {
+                    for_me = 0;
+                    if(client <= 255) {
+                        // If they gave an individual client ID check that it exists
+                        if(alive>0) { // alive may get to 0 in a bad situation
+                            if(client >= alive) {
+                                client = client % alive;
+                            } 
+                        }
+                    }
+                    // It's actually precisely for me
+                    if(client == client_id) for_me = 1;
+                    if(client > 255) {
+                        // It's a group message, see if i'm in the group
+                        if(client_id % (client-255) == 0) for_me = 1;
+                    }
+                }
+                //printf("for me? %d\n", for_me);
+                if(for_me) add_event(e);
+            }
+        } // end if length > 0 
+        xTaskNotifyGive(mcastTask);
+    } // end while forever
+
+
 }
 
 int8_t check_init(esp_err_t (*fn)(), char *name) {
@@ -786,11 +806,19 @@ void toggle_midi() {
         // Play a MIDI sound before shutting down oscs
         midi_tone();
         delay_ms(500);
+
         // stop rendering
         vTaskDelete(fillbufferTask);
+        // stop parsing
+        vTaskDelete(parseTask);
+        // stop receiving
+        vTaskDelete(mcastTask);
 
-        fm_deinit(); // have to free RAM to start the BLE stack
+        // have to free RAM to start the BLE stack
+        fm_deinit(); 
         oscs_deinit();
+
+        // start midi
         midi_init();
     }
 }
@@ -872,6 +900,7 @@ void app_main() {
     create_multicast_ipv4_socket();
 
     // Pin the UDP task to the 2nd core so the audio / main core runs on its own without getting starved
+    xTaskCreatePinnedToCore(&parse_task, "parse_task", 4096, NULL, 1, &parseTask, 0);
     xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 2, &mcastTask, 1);
 
     // Allocate the FM RAM after the captive portal HTTP server is passed, as you can't have both at once
