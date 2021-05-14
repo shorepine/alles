@@ -59,7 +59,7 @@ def partial_scheduler(filename, len_s = 10, noise_ratio = 1, freq_res = 150, ana
 
 
 
-def play_partial_sequence(sequence, amp_mult=1, max_oscs=alles.ALLES_OSCS, **kwargs):
+def play_partial_sequence(sequence, amp_mult=1, max_oscs=alles.ALLES_OSCS, show_cpu=False, **kwargs):
     alles.reset()
     (time_ms, partial_idx, bp_idx, freq, amp, bw, phase) = range(7)
     q = queue.Queue(max_oscs)
@@ -70,6 +70,7 @@ def play_partial_sequence(sequence, amp_mult=1, max_oscs=alles.ALLES_OSCS, **kwa
     start = alles.millis()
     offset = alles.millis() - sequence[0][time_ms]
     m = 0
+    alles.send(debug=2)
     for event in sequence:
         event_time_ms = (event[time_ms] + offset)
         while(event_time_ms - alles.millis() > 1):
@@ -88,16 +89,17 @@ def play_partial_sequence(sequence, amp_mult=1, max_oscs=alles.ALLES_OSCS, **kwa
                 # If this is a normal breakpoint
                 if(event[amp]>-1):
                     m = m + 1
-                    alles.send(osc = osc_map[event[partial_idx]], wave=alles.SINE, freq=event[freq], amp=event[amp]*amp_mult, timestamp = event_time_ms, **kwargs)
+                    alles.send(osc = osc_map[event[partial_idx]], freq=event[freq], amp=event[amp]*amp_mult, timestamp = event_time_ms, **kwargs)
                 else:
                     # partial is over, free the oscillator
                     m = m + 1
-                    alles.send(osc = osc_map[event[partial_idx]], wave=alles.OFF, freq=0, amp=0, timestamp = event_time_ms, **kwargs)
+                    alles.send(osc = osc_map[event[partial_idx]], vel=0, timestamp = event_time_ms, **kwargs)
                     q.put(osc_map[event[partial_idx]])
         if(alles.millis()-start > 1000):
-            alles.send(debug=1)
+            if(show_cpu): alles.send(debug=1)
             start = alles.millis()
     print("Voice allocator was able to send %d messages out of %d (%2.2f%%)" % (m, len(sequence), float(m)/len(sequence)*100.0))
+    alles.send(debug=1)
     alles.reset()
 
 

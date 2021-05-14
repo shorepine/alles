@@ -103,6 +103,10 @@ struct event default_event() {
     return e;
 }
 
+uint32_t event_counter = 0;
+uint32_t message_counter = 0;
+
+
 void add_delta_to_queue(struct delta d) {
     //  Take the queue mutex before starting
     xSemaphoreTake(xQueueSemaphore, portMAX_DELAY);
@@ -143,6 +147,7 @@ void add_delta_to_queue(struct delta d) {
                 ptr = ptr->next;
             }
         }
+        event_counter++;
 
     } else {
         // TODO -- report this somehow? 
@@ -180,6 +185,7 @@ void add_event(struct event e) {
 
     // Add this last -- this is a trigger, that if sent alongside osc setup parameters, you want to run after those
     if(e.velocity>-1) { d.param=VELOCITY; d.data = *(uint32_t *)&e.velocity; add_delta_to_queue(d); }
+    message_counter++;
 }
 
 void reset_osc(uint8_t i ) {
@@ -324,7 +330,9 @@ void show_debug(uint8_t type) {
     for(i=0;i<MAX_TASKS;i++) {
         printf("%-15s\t%-15ld\t\t%2.2f%%\n", tasks[i], counter_since_last[i], (float)counter_since_last[i]/ulTotalRunTime * 100.0);
     }   
-    printf("------\nEvent queue size %d / %d\n", global.event_qsize, EVENT_FIFO_LEN);
+    printf("------\nEvent queue size %d / %d. Received %d events and %d messages\n", global.event_qsize, EVENT_FIFO_LEN, event_counter, message_counter);
+    event_counter = 0;
+    message_counter = 0;
     /* The array is no longer needed, free the memory it consumes. */
     vPortFree( pxTaskStatusArray );
 
@@ -398,6 +406,7 @@ esp_err_t setup_i2s(void) {
     i2s_set_sample_rates((i2s_port_t)CONFIG_I2S_NUM, SAMPLE_RATE);
     return ESP_OK;
 }
+
 
 
 // Play an event, now -- tell the audio loop to start making noise
