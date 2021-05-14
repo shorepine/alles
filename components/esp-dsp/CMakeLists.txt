@@ -106,3 +106,4 @@ set(COMPONENT_PRIV_INCLUDEDIRS  "modules/dotprod/float"
 register_component()
 
 #component_compile_options(-ffast-math -O2 -Wno-error=maybe-uninitialized)
+component_compile_options(-Wno-strict-aliasing)

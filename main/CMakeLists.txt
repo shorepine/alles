@@ -24,3 +24,9 @@ idf_component_register(SRCS alles.c
 							dx7/sawtooth.cc
 							dx7/sin.cc
                     INCLUDE_DIRS dx7)
+
+set_source_files_properties(alles.c
+    PROPERTIES COMPILE_FLAGS
+    -Wno-strict-aliasing
+)
+

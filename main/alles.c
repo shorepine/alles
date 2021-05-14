@@ -100,8 +100,6 @@ struct event default_event() {
 }
 
 void add_delta_to_queue(struct delta d) {
-
-
     if(global.event_qsize < EVENT_FIFO_LEN) {
         // scan through the memory to find a free slot, starting at write pointer
         uint16_t write_location = global.next_event_write;
@@ -128,7 +126,6 @@ void add_delta_to_queue(struct delta d) {
             // or it's got to be found somewhere
             struct delta* ptr = global.event_start; 
             int8_t inserted = -1;
-            int16_t c = 0;
             while(inserted<0) {
                 if(d.time < ptr->next->time) { 
                     // next should point to me, and my next should point to old next
