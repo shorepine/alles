@@ -176,10 +176,27 @@ def note_off(**kwargs):
     send(vel=0, **kwargs)
 
 
+send_buffer = ""
+buffer_size = 0
+
+
+def buffer(size=508):
+    global buffer_size
+    buffer_size = size
+    if(buffer_size == 0):
+        flush()
+
+def flush(retries=1):
+    global send_buffer
+    for x in range(retries):
+        sock.sendto(send_buffer.encode('ascii'), multicast_group)
+    send_buffer = ""
+
+# TODO here, if alles_util.buffer is > 0 (max 508), concat these messages until the next one would be > alles_util.buffer, and send it out
 def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, adsr_target=-1, lfo_target=-1, \
         debug=-1, lfo_source=-1):
-    global sock
+    global sock, send_buffer, buffer_size
     if(timestamp is None): timestamp = millis()
     m = "t%d" % (timestamp)
     if(osc>=0): m = m + "v%d" % (osc)
@@ -202,8 +219,23 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, fe
     if(lfo_source>=0): m = m + "L%d" % (lfo_source)
     if(reset>=0): m = m + "S%d" % (reset)
     if(debug>=0): m = m + "D%d" % (debug)
-    for x in range(retries):
-        sock.sendto(m.encode('ascii'), multicast_group)
+
+    if(buffer_size > 0):
+        if(len(send_buffer + m + '\n') > buffer_size):
+            #print("buffer %d hit, sending %s" % (buffer_size, send_buffer))
+            for x in range(retries):
+                sock.sendto(send_buffer.encode('ascii'), multicast_group)
+            send_buffer = m + '\n'
+        else:
+            send_buffer = send_buffer + m + '\n'
+            #print("didn't send, send buffer now %s" % (send_buffer))
+    else:
+        send_buffer = m + '\n'
+        for x in range(retries):
+            sock.sendto(send_buffer.encode('ascii'), multicast_group)
+
+
+
 
 
 

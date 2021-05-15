@@ -4,6 +4,7 @@ import alles, sys
 sys.path.append('/usr/local/lib/python3.8/site-packages')
 import pydub
 import loris
+import time
 import numpy as np
 from math import pi
 import queue
@@ -61,6 +62,7 @@ def partial_scheduler(filename, len_s = 10, noise_ratio = 1, freq_res = 150, ana
 
 def play_partial_sequence(sequence, amp_mult=1, max_oscs=alles.ALLES_OSCS, show_cpu=False, **kwargs):
     alles.reset()
+    alles.buffer()
     (time_ms, partial_idx, bp_idx, freq, amp, bw, phase) = range(7)
     q = queue.Queue(max_oscs)
     for i in range(int(max_oscs/2)):
@@ -99,8 +101,12 @@ def play_partial_sequence(sequence, amp_mult=1, max_oscs=alles.ALLES_OSCS, show_
             if(show_cpu): alles.send(debug=1)
             start = alles.millis()
     print("Voice allocator was able to send %d messages out of %d (%2.2f%%)" % (m, len(sequence), float(m)/len(sequence)*100.0))
+    # Wait for the last bits in the latency buffer
+    time.sleep(1)
     alles.send(debug=1)
     alles.reset()
+    alles.buffer(size=0)
+
 
 
 # OK defaults here

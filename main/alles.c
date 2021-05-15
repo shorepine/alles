@@ -109,6 +109,8 @@ uint32_t message_counter = 0;
 
 void add_delta_to_queue(struct delta d) {
     //  Take the queue mutex before starting
+            event_counter++;
+
     xSemaphoreTake(xQueueSemaphore, portMAX_DELAY);
 
     if(global.event_qsize < EVENT_FIFO_LEN) {
@@ -154,7 +156,6 @@ void add_delta_to_queue(struct delta d) {
         // If there's no room in the queue, just skip the message
     }
     xSemaphoreGive( xQueueSemaphore );
-
 
 }
 
@@ -602,7 +603,7 @@ void fill_audio_buffer_task() {
 // Helper to parse the special ADSR string
 void parse_adsr(struct event * e, char* message) {
     uint8_t idx = 0;
-    uint8_t c = 0;
+    uint16_t c = 0;
     // Change only the ones i received
     while(message[c] != 0 && c < MAX_RECEIVE_LEN) {
         if(message[c]!=',') {
@@ -636,8 +637,8 @@ void parse_task() {
         int16_t client = -1;
         uint16_t start = 0;
         uint16_t c = 0;
-        char * message = last_udp_message;
-        int16_t length = last_udp_message_length;
+        char * message = message_start_pointer;
+        int16_t length = message_length;
 
         struct event e = default_event();
         int64_t sysclock = esp_timer_get_time() / 1000;
@@ -651,6 +652,7 @@ void parse_task() {
         length = new_length;
 
         //printf("received message ###%s### len %d\n", message, length);
+
         while(c < length+1) {
             uint8_t b = message[c];
             if(b == '_' && c==0) sync_response = 1;

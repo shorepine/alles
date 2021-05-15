@@ -38,7 +38,7 @@ extern "C" {
 
 // Constants you can change if you want
 #define OSCS 64              // # of simultaneous oscs to keep track of 
-#define BLOCK_SIZE 256        // i2s buffer block size in samples
+#define BLOCK_SIZE 128        // i2s buffer block size in samples
 #define EVENT_FIFO_LEN 3000   // number of events the queue can store
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #define SAMPLE_RATE 44100    // playback sample rate
@@ -47,7 +47,7 @@ extern "C" {
 // D is how close the sample gets to the clip limit before the nonlinearity engages.  
 // So D=0.1 means output is linear for -0.9..0.9, then starts clipping.
 #define CLIP_D 0.1
-#define MAX_RECEIVE_LEN 127  // max length of each message
+#define MAX_RECEIVE_LEN 512  // max length of each message
 #define UDP_PORT 3333        // port to listen on
 #define MULTICAST_TTL 1      // hops multicast packets can take
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
@@ -231,8 +231,9 @@ extern uint8_t alive;
 extern int64_t computed_delta; // can be negative no prob, but usually host is larger # than client
 extern uint8_t computed_delta_set; // have we set a delta yet?
 extern int16_t client_id;
-extern char  last_udp_message[];
-extern int16_t last_udp_message_length;
+char *message_start_pointer;
+int16_t message_length;
+
 
 
 // FM 
