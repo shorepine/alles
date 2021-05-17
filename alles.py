@@ -1,5 +1,5 @@
 # Import all the utilities from alles_util needed to make sounds
-from alles_util import send, sync, lowpass, volume, note_on, note_off, reset, connect, disconnect, millis, flush, buffer
+from alles_util import send, sync, volume, note_on, note_off, reset, connect, disconnect, millis, flush, buffer
 import time
 
 # Some constants shared with the synth that help
@@ -18,8 +18,7 @@ def preset(which,osc=0, **kwargs):
     if(which==0): # simple note
         send(osc=osc, wave=SINE, envelope="10,250,0.7,250", adsr_target=TARGET_AMP, **kwargs)
     if(which==1): # filter bass
-        lowpass(1000, 2)
-        send(osc=osc, wave=SAW, envelope="10,100,0.5,25", adsr_target=TARGET_AMP+TARGET_FILTER_FREQ, **kwargs)
+        send(osc=osc, filter_freq=1000, resonance=2, wave=SAW, envelope="10,100,0.5,25", adsr_target=TARGET_AMP+TARGET_FILTER_FREQ, **kwargs)
     if(which==2): # long square pad to test ADSR
         send(osc=osc, wave=PULSE, envelope="500,1000,0.25,750", adsr_target=TARGET_AMP, **kwargs)
     if(which==3): # amp LFO example
@@ -84,12 +83,12 @@ def polyphony(max_voices=ALLES_OSCS,**kwargs):
     oscs = []
     for i in range(int(max_voices/2)):
         oscs.append(int(i))
-        oscs.append(int(i+(max_voices/2)))
+        oscs.append(int(i+(ALLES_OSCS/2)))
     print(str(oscs))
     while(1):
         osc = oscs[note % max_voices]
-        print("osc %d note %d " % (osc, 30+note))
-        note_on(osc=osc, **kwargs, patch=note, note=30+(note), client = -1)
+        print("osc %d note %d filter %f " % (osc, 30+note, note*50))
+        note_on(osc=osc, **kwargs, patch=note, filter_freq=note*50, note=30+(note), client = -1)
         time.sleep(0.5)
         note =(note + 1) % 64
 
@@ -102,10 +101,9 @@ def sweep(speed=0.100, res=0.5, loops = -1):
     while(loops != 0):
         for i in [0, 1, 4, 5, 1, 3, 4, 5]:
             cur = (cur + 100) % end
-            lowpass(cur, res)
-            note_on(osc=0,wave=PULSE, note=50+i, duty=0.50)
-            note_on(osc=1,wave=PULSE, note=50+12+i, duty=0.25)
-            note_on(osc=2,wave=PULSE, note=50+6+i, duty=0.90)
+            note_on(osc=0,filter_freq=cur+250, resonance=res, wave=PULSE, note=50+i, duty=0.50)
+            note_on(osc=1,filter_freq=cur+500, resonance=res, wave=PULSE, note=50+12+i, duty=0.25)
+            note_on(osc=2,filter_freq=cur, resonance=res, wave=PULSE, note=50+6+i, duty=0.90)
             time.sleep(speed)
 
 """

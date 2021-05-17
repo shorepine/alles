@@ -160,13 +160,10 @@ def reset(osc=None):
         send(reset=osc)
     else:
         send(reset=100) # reset > ALLES_OSCS resets all oscs
-        lowpass(0, 0.7) # also reset the filter in this case
 
 def volume(volume, client = -1):
     send(0, client=client, volume=volume)
 
-def lowpass(center, q, client = -1):
-    send(0, filter_freq = center, resonance = q, client = client)
 
 
 def note_on(vel=1, **kwargs):
@@ -192,33 +189,37 @@ def flush(retries=1):
         sock.sendto(send_buffer.encode('ascii'), multicast_group)
     send_buffer = ""
 
-# TODO here, if alles_util.buffer is > 0 (max 508), concat these messages until the next one would be > alles_util.buffer, and send it out
+
+# Removes trailing 0s and x.0000s 
+def trunc(number):
+    return ('%.10f' % number).rstrip('0').rstrip('.')
+
 def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, adsr_target=-1, lfo_target=-1, \
         debug=-1, lfo_source=-1):
     global sock, send_buffer, buffer_size
     if(timestamp is None): timestamp = millis()
-    m = "t%d" % (timestamp)
-    if(osc>=0): m = m + "v%d" % (osc)
-    if(wave>=0): m = m + "w%d" % (wave)
-    if(duty>=0): m = m + "d%f" % (duty)
-    if(feedback>=0): m = m + "b%f" % (feedback)
-    if(freq>=0): m = m + "f%f" % (freq)
-    if(note>=0): m = m + "n%d" % (note)
-    if(patch>=0): m = m + "p%d" % (patch)
-    if(phase>=0): m = m + "P%f" % (phase)
-    if(client>=0): m = m + "c%d" % (client)
-    if(amp>=0): m = m + "a%f" % (amp)
-    if(vel>=0): m = m + "l%f" % (vel)
-    if(volume>=0): m = m + "V%f" % (volume)
-    if(resonance>=0): m = m + "R%f" % (resonance)
-    if(filter_freq>=0): m = m + "F%f" % (filter_freq)
-    if(envelope is not None): m = m +"A%s" %(envelope)
-    if(adsr_target>=0): m = m + "T%d" % (adsr_target)
-    if(lfo_target>=0): m = m + "g%d" % (lfo_target)
-    if(lfo_source>=0): m = m + "L%d" % (lfo_source)
-    if(reset>=0): m = m + "S%d" % (reset)
-    if(debug>=0): m = m + "D%d" % (debug)
+    m = "t" + trunc(timestamp)
+    if(osc>=0): m = m + "v" + trunc(osc)
+    if(wave>=0): m = m + "w" + trunc(wave)
+    if(duty>=0): m = m + "d" + trunc(duty)
+    if(feedback>=0): m = m + "b" + trunc(feedback)
+    if(freq>=0): m = m + "f" + trunc(freq)
+    if(note>=0): m = m + "n" + trunc(note)
+    if(patch>=0): m = m + "p" + trunc(patch)
+    if(phase>=0): m = m + "P" + trunc(phase)
+    if(client>=0): m = m + "c" + trunc(client)
+    if(amp>=0): m = m + "a" + trunc(amp)
+    if(vel>=0): m = m + "l" + trunc(vel)
+    if(volume>=0): m = m + "V" + trunc(volume)
+    if(resonance>=0): m = m + "R" + trunc(resonance)
+    if(filter_freq>=0): m = m + "F" + trunc(filter_freq)
+    if(envelope is not None): m = m +"A%s" % (envelope)
+    if(adsr_target>=0): m = m + "T" +trunc(adsr_target)
+    if(lfo_target>=0): m = m + "g" + trunc(lfo_target)
+    if(lfo_source>=0): m = m + "L" + trunc(lfo_source)
+    if(reset>=0): m = m + "S" + trunc(reset)
+    if(debug>=0): m = m + "D" + trunc(debug)
 
     if(buffer_size > 0):
         if(len(send_buffer + m + '\n') > buffer_size):

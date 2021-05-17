@@ -8,7 +8,7 @@
 // Global state 
 struct state global;
 // envelope-modified global state
-struct mod_state mglobal;
+//struct mod_state mglobal;
 
 // set of deltas for the fifo to be played
 struct delta * events;
@@ -40,8 +40,8 @@ esp_err_t global_init() {
     global.board_level = ALLES_BOARD_V2;
     global.status = RUNNING;
     global.volume = 1;
-    global.resonance = 0.7;
-    global.filter_freq = 0;
+    //global.resonance = 0.7;
+    //global.filter_freq = 0;
     return ESP_OK;
 }
 
@@ -108,9 +108,8 @@ uint32_t message_counter = 0;
 
 
 void add_delta_to_queue(struct delta d) {
-    //  Take the queue mutex before starting
-            event_counter++;
 
+    //  Take the queue mutex before starting
     xSemaphoreTake(xQueueSemaphore, portMAX_DELAY);
 
     if(global.event_qsize < EVENT_FIFO_LEN) {
@@ -152,8 +151,8 @@ void add_delta_to_queue(struct delta d) {
         event_counter++;
 
     } else {
-        // TODO -- report this somehow? 
         // If there's no room in the queue, just skip the message
+        // TODO -- report this somehow? 
     }
     xSemaphoreGive( xQueueSemaphore );
 
@@ -334,8 +333,7 @@ void show_debug(uint8_t type) {
     printf("------\nEvent queue size %d / %d. Received %d events and %d messages\n", global.event_qsize, EVENT_FIFO_LEN, event_counter, message_counter);
     event_counter = 0;
     message_counter = 0;
-    /* The array is no longer needed, free the memory it consumes. */
-    vPortFree( pxTaskStatusArray );
+    vPortFree(pxTaskStatusArray);
 
     if(type>1) {
         struct delta * ptr = global.event_start;
@@ -348,13 +346,14 @@ void show_debug(uint8_t type) {
     }
     if(type>2) {
         // print out all the osc data
-        printf("global: filter %f resonance %f volume %f status %d\n", global.filter_freq, global.resonance, global.volume, global.status);
-        printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
+        //printf("global: filter %f resonance %f volume %f status %d\n", global.filter_freq, global.resonance, global.volume, global.status);
+        printf("global: volume %f status %d\n", global.volume, global.status);
+        //printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
         for(uint8_t i=0;i<OSCS;i++) {
-            printf("osc %d: status %d amp %f wave %d freq %f duty %f adsr_target %d lfo_target %d lfo source %d velocity %f E: %d,%d,%2.2f,%d step %f \n",
+            printf("osc %d: status %d amp %f wave %d freq %f duty %f adsr_target %d lfo_target %d lfo source %d velocity %f filter_freq %f resonance %f E: %d,%d,%2.2f,%d step %f \n",
                 i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].adsr_target, synth[i].lfo_target, synth[i].lfo_source, 
-                synth[i].velocity, synth[i].adsr_a, synth[i].adsr_d, synth[i].adsr_s, synth[i].adsr_r, synth[i].step);
-            if(type>3) printf("mod osc %d: amp: %f, freq %f duty %f\n", i, msynth[i].amp, msynth[i].freq, msynth[i].duty);
+                synth[i].velocity, synth[i].filter_freq, synth[i].resonance, synth[i].adsr_a, synth[i].adsr_d, synth[i].adsr_s, synth[i].adsr_r, synth[i].step);
+            if(type>3) printf("mod osc %d: amp: %f, freq %f duty %f filter_freq %f resonance %f\n", i, msynth[i].amp, msynth[i].freq, msynth[i].duty, msynth[i].filter_freq, msynth[i].resonance);
         }
     }
 }
@@ -429,10 +428,12 @@ void play_event(struct delta d) {
     if(d.param == LFO_SOURCE) { synth[d.osc].lfo_source = *(int8_t *)&d.data; synth[*(int8_t *)&d.data].status = IS_LFO_SOURCE; }
     if(d.param == LFO_TARGET) synth[d.osc].lfo_target = *(int8_t *)&d.data; 
 
+    if(d.param == FILTER_FREQ) synth[d.osc].filter_freq = *(float *)&d.data;
+    if(d.param == RESONANCE) synth[d.osc].resonance = *(float *)&d.data;
+
+
     // For global changes, just make the change, no need to update the per-osc synth
     if(d.param == VOLUME) global.volume = *(float *)&d.data;
-    if(d.param == FILTER_FREQ) global.filter_freq = *(float *)&d.data;
-    if(d.param == RESONANCE) global.resonance = *(float *)&d.data;
 
     // Triggers / envelopes 
     // The only way a sound is made is if velocity (note on) is >0.
@@ -484,22 +485,29 @@ void hold_and_modify(uint8_t osc) {
     msynth[osc].amp = synth[osc].amp;
     msynth[osc].duty = synth[osc].duty;
     msynth[osc].freq = synth[osc].freq;
-
+    msynth[osc].filter_freq = synth[osc].filter_freq;
+    msynth[osc].resonance = synth[osc].resonance;
+    
     // Modify the synth params by scale -- ADSR scale is (original * scale)
     float scale = compute_adsr_scale(osc);
     if(synth[osc].adsr_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp * scale;
     if(synth[osc].adsr_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty * scale;
     if(synth[osc].adsr_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq * scale;
-    if(synth[osc].adsr_target & TARGET_FILTER_FREQ) mglobal.filter_freq = (mglobal.filter_freq * scale);
-    if(synth[osc].adsr_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
+    if(synth[osc].adsr_target & TARGET_FILTER_FREQ) msynth[osc].filter_freq = msynth[osc].filter_freq * scale;
+    if(synth[osc].adsr_target & TARGET_RESONANCE) msynth[osc].resonance = msynth[osc].resonance * scale;
+    //if(synth[osc].adsr_target & TARGET_FILTER_FREQ) mglobal.filter_freq = (mglobal.filter_freq * scale);
+    //if(synth[osc].adsr_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
+
 
     // And the LFO -- LFO scale is (original + (original * scale))
     scale = compute_lfo_scale(osc);
     if(synth[osc].lfo_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp + (msynth[osc].amp * scale);
     if(synth[osc].lfo_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty + (msynth[osc].duty * scale);
     if(synth[osc].lfo_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq + (msynth[osc].freq * scale);
-    if(synth[osc].lfo_target & TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq + (mglobal.filter_freq * scale);
-    if(synth[osc].lfo_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance + (mglobal.resonance * scale);
+    if(synth[osc].lfo_target & TARGET_FILTER_FREQ) msynth[osc].filter_freq = msynth[osc].filter_freq + (msynth[osc].filter_freq * scale);
+    if(synth[osc].lfo_target & RESONANCE) msynth[osc].resonance = msynth[osc].resonance + (msynth[osc].resonance * scale);
+    //if(synth[osc].lfo_target & TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq + (mglobal.filter_freq * scale);
+    //if(synth[osc].lfo_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance + (mglobal.resonance * scale);
 }
 
 
@@ -525,6 +533,9 @@ void render_task() {
                 if(synth[osc].wave == SINE) render_sine(fbl[core], osc);
                 if(synth[osc].wave == KS) render_ks(fbl[core], osc);
                 if(synth[osc].wave == PCM) render_pcm(fbl[core], osc);
+
+                // Apply filter to osc if set
+                if(synth[osc].filter_freq > 0) lpf_process(fbl[core], osc);
             }
         }
         // Tell the fill buffer task that i'm done rendering
@@ -549,8 +560,8 @@ void fill_audio_buffer_task() {
         xSemaphoreGive(xQueueSemaphore);
 
         // Save the current global synth state to the modifiers         
-        mglobal.resonance = global.resonance;
-        mglobal.filter_freq = global.filter_freq;
+        //mglobal.resonance = global.resonance;
+        //mglobal.filter_freq = global.filter_freq;
 
         // Tell the rendering threads to start rendering
         xTaskNotifyGive(renderTask[0]);
@@ -585,10 +596,10 @@ void fill_audio_buffer_task() {
         }
     
         // If filtering is on, filter the mixed signal
-        if(mglobal.filter_freq > 0) {
-            filter_update();
-            filter_process_ints(block);
-        }
+        //if(mglobal.filter_freq > 0) {
+        //    filter_update();
+        //    filter_process_ints(block);
+        //}
 
         // And write to I2S
         size_t written = 0;

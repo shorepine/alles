@@ -175,6 +175,8 @@ struct mod_event {
     float amp;
     float duty;
     float freq;
+    float filter_freq;
+    float resonance;
 };
 
 struct event default_event();
@@ -201,11 +203,12 @@ struct state {
 };
 
 // global synth state, only the things LFO/env can change
+/*
 struct mod_state {
     float resonance;
     float filter_freq;
 };
-
+*/
 
 // Sounds
 extern void bleep();
@@ -288,8 +291,8 @@ extern void pcm_lfo_trigger(uint8_t osc);
 // filters
 extern void filters_init();
 extern void filters_deinit();
-extern void filter_process(float * block);
-extern void filter_update();
+extern void lpf_process(float * block, uint8_t osc);
+extern void filter_update(uint8_t osc);
 extern void filter_process_ints(int16_t * block);
 
 // envelopes

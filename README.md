@@ -2,7 +2,7 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/alles/master/pics/set.jpg)
 
-**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 64 additive oscillators, a full FM stage, biquad filter, with LFOs and ADSRs per oscillator. They're open source, cheap and easy to make -- you can build one yourself for about US$20.
+**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 64 additive oscillators, a full FM stage, with biquad filters, LFOs and ADSRs per oscillator. They're open source, cheap and easy to make -- you can build one yourself for about US$20.
 
 The synthesizers automatically form a mesh and listen to multicast WiFi messages. You can control the mesh from a host computer using any programming language or environments like Max or Pd. You can also wire one synth up to MIDI or MIDI over Bluetooth, and use any MIDI software or controller; the directly connected synth will broadcast to the rest of the mesh for you. 
 
@@ -23,7 +23,7 @@ Each individual synthesizer supports:
    * PCM, reading from a baked-in buffer of percussive and misc samples
    * karplus-strong string with adjustable feedback (can have up to 2 per synth)
    * FM, using a DX7 simulation, with support for DX7 patches and 1000 presets (1 per synth)
- * Biquad low-pass filter with cutoff and resonance at the last stage
+ * Biquad low-pass filter with cutoff and resonance per oscillator
  * Oscillators can be specified by frequency in floating point or midi note 
  * Each oscillator has a dedicated ADSR VCA, which can modify any combination of amplitude, frequency, duty, filter cutoff or resonance
  * Each oscillator (except for those using KS or FM) can also act as an LFO to modify any combination of parameters of another oscillator, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave. 
@@ -56,7 +56,7 @@ c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_i
 d = duty cycle, float 0.001-0.999. duty cycle for pulse wave, default 0.5
 D = debug, uint, 1-4. 1 shows CPU usage on the serial console, 2 shows queue sample, 3 shows oscillator data, 4 shows modified oscillator. will interrupt audio!
 f = frequency, float 0-44100 (and above). default 0. Sampling rate of synth is 44,100Hz but higher numbers can be used for PCM waveforms
-F = center frequency of biquad filter. 0 is off. default 0. applies to entire synth audio
+F = center frequency of biquad filter. 0 is off. default 0. 
 g = LFO target mask. Which parameter LFO controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
 L = LFO source oscillator. 0-7. Which oscillator is used as an LFO source for this oscillator. Source oscillator will be silent. 
 l = velocity (amplitude), float 0-1+, >0 to trigger note on, 0 to trigger note off.  
@@ -92,11 +92,11 @@ Or experiment with oscillators:
 ```
 >>> # use a a 0.25Hz sine wave at half phase (going down) to modify frequency of another sine wave
 >>> alles.reset()
->>> alles.send(oscillator=1, wave=alles.SINE, vel=0.50, freq=0.25, phase=0.5) # LFO source oscillator
->>> alles.send(oscillator=0, wave=alles.SINE, vel=0, envelope="0,500,0,0", adsr_target=alles.TARGET_AMP, lfo_target=alles.TARGET_FREQ, lfo_source=1)
->>> alles.note_on(oscillator=0, note=60, vel=1.5) # Bass drum!
->>> alles.lowpass(800, 1.5) # filter it
->>> alles.note_on(oscillator=0, note=50, vel=1.5)
+>>> alles.send(osc=1, wave=alles.SINE, vel=0.50, freq=0.25, phase=0.5) # LFO source oscillator
+>>> alles.send(osc=0, wave=alles.SINE, vel=0, envelope="0,500,0,0", adsr_target=alles.TARGET_AMP, lfo_target=alles.TARGET_FREQ, lfo_source=1)
+>>> alles.note_on(osc=0, note=60, vel=1.5) # Bass drum!
+>>> alles.send(osc=0, filter_freq=800, resonance=1.5) # filter it
+>>> alles.note_on(osc=0, note=50, vel=1.5)
 ```
 
 
