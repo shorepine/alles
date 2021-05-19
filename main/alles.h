@@ -56,9 +56,15 @@ extern "C" {
 #define LINEAR_INTERP        // use linear interp for oscs
 // "The cubic stuff is just showing off.  One would only ever use linear in prod." -- dpwe, May 10 2021 
 //#define CUBIC_INTERP         // use cubic interpolation for oscs
-// Sample values for LFOs
+// Sample values for modulation sources
 #define UP    32767
 #define DOWN -32768
+// center frequencies for the EQ
+#define EQ_CENTER_LOW 800.0
+#define EQ_CENTER_MED 2500.0
+#define EQ_CENTER_HIGH 7000.0
+
+
 
 // enums
 #define DEVBOARD 0
@@ -71,12 +77,16 @@ extern "C" {
 #define BATTERY_VOLTAGE_3 0x20
 #define BATTERY_VOLTAGE_2 0x40
 #define BATTERY_VOLTAGE_1 0x80
-// LFO/ADSR target mask
+// modulation/ADSR target mask
 #define TARGET_AMP 1
 #define TARGET_DUTY 2
 #define TARGET_FREQ 4
 #define TARGET_FILTER_FREQ 8
 #define TARGET_RESONANCE 16
+#define FILTER_LPF 1
+#define FILTER_BPF 2
+#define FILTER_HPF 3
+#define FILTER_NONE 0
 #define SINE 0
 #define PULSE 1
 #define SAW 2
@@ -91,7 +101,9 @@ extern "C" {
 #define SCHEDULED 1
 #define PLAYED 2
 #define AUDIBLE 3
-#define IS_LFO_SOURCE 4
+#define IS_MOD_SOURCE 4
+
+#define MAX_TASKS 9
 
 
 // Pins & buttons
@@ -110,18 +122,11 @@ extern "C" {
 #define POWER_5V_EN 21
 #define BATT_SENSE_CHANNEL ADC_CHANNEL_7 // GPIO35 / ADC1_7
 #define WALL_SENSE_CHANNEL ADC_CHANNEL_3 // GPIO39 / ADC1_3
-    
-// TODO -- maybe only store changes in this, as we want more ram to store events
-// events is 110 bytes per event, alighned and x 600 is a lot i bet
-// synth yes, but event no
-// maybe call the full struct synth or state
-// and .. just update the synth state from the string??? 
-// yeah we could store just the UDP string and deserialize it at event time?
-// what's wrong with that
-// well-- ascii is pretty wasteful, and you still need to parse time and client anyway
-// so instead, just make a struct that has deltas, like state_delta
 
-enum params{WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, RESONANCE, LFO_SOURCE, LFO_TARGET, ADSR_TARGET, ADSR_A, ADSR_D, ADSR_S, ADSR_R, NO_PARAM};
+enum params{
+    WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, RESONANCE, 
+    MOD_SOURCE, MOD_TARGET, FILTER_TYPE, EQ_L, EQ_M, EQ_H, ADSR_TARGET, ADSR_A, ADSR_D, ADSR_S, ADSR_R, NO_PARAM
+};
 
 struct delta {
     uint32_t data; // casted to the right thing later
@@ -153,9 +158,10 @@ struct event {
     float volume;
     float filter_freq;
     float resonance;
-    int8_t lfo_source;
-    int8_t lfo_target;
+    int8_t mod_source;
+    int8_t mod_target;
     int8_t adsr_target;
+    int8_t filter_type;
     int64_t adsr_on_clock;
     int64_t adsr_off_clock;
     int16_t adsr_a;
@@ -168,9 +174,12 @@ struct event {
     float lpf_alpha;
     // Decay for 2nd lpf in triangle osc.
     float lpf_alpha_1;
+    float eq_l;
+    float eq_m;
+    float eq_h;
 };
 
-// only the things that LFOs/env can change per osc
+// only the things that mods/env can change per osc
 struct mod_event {
     float amp;
     float duty;
@@ -193,22 +202,13 @@ void delay_ms(uint32_t ms);
 // global synth state
 struct state {
     float volume;
-    float resonance;
-    float filter_freq;
+    float eq[3];
     uint16_t event_qsize;
     int16_t next_event_write;
     struct delta * event_start; // start of the sorted list
     uint8_t board_level;
     uint8_t status;
 };
-
-// global synth state, only the things LFO/env can change
-/*
-struct mod_state {
-    float resonance;
-    float filter_freq;
-};
-*/
 
 // Sounds
 extern void bleep();
@@ -265,12 +265,12 @@ extern void render_triangle(float * buf, float * scratch, uint8_t osc);
 extern void render_noise(float * buf, uint8_t osc); 
 extern void render_pcm(float * buf, uint8_t osc);
 
-extern float compute_lfo_pulse(uint8_t osc);
-extern float compute_lfo_noise(uint8_t osc);
-extern float compute_lfo_sine(uint8_t osc);
-extern float compute_lfo_saw(uint8_t osc);
-extern float compute_lfo_triangle(uint8_t osc);
-extern float compute_lfo_pcm(uint8_t osc);
+extern float compute_mod_pulse(uint8_t osc);
+extern float compute_mod_noise(uint8_t osc);
+extern float compute_mod_sine(uint8_t osc);
+extern float compute_mod_saw(uint8_t osc);
+extern float compute_mod_triangle(uint8_t osc);
+extern float compute_mod_pcm(uint8_t osc);
 
 extern void ks_note_on(uint8_t osc); 
 extern void ks_note_off(uint8_t osc);
@@ -280,25 +280,24 @@ extern void triangle_note_on(uint8_t osc);
 extern void pulse_note_on(uint8_t osc); 
 extern void pcm_note_on(uint8_t osc);
 
-extern void sine_lfo_trigger(uint8_t osc);
-extern void saw_lfo_trigger(uint8_t osc);
-extern void triangle_lfo_trigger(uint8_t osc);
-extern void pulse_lfo_trigger(uint8_t osc);
-extern void pcm_lfo_trigger(uint8_t osc);
+extern void sine_mod_trigger(uint8_t osc);
+extern void saw_mod_trigger(uint8_t osc);
+extern void triangle_mod_trigger(uint8_t osc);
+extern void pulse_mod_trigger(uint8_t osc);
+extern void pcm_mod_trigger(uint8_t osc);
 
 
 
 // filters
 extern void filters_init();
 extern void filters_deinit();
-extern void lpf_process(float * block, uint8_t osc);
-extern void filter_update(uint8_t osc);
-extern void filter_process_ints(int16_t * block);
+extern void filter_process(float * block, uint8_t osc);
+extern void parametric_eq_process(float *block);
 
 // envelopes
 extern float compute_adsr_scale(uint8_t osc);
-extern float compute_lfo_scale(uint8_t osc);
-extern void retrigger_lfo_source(uint8_t osc);
+extern float compute_mod_scale(uint8_t osc);
+extern void retrigger_mod_source(uint8_t osc);
 
 // MIDI
 extern void midi_init();

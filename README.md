@@ -2,7 +2,7 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/alles/master/pics/set.jpg)
 
-**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 64 additive oscillators, a full FM stage, with biquad filters, LFOs and ADSRs per oscillator. They're open source, cheap and easy to make -- you can build one yourself for about US$20.
+**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 64 additive oscillators and 32 filters, with modulation / LFOs and ADSRs per oscillator. They're open source, cheap and easy to make -- you can build one yourself for about US$20.
 
 The synthesizers automatically form a mesh and listen to multicast WiFi messages. You can control the mesh from a host computer using any programming language or environments like Max or Pd. You can also wire one synth up to MIDI or MIDI over Bluetooth, and use any MIDI software or controller; the directly connected synth will broadcast to the rest of the mesh for you. 
 
@@ -23,11 +23,11 @@ Each individual synthesizer supports:
    * PCM, reading from a baked-in buffer of percussive and misc samples
    * karplus-strong string with adjustable feedback (can have up to 2 per synth)
    * FM, using a DX7 simulation, with support for DX7 patches and 1000 presets (1 per synth)
- * Biquad low-pass filter with cutoff and resonance per oscillator
+ * Up to 32 biquad low-pass, bandpass or hi-pass filters with cutoff and resonance, can be assigned to any oscillator
  * Oscillators can be specified by frequency in floating point or midi note 
  * Each oscillator has a dedicated ADSR VCA, which can modify any combination of amplitude, frequency, duty, filter cutoff or resonance
- * Each oscillator (except for those using KS or FM) can also act as an LFO to modify any combination of parameters of another oscillator, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave. 
- * Speaker gain control
+ * Each oscillator (except for those using KS or FM) can also act as an modulator to modify any combination of parameters of another oscillator, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave, or a 220Hz sine wave can modulate the frequency of a 440Hz sine wave to do FM synthesis. 
+ * Control of speaker gain and 3-band parametric EQ
 
 
 ## Using it
@@ -56,21 +56,25 @@ c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_i
 d = duty cycle, float 0.001-0.999. duty cycle for pulse wave, default 0.5
 D = debug, uint, 1-4. 1 shows CPU usage on the serial console, 2 shows queue sample, 3 shows oscillator data, 4 shows modified oscillator. will interrupt audio!
 f = frequency, float 0-44100 (and above). default 0. Sampling rate of synth is 44,100Hz but higher numbers can be used for PCM waveforms
-F = center frequency of biquad filter. 0 is off. default 0. 
-g = LFO target mask. Which parameter LFO controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
-L = LFO source oscillator. 0-7. Which oscillator is used as an LFO source for this oscillator. Source oscillator will be silent. 
+F = center frequency of biquad filter. default 0. 
+g = modulation target mask. Which parameter modulation/LFO controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add them together
+G = filter type. 0 = none (default.) 1 = low pass, 2 = band pass, 3 = hi pass. 
+L = modulation source oscillator. 0-63. Which oscillator is used as an modulation/LFO source for this oscillator. Source oscillator will be silent. 
 l = velocity (amplitude), float 0-1+, >0 to trigger note on, 0 to trigger note off.  
-n = midinote, uint, 0-127 (note that this will also set f). default 0
+n = midinote, uint, 0-127 (this will also set f). default 0
 p = patch, uint, 0-999, choose a preloaded PCM sample or DX7 patch number for FM waveforms. See patches.h, pcm.h. default 0
 P = phase, float 0-1. where in the oscillator's cycle to start sampling from (also works on the PCM buffer). default 0
 R = q factor / "resonance" of biquad filter. float. in practice, 0 to 10.0. default 0.7.
-S = reset oscillator, uint 0-63 or for all oscillators, anything >63. resets every oscillator parameter to default.
+S = reset oscillator, uint 0-63 or for all oscillators, anything >63, which also resets speaker gain and EQ.
 s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py
-T = ADSR target mask. Which parameter ADSR controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add together
+T = ADSR target mask. Which parameter ADSR controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add them together
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can.
 v = oscillator, uint, 0 to 63. default: 0
 V = volume, float 0 to about 10 in practice. volume knob for the entire synth / speaker. default 1.0
 w = waveform, uint, 0 to 8 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, PCM, OFF]. default: 0/SINE
+x = "low" EQ amount for the entire synth (Fc=800Hz). float, in dB, -15 to 15. 0 is off. default: 0
+y = "mid" EQ amount for the entire synth (Fc=2500Hz). float, in dB, -15 to 15. 0 is off. default: 0
+z = "high" EQ amount for the entire synth (Fc=7500Hz). float, in dB, -15 to 15. 0 is off. default: 0
 ```
 
 Synthesizer state is held per oscillator, so you can optionally send only changes in parameters each message per oscillator. For higher throughput, it's recommended to batch many messages into one UDP message, up to 508 bytes per message. (`alles.py` does this for you, optionally.)

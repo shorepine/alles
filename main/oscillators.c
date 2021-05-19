@@ -14,7 +14,7 @@ uint8_t ks_polyphony_index = 0;
 
 
 extern struct event *synth;
-extern struct mod_event *msynth; // the synth that is being modified by LFOs & envelopes
+extern struct mod_event *msynth; // the synth that is being modified by modulations & envelopes
 extern struct state global; 
 //extern float *scratchbuf;
 
@@ -91,7 +91,7 @@ void pcm_note_on(uint8_t osc) {
         synth[osc].substep = PCM_LENGTH; // play until end of buffer and stop 
     }
 }
-void pcm_lfo_trigger(uint8_t osc) {
+void pcm_mod_trigger(uint8_t osc) {
     pcm_note_on(osc);
 }
 
@@ -110,9 +110,9 @@ void render_pcm(float * buf, uint8_t osc) {
     }
 }
 
-float compute_lfo_pcm(uint8_t osc) {
-    float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
-    float skip = msynth[osc].freq / lfo_sr;
+float compute_mod_pcm(uint8_t osc) {
+    float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
+    float skip = msynth[osc].freq / mod_sr;
     float sample = pcm[(int)(synth[osc].step)];
     synth[osc].step = (synth[osc].step + skip);
     if(synth[osc].step >= synth[osc].substep ) { // end
@@ -152,17 +152,17 @@ void render_pulse(float * buf, float * scratch, uint8_t osc) {
     cumulate_buf(scratch, buf);
 }
 
-void pulse_lfo_trigger(uint8_t osc) {
-    float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
-    float period = 1. / (synth[osc].freq/lfo_sr);
+void pulse_mod_trigger(uint8_t osc) {
+    float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
+    float period = 1. / (synth[osc].freq/mod_sr);
     synth[osc].step = period * synth[osc].phase;
 }
 
-float compute_lfo_pulse(uint8_t osc) {
+float compute_mod_pulse(uint8_t osc) {
     // do BW pulse gen at SR=44100/64
-    float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
+    float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
     if(msynth[osc].duty < 0.001 || msynth[osc].duty > 0.999) msynth[osc].duty = 0.5;
-    float period = 1. / (msynth[osc].freq/(float)lfo_sr);
+    float period = 1. / (msynth[osc].freq/(float)mod_sr);
     float period2 = msynth[osc].duty * period; // if duty is 0.5, square wave
     if(synth[osc].step >= period || synth[osc].step == 0)  {
         synth[osc].sample = UP;
@@ -203,15 +203,15 @@ void render_saw(float * buf, float * scratch, uint8_t osc) {
 
 
 
-void saw_lfo_trigger(uint8_t osc) {
-    float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
-    float period = 1. / (synth[osc].freq/lfo_sr);
+void saw_mod_trigger(uint8_t osc) {
+    float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
+    float period = 1. / (synth[osc].freq/mod_sr);
     synth[osc].step = period * synth[osc].phase;
 }
 
-float compute_lfo_saw(uint8_t osc) {
-    float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
-    float period = 1. / (msynth[osc].freq/lfo_sr);
+float compute_mod_saw(uint8_t osc) {
+    float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
+    float period = 1. / (msynth[osc].freq/mod_sr);
     if(synth[osc].step >= period || synth[osc].step == 0) {
         synth[osc].sample = DOWN;
         synth[osc].step = 0; // reset the period counter
@@ -257,15 +257,15 @@ void render_triangle(float * buf, float * scratch, uint8_t osc) {
 }
 
 
-void triangle_lfo_trigger(uint8_t osc) {
-    float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
-    float period = 1. / (synth[osc].freq/lfo_sr);
+void triangle_mod_trigger(uint8_t osc) {
+    float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
+    float period = 1. / (synth[osc].freq/mod_sr);
     synth[osc].step = period * synth[osc].phase;
 }
 
-float compute_lfo_triangle(uint8_t osc) {
-    float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;    
-    float period = 1. / (msynth[osc].freq/lfo_sr);
+float compute_mod_triangle(uint8_t osc) {
+    float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;    
+    float period = 1. / (msynth[osc].freq/mod_sr);
     if(synth[osc].step >= period || synth[osc].step == 0) {
         synth[osc].sample = DOWN;
         synth[osc].step = 0; // reset the period counter
@@ -292,16 +292,16 @@ void render_sine(float * buf, uint8_t osc) {
     synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp, sinLUT, SINLUT_SIZE);
 }
 
-float compute_lfo_sine(uint8_t osc) { 
-    float lfo_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
-    float skip = msynth[osc].freq / lfo_sr * SINLUT_SIZE;
+float compute_mod_sine(uint8_t osc) { 
+    float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
+    float skip = msynth[osc].freq / mod_sr * SINLUT_SIZE;
 
     int lut_mask = SINLUT_SIZE - 1;
     uint16_t base_index = (uint16_t)(synth[osc].step);
     float frac = synth[osc].step - (float)base_index;
     float b = (float)sinLUT[(base_index + 0) & lut_mask];
     float c = (float)sinLUT[(base_index + 1) & lut_mask];
-    // linear interpolation for the LFO 
+    // linear interpolation for the modulation 
     float sample = b + ((c - b) * frac);
     synth[osc].step += skip;
     if(synth[osc].step >= SINLUT_SIZE) synth[osc].step -= SINLUT_SIZE;
@@ -309,7 +309,7 @@ float compute_lfo_sine(uint8_t osc) {
 }
 
 
-void sine_lfo_trigger(uint8_t osc) {
+void sine_mod_trigger(uint8_t osc) {
     sine_note_on(osc);
 }
 
@@ -321,7 +321,7 @@ void render_noise(float *buf, uint8_t osc) {
     }
 }
 
-float compute_lfo_noise(uint8_t osc) {
+float compute_mod_noise(uint8_t osc) {
     return ( (int16_t) ((esp_random() >> 16) - 32768) * msynth[osc].amp) / 16384.0; // -1..1
 }
 

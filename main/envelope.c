@@ -1,5 +1,5 @@
 // envelope.c
-// VCA -- handle LFOs and ADSR
+// VCA -- handle modulation and ADSR
 
 #include "alles.h"
 
@@ -9,20 +9,20 @@ extern struct mod_state mglobal;
 
 
 
-// LFO scale is not like ADSR scale, it can also make a thing bigger, so return range is between -1 and 1, where 1 = 2x and 0 = 1x
-float compute_lfo_scale(uint8_t osc) {
-    int8_t source = synth[osc].lfo_source;
-    if(synth[osc].lfo_target >= 1 && source >= 0) {
+// modulation scale is not like ADSR scale, it can also make a thing bigger, so return range is between -1 and 1, where 1 = 2x and 0 = 1x
+float compute_mod_scale(uint8_t osc) {
+    int8_t source = synth[osc].mod_source;
+    if(synth[osc].mod_target >= 1 && source >= 0) {
         if(source != osc) {  // that would be weird
             msynth[source].amp = synth[source].amp;
             msynth[source].duty = synth[source].duty;
             msynth[source].freq = synth[source].freq;
-            if(synth[source].wave == NOISE) return compute_lfo_noise(source);
-            if(synth[source].wave == SAW) return compute_lfo_saw(source);
-            if(synth[source].wave == PULSE) return compute_lfo_pulse(source);
-            if(synth[source].wave == TRIANGLE) return compute_lfo_triangle(source);
-            if(synth[source].wave == SINE) return compute_lfo_sine(source);
-            if(synth[source].wave == PCM) return compute_lfo_pcm(source);
+            if(synth[source].wave == NOISE) return compute_mod_noise(source);
+            if(synth[source].wave == SAW) return compute_mod_saw(source);
+            if(synth[source].wave == PULSE) return compute_mod_pulse(source);
+            if(synth[source].wave == TRIANGLE) return compute_mod_triangle(source);
+            if(synth[source].wave == SINE) return compute_mod_sine(source);
+            if(synth[source].wave == PCM) return compute_mod_pcm(source);
         }
     }
     return 0; // 0 is no change, unlike ADSR scale

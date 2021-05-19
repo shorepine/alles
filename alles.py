@@ -7,6 +7,7 @@ ALLES_OSCS = 64
 ALLES_MAX_QUEUE = 400
 [SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, PCM, OFF] = range(9)
 TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE = (1, 2, 4, 8, 16)
+FILTER_NONE, FILTER_LPF, FILTER_BPF, FILTER_HPF = range(4)
 
 
 """
@@ -18,7 +19,7 @@ def preset(which,osc=0, **kwargs):
     if(which==0): # simple note
         send(osc=osc, wave=SINE, envelope="10,250,0.7,250", adsr_target=TARGET_AMP, **kwargs)
     if(which==1): # filter bass
-        send(osc=osc, filter_freq=1000, resonance=2, wave=SAW, envelope="10,100,0.5,25", adsr_target=TARGET_AMP+TARGET_FILTER_FREQ, **kwargs)
+        send(osc=osc, filter_freq=1000, resonance=2, wave=SAW, filter_type=FILTER_LPF, envelope="10,100,0.5,25", adsr_target=TARGET_AMP+TARGET_FILTER_FREQ, **kwargs)
     if(which==2): # long square pad to test ADSR
         send(osc=osc, wave=PULSE, envelope="500,1000,0.25,750", adsr_target=TARGET_AMP, **kwargs)
     if(which==3): # amp LFO example
@@ -88,9 +89,20 @@ def polyphony(max_voices=ALLES_OSCS,**kwargs):
     while(1):
         osc = oscs[note % max_voices]
         print("osc %d note %d filter %f " % (osc, 30+note, note*50))
-        note_on(osc=osc, **kwargs, patch=note, filter_freq=note*50, note=30+(note), client = -1)
+        note_on(osc=osc, **kwargs, patch=note, filter_type=FILTER_LPF, ilter_freq=note*50, note=30+(note), client = -1)
         time.sleep(0.5)
         note =(note + 1) % 64
+
+def eq_test():
+    reset()
+    eqs = [ [0,0,0], [15,0,0], [0,0,15], [0,15,0],[-15,-15,15],[-15,-15,30],[-15,30,-15], [30,-15,-15] ]
+    for eq in eqs:
+        print("eq_l = %ddB eq_m = %ddB eq_h = %ddB" % (eq[0], eq[1], eq[2]))
+        send(eq_l=eq[0], eq_m=eq[1], eq_h=eq[2])
+        drums(loops=2)
+        time.sleep(1)
+        reset()
+        time.sleep(0.250)
 
 """
     Sweep the filter
@@ -101,15 +113,15 @@ def sweep(speed=0.100, res=0.5, loops = -1):
     while(loops != 0):
         for i in [0, 1, 4, 5, 1, 3, 4, 5]:
             cur = (cur + 100) % end
-            note_on(osc=0,filter_freq=cur+250, resonance=res, wave=PULSE, note=50+i, duty=0.50)
-            note_on(osc=1,filter_freq=cur+500, resonance=res, wave=PULSE, note=50+12+i, duty=0.25)
-            note_on(osc=2,filter_freq=cur, resonance=res, wave=PULSE, note=50+6+i, duty=0.90)
+            note_on(osc=0,filter_type=FILTER_LPF, filter_freq=cur+250, resonance=res, wave=PULSE, note=50+i, duty=0.50)
+            note_on(osc=1,filter_type=FILTER_LPF, filter_freq=cur+500, resonance=res, wave=PULSE, note=50+12+i, duty=0.25)
+            note_on(osc=2,filter_type=FILTER_LPF, filter_freq=cur, resonance=res, wave=PULSE, note=50+6+i, duty=0.90)
             time.sleep(speed)
 
 """
     An example drum machine using osc+PCM presets
 """
-def drums(bpm=120, **kwargs):
+def drums(bpm=120, loops=-1, **kwargs):
     preset(5, osc=0, **kwargs) # sine bass drum
     preset(8, osc=3, **kwargs) # sample hat
     preset(9, osc=4, **kwargs) # sample cow
@@ -119,7 +131,8 @@ def drums(bpm=120, **kwargs):
     [bass, snare, hat, cow, hicow, silent] = [1, 2, 4, 8, 16, 32]
     pattern = [bass+hat, hat+hicow, bass+hat+snare, hat+cow, hat, hat+bass, snare+hat, hat]
     bassline = [50, 0, 0, 0, 50, 52, 51, 0]
-    while True:
+    while (loops != 0):
+        loops = loops - 1
         for i,x in enumerate(pattern):
             if(x & bass): 
                 note_on(osc=0, note=50, vel=1.5, **kwargs)

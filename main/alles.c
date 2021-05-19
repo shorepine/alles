@@ -7,8 +7,6 @@
 
 // Global state 
 struct state global;
-// envelope-modified global state
-//struct mod_state mglobal;
 
 // set of deltas for the fifo to be played
 struct delta * events;
@@ -26,12 +24,16 @@ float ** scratchbuf;
 // block -- what gets sent to the DAC -- -32768...32767 (wave file, int16 LE)
 int16_t * block;
 
+// For CPU usage
+unsigned long last_task_counters[MAX_TASKS];
+
 // mutex that locks writes to the delta queue
 SemaphoreHandle_t xQueueSemaphore;
 
 void delay_ms(uint32_t ms) {
     vTaskDelay(ms / portTICK_PERIOD_MS);
 }
+
 
 esp_err_t global_init() {
     global.next_event_write = 0;
@@ -40,8 +42,10 @@ esp_err_t global_init() {
     global.board_level = ALLES_BOARD_V2;
     global.status = RUNNING;
     global.volume = 1;
-    //global.resonance = 0.7;
-    //global.filter_freq = 0;
+    global.eq[0] = 0;
+    global.eq[1] = 0;
+    global.eq[2] = 0;
+    for(uint8_t i=0;i<MAX_TASKS;i++) last_task_counters[i] = 0;
     return ESP_OK;
 }
 
@@ -89,9 +93,9 @@ struct event default_event() {
     e.volume = -1;
     e.filter_freq = -1;
     e.resonance = -1;
-
-    e.lfo_source = -1;
-    e.lfo_target = -1;
+    e.filter_type = -1;
+    e.mod_source = -1;
+    e.mod_target = -1;
     e.adsr_target = -1;
     e.adsr_on_clock = -1;
     e.adsr_off_clock = -1;
@@ -99,7 +103,9 @@ struct event default_event() {
     e.adsr_d = -1;
     e.adsr_s = -1;
     e.adsr_r = -1;
-
+    e.eq_l = -1;
+    e.eq_m = -1;
+    e.eq_h = -1;
     return e;
 }
 
@@ -175,13 +181,18 @@ void add_event(struct event e) {
     if(e.volume>-1) { d.param=VOLUME; d.data = *(uint32_t *)&e.volume; add_delta_to_queue(d); }
     if(e.filter_freq>-1) { d.param=FILTER_FREQ; d.data = *(uint32_t *)&e.filter_freq; add_delta_to_queue(d); }
     if(e.resonance>-1) { d.param=RESONANCE; d.data = *(uint32_t *)&e.resonance; add_delta_to_queue(d); }
-    if(e.lfo_source>-1) { d.param=LFO_SOURCE; d.data = *(uint32_t *)&e.lfo_source; add_delta_to_queue(d); }
-    if(e.lfo_target>-1) { d.param=LFO_TARGET; d.data = *(uint32_t *)&e.lfo_target; add_delta_to_queue(d); }
+    if(e.mod_source>-1) { d.param=MOD_SOURCE; d.data = *(uint32_t *)&e.mod_source; add_delta_to_queue(d); }
+    if(e.mod_target>-1) { d.param=MOD_TARGET; d.data = *(uint32_t *)&e.mod_target; add_delta_to_queue(d); }
     if(e.adsr_target>-1) { d.param=ADSR_TARGET; d.data = *(uint32_t *)&e.adsr_target; add_delta_to_queue(d); }
+    if(e.filter_type>-1) { d.param=FILTER_TYPE; d.data = *(uint32_t *)&e.filter_type; add_delta_to_queue(d); }
     if(e.adsr_a>-1) { d.param=ADSR_A; d.data = *(uint32_t *)&e.adsr_a; add_delta_to_queue(d); }
     if(e.adsr_d>-1) { d.param=ADSR_D; d.data = *(uint32_t *)&e.adsr_d; add_delta_to_queue(d); }
     if(e.adsr_s>-1) { d.param=ADSR_S; d.data = *(uint32_t *)&e.adsr_s; add_delta_to_queue(d); }
     if(e.adsr_r>-1) { d.param=ADSR_R; d.data = *(uint32_t *)&e.adsr_r; add_delta_to_queue(d); }
+
+    if(e.eq_l>-1) { d.param=EQ_L; d.data = *(uint32_t *)&e.eq_l; add_delta_to_queue(d); }
+    if(e.eq_m>-1) { d.param=EQ_M; d.data = *(uint32_t *)&e.eq_m; add_delta_to_queue(d); }
+    if(e.eq_h>-1) { d.param=EQ_H; d.data = *(uint32_t *)&e.eq_h; add_delta_to_queue(d); }
 
     // Add this last -- this is a trigger, that if sent alongside osc setup parameters, you want to run after those
     if(e.velocity>-1) { d.param=VELOCITY; d.data = *(uint32_t *)&e.velocity; add_delta_to_queue(d); }
@@ -203,6 +214,9 @@ void reset_osc(uint8_t i ) {
     msynth[i].amp = 1;
     synth[i].phase = 0;
     synth[i].volume = 0;
+    synth[i].eq_l = 0;
+    synth[i].eq_m = 0;
+    synth[i].eq_h = 0;
     synth[i].filter_freq = 0;
     synth[i].resonance = 0.7;
     synth[i].velocity = 0;
@@ -210,11 +224,12 @@ void reset_osc(uint8_t i ) {
     synth[i].sample = DOWN;
     synth[i].substep = 0;
     synth[i].status = OFF;
-    synth[i].lfo_source = -1;
-    synth[i].lfo_target = -1;
+    synth[i].mod_source = -1;
+    synth[i].mod_target = -1;
     synth[i].adsr_target = -1;
     synth[i].adsr_on_clock = -1;
     synth[i].adsr_off_clock = -1;
+    synth[i].filter_type = FILTER_NONE;
     synth[i].adsr_a = 0;
     synth[i].adsr_d = 0;
     synth[i].adsr_s = 1.0;
@@ -227,6 +242,11 @@ void reset_osc(uint8_t i ) {
 
 void reset_oscs() {
     for(uint8_t i=0;i<OSCS;i++) reset_osc(i);
+    // Also reset filters and volume
+    global.volume = 1;
+    global.eq[0] = 0;
+    global.eq[1] = 0;
+    global.eq[2] = 0;
 }
 
 
@@ -290,8 +310,6 @@ esp_err_t oscs_init() {
 
 
 // Show a CPU usage counter. This shows the delta in use since the last time you called it
-#define MAX_TASKS 9
-unsigned long last_task_counters[MAX_TASKS] = {0};
 void show_debug(uint8_t type) { 
     TaskStatus_t *pxTaskStatusArray;
     volatile UBaseType_t uxArraySize, x, i;
@@ -347,11 +365,11 @@ void show_debug(uint8_t type) {
     if(type>2) {
         // print out all the osc data
         //printf("global: filter %f resonance %f volume %f status %d\n", global.filter_freq, global.resonance, global.volume, global.status);
-        printf("global: volume %f status %d\n", global.volume, global.status);
+        printf("global: volume %f eq: %f %f %f status %d\n", global.volume, global.eq[0], global.eq[1], global.eq[2], global.status);
         //printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
         for(uint8_t i=0;i<OSCS;i++) {
-            printf("osc %d: status %d amp %f wave %d freq %f duty %f adsr_target %d lfo_target %d lfo source %d velocity %f filter_freq %f resonance %f E: %d,%d,%2.2f,%d step %f \n",
-                i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].adsr_target, synth[i].lfo_target, synth[i].lfo_source, 
+            printf("osc %d: status %d amp %f wave %d freq %f duty %f adsr_target %d mod_target %d mod source %d velocity %f filter_freq %f resonance %f E: %d,%d,%2.2f,%d step %f \n",
+                i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].adsr_target, synth[i].mod_target, synth[i].mod_source, 
                 synth[i].velocity, synth[i].filter_freq, synth[i].resonance, synth[i].adsr_a, synth[i].adsr_d, synth[i].adsr_s, synth[i].adsr_r, synth[i].step);
             if(type>3) printf("mod osc %d: amp: %f, freq %f duty %f filter_freq %f resonance %f\n", i, msynth[i].amp, msynth[i].freq, msynth[i].duty, msynth[i].filter_freq, msynth[i].resonance);
         }
@@ -425,15 +443,19 @@ void play_event(struct delta d) {
     if(d.param == ADSR_S) synth[d.osc].adsr_s = *(float *)&d.data;
     if(d.param == ADSR_R) synth[d.osc].adsr_r = *(int16_t *)&d.data;
 
-    if(d.param == LFO_SOURCE) { synth[d.osc].lfo_source = *(int8_t *)&d.data; synth[*(int8_t *)&d.data].status = IS_LFO_SOURCE; }
-    if(d.param == LFO_TARGET) synth[d.osc].lfo_target = *(int8_t *)&d.data; 
+    if(d.param == MOD_SOURCE) { synth[d.osc].mod_source = *(int8_t *)&d.data; synth[*(int8_t *)&d.data].status = IS_MOD_SOURCE; }
+    if(d.param == MOD_TARGET) synth[d.osc].mod_target = *(int8_t *)&d.data; 
 
     if(d.param == FILTER_FREQ) synth[d.osc].filter_freq = *(float *)&d.data;
+    if(d.param == FILTER_TYPE) synth[d.osc].filter_type = *(int8_t *)&d.data; 
     if(d.param == RESONANCE) synth[d.osc].resonance = *(float *)&d.data;
 
 
     // For global changes, just make the change, no need to update the per-osc synth
     if(d.param == VOLUME) global.volume = *(float *)&d.data;
+    if(d.param == EQ_L) global.eq[0] = powf(10, *(float *)&d.data / 20.0);
+    if(d.param == EQ_M) global.eq[1] = powf(10, *(float *)&d.data / 20.0);
+    if(d.param == EQ_H) global.eq[2] = powf(10, *(float *)&d.data / 20.0);
 
     // Triggers / envelopes 
     // The only way a sound is made is if velocity (note on) is >0.
@@ -441,7 +463,7 @@ void play_event(struct delta d) {
         synth[d.osc].amp = *(float *)&d.data; // these could be decoupled, later
         synth[d.osc].velocity = *(float *)&d.data;
         synth[d.osc].status = AUDIBLE;
-        // Take care of FM & KS first -- no special treatment for ADSR/LFO
+        // Take care of FM & KS first -- no special treatment for ADSR/MOD
         if(synth[d.osc].wave==FM) { fm_note_on(d.osc); } 
         else if(synth[d.osc].wave==KS) { ks_note_on(d.osc); } 
         else {
@@ -456,13 +478,13 @@ void play_event(struct delta d) {
             if(synth[d.osc].wave==PULSE) pulse_note_on(d.osc);
             if(synth[d.osc].wave==PCM) pcm_note_on(d.osc);
 
-            // Also trigger the LFO source, if we have one
-            if(synth[d.osc].lfo_source >= 0) {
-                if(synth[synth[d.osc].lfo_source].wave==SINE) sine_lfo_trigger(synth[d.osc].lfo_source);
-                if(synth[synth[d.osc].lfo_source].wave==SAW) saw_lfo_trigger(synth[d.osc].lfo_source);
-                if(synth[synth[d.osc].lfo_source].wave==TRIANGLE) triangle_lfo_trigger(synth[d.osc].lfo_source);
-                if(synth[synth[d.osc].lfo_source].wave==PULSE) pulse_lfo_trigger(synth[d.osc].lfo_source);
-                if(synth[synth[d.osc].lfo_source].wave==PCM) pcm_lfo_trigger(synth[d.osc].lfo_source);
+            // Also trigger the MOD source, if we have one
+            if(synth[d.osc].mod_source >= 0) {
+                if(synth[synth[d.osc].mod_source].wave==SINE) sine_mod_trigger(synth[d.osc].mod_source);
+                if(synth[synth[d.osc].mod_source].wave==SAW) saw_mod_trigger(synth[d.osc].mod_source);
+                if(synth[synth[d.osc].mod_source].wave==TRIANGLE) triangle_mod_trigger(synth[d.osc].mod_source);
+                if(synth[synth[d.osc].mod_source].wave==PULSE) pulse_mod_trigger(synth[d.osc].mod_source);
+                if(synth[synth[d.osc].mod_source].wave==PCM) pcm_mod_trigger(synth[d.osc].mod_source);
             }
 
         }
@@ -479,7 +501,7 @@ void play_event(struct delta d) {
 
 }
 
-// Apply an LFO & ADSR, if any, to the osc
+// Apply an mod & ADSR, if any, to the osc
 void hold_and_modify(uint8_t osc) {
     // Copy all the modifier variables
     msynth[osc].amp = synth[osc].amp;
@@ -487,7 +509,7 @@ void hold_and_modify(uint8_t osc) {
     msynth[osc].freq = synth[osc].freq;
     msynth[osc].filter_freq = synth[osc].filter_freq;
     msynth[osc].resonance = synth[osc].resonance;
-    
+
     // Modify the synth params by scale -- ADSR scale is (original * scale)
     float scale = compute_adsr_scale(osc);
     if(synth[osc].adsr_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp * scale;
@@ -495,19 +517,15 @@ void hold_and_modify(uint8_t osc) {
     if(synth[osc].adsr_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq * scale;
     if(synth[osc].adsr_target & TARGET_FILTER_FREQ) msynth[osc].filter_freq = msynth[osc].filter_freq * scale;
     if(synth[osc].adsr_target & TARGET_RESONANCE) msynth[osc].resonance = msynth[osc].resonance * scale;
-    //if(synth[osc].adsr_target & TARGET_FILTER_FREQ) mglobal.filter_freq = (mglobal.filter_freq * scale);
-    //if(synth[osc].adsr_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
 
 
-    // And the LFO -- LFO scale is (original + (original * scale))
-    scale = compute_lfo_scale(osc);
-    if(synth[osc].lfo_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp + (msynth[osc].amp * scale);
-    if(synth[osc].lfo_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty + (msynth[osc].duty * scale);
-    if(synth[osc].lfo_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq + (msynth[osc].freq * scale);
-    if(synth[osc].lfo_target & TARGET_FILTER_FREQ) msynth[osc].filter_freq = msynth[osc].filter_freq + (msynth[osc].filter_freq * scale);
-    if(synth[osc].lfo_target & RESONANCE) msynth[osc].resonance = msynth[osc].resonance + (msynth[osc].resonance * scale);
-    //if(synth[osc].lfo_target & TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq + (mglobal.filter_freq * scale);
-    //if(synth[osc].lfo_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance + (mglobal.resonance * scale);
+    // And the mod -- mod scale is (original + (original * scale))
+    scale = compute_mod_scale(osc);
+    if(synth[osc].mod_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp + (msynth[osc].amp * scale);
+    if(synth[osc].mod_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty + (msynth[osc].duty * scale);
+    if(synth[osc].mod_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq + (msynth[osc].freq * scale);
+    if(synth[osc].mod_target & TARGET_FILTER_FREQ) msynth[osc].filter_freq = msynth[osc].filter_freq + (msynth[osc].filter_freq * scale);
+    if(synth[osc].mod_target & RESONANCE) msynth[osc].resonance = msynth[osc].resonance + (msynth[osc].resonance * scale);
 }
 
 
@@ -523,8 +541,8 @@ void render_task() {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         for(uint16_t i=0;i<BLOCK_SIZE;i++) fbl[core][i] = 0; 
         for(uint8_t osc=start; osc<end; osc++) {
-            if(synth[osc].status==AUDIBLE) { // skip oscs that are silent or LFO sources from playback
-                hold_and_modify(osc); // apply ADSR / LFO
+            if(synth[osc].status==AUDIBLE) { // skip oscs that are silent or mod sources from playback
+                hold_and_modify(osc); // apply ADSR / mod
                 if(synth[osc].wave == FM) render_fm(fbl[core], osc);
                 if(synth[osc].wave == NOISE) render_noise(fbl[core], osc);
                 if(synth[osc].wave == SAW) render_saw(fbl[core], scratchbuf[core], osc);
@@ -535,9 +553,11 @@ void render_task() {
                 if(synth[osc].wave == PCM) render_pcm(fbl[core], osc);
 
                 // Apply filter to osc if set
-                if(synth[osc].filter_freq > 0) lpf_process(fbl[core], osc);
+                if(synth[osc].filter_type != FILTER_NONE) filter_process(fbl[core], osc);
             }
         }
+        // apply the EQ filters if set
+        if(global.eq[0] != 0 || global.eq[1] != 0 || global.eq[2] != 0) parametric_eq_process(fbl[core]);
         // Tell the fill buffer task that i'm done rendering
         xTaskNotifyGive(fillbufferTask);
     }
@@ -551,17 +571,18 @@ void fill_audio_buffer_task() {
 
         // put a mutex around this so that the mcastTask doesn't touch these while i'm running  
         xSemaphoreTake(xQueueSemaphore, portMAX_DELAY);
+
+        // Find any events that need to be played from the (in-order) queue
         while(sysclock >= global.event_start->time) {
             play_event(*global.event_start);
             global.event_start->time = UINT32_MAX;
             global.event_qsize--;
             global.event_start = global.event_start->next;
         }
+
+        // Give the mutex back
         xSemaphoreGive(xQueueSemaphore);
 
-        // Save the current global synth state to the modifiers         
-        //mglobal.resonance = global.resonance;
-        //mglobal.filter_freq = global.filter_freq;
 
         // Tell the rendering threads to start rendering
         xTaskNotifyGive(renderTask[0]);
@@ -595,12 +616,7 @@ void fill_audio_buffer_task() {
             block[i ^ 0x01] = sample;   // for internal DAC:  + 32768.0); 
         }
     
-        // If filtering is on, filter the mixed signal
-        //if(mglobal.filter_freq > 0) {
-        //    filter_update();
-        //    filter_process_ints(block);
-        //}
-
+       
         // And write to I2S
         size_t written = 0;
         i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
@@ -688,10 +704,11 @@ void parse_task() {
                 // reminder: don't use "E" or "e", lol 
                 if(mode=='f') e.freq=atof(message + start); 
                 if(mode=='F') e.filter_freq=atof(message + start);
-                if(mode=='g') e.lfo_target = atoi(message + start); 
+                if(mode=='G') e.filter_type=atoi(message + start);
+                if(mode=='g') e.mod_target = atoi(message + start); 
                 if(mode=='i') sync_index = atoi(message + start);
                 if(mode=='l') e.velocity=atof(message + start);
-                if(mode=='L') e.lfo_source=atoi(message + start);
+                if(mode=='L') e.mod_source=atoi(message + start);
                 if(mode=='n') e.midi_note=atoi(message + start);
                 if(mode=='p') e.patch=atoi(message + start);
                 if(mode=='P') e.phase=atof(message + start);
@@ -706,6 +723,9 @@ void parse_task() {
                 if(mode=='v') e.osc=(atoi(message + start) % OSCS); // allow osc wraparound
                 if(mode=='V') { e.volume = atof(message + start); }
                 if(mode=='w') e.wave=atoi(message + start);
+                if(mode=='x') e.eq_l = atof(message+start);
+                if(mode=='y') e.eq_m = atof(message+start);
+                if(mode=='z') e.eq_h = atof(message+start);
                 mode=b;
                 start=c+1;
             }
