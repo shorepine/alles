@@ -143,7 +143,7 @@ esp_err_t power_init() {
     {
         // Configure output GPIOs
         const gpio_config_t out_conf = {
-            .mode = GPIO_MODE_OUTPUT,            //set as input mode
+            .mode = GPIO_MODE_OUTPUT,            //set as output mode
             .pin_bit_mask = (1ULL<<BAT_SENSE_EN)
                             | (1ULL<<POWER_5V_EN), //bit mask of the pins that you want to set,e.g.GPIO18/19
         };

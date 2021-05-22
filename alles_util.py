@@ -173,9 +173,11 @@ def note_off(**kwargs):
     send(vel=0, **kwargs)
 
 
+# Buffer messages sent to the synths if you call buffer(). 
+# Calling buffer(0) turns off the buffering
+# flush() sends whatever is in the buffer now, and is called after buffer(0) as well 
 send_buffer = ""
 buffer_size = 0
-
 
 def buffer(size=508):
     global buffer_size
@@ -185,12 +187,10 @@ def buffer(size=508):
 
 def flush(retries=1):
     global send_buffer
-    for x in range(retries):
-        sock.sendto(send_buffer.encode('ascii'), multicast_group)
+    transmit(send_buffer, retries=retries)
     send_buffer = ""
 
-
-# Removes trailing 0s and x.0000s 
+# Removes trailing 0s 
 def trunc(number):
     return ('%.10f' % number).rstrip('0').rstrip('.')
 
@@ -227,21 +227,16 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, fe
 
     if(buffer_size > 0):
         if(len(send_buffer + m + '\n') > buffer_size):
-            #print("buffer %d hit, sending %s" % (buffer_size, send_buffer))
-            for x in range(retries):
-                sock.sendto(send_buffer.encode('ascii'), multicast_group)
+            transmit(send_buffer, retries=retries)
             send_buffer = m + '\n'
         else:
             send_buffer = send_buffer + m + '\n'
-            #print("didn't send, send buffer now %s" % (send_buffer))
     else:
-        send_buffer = m + '\n'
-        for x in range(retries):
-            sock.sendto(send_buffer.encode('ascii'), multicast_group)
+        transmit(m+'\n', retries=retries)
 
-
-
-
+def transmit(message, retries=1):
+    for x in range(retries):
+        sock.sendto(message.encode('ascii'), multicast_group)
 
 
 def generate_patches_header(how_many = 1000):

@@ -22,6 +22,24 @@ extern struct state global;
 
 /* Dan Ellis libblosca functions */
 
+float render_lut_mod(float * buf, float * modbuf, float beta, float lastbuf, float step, float skip, float amp, const int16_t* lut, int16_t lut_size) { 
+    // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
+    int lut_mask = lut_size - 1;
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+        uint16_t base_index = (uint16_t)step;
+        float frac = step - (float)base_index;
+        float b = (float)lut[(base_index + 0) & lut_mask];
+        float c = (float)lut[(base_index + 1) & lut_mask];
+        // linear interpolation.
+        float sample = b + ((c - b) * frac);
+        buf[i] += sample * amp;
+        if(i!=0) step += skip + beta * (modbuf[i]/16384.0 - modbuf[i-1]/16384.0); 
+        else step += skip + beta * (modbuf[i]/16384.0 - lastbuf); 
+        if(step >= lut_size) step -= lut_size;
+    }
+    return step;
+}
+
 // This is copying from Pure Data's tabread4~.
 float render_lut(float * buf, float step, float skip, float amp, const int16_t* lut, int16_t lut_size) { 
     // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
@@ -285,6 +303,14 @@ float compute_mod_triangle(uint8_t osc) {
 
 void sine_note_on(uint8_t osc) {
     synth[osc].step = (float)SINLUT_SIZE * synth[osc].phase;
+}
+
+// for now, just do it manually
+void render_sine_mod(float * buf, float *modbuf, uint8_t osc) {
+    float skip = msynth[osc].freq / (float)SAMPLE_RATE * SINLUT_SIZE;
+    // beta is the ratio, stored in that new struct 
+    // lastbuf is the last element of the previous mod buf, stored in ... the synth status for the mod osc? 
+    synth[osc].step = render_lut_mod(buf, modbuf, beta, lastbuf, synth[osc].step, skip, msynth[osc].amp, sinLUT, SINLUT_SIZE);
 }
 
 void render_sine(float * buf, uint8_t osc) { 

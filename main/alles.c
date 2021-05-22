@@ -523,9 +523,19 @@ void hold_and_modify(uint8_t osc) {
     scale = compute_mod_scale(osc);
     if(synth[osc].mod_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp + (msynth[osc].amp * scale);
     if(synth[osc].mod_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty + (msynth[osc].duty * scale);
-    if(synth[osc].mod_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq + (msynth[osc].freq * scale);
     if(synth[osc].mod_target & TARGET_FILTER_FREQ) msynth[osc].filter_freq = msynth[osc].filter_freq + (msynth[osc].filter_freq * scale);
     if(synth[osc].mod_target & RESONANCE) msynth[osc].resonance = msynth[osc].resonance + (msynth[osc].resonance * scale);
+    if(synth[osc].mod_target & TARGET_FREQ) {
+        // special case FM for now, this is just temporary
+        uint8_t source = synth[osc].mod_source;
+        if(synth[source].freq >= 20) { // go down the new FM path if it's not an LFO
+            // What we need is a way to ensure the source gets rendered before we render the target (osc)
+
+        } else { // use the normal freq mod path because this is an LFO
+            msynth[osc].freq = msynth[osc].freq + (msynth[osc].freq * scale);
+        }
+    }
+
 }
 
 
@@ -585,6 +595,8 @@ void fill_audio_buffer_task() {
 
 
         // Tell the rendering threads to start rendering
+        gpio_set_level(CPU_MONITOR_1, 1);
+
         xTaskNotifyGive(renderTask[0]);
         xTaskNotifyGive(renderTask[1]);
 
@@ -615,7 +627,8 @@ void fill_audio_buffer_task() {
             // ^ 0x01 implements word-swapping, needed for ESP32 I2S_CHANNEL_FMT_ONLY_LEFT
             block[i ^ 0x01] = sample;   // for internal DAC:  + 32768.0); 
         }
-    
+        gpio_set_level(CPU_MONITOR_1, 0);
+
        
         // And write to I2S
         size_t written = 0;
@@ -924,6 +937,19 @@ void app_main() {
             power_monitor);
         xTimerStart(power_monitor_timer, 0);
     }
+
+    // Setup GPIO outputs for watching CPU usage
+    const gpio_config_t out_conf = {
+        .mode = GPIO_MODE_OUTPUT,            
+        .pin_bit_mask = (1ULL<<CPU_MONITOR_0) | (1ULL<<CPU_MONITOR_1) | (1ULL<<CPU_MONITOR_2),
+    };
+    ret = gpio_config(&out_conf); 
+    // Set them all to low
+    gpio_set_level(CPU_MONITOR_0, 0); 
+    gpio_set_level(CPU_MONITOR_1, 0);
+    gpio_set_level(CPU_MONITOR_2, 0);
+
+
     check_init(&setup_i2s, "i2s");
     check_init(&oscs_init, "oscs");
     check_init(&buttons_init, "buttons"); // only one button for the protoboard, 4 for the blinkinlabs
