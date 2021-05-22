@@ -26,12 +26,12 @@ static const char *TAG = "common";
 // for many modules
 TEST_CASE("test template", "[dsp][ignore]")
 {
-	size_t size_before = xPortGetFreeHeapSize();
-	size_t size_after = xPortGetFreeHeapSize();
+    size_t size_before = xPortGetFreeHeapSize();
+    size_t size_after = xPortGetFreeHeapSize();
 
-	ptrdiff_t heap_diff = size_before - size_after;
-	heap_diff = abs(heap_diff);
-	if (heap_diff > 8) TEST_ASSERT_EQUAL(0, heap_diff);
+    ptrdiff_t heap_diff = size_before - size_after;
+    heap_diff = abs(heap_diff);
+    if (heap_diff > 8) TEST_ASSERT_EQUAL(0, heap_diff);
 }
 
 

@@ -58,17 +58,17 @@ static TaskHandle_t task_dns_server = NULL;
 int socket_fd;
 
 void dns_server_start() {
-	if(task_dns_server == NULL){
-		xTaskCreate(&dns_server, "dns_server", 3072, NULL, WIFI_MANAGER_TASK_PRIORITY-1, &task_dns_server);
-	}
+    if(task_dns_server == NULL){
+        xTaskCreate(&dns_server, "dns_server", 3072, NULL, WIFI_MANAGER_TASK_PRIORITY-1, &task_dns_server);
+    }
 }
 
 void dns_server_stop(){
-	if(task_dns_server){
-		vTaskDelete(task_dns_server);
-		close(socket_fd);
-		task_dns_server = NULL;
-	}
+    if(task_dns_server){
+        vTaskDelete(task_dns_server);
+        close(socket_fd);
+        task_dns_server = NULL;
+    }
 
 }
 
@@ -109,7 +109,7 @@ void dns_server(void *pvParameters) {
     socklen_t client_len;
     client_len = sizeof(client);
     int length;
-    uint8_t data[DNS_QUERY_MAX_SIZE];	/* dns query buffer */
+    uint8_t data[DNS_QUERY_MAX_SIZE];    /* dns query buffer */
     uint8_t response[DNS_ANSWER_MAX_SIZE]; /* dns response buffer */
     char ip_address[INET_ADDRSTRLEN]; /* buffer to store IPs as text. This is only used for debug and serves no other purpose */
     char *domain; /* This is only used for debug and serves no other purpose */
@@ -120,14 +120,14 @@ void dns_server(void *pvParameters) {
     /* Start loop to process DNS requests */
     for(;;) {
 
-    	memset(data, 0x00,  sizeof(data)); /* reset buffer */
+        memset(data, 0x00,  sizeof(data)); /* reset buffer */
         length = recvfrom(socket_fd, data, sizeof(data), 0, (struct sockaddr *)&client, &client_len); /* read udp request */
 
         /*if the query is bigger than the buffer size we simply ignore it. This case should only happen in case of multiple
          * queries within the same DNS packet and is not supported by this simple DNS hijack. */
         if ( length > 0   &&  ((length + sizeof(dns_answer_t)-1) < DNS_ANSWER_MAX_SIZE)   ) {
 
-        	data[length] = '\0'; /*in case there's a bogus domain name that isn't null terminated */
+            data[length] = '\0'; /*in case there's a bogus domain name that isn't null terminated */
 
             /* Generate header message */
             memcpy(response, data, sizeof(dns_header_t));
@@ -151,7 +151,7 @@ void dns_server(void *pvParameters) {
             inet_ntop(AF_INET, &(client.sin_addr), ip_address, INET_ADDRSTRLEN);
             domain = (char*) &data[sizeof(dns_header_t) + 1];
             for(char* c=domain; *c != '\0'; c++){
-            	if(*c < ' ' || *c > 'z') *c = '.'; /* technically we should test if the first two bits are 00 (e.g. if( (*c & 0xC0) == 0x00) *c = '.') but this makes the code a lot more readable */
+                if(*c < ' ' || *c > 'z') *c = '.'; /* technically we should test if the first two bits are 00 (e.g. if( (*c & 0xC0) == 0x00) *c = '.') but this makes the code a lot more readable */
             }
             ESP_LOGI(TAG, "Replying to DNS request for %s from %s", domain, ip_address);
 
@@ -167,7 +167,7 @@ void dns_server(void *pvParameters) {
 
             err = sendto(socket_fd, response, length+sizeof(dns_answer_t), 0, (struct sockaddr *)&client, client_len);
             if (err < 0) {
-            	ESP_LOGE(TAG, "UDP sendto failed: %d", err);
+                ESP_LOGE(TAG, "UDP sendto failed: %d", err);
             }
         }
 

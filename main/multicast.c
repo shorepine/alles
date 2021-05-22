@@ -30,6 +30,7 @@ extern void deserialize_event(char * message, uint16_t length);
 
 extern esp_ip4_addr_t wifi_manager_ip4;
 extern uint8_t battery_mask;
+extern TaskHandle_t parseTask;
 
 uint8_t ipv4_quartet;
 int16_t client_id;
@@ -215,16 +216,26 @@ void ping(int64_t sysclock) {
     last_ping_time = sysclock;
 }
 
+
+char udp_message[MAX_RECEIVE_LEN];
+char *message_start_pointer;
+int16_t message_length;
+
+//int16_t last_udp_message_length;
+
+extern void delay_ms(uint32_t ms);
+uint32_t udp_message_counter = 0;
+
 void mcast_listen_task(void *pvParameters) {
     struct timeval tv = {
-        .tv_sec = 2,
+        .tv_sec =  1,
         .tv_usec = 0,
     };
     
     ipv4_quartet = esp_ip4_addr4(&wifi_manager_ip4);
     client_id = -1; // for now
     for(uint8_t i=0;i<255;i++) { clocks[i] = 0; ping_times[i] = 0; }
-
+    int16_t full_message_length;
     printf("Network listening running on core %d\n",xPortGetCoreID());
     while (1) {
 
@@ -237,9 +248,8 @@ void mcast_listen_task(void *pvParameters) {
         // We know this inet_aton will pass because we did it above already
         inet_aton(MULTICAST_IPV4_ADDR, &sdestv4.sin_addr.s_addr);
 
-        // Loop waiting for UDP received, and sending UDP packets if we don't see any.
         int err = 1;
-        while (err > 0) { //         while (err > 0) {
+        while (err > 0) { 
             fd_set rfds;
             FD_ZERO(&rfds);
             FD_SET(sock, &rfds);
@@ -253,22 +263,39 @@ void mcast_listen_task(void *pvParameters) {
             else if (s > 0) {
                 if (FD_ISSET(sock, &rfds)) {
                     // Incoming datagram received
-                    char recvbuf[MAX_RECEIVE_LEN];
                     struct sockaddr_in6 raddr; // Large enough for both IPv4 or IPv6
                     socklen_t socklen = sizeof(raddr);
-                    int len = recvfrom(sock, recvbuf, sizeof(recvbuf)-1, 0,
+                    full_message_length = recvfrom(sock, udp_message, sizeof(udp_message)-1, 0,
                                        (struct sockaddr *)&raddr, &socklen);
-                    if (len < 0) {
+                    if (full_message_length < 0) {
                         ESP_LOGE(TAG, "multicast recvfrom failed: errno %d", errno);
                         err = -1;
                         break;
                     }
-                    deserialize_event(recvbuf, (uint16_t)len);
+                    udp_message[full_message_length] = 0;
+                    uint16_t start = 0;
+                    for(uint16_t i=0;i<full_message_length;i++) {
+                        if(udp_message[i] == '\n') {
+                            udp_message[i] = 0;
+                            udp_message_counter++;
+                            message_start_pointer = udp_message + start;
+                            message_length = i - start;
+                            // tell the parse task, time to parse!
+                            xTaskNotifyGive(parseTask);
+                            // And wait for it to come back
+                            ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+                            start = i+1;
+                        }
+                    }
                 }
             }
+            //delay_ms(1);
             // Do a ping every so often
             int64_t sysclock = esp_timer_get_time() / 1000;
-            if(sysclock > (last_ping_time+PING_TIME_MS)) ping(sysclock);
+            if(sysclock > (last_ping_time+PING_TIME_MS)) {
+                ping(sysclock);
+                //printf("udp message counter is %d\n", udp_message_counter);
+            }
         }
 
         ESP_LOGE(TAG, "Shutting down socket and restarting...");

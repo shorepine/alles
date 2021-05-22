@@ -1,6 +1,6 @@
 idf_component_register(SRCS alles.c
 							multicast.c
-							oscillators.cc
+							oscillators.c
 							envelope.c
 							filters.c
 							fm.cc
@@ -8,9 +8,7 @@ idf_component_register(SRCS alles.c
 							midi.c
 							buttons.c
 							sounds.c
-							ip5306.c
-							master_i2c.c
-							blip/Blip_Buffer.cpp
+							power.c
 							dx7/dx7note.cc
 							dx7/env.cc
 							dx7/exp2.cc
@@ -26,3 +24,9 @@ idf_component_register(SRCS alles.c
 							dx7/sawtooth.cc
 							dx7/sin.cc
                     INCLUDE_DIRS dx7)
+
+set_source_files_properties(alles.c
+    PROPERTIES COMPILE_FLAGS
+    -Wno-strict-aliasing
+)
+

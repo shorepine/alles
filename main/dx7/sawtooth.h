@@ -20,7 +20,7 @@ class Sawtooth : Module {
   static void init(double sample_rate);
   static void deinit();
   void process(const int32_t **inbufs, const int32_t *control_in,
-			   const int32_t *control_last, int32_t **outbufs);
+               const int32_t *control_last, int32_t **outbufs);
  private:
   int32_t phase;
 

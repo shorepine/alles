@@ -28,7 +28,7 @@ class ResoFilter : Module {
   static void init(double sample_rate);
   static int32_t lookup(int32_t phase, int32_t log_f);
   void process(const int32_t **inbufs, const int32_t *control_in,
-			   const int32_t *control_last, int32_t **outbufs);
+               const int32_t *control_last, int32_t **outbufs);
  private:
  #if defined(USE_MATRIX)
   AlignedBuf<float, 4> x;

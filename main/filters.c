@@ -2,44 +2,49 @@
 #include "alles.h"
 #include "esp_dsp.h"
 
-extern struct mod_state mglobal; 
+extern struct mod_event *msynth; 
+extern struct event *synth; 
+extern struct state global;
 
-float coeffs[5];
-float delay[2] = {0,0};
+float coeffs[OSCS][5];
+float delay[OSCS][2];
 
-#define LOWEST_RATIO 0.0001
+float eq_coeffs[3][5];
+float eq_delay[3][2];
 
-void filter_update() {
-	float ratio = mglobal.filter_freq/((float)SAMPLE_RATE/2.0);
-	if(ratio < LOWEST_RATIO) ratio = LOWEST_RATIO;
-	dsps_biquad_gen_lpf_f32(coeffs, ratio, mglobal.resonance);
-	//printf("filtering ff %f res %f coeffs %f %f %f %f %f\n", mglobal.filter_freq, mglobal.resonance, coeffs[0], coeffs[1], coeffs[2], coeffs[3], coeffs[4]);	
+void filters_init() {
+    // update the parametric filters 
+    dsps_biquad_gen_lpf_f32(eq_coeffs[0], EQ_CENTER_LOW /(float)SAMPLE_RATE, 0.707);
+    dsps_biquad_gen_bpf_f32(eq_coeffs[1], EQ_CENTER_MED /(float)SAMPLE_RATE, 1.000);
+    dsps_biquad_gen_hpf_f32(eq_coeffs[2], EQ_CENTER_HIGH/(float)SAMPLE_RATE, 0.707);
+    for(uint8_t i=0;i<OSCS;i++) { delay[i][0] = 0; delay[i][1] = 0; }
+    eq_delay[0][0] = 0; eq_delay[0][1] = 0;
+    eq_delay[1][0] = 0; eq_delay[1][1] = 0;
+    eq_delay[2][0] = 0; eq_delay[2][1] = 0;
 }
 
-void filter_process_ints(int16_t * block) {
-	float input[BLOCK_SIZE];
-	float output[BLOCK_SIZE];
-	for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-		input[i] = (float)block[i] / 32767.0;
-	}
-	dsps_biquad_f32_ae32(input, output, BLOCK_SIZE, coeffs, delay);
-	for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-		block[i] = (output[i] * 32767.0);
-	}
+void parametric_eq_process(float *block) {
+    float output[3][BLOCK_SIZE];
+    dsps_biquad_f32_ae32(block, output[0], BLOCK_SIZE, eq_coeffs[0], eq_delay[0]);
+    dsps_biquad_f32_ae32(block, output[1], BLOCK_SIZE, eq_coeffs[1], eq_delay[1]);
+    dsps_biquad_f32_ae32(block, output[2], BLOCK_SIZE, eq_coeffs[2], eq_delay[2]);
 
+    for(uint16_t i=0;i<BLOCK_SIZE;i++)
+        block[i] = (output[0][i] * global.eq[0]) - (output[1][i] * global.eq[1]) + (output[2][i] * global.eq[2]);
 }
 
-void filter_process(float * block) {
-	float output[BLOCK_SIZE];
-	dsps_biquad_f32_ae32(block, output, BLOCK_SIZE, coeffs, delay);
-	for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-		block[i] = output[i];
-	}
+
+void filter_process(float * block, uint8_t osc) {
+    float output[BLOCK_SIZE];
+    if(synth[osc].filter_type==FILTER_LPF) dsps_biquad_gen_lpf_f32(coeffs[osc], msynth[osc].filter_freq/(float)SAMPLE_RATE, msynth[osc].resonance);
+    if(synth[osc].filter_type==FILTER_BPF) dsps_biquad_gen_bpf_f32(coeffs[osc], msynth[osc].filter_freq/(float)SAMPLE_RATE, msynth[osc].resonance);
+    if(synth[osc].filter_type==FILTER_HPF) dsps_biquad_gen_hpf_f32(coeffs[osc], msynth[osc].filter_freq/(float)SAMPLE_RATE, msynth[osc].resonance);
+    dsps_biquad_f32_ae32(block, output, BLOCK_SIZE, coeffs[osc], delay[osc]);
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+        block[i] = output[i];
+    }
 }
 
 void filters_deinit() {
 }
 
-void filters_init() {
-
-}

@@ -6,7 +6,7 @@ extern struct event default_event();
 extern void mcast_send(char * message, uint16_t len);
 
 QueueHandle_t uart_queue;
-uint8_t midi_voice = 0;
+uint8_t midi_osc = 0;
 #define CHANNELS 16
 uint8_t program_bank[CHANNELS];
 uint8_t program[CHANNELS];
@@ -19,7 +19,7 @@ void serialize_event(struct event e, uint16_t client) {
     char message[MAX_RECEIVE_LEN];
     // TODO -- patch / wave
     sprintf(message, "c%dl%fn%dv%dt%lld", 
-        client, e.velocity, e.midi_note, e.voice, e.time );
+        client, e.velocity, e.midi_note, e.osc, e.time );
     //printf("sending %s\n", message);
     mcast_send(message, strlen(message));
 }
@@ -47,24 +47,24 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
             } else {
                 //e.wave = program[channel];
             }
-            e.voice = 0; // midi_voice;
+            e.osc = 0; // midi_osc;
             e.midi_note = data1;
             e.velocity = (float)data2/127.0;
             e.amp = 1; // for now
-            //note_map[midi_voice] = data1;
+            //note_map[midi_osc] = data1;
             if(channel == 0) {
                 serialize_event(e,256);
             } else {
                 serialize_event(e, channel - 1);
             }
-            //midi_voice = (midi_voice + 1) % (VOICES);
+            //midi_osc = (midi_osc + 1) % (OSCS);
 
         } else if (message == 0x80) { 
             // note off
             struct event e = default_event();
             e.velocity = 0;
             e.time = esp_timer_get_time() / 1000;
-            e.voice = 0;
+            e.osc = 0;
             if(channel == 0) {
                 serialize_event(e,256);
             } else {
@@ -76,12 +76,12 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
             // for now, only handle broadcast note offs... will have to refactor if i go down this path farther
             // assume this is the new envelope command we keep putting off-- like "$e30a0" where e is an event number 
 
-            //for(uint8_t v=0;v<VOICES;v++) {
+            //for(uint8_t v=0;v<OSCS;v++) {
              //   if(note_map[v] == data1) {
             /*
                     struct event e = default_event();
                     e.amp = 0;
-                    e.voice = 0;
+                    e.osc = 0;
                     e.time = esp_timer_get_time() / 1000;
                     e.velocity = data2; // note off velocity, not used... yet
                     serialize_event(e, 256);
@@ -125,7 +125,7 @@ void read_midi_uart() {
         // Sleep 5ms to wait to get more MIDI data and avoid starving other threads
         // I increased RTOS clock rate from 100hz to 500hz to go down to a 5ms delay here
         // https://www.esp32.com/viewtopic.php?t=7554
-        vTaskDelay(5 / portTICK_PERIOD_MS);
+        delay_ms(5);
         ESP_ERROR_CHECK(uart_get_buffered_data_len(uart_num, (size_t*)&length));
         if(length) {
             length = uart_read_bytes(uart_num, data, length, 100);

@@ -10,6 +10,8 @@ extern "C" {
 #include <stdio.h>
 #include <stddef.h>
 #include <math.h>
+#define configUSE_TASK_NOTIFICATIONS 1
+#define configTASK_NOTIFICATION_ARRAY_ENTRIES 2
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -32,62 +34,114 @@ extern "C" {
 #include "wifi_manager.h"
 #include "http_app.h"
 #include "blemidi.h"
-
+#include "power.h"
 
 // Constants you can change if you want
-#define BLOCK_SIZE 64       // i2s buffer block size in samples
-#define VOICES 10            // # of simultaneous voices to keep track of 
-#define EVENT_FIFO_LEN 400   // number of events the queue can store
+#define OSCS 64              // # of simultaneous oscs to keep track of 
+#define BLOCK_SIZE 128        // i2s buffer block size in samples
+#define EVENT_FIFO_LEN 3000   // number of events the queue can store
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #define SAMPLE_RATE 44100    // playback sample rate
-#define MAX_RECEIVE_LEN 127  // max length of each message
+#define SAMPLE_MAX 32767
+
+// D is how close the sample gets to the clip limit before the nonlinearity engages.  
+// So D=0.1 means output is linear for -0.9..0.9, then starts clipping.
+#define CLIP_D 0.1
+#define MAX_RECEIVE_LEN 512  // max length of each message
 #define UDP_PORT 3333        // port to listen on
 #define MULTICAST_TTL 1      // hops multicast packets can take
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
 #define PING_TIME_MS 10000   // ms between boards pinging each other
 #define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
+#define LINEAR_INTERP        // use linear interp for oscs
+// "The cubic stuff is just showing off.  One would only ever use linear in prod." -- dpwe, May 10 2021 
+//#define CUBIC_INTERP         // use cubic interpolation for oscs
+// Sample values for modulation sources
+#define UP    32767
+#define DOWN -32768
+// center frequencies for the EQ
+#define EQ_CENTER_LOW 800.0
+#define EQ_CENTER_MED 2500.0
+#define EQ_CENTER_HIGH 7000.0
 
+
+
+// enums
 #define DEVBOARD 0
 #define ALLES_BOARD_V1 1
 #define ALLES_BOARD_V2 2
-
-#include "ip5306.h"
-#include "master_i2c.h"
 #define BATTERY_STATE_CHARGING 0x01
 #define BATTERY_STATE_CHARGED 0x02
 #define BATTERY_STATE_DISCHARGING 0x04
-#define BATTERY_STATE_LOW 0x08
 #define BATTERY_VOLTAGE_4 0x10
 #define BATTERY_VOLTAGE_3 0x20
 #define BATTERY_VOLTAGE_2 0x40
 #define BATTERY_VOLTAGE_1 0x80
-#define BUTTON_POWER_SHORT 100  // Button state from IP5306
-#define BUTTON_POWER_LONG 101   // Button state from IP5306
-
-// Buttons set on the blinkinlabs board, by default only MIDI on most prototype boards
-#define BUTTON_EXTRA 16
-#define BUTTON_WIFI 17
-#define BUTTON_MIDI 0
-#define ESP_INTR_FLAG_DEFAULT 0
-
-// pins
-#define CONFIG_I2S_LRCLK 25
-#define CONFIG_I2S_BCLK 26
-#define CONFIG_I2S_DIN 27
-#define CONFIG_I2S_NUM 0 
-#define MIDI_IN 19
-
-// LFO/ADSR target mask
+// modulation/ADSR target mask
 #define TARGET_AMP 1
 #define TARGET_DUTY 2
 #define TARGET_FREQ 4
 #define TARGET_FILTER_FREQ 8
 #define TARGET_RESONANCE 16
+#define FILTER_LPF 1
+#define FILTER_BPF 2
+#define FILTER_HPF 3
+#define FILTER_NONE 0
+#define SINE 0
+#define PULSE 1
+#define SAW 2
+#define TRIANGLE 3
+#define NOISE 4
+#define FM 5
+#define KS 6
+#define PCM 7
+#define OFF 8
+
+#define EMPTY 0
+#define SCHEDULED 1
+#define PLAYED 2
+#define AUDIBLE 3
+#define IS_MOD_SOURCE 4
+
+#define MAX_TASKS 9
+
+
+// Pins & buttons
+#define BUTTON_WAKEUP 34
+#define BUTTON_WIFI 17
+#define BUTTON_EXTRA 16
+#define BUTTON_MIDI 0
+#define ESP_INTR_FLAG_DEFAULT 0
+#define CONFIG_I2S_LRCLK 25
+#define CONFIG_I2S_BCLK 26
+#define CONFIG_I2S_DIN 27
+#define CONFIG_I2S_NUM 0 
+#define MIDI_IN 19
+#define BAT_SENSE_EN 32
+#define CHARGE_STAT 33
+#define POWER_5V_EN 21
+#define BATT_SENSE_CHANNEL ADC_CHANNEL_7 // GPIO35 / ADC1_7
+#define WALL_SENSE_CHANNEL ADC_CHANNEL_3 // GPIO39 / ADC1_3
+
+enum params{
+    WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, RESONANCE, 
+    MOD_SOURCE, MOD_TARGET, FILTER_TYPE, EQ_L, EQ_M, EQ_H, ADSR_TARGET, ADSR_A, ADSR_D, ADSR_S, ADSR_R, NO_PARAM
+};
+
+struct delta {
+    uint32_t data; // casted to the right thing later
+    enum params param;
+    uint32_t time;
+    int8_t osc;
+    struct delta * next;
+};
+
 
 // Events
 struct event {
+    // todo -- clean up types here - many don't need to be signed anymore, and time doesn't need to be int64
     int64_t time;
-    int16_t voice;
+    int8_t osc;
     int16_t wave;
     int16_t patch;
     int16_t midi_note;
@@ -104,28 +158,41 @@ struct event {
     float volume;
     float filter_freq;
     float resonance;
-    int8_t lfo_source;
-    int8_t lfo_target;
+    int8_t mod_source;
+    int8_t mod_target;
     int8_t adsr_target;
+    int8_t filter_type;
     int64_t adsr_on_clock;
     int64_t adsr_off_clock;
     int16_t adsr_a;
     int16_t adsr_d;
     float adsr_s;
     int16_t adsr_r;
-
+    // State variables for the impulse-integrating oscs.
+    float lpf_state[2];
+    // Decay alpha of LPF filter (e.g. 0.99 or 0.999).
+    float lpf_alpha;
+    // Decay for 2nd lpf in triangle osc.
+    float lpf_alpha_1;
+    float eq_l;
+    float eq_m;
+    float eq_h;
 };
 
-// only the things that LFOs/env can change per voice
+// only the things that mods/env can change per osc
 struct mod_event {
     float amp;
     float duty;
     float freq;
+    float filter_freq;
+    float resonance;
 };
 
 struct event default_event();
 void add_event(struct event e);
-
+void render_task();
+void fill_audio_buffer_task();
+void delay_ms(uint32_t ms);
 
 // Status mask 
 #define RUNNING 1
@@ -135,19 +202,13 @@ void add_event(struct event e);
 // global synth state
 struct state {
     float volume;
-    float resonance;
-    float filter_freq;
+    float eq[3];
+    uint16_t event_qsize;
     int16_t next_event_write;
+    struct delta * event_start; // start of the sorted list
     uint8_t board_level;
     uint8_t status;
 };
-
-// global synth state, only the things LFO/env can change
-struct mod_state {
-    float resonance;
-    float filter_freq;
-};
-
 
 // Sounds
 extern void bleep();
@@ -173,76 +234,79 @@ extern uint8_t alive;
 extern int64_t computed_delta; // can be negative no prob, but usually host is larger # than client
 extern uint8_t computed_delta_set; // have we set a delta yet?
 extern int16_t client_id;
+char *message_start_pointer;
+int16_t message_length;
+
 
 
 // FM 
 extern void fm_init();
 extern void fm_deinit();
-extern void render_fm(float * buf, uint8_t voice); 
-extern void fm_note_on(uint8_t voice);
-extern void fm_note_off(uint8_t voice);
+extern void render_fm(float * buf, uint8_t osc); 
+extern void fm_note_on(uint8_t osc);
+extern void fm_note_off(uint8_t osc);
 
 
-// bandlimted oscillators
-extern void oscillators_init();
-extern void oscillators_deinit();
-extern void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) ;
-extern void render_ks(float * buf, uint8_t voice); 
-extern void render_sine(float * buf, uint8_t voice); 
-extern void render_pulse(float * buf, uint8_t voice); 
-extern void bw_render_pulse(float * buf, uint8_t voice); 
-extern void render_saw(float * buf, uint8_t voice); 
-extern void render_triangle(float * buf, uint8_t voice); 
-extern void render_noise(float * buf, uint8_t voice); 
-extern void render_pcm(float * buf, uint8_t voice);
-extern void ks_note_on(uint8_t voice); 
-extern void ks_note_off(uint8_t voice);
-extern void sine_note_on(uint8_t voice); 
-extern void saw_note_on(uint8_t voice); 
-extern void triangle_note_on(uint8_t voice); 
-extern void pulse_note_on(uint8_t voice); 
-extern void bw_pulse_note_on(uint8_t voice); 
-extern void pcm_note_on(uint8_t voice);
+// bandlimted oscs
+
+extern void lpf_buf(float *buf, float decay, float *state);
+extern float render_lut(float * buf, float step, float skip, float amp, const int16_t* lut, int16_t lut_size);
+extern void clear_buf(float *buf);
+extern void cumulate_buf(const float *from, float *dest);
+
+extern void ks_init();
+extern void ks_deinit();
+
+extern void render_ks(float * buf, uint8_t osc); 
+extern void render_sine(float * buf, uint8_t osc); 
+extern void render_pulse(float * buf, float * scratch, uint8_t osc); 
+extern void render_saw(float * buf, float * scratch, uint8_t osc); 
+extern void render_triangle(float * buf, float * scratch, uint8_t osc); 
+extern void render_noise(float * buf, uint8_t osc); 
+extern void render_pcm(float * buf, uint8_t osc);
+
+extern float compute_mod_pulse(uint8_t osc);
+extern float compute_mod_noise(uint8_t osc);
+extern float compute_mod_sine(uint8_t osc);
+extern float compute_mod_saw(uint8_t osc);
+extern float compute_mod_triangle(uint8_t osc);
+extern float compute_mod_pcm(uint8_t osc);
+
+extern void ks_note_on(uint8_t osc); 
+extern void ks_note_off(uint8_t osc);
+extern void sine_note_on(uint8_t osc); 
+extern void saw_note_on(uint8_t osc); 
+extern void triangle_note_on(uint8_t osc); 
+extern void pulse_note_on(uint8_t osc); 
+extern void pcm_note_on(uint8_t osc);
+
+extern void sine_mod_trigger(uint8_t osc);
+extern void saw_mod_trigger(uint8_t osc);
+extern void triangle_mod_trigger(uint8_t osc);
+extern void pulse_mod_trigger(uint8_t osc);
+extern void pcm_mod_trigger(uint8_t osc);
 
 
 
 // filters
 extern void filters_init();
 extern void filters_deinit();
-extern void filter_process(float * block);
-extern void filter_update();
-extern void filter_process_ints(int16_t * block);
+extern void filter_process(float * block, uint8_t osc);
+extern void parametric_eq_process(float *block);
 
 // envelopes
-extern float compute_adsr_scale(uint8_t voice);
-extern float compute_lfo_scale(uint8_t voice);
-extern void retrigger_lfo_source(uint8_t voice);
+extern float compute_adsr_scale(uint8_t osc);
+extern float compute_mod_scale(uint8_t osc);
+extern void retrigger_mod_source(uint8_t osc);
 
 // MIDI
 extern void midi_init();
 extern void midi_deinit();
 extern void read_midi();
 
-#define NUM_WAVES 8
-#define SINE 0
-#define PULSE 1
-#define SAW 2
-#define TRIANGLE 3
-#define NOISE 4
-#define FM 5
-#define KS 6
-#define PCM 7
-#define OFF 8
-
-#define EMPTY 0
-#define SCHEDULED 1
-#define PLAYED 2
-#define AUDIBLE 3
-#define LFO_SOURCE 4
 
 
-#define UP    32767
-#define DOWN -32768
+
 
 
 #ifdef __cplusplus

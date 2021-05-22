@@ -24,7 +24,7 @@ class Module {
   static const int lg_n = 6;
   static const int n = 1 << lg_n;
   virtual void process(const int32_t **inbufs, const int32_t *control_in,
-					   const int32_t *control_last, int32_t **outbufs) = 0;
+                       const int32_t *control_last, int32_t **outbufs) = 0;
 };
 
 #endif  // SYNTH_MODULE_H

@@ -7,29 +7,45 @@
 
 // Global state 
 struct state global;
-// envelope-modified global state
-struct mod_state mglobal;
 
-// set of events for the fifo to be played
-struct event * events;
-// state per voice as multi-channel synthesizer that the scheduler renders into
+// set of deltas for the fifo to be played
+struct delta * events;
+// state per osc as multi-channel synthesizer that the scheduler renders into
 struct event * synth;
-// envelope-modified per-voice state
+// envelope-modified per-osc state
 struct mod_event * msynth;
 
-// floatblock -- accumulative for mixing
-float * floatblock;
+// One floatblock per core, added up later
+float ** fbl;
+
+// A second floatblock per core for independently generating e.g. triangle.
+// This can be used within a given render_* function as scratch space.
+float ** scratchbuf;
 // block -- what gets sent to the DAC -- -32768...32767 (wave file, int16 LE)
 int16_t * block;
+
+// For CPU usage
+unsigned long last_task_counters[MAX_TASKS];
+
+// mutex that locks writes to the delta queue
+SemaphoreHandle_t xQueueSemaphore;
+
+void delay_ms(uint32_t ms) {
+    vTaskDelay(ms / portTICK_PERIOD_MS);
+}
 
 
 esp_err_t global_init() {
     global.next_event_write = 0;
-    global.board_level = ALLES_BOARD_V1;
+    global.event_start = NULL;
+    global.event_qsize = 0;
+    global.board_level = ALLES_BOARD_V2;
     global.status = RUNNING;
     global.volume = 1;
-    global.resonance = 0.7;
-    global.filter_freq = 0;
+    global.eq[0] = 0;
+    global.eq[1] = 0;
+    global.eq[2] = 0;
+    for(uint8_t i=0;i<MAX_TASKS;i++) last_task_counters[i] = 0;
     return ESP_OK;
 }
 
@@ -38,10 +54,16 @@ static const char TAG[] = "main";
 // Button event
 extern xQueueHandle gpio_evt_queue;
 
-// Multicast task handle 
-TaskHandle_t multicast_handle = NULL;
+// Task handles for the renderers, multicast listener and main
+TaskHandle_t mcastTask = NULL;
+TaskHandle_t parseTask = NULL;
+static TaskHandle_t renderTask[2]; // one per core
+static TaskHandle_t fillbufferTask = NULL;
+static TaskHandle_t idleTask0 = NULL;
+static TaskHandle_t idleTask1 = NULL;
 
-// Battery status for V1 board. If no v1 board, will stay at 0
+
+// Battery status for V2 board. If no v2 board, will stay at 0
 uint8_t battery_mask = 0;
 
 
@@ -55,7 +77,7 @@ struct event default_event() {
     struct event e;
     e.status = EMPTY;
     e.time = 0;
-    e.voice = 0;
+    e.osc = 0;
     e.step = 0;
     e.substep = 0;
     e.sample = DOWN;
@@ -71,9 +93,9 @@ struct event default_event() {
     e.volume = -1;
     e.filter_freq = -1;
     e.resonance = -1;
-
-    e.lfo_source = -1;
-    e.lfo_target = -1;
+    e.filter_type = -1;
+    e.mod_source = -1;
+    e.mod_target = -1;
     e.adsr_target = -1;
     e.adsr_on_clock = -1;
     e.adsr_off_clock = -1;
@@ -81,53 +103,105 @@ struct event default_event() {
     e.adsr_d = -1;
     e.adsr_s = -1;
     e.adsr_r = -1;
-
+    e.eq_l = -1;
+    e.eq_m = -1;
+    e.eq_h = -1;
     return e;
 }
 
-// deep copy an event to the fifo
-void add_event(struct event e) { 
-    int16_t ew = global.next_event_write;
-    if(events[ew].status == SCHEDULED) {
-        // We should drop these messages, the queue is full
-        printf("queue (size %d) is full at index %d, skipping\n", EVENT_FIFO_LEN, ew);
-    } else {
-        events[ew].voice = e.voice;
-        events[ew].velocity = e.velocity;
-        events[ew].volume = e.volume;
-        events[ew].filter_freq = e.filter_freq;
-        events[ew].resonance = e.resonance;
-        events[ew].duty = e.duty;
-        events[ew].feedback = e.feedback;
-        events[ew].midi_note = e.midi_note;
-        events[ew].wave = e.wave;
-        events[ew].patch = e.patch;
-        events[ew].freq = e.freq;
-        events[ew].amp = e.amp;
-        events[ew].phase = e.phase;
-        events[ew].time = e.time;
-        events[ew].status = e.status;
-        events[ew].sample = e.sample;
-        events[ew].step = e.step;
-        events[ew].substep = e.substep;
-      
-        events[ew].lfo_source = e.lfo_source;
-        events[ew].lfo_target = e.lfo_target;
-        events[ew].adsr_target = e.adsr_target;
-        events[ew].adsr_on_clock = e.adsr_on_clock;
-        events[ew].adsr_off_clock = e.adsr_off_clock;
-        events[ew].adsr_a = e.adsr_a;
-        events[ew].adsr_d = e.adsr_d;
-        events[ew].adsr_s = e.adsr_s;
-        events[ew].adsr_r = e.adsr_r;
+uint32_t event_counter = 0;
+uint32_t message_counter = 0;
 
-        global.next_event_write = (ew + 1) % (EVENT_FIFO_LEN);
+
+void add_delta_to_queue(struct delta d) {
+
+    //  Take the queue mutex before starting
+    xSemaphoreTake(xQueueSemaphore, portMAX_DELAY);
+
+    if(global.event_qsize < EVENT_FIFO_LEN) {
+        // scan through the memory to find a free slot, starting at write pointer
+        uint16_t write_location = global.next_event_write;
+        int16_t found = -1;
+        // guaranteed to find eventually if qsize stays accurate
+        while(found<0) {
+            if(events[write_location].time == UINT32_MAX) found = write_location;
+            write_location = (write_location + 1) % EVENT_FIFO_LEN;
+        }
+        // Found a mem location. Copy the data in and update the write pointers.
+        events[found].time = d.time;
+        events[found].osc = d.osc;
+        events[found].param = d.param;
+        events[found].data = d.data;
+        global.next_event_write = write_location;
+        global.event_qsize++;
+
+        // Now insert it into the sorted list for fast playback
+        // First, see if it's eariler than the first item, special case
+        if(d.time < global.event_start->time) {
+            events[found].next = global.event_start;
+            global.event_start = &events[found];
+        } else {
+            // or it's got to be found somewhere
+            struct delta* ptr = global.event_start; 
+            int8_t inserted = -1;
+            while(inserted<0) {
+                if(d.time < ptr->next->time) { 
+                    // next should point to me, and my next should point to old next
+                    events[found].next = ptr->next;
+                    ptr->next = &events[found];
+                    inserted = 1;
+                }
+                ptr = ptr->next;
+            }
+        }
+        event_counter++;
+
+    } else {
+        // If there's no room in the queue, just skip the message
+        // TODO -- report this somehow? 
     }
+    xSemaphoreGive( xQueueSemaphore );
+
 }
 
-void reset_voice(uint8_t i ) {
+
+void add_event(struct event e) {
+    // make delta objects out of the UDP event and add them to the queue
+    struct delta d;
+    d.osc = e.osc;
+    d.time = e.time;
+    if(e.wave>-1) { d.param=WAVE; d.data = *(uint32_t *)&e.wave; add_delta_to_queue(d); }
+    if(e.patch>-1) { d.param=PATCH; d.data = *(uint32_t *)&e.patch; add_delta_to_queue(d); }
+    if(e.midi_note>-1) { d.param=MIDI_NOTE; d.data = *(uint32_t *)&e.midi_note; add_delta_to_queue(d); }
+    if(e.amp>-1) { d.param=AMP; d.data = *(uint32_t *)&e.amp; add_delta_to_queue(d); }
+    if(e.duty>-1) { d.param=DUTY; d.data = *(uint32_t *)&e.duty; add_delta_to_queue(d); }
+    if(e.feedback>-1) { d.param=FEEDBACK; d.data = *(uint32_t *)&e.feedback; add_delta_to_queue(d); }
+    if(e.freq>-1) { d.param=FREQ; d.data = *(uint32_t *)&e.freq; add_delta_to_queue(d); }
+    if(e.phase>-1) { d.param=PHASE; d.data = *(uint32_t *)&e.phase; add_delta_to_queue(d); }
+    if(e.volume>-1) { d.param=VOLUME; d.data = *(uint32_t *)&e.volume; add_delta_to_queue(d); }
+    if(e.filter_freq>-1) { d.param=FILTER_FREQ; d.data = *(uint32_t *)&e.filter_freq; add_delta_to_queue(d); }
+    if(e.resonance>-1) { d.param=RESONANCE; d.data = *(uint32_t *)&e.resonance; add_delta_to_queue(d); }
+    if(e.mod_source>-1) { d.param=MOD_SOURCE; d.data = *(uint32_t *)&e.mod_source; add_delta_to_queue(d); }
+    if(e.mod_target>-1) { d.param=MOD_TARGET; d.data = *(uint32_t *)&e.mod_target; add_delta_to_queue(d); }
+    if(e.adsr_target>-1) { d.param=ADSR_TARGET; d.data = *(uint32_t *)&e.adsr_target; add_delta_to_queue(d); }
+    if(e.filter_type>-1) { d.param=FILTER_TYPE; d.data = *(uint32_t *)&e.filter_type; add_delta_to_queue(d); }
+    if(e.adsr_a>-1) { d.param=ADSR_A; d.data = *(uint32_t *)&e.adsr_a; add_delta_to_queue(d); }
+    if(e.adsr_d>-1) { d.param=ADSR_D; d.data = *(uint32_t *)&e.adsr_d; add_delta_to_queue(d); }
+    if(e.adsr_s>-1) { d.param=ADSR_S; d.data = *(uint32_t *)&e.adsr_s; add_delta_to_queue(d); }
+    if(e.adsr_r>-1) { d.param=ADSR_R; d.data = *(uint32_t *)&e.adsr_r; add_delta_to_queue(d); }
+
+    if(e.eq_l>-1) { d.param=EQ_L; d.data = *(uint32_t *)&e.eq_l; add_delta_to_queue(d); }
+    if(e.eq_m>-1) { d.param=EQ_M; d.data = *(uint32_t *)&e.eq_m; add_delta_to_queue(d); }
+    if(e.eq_h>-1) { d.param=EQ_H; d.data = *(uint32_t *)&e.eq_h; add_delta_to_queue(d); }
+
+    // Add this last -- this is a trigger, that if sent alongside osc setup parameters, you want to run after those
+    if(e.velocity>-1) { d.param=VELOCITY; d.data = *(uint32_t *)&e.velocity; add_delta_to_queue(d); }
+    message_counter++;
+}
+
+void reset_osc(uint8_t i ) {
     // set all the synth state to defaults
-    synth[i].voice = i; // self-reference to make updating oscillators easier
+    synth[i].osc = i; // self-reference to make updating oscs easier
     synth[i].wave = SINE;
     synth[i].duty = 0.5;
     msynth[i].duty = 0.5;
@@ -140,6 +214,9 @@ void reset_voice(uint8_t i ) {
     msynth[i].amp = 1;
     synth[i].phase = 0;
     synth[i].volume = 0;
+    synth[i].eq_l = 0;
+    synth[i].eq_m = 0;
+    synth[i].eq_h = 0;
     synth[i].filter_freq = 0;
     synth[i].resonance = 0.7;
     synth[i].velocity = 0;
@@ -147,69 +224,174 @@ void reset_voice(uint8_t i ) {
     synth[i].sample = DOWN;
     synth[i].substep = 0;
     synth[i].status = OFF;
-    synth[i].lfo_source = -1;
-    synth[i].lfo_target = -1;
+    synth[i].mod_source = -1;
+    synth[i].mod_target = -1;
     synth[i].adsr_target = -1;
     synth[i].adsr_on_clock = -1;
     synth[i].adsr_off_clock = -1;
+    synth[i].filter_type = FILTER_NONE;
     synth[i].adsr_a = 0;
     synth[i].adsr_d = 0;
     synth[i].adsr_s = 1.0;
     synth[i].adsr_r = 0;
-
+    synth[i].lpf_state[0] = 0;
+    synth[i].lpf_state[1] = 0;
+    synth[i].lpf_alpha = 0;
+    synth[i].lpf_alpha_1 = 0;
 }
 
-void reset_voices() {
-    for(uint8_t i=0;i<VOICES;i++) reset_voice(i);
+void reset_oscs() {
+    for(uint8_t i=0;i<OSCS;i++) reset_osc(i);
+    // Also reset filters and volume
+    global.volume = 1;
+    global.eq[0] = 0;
+    global.eq[1] = 0;
+    global.eq[2] = 0;
 }
+
+
 
 // The synth object keeps held state, whereas events are only deltas/changes
-esp_err_t voices_init() {
+esp_err_t oscs_init() {
     // FM init happens later for mem reason
-    oscillators_init();
+    ks_init();
     filters_init();
-    events = (struct event*) malloc(sizeof(struct event) * EVENT_FIFO_LEN);
-    synth = (struct event*) malloc(sizeof(struct event) * VOICES);
-    msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * VOICES);
-    floatblock = (float*) malloc(sizeof(float) * BLOCK_SIZE);
-    block = (BLOCK_T *) malloc(sizeof(BLOCK_T) * BLOCK_SIZE * 2);
-    // Pre-clear the blcok
-    for(int i=0;i<BLOCK_SIZE * 2;i++) {
-      block[i] = 0;
+    events = (struct delta*)malloc(sizeof(struct delta) * EVENT_FIFO_LEN);
+    synth = (struct event*) malloc(sizeof(struct event) * OSCS);
+    msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * OSCS);
+    fbl = (float**) malloc(sizeof(float*) * 2); // one per core
+    scratchbuf = (float**) malloc(sizeof(float*) * 2); // one per core
+    block = (int16_t *) malloc(sizeof(int16_t) * BLOCK_SIZE);
+
+    // Set all oscillators to their default values
+    reset_oscs();
+
+    // Make a fencepost last event with no next, time of end-1, and call it start for now, all other events get inserted before it
+    events[0].next = NULL;
+    events[0].time = UINT32_MAX - 1;
+    events[0].osc = 0;
+    events[0].data = 0;
+    events[0].param = NO_PARAM;
+    global.next_event_write = 1;
+    global.event_start = &events[0];
+    global.event_qsize = 1; // queue will always have at least 1 thing in it 
+
+    // Set all the other events to empty
+    for(uint16_t i=1;i<EVENT_FIFO_LEN;i++) { 
+        events[i].time = UINT32_MAX;
+        events[i].next = NULL;
+        events[i].osc = 0;
+        events[i].data = 0;
+        events[i].param = NO_PARAM;
     }
 
-    reset_voices();
-    // Fill the FIFO with default events, as the audio thread reads from it immediately
-    for(int i=0;i<EVENT_FIFO_LEN;i++) {
-        // First clear out the malloc'd events so it doesn't seem like the queue is full
-        events[i].status = EMPTY;
-    }
-    for(int i=0;i<EVENT_FIFO_LEN;i++) {
-        add_event(default_event());
-    }
+    // We create a mutex for changing the event queue and pointers as two tasks do it at once
+    xQueueSemaphore = xSemaphoreCreateMutex();
+
+    // Create rendering threads, one per core so we can deal with dan ellis float math
+    fbl[0] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
+    fbl[1] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
+    scratchbuf[0] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
+    scratchbuf[1] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
+    xTaskCreatePinnedToCore(&render_task, "render_task0", 4096, NULL, 1, &renderTask[0], 0);
+    xTaskCreatePinnedToCore(&render_task, "render_task1", 4096, NULL, 1, &renderTask[1], 1);
+
+    // Wait for the render tasks to get going before starting the i2s task
+    delay_ms(100);
+
+    // And the fill audio buffer thread, combines, does volume & filters
+    xTaskCreatePinnedToCore(&fill_audio_buffer_task, "fill_audio_buff", 4096, NULL, 1, &fillbufferTask, 0);
+
+    // Grab the idle handles while we're here, we use them for CPU usage reporting
+    idleTask0 = xTaskGetIdleTaskHandleForCPU(0);
+    idleTask1 = xTaskGetIdleTaskHandleForCPU(1);
     return ESP_OK;
 }
 
-void debug_voices() {
-    // print out all the voice data
 
-    printf("global: filter %f resonance %f volume %f status %d\n", global.filter_freq, global.resonance, global.volume, global.status);
-    printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
-    for(uint8_t i=0;i<VOICES;i++) {
-        printf("voice %d: status %d amp %f wave %d freq %f duty %f adsr_target %d lfo_target %d lfo source %d velocity %f E: %d,%d,%2.2f,%d step %f \n",
-            i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].adsr_target, synth[i].lfo_target, synth[i].lfo_source, 
-            synth[i].velocity, synth[i].adsr_a, synth[i].adsr_d, synth[i].adsr_s, synth[i].adsr_r, synth[i].step);
-        printf("mod voice %d: amp: %f, freq %f duty %f\n",
-            i, msynth[i].amp, msynth[i].freq, msynth[i].duty);
+// Show a CPU usage counter. This shows the delta in use since the last time you called it
+void show_debug(uint8_t type) { 
+    TaskStatus_t *pxTaskStatusArray;
+    volatile UBaseType_t uxArraySize, x, i;
+    const char* const tasks[] = { "render_task0", "render_task1", "mcast_task", "parse_task", "main", "fill_audio_buff", "wifi", "idle0", "idle1", 0 }; 
+    uxArraySize = uxTaskGetNumberOfTasks();
+    pxTaskStatusArray = pvPortMalloc( uxArraySize * sizeof( TaskStatus_t ) );
+    uxArraySize = uxTaskGetSystemState( pxTaskStatusArray, uxArraySize, NULL );
+    unsigned long counter_since_last[MAX_TASKS];
+    unsigned long ulTotalRunTime = 0;
+    TaskStatus_t xTaskDetails;
+    // We have to check for the names we want to track
+    for(i=0;i<MAX_TASKS;i++) { // for each name
+        for(x=0; x<uxArraySize; x++) { // for each task
+            if(strcmp(pxTaskStatusArray[x].pcTaskName, tasks[i])==0) {
+                counter_since_last[i] = pxTaskStatusArray[x].ulRunTimeCounter - last_task_counters[i];
+                last_task_counters[i] = pxTaskStatusArray[x].ulRunTimeCounter;
+                ulTotalRunTime = ulTotalRunTime + counter_since_last[i];
+            }
+        }
+        // Have to get these specially as the task manager calls them both "IDLE" and swaps their orderings around
+        if(strcmp("idle0", tasks[i])==0) { 
+            vTaskGetInfo(idleTask0, &xTaskDetails, pdFALSE, eRunning);
+            counter_since_last[i] = xTaskDetails.ulRunTimeCounter - last_task_counters[i];
+            last_task_counters[i] = xTaskDetails.ulRunTimeCounter;
+            ulTotalRunTime = ulTotalRunTime + counter_since_last[i];
+        }
+        if(strcmp("idle1", tasks[i])==0) { 
+            vTaskGetInfo(idleTask1, &xTaskDetails, pdFALSE, eRunning);
+            counter_since_last[i] = xTaskDetails.ulRunTimeCounter - last_task_counters[i];
+            last_task_counters[i] = xTaskDetails.ulRunTimeCounter;
+            ulTotalRunTime = ulTotalRunTime + counter_since_last[i];
+        }
+
+    }
+    printf("------ CPU usage since last call to debug()\n");
+    for(i=0;i<MAX_TASKS;i++) {
+        printf("%-15s\t%-15ld\t\t%2.2f%%\n", tasks[i], counter_since_last[i], (float)counter_since_last[i]/ulTotalRunTime * 100.0);
+    }   
+    printf("------\nEvent queue size %d / %d. Received %d events and %d messages\n", global.event_qsize, EVENT_FIFO_LEN, event_counter, message_counter);
+    event_counter = 0;
+    message_counter = 0;
+    vPortFree(pxTaskStatusArray);
+
+    if(type>1) {
+        struct delta * ptr = global.event_start;
+        uint16_t q = global.event_qsize;
+        if(q > 25) q = 25;
+        for(i=0;i<q;i++) {
+            printf("%d time %u osc %d param %d - %f %d\n", i, ptr->time, ptr->osc, ptr->param, *(float *)&ptr->data, *(int *)&ptr->data);
+            ptr = ptr->next;
+        }
+    }
+    if(type>2) {
+        // print out all the osc data
+        //printf("global: filter %f resonance %f volume %f status %d\n", global.filter_freq, global.resonance, global.volume, global.status);
+        printf("global: volume %f eq: %f %f %f status %d\n", global.volume, global.eq[0], global.eq[1], global.eq[2], global.status);
+        //printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
+        for(uint8_t i=0;i<OSCS;i++) {
+            printf("osc %d: status %d amp %f wave %d freq %f duty %f adsr_target %d mod_target %d mod source %d velocity %f filter_freq %f resonance %f E: %d,%d,%2.2f,%d step %f \n",
+                i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].adsr_target, synth[i].mod_target, synth[i].mod_source, 
+                synth[i].velocity, synth[i].filter_freq, synth[i].resonance, synth[i].adsr_a, synth[i].adsr_d, synth[i].adsr_s, synth[i].adsr_r, synth[i].step);
+            if(type>3) printf("mod osc %d: amp: %f, freq %f duty %f filter_freq %f resonance %f\n", i, msynth[i].amp, msynth[i].freq, msynth[i].duty, msynth[i].filter_freq, msynth[i].resonance);
+        }
     }
 }
-void voices_deinit() {
+
+
+   
+void oscs_deinit() {
     free(block);
-    free(floatblock);
+    free(fbl[0]); 
+    free(fbl[1]); 
+    free(fbl);
+    free(scratchbuf[0]);
+    free(scratchbuf[1]);
+    free(scratchbuf);
+
     free(synth);
     free(msynth);
     free(events);
-    oscillators_deinit();
+
+    ks_deinit();
     filters_deinit();
 }
 
@@ -227,7 +409,7 @@ esp_err_t setup_i2s(void) {
          .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
          .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_STAND_I2S),
          .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1, // high interrupt priority
-         .dma_buf_count = 8,
+         .dma_buf_count = 8, // TODO: check these numbers
          .dma_buf_len = 64   //Interrupt level 1
         };
         
@@ -244,194 +426,196 @@ esp_err_t setup_i2s(void) {
 }
 
 
+
 // Play an event, now -- tell the audio loop to start making noise
-void play_event(struct event e) {
-    if(e.midi_note >= 0) { synth[e.voice].midi_note = e.midi_note; synth[e.voice].freq = freq_for_midi_note(e.midi_note); } 
-    if(e.wave >= 0) synth[e.voice].wave = e.wave;
-    if(e.phase >= 0) synth[e.voice].phase = e.phase;
-    if(e.patch >= 0) synth[e.voice].patch = e.patch;
-    if(e.duty >= 0) synth[e.voice].duty = e.duty;
-    if(e.feedback >= 0) synth[e.voice].feedback = e.feedback;
-    if(e.freq >= 0) synth[e.voice].freq = e.freq;
-    
-    if(e.adsr_target >= 0) synth[e.voice].adsr_target = e.adsr_target;
-    if(e.adsr_a >= 0) synth[e.voice].adsr_a = e.adsr_a;
-    if(e.adsr_d >= 0) synth[e.voice].adsr_d = e.adsr_d;
-    if(e.adsr_s >= 0) synth[e.voice].adsr_s = e.adsr_s;
-    if(e.adsr_r >= 0) synth[e.voice].adsr_r = e.adsr_r;
+void play_event(struct delta d) {
+    if(d.param == MIDI_NOTE) { synth[d.osc].midi_note = *(uint16_t *)&d.data; synth[d.osc].freq = freq_for_midi_note(*(uint16_t *)&d.data); } 
+    if(d.param == WAVE) synth[d.osc].wave = *(int16_t *)&d.data; 
+    if(d.param == PHASE) synth[d.osc].phase = *(float *)&d.data;
+    if(d.param == PATCH) synth[d.osc].patch = *(int16_t *)&d.data;
+    if(d.param == DUTY) synth[d.osc].duty = *(float *)&d.data;
+    if(d.param == FEEDBACK) synth[d.osc].feedback = *(float *)&d.data;
+    if(d.param == FREQ) synth[d.osc].freq = *(float *)&d.data;
+    if(d.param == ADSR_TARGET) synth[d.osc].adsr_target = (int8_t) d.data;
 
-    if(e.lfo_source >= 0) { synth[e.voice].lfo_source = e.lfo_source; synth[e.lfo_source].status = LFO_SOURCE; }
-    if(e.lfo_target >= 0) synth[e.voice].lfo_target = e.lfo_target;
+    if(d.param == ADSR_A) synth[d.osc].adsr_a = *(int16_t *)&d.data;
+    if(d.param == ADSR_D) synth[d.osc].adsr_d = *(int16_t *)&d.data;
+    if(d.param == ADSR_S) synth[d.osc].adsr_s = *(float *)&d.data;
+    if(d.param == ADSR_R) synth[d.osc].adsr_r = *(int16_t *)&d.data;
 
-    // For global changes, just make the change, no need to update the per-voice synth
-    if(e.volume >= 0) global.volume = e.volume; 
-    if(e.filter_freq >= 0) global.filter_freq = e.filter_freq; 
-    if(e.resonance >= 0) global.resonance = e.resonance; 
+    if(d.param == MOD_SOURCE) { synth[d.osc].mod_source = *(int8_t *)&d.data; synth[*(int8_t *)&d.data].status = IS_MOD_SOURCE; }
+    if(d.param == MOD_TARGET) synth[d.osc].mod_target = *(int8_t *)&d.data; 
+
+    if(d.param == FILTER_FREQ) synth[d.osc].filter_freq = *(float *)&d.data;
+    if(d.param == FILTER_TYPE) synth[d.osc].filter_type = *(int8_t *)&d.data; 
+    if(d.param == RESONANCE) synth[d.osc].resonance = *(float *)&d.data;
+
+
+    // For global changes, just make the change, no need to update the per-osc synth
+    if(d.param == VOLUME) global.volume = *(float *)&d.data;
+    if(d.param == EQ_L) global.eq[0] = powf(10, *(float *)&d.data / 20.0);
+    if(d.param == EQ_M) global.eq[1] = powf(10, *(float *)&d.data / 20.0);
+    if(d.param == EQ_H) global.eq[2] = powf(10, *(float *)&d.data / 20.0);
 
     // Triggers / envelopes 
     // The only way a sound is made is if velocity (note on) is >0.
-    if(e.velocity>0 ) { // New note on (even if something is already playing on this voice)
-        synth[e.voice].amp = e.velocity; 
-        synth[e.voice].velocity = e.velocity;
-        synth[e.voice].status = AUDIBLE;
-        // Take care of FM & KS first -- no special treatment for ADSR/LFO
-        if(synth[e.voice].wave==FM) { fm_note_on(e.voice); } 
-        else if(synth[e.voice].wave==KS) { ks_note_on(e.voice); } 
+    if(d.param == VELOCITY && *(float *)&d.data > 0) { // New note on (even if something is already playing on this osc)
+        synth[d.osc].amp = *(float *)&d.data; // these could be decoupled, later
+        synth[d.osc].velocity = *(float *)&d.data;
+        synth[d.osc].status = AUDIBLE;
+        // Take care of FM & KS first -- no special treatment for ADSR/MOD
+        if(synth[d.osc].wave==FM) { fm_note_on(d.osc); } 
+        else if(synth[d.osc].wave==KS) { ks_note_on(d.osc); } 
         else {
-            // an oscillator voice came in with a note on.
+            // an osc came in with a note on.
             // Start the ADSR clock
-            synth[e.voice].adsr_on_clock = esp_timer_get_time() / 1000;
+            synth[d.osc].adsr_on_clock = esp_timer_get_time() / 1000;
 
             // Restart the waveforms, adjusting for phase if given
-            if(synth[e.voice].wave==SINE) sine_note_on(e.voice);
-            //if(synth[e.voice].wave==SAW) saw_note_on(e.voice);
-            if(synth[e.voice].wave==SAW) bw_pulse_note_on(e.voice);
-            if(synth[e.voice].wave==TRIANGLE) triangle_note_on(e.voice);
-            if(synth[e.voice].wave==PULSE) pulse_note_on(e.voice);
-            if(synth[e.voice].wave==PCM) pcm_note_on(e.voice);
+            if(synth[d.osc].wave==SINE) sine_note_on(d.osc);
+            if(synth[d.osc].wave==SAW) saw_note_on(d.osc);
+            if(synth[d.osc].wave==TRIANGLE) triangle_note_on(d.osc);
+            if(synth[d.osc].wave==PULSE) pulse_note_on(d.osc);
+            if(synth[d.osc].wave==PCM) pcm_note_on(d.osc);
 
-            // Also trigger "note ons" for the LFO source, if we have one
-            if(synth[e.voice].lfo_source >= 0) {
-                if(synth[synth[e.voice].lfo_source].wave==SINE) sine_note_on(synth[e.voice].lfo_source);
-                //if(synth[synth[e.voice].lfo_source].wave==SAW) saw_note_on(synth[e.voice].lfo_source);
-                if(synth[synth[e.voice].lfo_source].wave==SAW) bw_pulse_note_on(synth[e.voice].lfo_source);
-                if(synth[synth[e.voice].lfo_source].wave==TRIANGLE) triangle_note_on(synth[e.voice].lfo_source);
-                if(synth[synth[e.voice].lfo_source].wave==PULSE) pulse_note_on(synth[e.voice].lfo_source);
-                if(synth[synth[e.voice].lfo_source].wave==PCM) pcm_note_on(synth[e.voice].lfo_source);
+            // Also trigger the MOD source, if we have one
+            if(synth[d.osc].mod_source >= 0) {
+                if(synth[synth[d.osc].mod_source].wave==SINE) sine_mod_trigger(synth[d.osc].mod_source);
+                if(synth[synth[d.osc].mod_source].wave==SAW) saw_mod_trigger(synth[d.osc].mod_source);
+                if(synth[synth[d.osc].mod_source].wave==TRIANGLE) triangle_mod_trigger(synth[d.osc].mod_source);
+                if(synth[synth[d.osc].mod_source].wave==PULSE) pulse_mod_trigger(synth[d.osc].mod_source);
+                if(synth[synth[d.osc].mod_source].wave==PCM) pcm_mod_trigger(synth[d.osc].mod_source);
             }
 
         }
-    } else if(synth[e.voice].velocity > 0 && e.velocity == 0) { // new note off
-        synth[e.voice].velocity = e.velocity;
-        if(synth[e.voice].wave==FM) { fm_note_off(e.voice); }
-        else if(synth[e.voice].wave==KS) { ks_note_off(e.voice); }
+    } else if(synth[d.osc].velocity > 0 && d.param == VELOCITY && *(float *)&d.data == 0) { // new note off
+        synth[d.osc].velocity = 0;
+        if(synth[d.osc].wave==FM) { fm_note_off(d.osc); }
+        else if(synth[d.osc].wave==KS) { ks_note_off(d.osc); }
         else {
-            // osc voice note off, start release
-            synth[e.voice].adsr_on_clock = -1;
-            synth[e.voice].adsr_off_clock = esp_timer_get_time() / 1000;
+            // osc note off, start release
+            synth[d.osc].adsr_on_clock = -1;
+            synth[d.osc].adsr_off_clock = esp_timer_get_time() / 1000;
         }
     }
 
 }
 
-// Apply an LFO & ADSR, if any, to the voice
-void hold_and_modify(uint8_t voice) {
+// Apply an mod & ADSR, if any, to the osc
+void hold_and_modify(uint8_t osc) {
     // Copy all the modifier variables
-    msynth[voice].amp = synth[voice].amp;
-    msynth[voice].duty = synth[voice].duty;
-    msynth[voice].freq = synth[voice].freq;
+    msynth[osc].amp = synth[osc].amp;
+    msynth[osc].duty = synth[osc].duty;
+    msynth[osc].freq = synth[osc].freq;
+    msynth[osc].filter_freq = synth[osc].filter_freq;
+    msynth[osc].resonance = synth[osc].resonance;
 
     // Modify the synth params by scale -- ADSR scale is (original * scale)
-    float scale = compute_adsr_scale(voice);
-    if(synth[voice].adsr_target & TARGET_AMP) msynth[voice].amp = msynth[voice].amp * scale;
-    if(synth[voice].adsr_target & TARGET_DUTY) msynth[voice].duty = msynth[voice].duty * scale;
-    if(synth[voice].adsr_target & TARGET_FREQ) msynth[voice].freq = msynth[voice].freq * scale;
-    if(synth[voice].adsr_target & TARGET_FILTER_FREQ) mglobal.filter_freq = (mglobal.filter_freq * scale);
-    if(synth[voice].adsr_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance * scale;
+    float scale = compute_adsr_scale(osc);
+    if(synth[osc].adsr_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp * scale;
+    if(synth[osc].adsr_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty * scale;
+    if(synth[osc].adsr_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq * scale;
+    if(synth[osc].adsr_target & TARGET_FILTER_FREQ) msynth[osc].filter_freq = msynth[osc].filter_freq * scale;
+    if(synth[osc].adsr_target & TARGET_RESONANCE) msynth[osc].resonance = msynth[osc].resonance * scale;
 
-    // And the LFO -- LFO scale is (original + (original * scale))
-    scale = compute_lfo_scale(voice);
-    if(synth[voice].lfo_target & TARGET_AMP) msynth[voice].amp = msynth[voice].amp + (msynth[voice].amp * scale);
-    if(synth[voice].lfo_target & TARGET_DUTY) msynth[voice].duty = msynth[voice].duty + (msynth[voice].duty * scale);
-    if(synth[voice].lfo_target & TARGET_FREQ) msynth[voice].freq = msynth[voice].freq + (msynth[voice].freq * scale);
-    if(synth[voice].lfo_target & TARGET_FILTER_FREQ) mglobal.filter_freq = mglobal.filter_freq + (mglobal.filter_freq * scale);
-    if(synth[voice].lfo_target & TARGET_RESONANCE) mglobal.resonance = mglobal.resonance + (mglobal.resonance * scale);
+
+    // And the mod -- mod scale is (original + (original * scale))
+    scale = compute_mod_scale(osc);
+    if(synth[osc].mod_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp + (msynth[osc].amp * scale);
+    if(synth[osc].mod_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty + (msynth[osc].duty * scale);
+    if(synth[osc].mod_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq + (msynth[osc].freq * scale);
+    if(synth[osc].mod_target & TARGET_FILTER_FREQ) msynth[osc].filter_freq = msynth[osc].filter_freq + (msynth[osc].filter_freq * scale);
+    if(synth[osc].mod_target & RESONANCE) msynth[osc].resonance = msynth[osc].resonance + (msynth[osc].resonance * scale);
 }
 
 
+void render_task() {
+    uint8_t start, end, core;
+    if(xPortGetCoreID() == 0) {
+        start = 0; end = (OSCS/2); core = 0;
+    } else {
+        start = (OSCS/2); end = OSCS; core = 1;
+    }
+    printf("I'm rendering on core %d and i'm handling oscs %d up until %d\n", xPortGetCoreID(), start, end);
+    while(1) {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        for(uint16_t i=0;i<BLOCK_SIZE;i++) fbl[core][i] = 0; 
+        for(uint8_t osc=start; osc<end; osc++) {
+            if(synth[osc].status==AUDIBLE) { // skip oscs that are silent or mod sources from playback
+                hold_and_modify(osc); // apply ADSR / mod
+                if(synth[osc].wave == FM) render_fm(fbl[core], osc);
+                if(synth[osc].wave == NOISE) render_noise(fbl[core], osc);
+                if(synth[osc].wave == SAW) render_saw(fbl[core], scratchbuf[core], osc);
+                if(synth[osc].wave == PULSE) render_pulse(fbl[core], scratchbuf[core], osc);
+                if(synth[osc].wave == TRIANGLE) render_triangle(fbl[core], scratchbuf[core], osc);
+                if(synth[osc].wave == SINE) render_sine(fbl[core], osc);
+                if(synth[osc].wave == KS) render_ks(fbl[core], osc);
+                if(synth[osc].wave == PCM) render_pcm(fbl[core], osc);
+
+                // Apply filter to osc if set
+                if(synth[osc].filter_type != FILTER_NONE) filter_process(fbl[core], osc);
+            }
+        }
+        // apply the EQ filters if set
+        if(global.eq[0] != 0 || global.eq[1] != 0 || global.eq[2] != 0) parametric_eq_process(fbl[core]);
+        // Tell the fill buffer task that i'm done rendering
+        xTaskNotifyGive(fillbufferTask);
+    }
+}
 
 // This takes scheduled events and plays them at the right time
-void fill_audio_buffer(float seconds) {
-    // if seconds < 0, just do this once, but otherwise, compute iterations
-    uint16_t iterations = 1;
-    if(seconds > 0) {
-        iterations = ((seconds * SAMPLE_RATE) / BLOCK_SIZE)+1;
-    }
-    for(uint16_t iter=0;iter<iterations;iter++) {
+void fill_audio_buffer_task() {
+    while(1) {
         // Check to see which sounds to play 
         int64_t sysclock = esp_timer_get_time() / 1000;
-        
-        // We could save some CPU by starting at a read pointer, depends on how big this gets
-        for(uint16_t i=0;i<EVENT_FIFO_LEN;i++) {
-            if(events[i].status == SCHEDULED) {
-                // By now event.time is corrected to our sysclock (from the host)
-                if(sysclock >= events[i].time) {
-                    play_event(events[i]);
-                    events[i].status = PLAYED;
-                }
-            }
+
+        // put a mutex around this so that the mcastTask doesn't touch these while i'm running  
+        xSemaphoreTake(xQueueSemaphore, portMAX_DELAY);
+
+        // Find any events that need to be played from the (in-order) queue
+        while(sysclock >= global.event_start->time) {
+            play_event(*global.event_start);
+            global.event_start->time = UINT32_MAX;
+            global.event_qsize--;
+            global.event_start = global.event_start->next;
         }
 
-        // Clear out the accumulator buffer
-        for(uint16_t i=0;i<BLOCK_SIZE;i++) floatblock[i] = 0;
+        // Give the mutex back
+        xSemaphoreGive(xQueueSemaphore);
 
-        // Save the current global synth state to the modifiers         
-        mglobal.resonance = global.resonance;
-        mglobal.filter_freq = global.filter_freq;
+        // Tell the rendering threads to start rendering
+        xTaskNotifyGive(renderTask[0]);
+        xTaskNotifyGive(renderTask[1]);
 
-        for(uint8_t voice=0;voice<VOICES;voice++) {
-            if(synth[voice].status==AUDIBLE) { // skip voices that are silent or LFO sources from playback
-                hold_and_modify(voice); // apply ADSR / LFO
-                if(synth[voice].wave == FM) render_fm(floatblock, voice);
-                if(synth[voice].wave == NOISE) render_noise(floatblock, voice);
-                //if(synth[voice].wave == SAW) render_saw(floatblock, voice);
-                if(synth[voice].wave == SAW) bw_render_pulse(floatblock, voice);
-                if(synth[voice].wave == PULSE) render_pulse(floatblock, voice);
-                if(synth[voice].wave == TRIANGLE) render_triangle(floatblock, voice);
-                if(synth[voice].wave == SINE) render_sine(floatblock, voice);
-                if(synth[voice].wave == KS) render_ks(floatblock, voice);
-                if(synth[voice].wave == PCM) render_pcm(floatblock, voice);
-            }
-        }
-
-        // Bandlimit the buffer all at once
-        //blip_the_buffer(floatblock, block, BLOCK_SIZE);
-	
-        // Offset for internal DAC
-	//for(int16_t i=0; i < BLOCK_SIZE; ++i) {
-	//  block[i] += 32768;
-	//}
-
-#define SAMPLE_MAX 32767
-#define SOFT_CLIP
+        // And wait for each of them to come back
+        ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+        ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
 
         for(int16_t i=0; i < BLOCK_SIZE; ++i) {
-	  //block[i] = (BLOCK_T)(floatblock[i]);   // for internal DAC:  + 32768.0); 
-#ifdef SOFT_CLIP
-	  // soft clip
-	  // D is how close the sample gets to the clip limit before the nonlinearity engages.  
-	  // So D=0.1 means output is linear for -0.9..0.9, then starts clipping.
-#define D 0.1
-	  float s = 1;  // s = sign(floatblock[i]);
-	  if (floatblock[i] < 0) s = -1;
-	  float val = fabs(0.1 * global.volume * floatblock[i] / ((float)SAMPLE_MAX));
-	  float outval = val;
-	  // if (val < (1 - D))  outval = val;
-	  if (val > (1.0 + 0.5 * D))  outval = 1.0;
-	  else if (val > (1.0 - D)) {
-	    // cubic transition from linear to saturated.
-	    float xdash = (val - (1.0 - D)) / (1.5 * D);
-	    outval = (1.0 - D) + 1.5 * D * (xdash - xdash * xdash * xdash / 3.0);
-	  }
+            // Soft clipping.
+            float sign = 1; 
 
-	  BLOCK_T sample = (BLOCK_T)round(SAMPLE_MAX * s * outval);
-#else /* HARD_CLIP */
-	  // hard clip.
-	  float val = round(0.1 * global.volume * floatblock[i]);
-	  BLOCK_T sample = (BLOCK_T)val;
-	  if (val > SAMPLE_MAX) sample = SAMPLE_MAX;
-	  else if (val < -SAMPLE_MAX) sample = -SAMPLE_MAX;
-#endif /* SOFT/HARD_CLIP */
-	  // ^ 0x01 implements word-swapping, needed for ESP32 I2S_CHANNEL_FMT_ONLY_LEFT
-	  block[i ^ 0x01] = sample;   // for internal DAC:  + 32768.0); 
-	}
-	
-        // If filtering is on, filter the mixed signal
-        //if(mglobal.filter_freq > 0) {
-        //    filter_update();
-        //    filter_process_ints(block);
-        //}
+            // Mix all the oscillator buffers into one
+            float fsample = fbl[0][i] + fbl[1][i];
 
+            if (fsample < 0) sign = -1;  // sign  = sign(floatblock[i]);
+            // Global volume is supposed to max out at 10, so scale by 0.1.
+            float val = fabs(0.1 * global.volume * fsample / ((float)SAMPLE_MAX));
+            float clipped_val = val;
+            if (val > (1.0 + 0.5 * CLIP_D)) {
+                clipped_val = 1.0;
+            } else if (val > (1.0 - CLIP_D)) {
+                // Cubic transition from linear to saturated - classic x - (x^3)/3.
+                float xdash = (val - (1.0 - CLIP_D)) / (1.5 * CLIP_D);
+                clipped_val = (1.0 - CLIP_D) + 1.5 * CLIP_D * (xdash - xdash * xdash * xdash / 3.0);
+            }
+
+            int16_t sample = (int16_t)round(SAMPLE_MAX * sign * clipped_val);
+            // ^ 0x01 implements word-swapping, needed for ESP32 I2S_CHANNEL_FMT_ONLY_LEFT
+            block[i ^ 0x01] = sample;   // for internal DAC:  + 32768.0); 
+        }
+    
+       
         // And write to I2S
         size_t written = 0;
         i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
@@ -441,10 +625,11 @@ void fill_audio_buffer(float seconds) {
     }
 }
 
+
 // Helper to parse the special ADSR string
 void parse_adsr(struct event * e, char* message) {
     uint8_t idx = 0;
-    uint8_t c = 0;
+    uint16_t c = 0;
     // Change only the ones i received
     while(message[c] != 0 && c < MAX_RECEIVE_LEN) {
         if(message[c]!=',') {
@@ -463,126 +648,144 @@ void parse_adsr(struct event * e, char* message) {
     }
 }
 
-// parse a received event string and add event to queue
-uint8_t deserialize_event(char * message, uint16_t length) {
-    // Don't process new messages if we're in MIDI mode
-    if(global.status & MIDI_MODE) return 0;
 
-    uint8_t mode = 0;
-    int64_t sync = -1;
-    int8_t sync_index = -1;
-    uint8_t ipv4 = 0; 
-    int16_t client = -1;
-    uint16_t start = 0;
-    uint16_t c = 0;
-    struct event e = default_event();
-    int64_t sysclock = esp_timer_get_time() / 1000;
-    uint8_t sync_response = 0;
-    // Put a null at the end for atoi
-    message[length] = 0;
+// todo move all parse stuff to parse.c
+// loop forever, parsing a received event string and turn the message into deltas on the queue
+void parse_task() {
+    while(1) {
+        // Wait for a message, in last_udp_message / last_udp_message_length
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-    // Cut the OSC cruft Max etc add, they put a 0 and then more things after the 0
-    int new_length = length; 
-    for(int d=0;d<length;d++) {
-        if(message[d] == 0) { new_length = d; d = length + 1;  } 
-    }
-    length = new_length;
+        uint8_t mode = 0;
+        int64_t sync = -1;
+        int8_t sync_index = -1;
+        uint8_t ipv4 = 0; 
+        int16_t client = -1;
+        uint16_t start = 0;
+        uint16_t c = 0;
+        char * message = message_start_pointer;
+        int16_t length = message_length;
 
-    //printf("received message ###%s### len %d\n", message, length);
-    while(c < length+1) {
-        uint8_t b = message[c];
-        if(b == '_' && c==0) sync_response = 1;
-        if( ((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')) || b == 0) {  // new mode or end
-            if(mode=='t') {
-                e.time=atol(message + start);
-                // if we haven't yet synced our times, do it now
-                if(!computed_delta_set) {
-                    computed_delta = e.time - sysclock;
-                    computed_delta_set = 1;
-                }
-            }
-            if(mode=='A') parse_adsr(&e, message+start);
-            if(mode=='b') e.feedback=atof(message+start);
-            if(mode=='c') client = atoi(message + start); 
-            if(mode=='d') e.duty=atof(message + start);
-            // reminder: don't use "E" or "e", lol 
-            if(mode=='f') e.freq=atof(message + start); 
-            if(mode=='F') e.filter_freq=atof(message + start);
-            if(mode=='g') e.lfo_target = atoi(message + start); 
-            if(mode=='i') sync_index = atoi(message + start);
-            if(mode=='l') e.velocity=atof(message + start);
-            if(mode=='L') e.lfo_source=atoi(message + start);
-            if(mode=='n') e.midi_note=atoi(message + start);
-            if(mode=='p') e.patch=atoi(message + start);
-            if(mode=='P') e.phase=atof(message + start);
-            if(mode=='r') ipv4=atoi(message + start);
-            if(mode=='R') e.resonance=atof(message + start);
-            if(mode=='s') sync = atol(message + start); 
-            if(mode=='S') { 
-                uint8_t voice = atoi(message + start); 
-                if(voice > VOICES-1) { reset_voices(); } else { reset_voice(voice); }
-            }
-            if(mode=='T') e.adsr_target = atoi(message + start); 
-            if(mode=='v') e.voice=(atoi(message + start) % VOICES); // allow voice wraparound
-            if(mode=='V') { e.volume = atof(message + start); debug_voices(); }
-            if(mode=='w') e.wave=atoi(message + start);
-            mode=b;
-            start=c+1;
+        struct event e = default_event();
+        int64_t sysclock = esp_timer_get_time() / 1000;
+        uint8_t sync_response = 0;
+
+        // Cut the OSC cruft Max etc add, they put a 0 and then more things after the 0
+        int new_length = length; 
+        for(int d=0;d<length;d++) {
+            if(message[d] == 0) { new_length = d; d = length + 1;  } 
         }
-        c++;
-    }
-    if(sync_response) {
-        // If this is a sync response, let's update our local map of who is booted
-        update_map(client, ipv4, sync);
-        length = 0; // don't need to do the rest
-    }
-    // Only do this if we got some data
-    if(length >0) {
-        // Now adjust time in some useful way:
-        // if we have a delta & got a time in this message, use it schedule it properly
-        if(computed_delta_set && e.time > 0) {
-            // OK, so check for potentially negative numbers here (or really big numbers-sysclock) 
-            int64_t potential_time = (e.time - computed_delta) + LATENCY_MS;
-            if(potential_time < 0 || (potential_time > sysclock + LATENCY_MS + MAX_DRIFT_MS)) {
-                printf("recomputing time base: message came in with %lld, mine is %lld, computed delta was %lld\n", e.time, sysclock, computed_delta);
-                computed_delta = e.time - sysclock;
-                printf("computed delta now %lld\n", computed_delta);
-            }
-            e.time = (e.time - computed_delta) + LATENCY_MS;
+        length = new_length;
 
-        } else { // else play it asap 
-            e.time = sysclock + LATENCY_MS;
-        }
-        e.status = SCHEDULED;
+        //printf("received message ###%s### len %d\n", message, length);
 
-        // Don't add sync messages to the event queue
-        if(sync >= 0 && sync_index >= 0) {
-            handle_sync(sync, sync_index);
-        } else {
-            // Assume it's for me
-            uint8_t for_me = 1;
-            // But wait, they specified, so don't assume
-            if(client >= 0) {
-                for_me = 0;
-                if(client <= 255) {
-                    // If they gave an individual client ID check that it exists
-                    if(alive>0) { // alive may get to 0 in a bad situation
-                        if(client >= alive) {
-                            client = client % alive;
-                        } 
+        while(c < length+1) {
+            uint8_t b = message[c];
+            if(b == '_' && c==0) sync_response = 1;
+            if( ((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')) || b == 0) {  // new mode or end
+                if(mode=='t') {
+                    e.time=atol(message + start);
+                    // if we haven't yet synced our times, do it now
+                    if(!computed_delta_set) {
+                        computed_delta = e.time - sysclock;
+                        computed_delta_set = 1;
                     }
                 }
-                // It's actually precisely for me
-                if(client == client_id) for_me = 1;
-                if(client > 255) {
-                    // It's a group message, see if i'm in the group
-                    if(client_id % (client-255) == 0) for_me = 1;
+                if(mode=='a') e.amp=atof(message+start);
+                if(mode=='A') parse_adsr(&e, message+start);
+                if(mode=='b') e.feedback=atof(message+start);
+                if(mode=='c') client = atoi(message + start); 
+                if(mode=='d') e.duty=atof(message + start);
+                if(mode=='D') {
+                    uint8_t type = atoi(message + start);
+                    show_debug(type); 
                 }
+                // reminder: don't use "E" or "e", lol 
+                if(mode=='f') e.freq=atof(message + start); 
+                if(mode=='F') e.filter_freq=atof(message + start);
+                if(mode=='G') e.filter_type=atoi(message + start);
+                if(mode=='g') e.mod_target = atoi(message + start); 
+                if(mode=='i') sync_index = atoi(message + start);
+                if(mode=='l') e.velocity=atof(message + start);
+                if(mode=='L') e.mod_source=atoi(message + start);
+                if(mode=='n') e.midi_note=atoi(message + start);
+                if(mode=='p') e.patch=atoi(message + start);
+                if(mode=='P') e.phase=atof(message + start);
+                if(mode=='r') ipv4=atoi(message + start);
+                if(mode=='R') e.resonance=atof(message + start);
+                if(mode=='s') sync = atol(message + start); 
+                if(mode=='S') { 
+                    uint8_t osc = atoi(message + start); 
+                    if(osc > OSCS-1) { reset_oscs(); } else { reset_osc(osc); }
+                }
+                if(mode=='T') e.adsr_target = atoi(message + start); 
+                if(mode=='v') e.osc=(atoi(message + start) % OSCS); // allow osc wraparound
+                if(mode=='V') { e.volume = atof(message + start); }
+                if(mode=='w') e.wave=atoi(message + start);
+                if(mode=='x') e.eq_l = atof(message+start);
+                if(mode=='y') e.eq_m = atof(message+start);
+                if(mode=='z') e.eq_h = atof(message+start);
+                mode=b;
+                start=c+1;
             }
-            if(for_me) add_event(e);
+            c++;
         }
-    }
-    return 0;
+        if(sync_response) {
+            // If this is a sync response, let's update our local map of who is booted
+            update_map(client, ipv4, sync);
+            length = 0; // don't need to do the rest
+        }
+        // Only do this if we got some data
+        if(length >0) {
+            // Now adjust time in some useful way:
+            // if we have a delta & got a time in this message, use it schedule it properly
+            if(computed_delta_set && e.time > 0) {
+                // OK, so check for potentially negative numbers here (or really big numbers-sysclock) 
+                int64_t potential_time = (e.time - computed_delta) + LATENCY_MS;
+                if(potential_time < 0 || (potential_time > sysclock + LATENCY_MS + MAX_DRIFT_MS)) {
+                    printf("recomputing time base: message came in with %lld, mine is %lld, computed delta was %lld\n", e.time, sysclock, computed_delta);
+                    computed_delta = e.time - sysclock;
+                    printf("computed delta now %lld\n", computed_delta);
+                }
+                e.time = (e.time - computed_delta) + LATENCY_MS;
+
+            } else { // else play it asap 
+                e.time = sysclock + LATENCY_MS;
+            }
+            e.status = SCHEDULED;
+
+            // Don't add sync messages to the event queue
+            if(sync >= 0 && sync_index >= 0) {
+                handle_sync(sync, sync_index);
+            } else {
+                // Assume it's for me
+                uint8_t for_me = 1;
+                // But wait, they specified, so don't assume
+                if(client >= 0) {
+                    for_me = 0;
+                    if(client <= 255) {
+                        // If they gave an individual client ID check that it exists
+                        if(alive>0) { // alive may get to 0 in a bad situation
+                            if(client >= alive) {
+                                client = client % alive;
+                            } 
+                        }
+                    }
+                    // It's actually precisely for me
+                    if(client == client_id) for_me = 1;
+                    if(client > 255) {
+                        // It's a group message, see if i'm in the group
+                        if(client_id % (client-255) == 0) for_me = 1;
+                    }
+                }
+                //printf("for me? %d\n", for_me);
+                if(for_me) add_event(e);
+            }
+        } // end if length > 0 
+        xTaskNotifyGive(mcastTask);
+    } // end while forever
+
+
 }
 
 int8_t check_init(esp_err_t (*fn)(), char *name) {
@@ -622,8 +825,7 @@ void wifi_reconfigure() {
     }
 
     wifi_manager_save_sta_config();
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-
+    delay_ms(100);
     esp_restart();
 }
 
@@ -631,162 +833,148 @@ void wifi_reconfigure() {
 
 // Called when the MIDI button is hit. Toggle between MIDI on and off mode
 void toggle_midi() {
+
     if(global.status & MIDI_MODE) { 
         // just restart, easier that way
         esp_restart();
     } else {
         // If button pushed before wifi connects, wait for wifi to connect.
         while(!(global.status & WIFI_MANAGER_OK)) {
-            vTaskDelay(100 / portTICK_PERIOD_MS);
+            delay_ms(100);
         }
         // turn on midi
         global.status = MIDI_MODE | RUNNING;
-        // Play a MIDI sound before shutting down voices
+        // Play a MIDI sound before shutting down oscs
         midi_tone();
-        fill_audio_buffer(1.0);
-        fm_deinit(); // have to free RAM to start the BLE stack
-        voices_deinit();
+        delay_ms(500);
+
+        // stop rendering
+        vTaskDelete(fillbufferTask);
+        // stop parsing
+        vTaskDelete(parseTask);
+        // stop receiving
+        vTaskDelete(mcastTask);
+
+        // have to free RAM to start the BLE stack
+        fm_deinit(); 
+        oscs_deinit();
+
+        // start midi
         midi_init();
     }
 }
 
+void power_monitor() {
+    power_status_t power_status;
 
-// Periodic task to poll the ip5306 for the battery charge and button states.
-// Intented to be run from a low-priority timer at 1-2 Hz
-void ip5306_monitor() {
-    esp_err_t ret;
-
-    // Check if the power button was pressed
-    int buttons;
-    ret = ip5306_button_press_get(&buttons);
-    if(ret!= ESP_OK) {
-        printf("Error reading button press\n");
+    const esp_err_t ret = power_read_status(&power_status);
+    if(ret != ESP_OK)
         return;
-    }
+    /*
+    char buf[100];
+    snprintf(buf, sizeof(buf),
+        "powerStatus: power_source=\"%s\",charge_status=\"%s\",wall_v=%0.3f,battery_v=%0.3f\n",
+        (power_status.power_source == POWER_SOURCE_WALL ? "wall" : "battery"),
+        (power_status.charge_status == POWER_CHARGE_STATUS_CHARGING ? "charging" :
+            (power_status.charge_status == POWER_CHARGE_STATUS_CHARGED ? "charged" : " discharging")),
+        power_status.wall_voltage/1000.0,
+        power_status.battery_voltage/1000.0
+        );
 
-    if(buttons & BUTTON_LONG_PRESS) {
-        printf("button long\n");
-        const uint32_t button = BUTTON_POWER_LONG;
-        xQueueSend(gpio_evt_queue, &button, 0);
-    }
-    if(buttons & BUTTON_SHORT_PRESS) {
-        printf("button short\n");
-        const uint32_t button = BUTTON_POWER_SHORT;
-        xQueueSend(gpio_evt_queue, &button, 0);
-    }
-
-    // Update the battery charge state
-    ip5306_charge_state_t charge_state;
-
-    ret = ip5306_charge_state_get(&charge_state);
-    if(ret != ESP_OK) {
-        printf("Error reading battery charge state\n");
-        return;
-    }
-    
+    printf(buf);
+    */
     battery_mask = 0;
 
-    switch(charge_state) {
-    case CHARGE_STATE_CHARGED:
-        battery_mask = battery_mask | BATTERY_STATE_CHARGED;
-        break;
-    case CHARGE_STATE_CHARGING:
-        battery_mask = battery_mask | BATTERY_STATE_CHARGING;
-        break;
-    case CHARGE_STATE_DISCHARGING:
-        battery_mask = battery_mask | BATTERY_STATE_DISCHARGING;
-        break;
-    case CHARGE_STATE_DISCHARGING_LOW_BAT:
-        battery_mask = battery_mask | BATTERY_STATE_LOW;
-        break;
+    switch(power_status.charge_status) {
+        case POWER_CHARGE_STATUS_CHARGED:
+            battery_mask = battery_mask | BATTERY_STATE_CHARGED;
+            break;
+        case POWER_CHARGE_STATUS_CHARGING:
+            battery_mask = battery_mask | BATTERY_STATE_CHARGING;
+            break;
+        case POWER_CHARGE_STATUS_DISCHARGING:
+            battery_mask = battery_mask | BATTERY_STATE_DISCHARGING;
+            break;        
     }
 
-    ip5306_battery_voltage_t battery_voltage;
-
-    ret = ip5306_battery_voltage_get(&battery_voltage);
-    if(ret != ESP_OK) {
-        //printf("Error getting battery voltage\n");
-        return;
-    } else {
-        if(battery_voltage == BATTERY_OVER_395) battery_mask = battery_mask | BATTERY_VOLTAGE_4;
-        if(battery_voltage == BATTERY_38_395) battery_mask = battery_mask | BATTERY_VOLTAGE_3;
-        if(battery_voltage == BATTERY_36_38) battery_mask = battery_mask | BATTERY_VOLTAGE_2;
-        if(battery_voltage == BATTERY_33_36) battery_mask = battery_mask | BATTERY_VOLTAGE_1;
-    }
+    float voltage = power_status.wall_voltage/1000.0;
+    if(voltage > 3.95) battery_mask = battery_mask | BATTERY_VOLTAGE_4; else 
+    if(voltage > 3.80) battery_mask = battery_mask | BATTERY_VOLTAGE_3; else 
+    if(voltage > 3.60) battery_mask = battery_mask | BATTERY_VOLTAGE_2; else 
+    if(voltage > 3.30) battery_mask = battery_mask | BATTERY_VOLTAGE_1;
 }
 
 
 void app_main() {
     check_init(&global_init, "global state");
     check_init(&esp_event_loop_create_default, "Event");
+    // if power init fails, we don't have blinkinlabs board, set board level to 0
+    if(check_init(&power_init, "power")) {
+        printf("No power IC, assuming DIY Alles\n");
+        global.board_level = DEVBOARD; 
+    }
+    if(global.board_level == ALLES_BOARD_V2) {
+        printf("Detected revB Alles\n");
+        TimerHandle_t power_monitor_timer = xTimerCreate(
+            "power_monitor",
+            pdMS_TO_TICKS(5000),
+            pdTRUE,
+            NULL,
+            power_monitor);
+        xTimerStart(power_monitor_timer, 0);
+    }
     check_init(&setup_i2s, "i2s");
-    check_init(&voices_init, "voices");
+    check_init(&oscs_init, "oscs");
     check_init(&buttons_init, "buttons"); // only one button for the protoboard, 4 for the blinkinlabs
 
     wifi_manager_start();
     wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &wifi_connected);
-
     // Wait for wifi to connect
     while(!(global.status & WIFI_MANAGER_OK)) {
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        delay_ms(1000);
+        wifi_tone();
     };
+    delay_ms(500);
+    reset_oscs();
 
-    // Do the blinkinlabs battery setup
-    check_init(&master_i2c_init, "master_i2c");
-    
-    // if ip5306 init fails, we don't have blinkinlabs board, set board level to 0
-    if(check_init(&ip5306_init, "ip5306")) global.board_level = DEVBOARD; 
-    if(global.board_level == ALLES_BOARD_V1) {
-        TimerHandle_t ip5306_monitor_timer =xTimerCreate(
-            "ip5306_monitor",
-            pdMS_TO_TICKS(500),
-            pdTRUE,
-            NULL,
-            ip5306_monitor);
-        xTimerStart(ip5306_monitor_timer, 0);
-    }
 
     create_multicast_ipv4_socket();
 
     // Pin the UDP task to the 2nd core so the audio / main core runs on its own without getting starved
-    xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 2, &multicast_handle, 1);
-    
+    xTaskCreatePinnedToCore(&parse_task, "parse_task", 4096, NULL, 1, &parseTask, 0);
+    xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 2, &mcastTask, 1);
+
     // Allocate the FM RAM after the captive portal HTTP server is passed, as you can't have both at once
     fm_init();
-    printf("Synth running on core %d\n", xPortGetCoreID());
 
     // Schedule a "turning on" sound
     bleep();
 
     // Spin this core until the power off button is pressed, parsing events and making sounds
     while(global.status & RUNNING) {
-        // Only emit sounds if MIDI is not on
-        if(!(global.status & MIDI_MODE)) {
-            fill_audio_buffer(-1); 
-        } else {
-            vTaskDelay(10 / portTICK_PERIOD_MS);
-        }
+        delay_ms(10);
     }
 
-    // If we got here, the power off button was pressed (long hold on power.) 
+    // If we got here, the power off button was pressed 
     // The idea here is we go into a low power deep sleep mode waiting for a GPIO pin to turn us back on
     // The battery can still charge during this, but let's turn off audio, wifi, multicast, midi 
 
     // Play a "turning off" sound
     debleep();
-    fill_audio_buffer(1.0);
+    delay_ms(500);
 
-#if(ALLES_V1_BOARD)
-    // Enable the low-current shutdown mode of the battery IC.
-    // Apparently after 8s it will stop providing power from the battery
-    ip5306_auto_poweroff_enable();
-#endif
     // Stop mulitcast listening, wifi, midi
-    vTaskDelete(multicast_handle);
+    vTaskDelete(mcastTask);
     esp_wifi_stop();
     if(global.status & MIDI_MODE) midi_deinit();
 
-    // Go into deep_sleep
+
+    // TODO: Where did these come from? JTAG?
+    gpio_pullup_dis(14);
+    gpio_pullup_dis(15);
+
+    esp_sleep_enable_ext1_wakeup((1ULL<<BUTTON_WAKEUP),ESP_EXT1_WAKEUP_ALL_LOW);
+
     esp_deep_sleep_start();
 }
 

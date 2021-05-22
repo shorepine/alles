@@ -7,13 +7,13 @@ multicast_group = ('232.10.11.12', 3333)
 # This is your source IP -- by default your main routable network interface. 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 try:
-	s.connect(('10.255.255.255', 1))
-	local_ip = s.getsockname()[0]
+    s.connect(('10.255.255.255', 1))
+    local_ip = s.getsockname()[0]
 except Exception:
-	print("Trouble getting routable IP address")
-	local_ip = ""
+    print("Trouble getting routable IP address")
+    local_ip = ""
 finally:
-	s.close()
+    s.close()
 
 # But override this if you are using multiple network interfaces, for example a dedicated router to control the synths
 # This, for example, is my dev machine's 2nd network interface IP, that I have wired to a separate wifi router
@@ -70,7 +70,6 @@ def decode_battery_mask(mask):
     if (mask & 0x01): state = "charging"
     if (mask & 0x02): state = "charged"
     if (mask & 0x04): state = "discharging"
-    if (mask & 0x08): state = "low"
     if (mask & 0x10): level = 4
     if (mask & 0x20): level = 3 
     if (mask & 0x40): level = 2
@@ -156,18 +155,15 @@ def battery_test():
     print("Took %d seconds to stop" %(time.time() - tic))
 
 
-def reset(voice=None):
-    if(voice is not None):
-        send(reset=voice)
+def reset(osc=None):
+    if(osc is not None):
+        send(reset=osc)
     else:
-        send(reset=100) # reset > VOICES resets all voices
-        lowpass(0, 0.7) # also reset the filter in this case
+        send(reset=100) # reset > ALLES_OSCS resets all oscs
 
 def volume(volume, client = -1):
     send(0, client=client, volume=volume)
 
-def lowpass(center, q, client = -1):
-    send(0, filter_freq = center, resonance = q, client = client)
 
 
 def note_on(vel=1, **kwargs):
@@ -177,31 +173,74 @@ def note_off(**kwargs):
     send(vel=0, **kwargs)
 
 
-def send(voice=0, wave=-1, patch=-1, note=-1, vel=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
-        client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, adsr_target=-1, lfo_target=-1, lfo_source=-1):
-    global sock
-    if(timestamp is None): timestamp = millis()
-    m = "t%d" % (timestamp)
-    if(voice>=0): m = m + "v%d" % (voice)
-    if(wave>=0): m = m + "w%d" % (wave)
-    if(duty>=0): m = m + "d%f" % (duty)
-    if(feedback>=0): m = m + "b%f" % (feedback)
-    if(freq>=0): m = m + "f%f" % (freq)
-    if(note>=0): m = m + "n%d" % (note)
-    if(patch>=0): m = m + "p%d" % (patch)
-    if(phase>=0): m = m + "P%f" % (phase)
-    if(client>=0): m = m + "c%d" % (client)
-    if(vel>=0): m = m + "l%f" % (vel)
-    if(volume>=0): m = m + "V%f" % (volume)
-    if(resonance>=0): m = m + "R%f" % (resonance)
-    if(filter_freq>=0): m = m + "F%f" % (filter_freq)
-    if(envelope is not None): m = m +"A%s" %(envelope)
-    if(adsr_target>=0): m = m + "T%d" % (adsr_target)
-    if(lfo_target>=0): m = m + "g%d" % (lfo_target)
-    if(lfo_source>=0): m = m + "L%d" % (lfo_source)
-    if(reset>=0): m = m + "S%d" % (reset)
+send_buffer = ""
+buffer_size = 0
+
+
+def buffer(size=508):
+    global buffer_size
+    buffer_size = size
+    if(buffer_size == 0):
+        flush()
+
+def flush(retries=1):
+    global send_buffer
     for x in range(retries):
-        sock.sendto(m.encode('ascii'), multicast_group)
+        sock.sendto(send_buffer.encode('ascii'), multicast_group)
+    send_buffer = ""
+
+
+# Removes trailing 0s and x.0000s 
+def trunc(number):
+    return ('%.10f' % number).rstrip('0').rstrip('.')
+
+def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
+        client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, adsr_target=-1, lfo_target=-1, \
+        debug=-1, lfo_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1):
+    global sock, send_buffer, buffer_size
+    if(timestamp is None): timestamp = millis()
+    m = "t" + trunc(timestamp)
+    if(osc>=0): m = m + "v" + trunc(osc)
+    if(wave>=0): m = m + "w" + trunc(wave)
+    if(duty>=0): m = m + "d" + trunc(duty)
+    if(feedback>=0): m = m + "b" + trunc(feedback)
+    if(freq>=0): m = m + "f" + trunc(freq)
+    if(note>=0): m = m + "n" + trunc(note)
+    if(patch>=0): m = m + "p" + trunc(patch)
+    if(phase>=0): m = m + "P" + trunc(phase)
+    if(client>=0): m = m + "c" + trunc(client)
+    if(amp>=0): m = m + "a" + trunc(amp)
+    if(vel>=0): m = m + "l" + trunc(vel)
+    if(volume>=0): m = m + "V" + trunc(volume)
+    if(resonance>=0): m = m + "R" + trunc(resonance)
+    if(filter_freq>=0): m = m + "F" + trunc(filter_freq)
+    if(envelope is not None): m = m +"A%s" % (envelope)
+    if(adsr_target>=0): m = m + "T" +trunc(adsr_target)
+    if(lfo_target>=0): m = m + "g" + trunc(lfo_target)
+    if(lfo_source>=0): m = m + "L" + trunc(lfo_source)
+    if(reset>=0): m = m + "S" + trunc(reset)
+    if(debug>=0): m = m + "D" + trunc(debug)
+    if(eq_l>=0): m = m + "x" + trunc(eq_l)
+    if(eq_m>=0): m = m + "y" + trunc(eq_m)
+    if(eq_h>=0): m = m + "z" + trunc(eq_h)
+    if(filter_type>=0): m = m + "G" + trunc(filter_type)
+
+    if(buffer_size > 0):
+        if(len(send_buffer + m + '\n') > buffer_size):
+            #print("buffer %d hit, sending %s" % (buffer_size, send_buffer))
+            for x in range(retries):
+                sock.sendto(send_buffer.encode('ascii'), multicast_group)
+            send_buffer = m + '\n'
+        else:
+            send_buffer = send_buffer + m + '\n'
+            #print("didn't send, send buffer now %s" % (send_buffer))
+    else:
+        send_buffer = m + '\n'
+        for x in range(retries):
+            sock.sendto(send_buffer.encode('ascii'), multicast_group)
+
+
+
 
 
 
@@ -221,7 +260,7 @@ def generate_patches_header(how_many = 1000):
         patch_data = f[patch*156:patch*156+156]
         # Convert the name to something printable
         name = ''.join([i if (ord(i) < 128 and ord(i) > 31) else ' ' for i in str(patch_data[145:155])])
-        p.write("\t/* [%03d] %s */ " % (patch, name))
+        p.write("    /* [%03d] %s */ " % (patch, name))
         for x in patch_data:        
             p.write("%d," % (x))
         p.write("\n")
@@ -230,53 +269,99 @@ def generate_patches_header(how_many = 1000):
 
 
 def generate_pcm_header(sf2_filename, pcm_sample_rate = 22050):
-	# Given an sf2 file, extract some pcm and write pcm.h
-	from sf2utils.sf2parse import Sf2File
-	import resampy
-	import numpy as np
-	p = open("main/pcm.h", "w")
-	p.write("// Automatically generated by alles.generate_pcm_header()\n")
-	p.write("#ifndef __PCM_H\n#define __PCM_H\n")
-	offsets = []
-	offset = 0
-	int16s = []
-	sf2 = Sf2File(open(sf2_filename, 'rb'))
-	for sample in sf2.samples:
-		try:
-			if(sample.is_mono):
-				s = {}
-				s["name"] = sample.name
-				floaty =(np.frombuffer(bytes(sample.raw_sample_data),dtype='int16'))/32768.0
-				resampled = resampy.resample(floaty, sample.sample_rate, pcm_sample_rate)
-				samples = np.int16(resampled*32768)
-				int16s.append(samples)
-				s["offset"] = offset 
-				s["length"] = samples.shape[0]
-				offset = offset + samples.shape[0]
-				offsets.append(s)
-		except AttributeError:
-			pass
-	all_samples = np.hstack(int16s)
-	p.write("#define PCM_SAMPLES %d\n#define PCM_LENGTH %d\n#define PCM_SAMPLE_RATE %d\n" % (len(offsets), all_samples.shape[0]), pcm_sample_rate)
-	p.write("const uint32_t offset_map[%d] = {\n" % (len(offsets)*2))
-	for o in offsets:
-		p.write("\t%d, %d, /* %s */\n" %(o["offset"], o["length"], o["name"]))
-	p.write("};\n")
+    # Given an sf2 file, extract some pcm and write pcm.h
+    from sf2utils.sf2parse import Sf2File
+    import resampy
+    import numpy as np
+    p = open("main/pcm.h", "w")
+    p.write("// Automatically generated by alles.generate_pcm_header()\n")
+    p.write("#ifndef __PCM_H\n#define __PCM_H\n")
+    offsets = []
+    offset = 0
+    int16s = []
+    sf2 = Sf2File(open(sf2_filename, 'rb'))
+    for sample in sf2.samples:
+        try:
+            if(sample.is_mono):
+                s = {}
+                s["name"] = sample.name
+                floaty =(np.frombuffer(bytes(sample.raw_sample_data),dtype='int16'))/32768.0
+                resampled = resampy.resample(floaty, sample.sample_rate, pcm_sample_rate)
+                samples = np.int16(resampled*32768)
+                int16s.append(samples)
+                s["offset"] = offset 
+                s["length"] = samples.shape[0]
+                offset = offset + samples.shape[0]
+                offsets.append(s)
+        except AttributeError:
+            pass
+    all_samples = np.hstack(int16s)
+    p.write("#define PCM_SAMPLES %d\n#define PCM_LENGTH %d\n#define PCM_SAMPLE_RATE %d\n" % (len(offsets), all_samples.shape[0]), pcm_sample_rate)
+    p.write("const uint32_t offset_map[%d] = {\n" % (len(offsets)*2))
+    for o in offsets:
+        p.write("    %d, %d, /* %s */\n" %(o["offset"], o["length"], o["name"]))
+    p.write("};\n")
 
-	p.write("const int16_t pcm[%d] = {\n" % (all_samples.shape[0]))
-	column = 15
-	count = 0
-	for i in range(int(all_samples.shape[0]/column)):
-		p.write("\t%s,\n" % (",".join([str(d).ljust(6) for d in all_samples[i*column:(i+1)*column]])))
-		count = count + column
-	print("count %d all_samples.shape %d" % (count, all_samples.shape[0]))
-	if(count != all_samples.shape[0]):
-		p.write("\t%s\n" % (",".join([str(d).ljust(6) for d in all_samples[count:]])))
-	p.write("};\n\n#endif  // __PCM_H\n")
-
-
+    p.write("const int16_t pcm[%d] = {\n" % (all_samples.shape[0]))
+    column = 15
+    count = 0
+    for i in range(int(all_samples.shape[0]/column)):
+        p.write("    %s,\n" % (",".join([str(d).ljust(6) for d in all_samples[i*column:(i+1)*column]])))
+        count = count + column
+    print("count %d all_samples.shape %d" % (count, all_samples.shape[0]))
+    if(count != all_samples.shape[0]):
+        p.write("    %s\n" % (",".join([str(d).ljust(6) for d in all_samples[count:]])))
+    p.write("};\n\n#endif  // __PCM_H\n")
 
 
+# N equal-amplitude cosines make a band-limited impulse.
+def cosines(num_cosines, args):
+    import numpy as np
+    num_points = len(args)
+    vals = np.zeros(num_points)
+    for i in range(num_cosines):
+        vals += np.cos((i + 1) * args)
+    return vals / float(num_cosines)
+
+def make_lut(basename, function, tab_size=1024):
+    import numpy as np
+    filename = "main/{:s}_{:d}.h".format(basename, tab_size) 
+    cpp_base = basename.upper()
+    cpp_flag = "__" + cpp_base + "_H"
+    size_sym = cpp_base + "_SIZE"
+    mask_sym = cpp_base + "_MASK"
+
+    sins = function(np.arange(tab_size) / tab_size * 2 * np.pi)
+    row_len = 8
+    with open(filename, "w") as f:
+        f.write("// {:s} - lookup table\n".format(filename))
+        f.write("// tab_size = {:d}\n".format(tab_size))
+        f.write("// function = {:s}\n".format(function.__name__))
+        f.write("\n")
+        f.write("#ifndef {:s}\n".format(cpp_flag))
+        f.write("#define {:s}\n".format(cpp_flag))
+        f.write("#define {:s} {:d}\n".format(size_sym, tab_size))
+        f.write("#define {:s} 0x{:x}\n".format(mask_sym, tab_size - 1))
+        f.write("const int16_t {:s}[{:s}] = {{\n".format(basename, size_sym))
+        for base in np.arange(0, tab_size, row_len):
+            for offset in np.arange(row_len):
+                val = int(round(32767 * sins[base + offset]))
+                _ = f.write("{:d},".format(val))
+            _ = f.write("\n")
+        f.write("};\n")
+        f.write("\n")
+        f.write("#endif\n")
+
+    print("wrote", filename)
+
+def make_luts(tab_size=1024, num_harmonics=32):
+    import numpy as np
+    from functools import partial
+    basename = "impulse{:d}".format(num_harmonics)
+    function = partial(cosines, num_harmonics)
+    function.__name__ = basename
+    make_lut(basename, function, tab_size=tab_size)
+    make_lut("sinLUT", np.sin, tab_size=tab_size)
 
 
 
