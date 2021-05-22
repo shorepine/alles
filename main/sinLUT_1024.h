@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-// sinLUT_1024.h - lookup table
-=======
 // main/sinLUT_1024.h - lookup table
->>>>>>> upstream/master
 // tab_size = 1024
 // function = sin
 
