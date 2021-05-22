@@ -3,7 +3,7 @@
 // brian@variogr.am
 #include "alles.h"
 
-
+#include "clipping_lookup_table.h"
 
 // Global state 
 struct state global;
@@ -591,30 +591,37 @@ void fill_audio_buffer_task() {
         ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
         ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
 
+	// Global volume is supposed to max out at 10, so scale by 0.1.
+	float volume_scale = 0.1 * global.volume;
         for(int16_t i=0; i < BLOCK_SIZE; ++i) {
-            // Soft clipping.
-            float sign = 1; 
-
             // Mix all the oscillator buffers into one
-            float fsample = fbl[0][i] + fbl[1][i];
-
-            if (fsample < 0) sign = -1;  // sign  = sign(floatblock[i]);
-            // Global volume is supposed to max out at 10, so scale by 0.1.
-            float val = fabs(0.1 * global.volume * fsample / ((float)SAMPLE_MAX));
-            float clipped_val = val;
-            if (val > (1.0 + 0.5 * CLIP_D)) {
-                clipped_val = 1.0;
-            } else if (val > (1.0 - CLIP_D)) {
-                // Cubic transition from linear to saturated - classic x - (x^3)/3.
-                float xdash = (val - (1.0 - CLIP_D)) / (1.5 * CLIP_D);
-                clipped_val = (1.0 - CLIP_D) + 1.5 * CLIP_D * (xdash - xdash * xdash * xdash / 3.0);
-            }
-
-            int16_t sample = (int16_t)round(SAMPLE_MAX * sign * clipped_val);
+	  float fsample = volume_scale * (fbl[0][i] + fbl[1][i]);
+            // Soft clipping.
+            int positive = 1; 
+            if (fsample < 0) positive = 0;
+	    // Using a uint gives us factor-of-2 headroom (up to 65535 not 32767).
+ 	    uint16_t uintval;
+	    if (positive) {  // avoid fabs()
+	      uintval = (int)fsample;
+	    } else {
+	      uintval = (int)(-fsample);
+	    }
+	    if (uintval > LIN_MAX) {
+	      if (uintval > NONLIN_MAX) {
+		uintval = SAMPLE_MAX;
+	      } else {
+		uintval = clipping_lookup_table[uintval - LIN_MAX];
+	      }
+	    }
+	    int16_t sample;
+	    if (positive) {
+	      sample = uintval;
+	    } else {
+	      sample = -uintval;
+	    }
             // ^ 0x01 implements word-swapping, needed for ESP32 I2S_CHANNEL_FMT_ONLY_LEFT
             block[i ^ 0x01] = sample;   // for internal DAC:  + 32768.0); 
         }
-    
        
         // And write to I2S
         size_t written = 0;
