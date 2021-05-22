@@ -190,6 +190,7 @@ extern void blip_the_buffer(float * ibuf, int16_t * obuf,  uint16_t len ) ;
 extern void render_ks(float * buf, uint8_t voice); 
 extern void render_sine(float * buf, uint8_t voice); 
 extern void render_pulse(float * buf, uint8_t voice); 
+extern void bw_render_pulse(float * buf, uint8_t voice); 
 extern void render_saw(float * buf, uint8_t voice); 
 extern void render_triangle(float * buf, uint8_t voice); 
 extern void render_noise(float * buf, uint8_t voice); 
@@ -200,6 +201,7 @@ extern void sine_note_on(uint8_t voice);
 extern void saw_note_on(uint8_t voice); 
 extern void triangle_note_on(uint8_t voice); 
 extern void pulse_note_on(uint8_t voice); 
+extern void bw_pulse_note_on(uint8_t voice); 
 extern void pcm_note_on(uint8_t voice);
 
 
@@ -220,9 +222,6 @@ extern void retrigger_lfo_source(uint8_t voice);
 extern void midi_init();
 extern void midi_deinit();
 extern void read_midi();
-
-#define SINE_LUT_SIZE 16383
-
 
 #define NUM_WAVES 8
 #define SINE 0
