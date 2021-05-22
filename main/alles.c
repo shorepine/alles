@@ -591,34 +591,34 @@ void fill_audio_buffer_task() {
         ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
         ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
 
-	// Global volume is supposed to max out at 10, so scale by 0.1.
-	float volume_scale = 0.1 * global.volume;
+    	// Global volume is supposed to max out at 10, so scale by 0.1.
+    	float volume_scale = 0.1 * global.volume;
         for(int16_t i=0; i < BLOCK_SIZE; ++i) {
             // Mix all the oscillator buffers into one
-	  float fsample = volume_scale * (fbl[0][i] + fbl[1][i]);
+            float fsample = volume_scale * (fbl[0][i] + fbl[1][i]);
             // Soft clipping.
             int positive = 1; 
             if (fsample < 0) positive = 0;
-	    // Using a uint gives us factor-of-2 headroom (up to 65535 not 32767).
- 	    uint16_t uintval;
-	    if (positive) {  // avoid fabs()
-	      uintval = (int)fsample;
-	    } else {
-	      uintval = (int)(-fsample);
-	    }
-	    if (uintval > LIN_MAX) {
-	      if (uintval > NONLIN_MAX) {
-		uintval = SAMPLE_MAX;
-	      } else {
-		uintval = clipping_lookup_table[uintval - LIN_MAX];
-	      }
-	    }
-	    int16_t sample;
-	    if (positive) {
-	      sample = uintval;
-	    } else {
-	      sample = -uintval;
-	    }
+    	    // Using a uint gives us factor-of-2 headroom (up to 65535 not 32767).
+     	    uint16_t uintval;
+    	    if (positive) {  // avoid fabs()
+                uintval = (int)fsample;
+    	    } else {
+                uintval = (int)(-fsample);
+    	    }
+            if (uintval > LIN_MAX) {
+    	        if (uintval > NONLIN_MAX) {
+                    uintval = SAMPLE_MAX;
+                } else {
+                    uintval = clipping_lookup_table[uintval - LIN_MAX];
+                }
+            }
+    	    int16_t sample;
+    	    if (positive) {
+                sample = uintval;
+    	    } else {
+                sample = -uintval;
+    	    }
             // ^ 0x01 implements word-swapping, needed for ESP32 I2S_CHANNEL_FMT_ONLY_LEFT
             block[i ^ 0x01] = sample;   // for internal DAC:  + 32768.0); 
         }
