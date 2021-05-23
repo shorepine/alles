@@ -16,11 +16,9 @@ uint8_t ks_polyphony_index = 0;
 extern struct event *synth;
 extern struct mod_event *msynth; // the synth that is being modified by modulations & envelopes
 extern struct state global; 
-//extern float *scratchbuf;
 
 
 /* Dan Ellis libblosca functions */
-
 const float *choose_from_lutset(float period, lut_entry *lutset, int16_t *plut_size) {
     // Select the best entry from a lutset for a given period. 
     //
@@ -202,6 +200,7 @@ void pulse_mod_trigger(uint8_t osc) {
     synth[osc].step = period * synth[osc].phase;
 }
 
+// dpwe sez to use this method for low-freq mod pulse still 
 float compute_mod_pulse(uint8_t osc) {
     // do BW pulse gen at SR=44100/64
     float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
@@ -268,6 +267,7 @@ void saw_mod_trigger(uint8_t osc) {
     synth[osc].step = period * synth[osc].phase;
 }
 
+// TODO -- this should use dpwe code
 float compute_mod_saw(uint8_t osc) {
     float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
     float period = 1. / (msynth[osc].freq/mod_sr);
@@ -304,6 +304,7 @@ void triangle_mod_trigger(uint8_t osc) {
     synth[osc].step = period * synth[osc].phase;
 }
 
+// TODO -- this should use dpwe code 
 float compute_mod_triangle(uint8_t osc) {
     float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;    
     float period = 1. / (msynth[osc].freq/mod_sr);

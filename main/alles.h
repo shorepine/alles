@@ -122,22 +122,28 @@ extern "C" {
 #define POWER_5V_EN 21
 #define BATT_SENSE_CHANNEL ADC_CHANNEL_7 // GPIO35 / ADC1_7
 #define WALL_SENSE_CHANNEL ADC_CHANNEL_3 // GPIO39 / ADC1_3
+#define CPU_MONITOR_0 13
+#define CPU_MONITOR_1 12
+#define CPU_MONITOR_2 15
 
+    
 enum params{
     WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, RESONANCE, 
     MOD_SOURCE, MOD_TARGET, FILTER_TYPE, EQ_L, EQ_M, EQ_H, ADSR_TARGET, ADSR_A, ADSR_D, ADSR_S, ADSR_R, NO_PARAM
 };
 
+// Delta holds the individual changes from an event, it's sorted in order of playback time 
+// this is more efficient in memory than storing entire events per message 
 struct delta {
     uint32_t data; // casted to the right thing later
-    enum params param;
-    uint32_t time;
-    int8_t osc;
-    struct delta * next;
+    enum params param; // which parameter is being changed
+    uint32_t time; // what time to play / change this parameter
+    int8_t osc; // which oscillator it impacts
+    struct delta * next; // the next event, in time 
 };
 
 
-// Events
+// Events are used to parse from ASCII UDP strings into, and also as each oscillators current internal state 
 struct event {
     // todo -- clean up types here - many don't need to be signed anymore, and time doesn't need to be int64
     int64_t time;
@@ -182,7 +188,7 @@ struct event {
     float eq_h;
 };
 
-// only the things that mods/env can change per osc
+// events, but only the things that mods/env can change. one per osc
 struct mod_event {
     float amp;
     float duty;

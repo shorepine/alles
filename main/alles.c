@@ -582,6 +582,7 @@ void fill_audio_buffer_task() {
         // Give the mutex back
         xSemaphoreGive(xQueueSemaphore);
 
+        gpio_set_level(CPU_MONITOR_1, 1);
         // Tell the rendering threads to start rendering
         xTaskNotifyGive(renderTask[0]);
         xTaskNotifyGive(renderTask[1]);
@@ -621,7 +622,7 @@ void fill_audio_buffer_task() {
             // ^ 0x01 implements word-swapping, needed for ESP32 I2S_CHANNEL_FMT_ONLY_LEFT
             block[i ^ 0x01] = sample;   // for internal DAC:  + 32768.0); 
         }
-       
+        gpio_set_level(CPU_MONITOR_1, 0);
         // And write to I2S
         size_t written = 0;
         i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
@@ -759,6 +760,8 @@ void parse_task() {
                 e.time = sysclock + LATENCY_MS;
             }
             e.status = SCHEDULED;
+
+            // TODO -- not that it matters, but the below could probably be one or two lines long instead
 
             // Don't add sync messages to the event queue
             if(sync >= 0 && sync_index >= 0) {
@@ -914,6 +917,7 @@ void power_monitor() {
 void app_main() {
     check_init(&global_init, "global state");
     check_init(&esp_event_loop_create_default, "Event");
+    // TODO -- this does not properly detect DEVBOARD anymore, not a big deal for now, doesn't impact anything
     // if power init fails, we don't have blinkinlabs board, set board level to 0
     if(check_init(&power_init, "power")) {
         printf("No power IC, assuming DIY Alles\n");
@@ -929,6 +933,17 @@ void app_main() {
             power_monitor);
         xTimerStart(power_monitor_timer, 0);
     }
+    // Setup GPIO outputs for watching CPU usage
+    const gpio_config_t out_conf = {
+         .mode = GPIO_MODE_OUTPUT,            
+         .pin_bit_mask = (1ULL<<CPU_MONITOR_0) | (1ULL<<CPU_MONITOR_1) | (1ULL<<CPU_MONITOR_2),
+    };
+    gpio_config(&out_conf); 
+    // Set them all to low
+    gpio_set_level(CPU_MONITOR_0, 0); 
+    gpio_set_level(CPU_MONITOR_1, 0);
+    gpio_set_level(CPU_MONITOR_2, 0);
+
     check_init(&setup_i2s, "i2s");
     check_init(&oscs_init, "oscs");
     check_init(&buttons_init, "buttons"); // only one button for the protoboard, 4 for the blinkinlabs
