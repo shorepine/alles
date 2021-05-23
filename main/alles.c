@@ -234,10 +234,9 @@ void reset_osc(uint8_t i ) {
     synth[i].adsr_d = 0;
     synth[i].adsr_s = 1.0;
     synth[i].adsr_r = 0;
-    synth[i].lpf_state[0] = 0;
-    synth[i].lpf_state[1] = 0;
+    synth[i].lpf_state = 0;
     synth[i].lpf_alpha = 0;
-    synth[i].lpf_alpha_1 = 0;
+    synth[i].dc_offset = 0;
 }
 
 void reset_oscs() {
@@ -478,7 +477,7 @@ void play_event(struct delta d) {
             if(synth[d.osc].wave==PULSE) pulse_note_on(d.osc);
             if(synth[d.osc].wave==PCM) pcm_note_on(d.osc);
 
-            // Also trigger the MOD source, if we have one
+            // Trigger the MOD source, if we have one
             if(synth[d.osc].mod_source >= 0) {
                 if(synth[synth[d.osc].mod_source].wave==SINE) sine_mod_trigger(synth[d.osc].mod_source);
                 if(synth[synth[d.osc].mod_source].wave==SAW) saw_mod_trigger(synth[d.osc].mod_source);
