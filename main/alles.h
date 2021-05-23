@@ -168,12 +168,15 @@ struct event {
     int16_t adsr_d;
     float adsr_s;
     int16_t adsr_r;
-    // State variables for the impulse-integrating oscs.
-    float lpf_state[2];
+    // State variable for the impulse-integrating oscs.
+    float lpf_state;
+    // Constant offset to add to sawtooth before integrating.
+    float dc_offset;
     // Decay alpha of LPF filter (e.g. 0.99 or 0.999).
     float lpf_alpha;
-    // Decay for 2nd lpf in triangle osc.
-    float lpf_alpha_1;
+    // Selected lookup table and size.
+    const float *lut;
+    int16_t lut_size;
     float eq_l;
     float eq_m;
     float eq_h;
@@ -250,7 +253,7 @@ extern void fm_note_off(uint8_t osc);
 // bandlimted oscs
 
 extern void lpf_buf(float *buf, float decay, float *state);
-extern float render_lut(float * buf, float step, float skip, float amp, const int16_t* lut, int16_t lut_size);
+extern float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size);
 extern void clear_buf(float *buf);
 extern void cumulate_buf(const float *from, float *dest);
 
