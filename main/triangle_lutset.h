@@ -5,9 +5,9 @@
 #ifndef LUTENTRY_DEFINED
 #define LUTENTRY_DEFINED
 typedef struct {
-  const float *table;
-  int table_size;
-  int highest_harmonic;
+    const float *table;
+    int table_size;
+    int highest_harmonic;
 } lut_entry;
 #endif // LUTENTRY_DEFINED
 
@@ -292,18 +292,18 @@ const float triangle_lutable_10[8] = {
 };
 
 lut_entry triangle_lutset[12] = {
-  {triangle_lutable_0, 512, 63},
-  {triangle_lutable_1, 512, 44},
-  {triangle_lutable_2, 256, 31},
-  {triangle_lutable_3, 256, 22},
-  {triangle_lutable_4, 128, 15},
-  {triangle_lutable_5, 128, 10},
-  {triangle_lutable_6, 64, 7},
-  {triangle_lutable_7, 64, 5},
-  {triangle_lutable_8, 32, 3},
-  {triangle_lutable_9, 16, 2},
-  {triangle_lutable_10, 8, 1},
-  {NULL, 0, 0},
+    {triangle_lutable_0, 512, 63},
+    {triangle_lutable_1, 512, 44},
+    {triangle_lutable_2, 256, 31},
+    {triangle_lutable_3, 256, 22},
+    {triangle_lutable_4, 128, 15},
+    {triangle_lutable_5, 128, 10},
+    {triangle_lutable_6, 64, 7},
+    {triangle_lutable_7, 64, 5},
+    {triangle_lutable_8, 32, 3},
+    {triangle_lutable_9, 16, 2},
+    {triangle_lutable_10, 8, 1},
+    {NULL, 0, 0},
 };
 
 #endif // LUTSET_x_DEFINED

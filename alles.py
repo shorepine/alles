@@ -89,7 +89,7 @@ def polyphony(max_voices=ALLES_OSCS,**kwargs):
     while(1):
         osc = oscs[note % max_voices]
         print("osc %d note %d filter %f " % (osc, 30+note, note*50))
-        note_on(osc=osc, **kwargs, patch=note, filter_type=FILTER_LPF, ilter_freq=note*50, note=30+(note), client = -1)
+        note_on(osc=osc, **kwargs, patch=note, filter_type=FILTER_NONE, filter_freq=note*50, note=30+(note), client = -1)
         time.sleep(0.5)
         note =(note + 1) % 64
 

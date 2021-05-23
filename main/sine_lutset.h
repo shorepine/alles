@@ -5,9 +5,9 @@
 #ifndef LUTENTRY_DEFINED
 #define LUTENTRY_DEFINED
 typedef struct {
-  const float *table;
-  int table_size;
-  int highest_harmonic;
+    const float *table;
+    int table_size;
+    int highest_harmonic;
 } lut_entry;
 #endif // LUTENTRY_DEFINED
 
@@ -47,8 +47,8 @@ const float sine_lutable_0[256] = {
 };
 
 lut_entry sine_lutset[2] = {
-  {sine_lutable_0, 256, 1},
-  {NULL, 0, 0},
+    {sine_lutable_0, 256, 1},
+    {NULL, 0, 0},
 };
 
 #endif // LUTSET_x_DEFINED

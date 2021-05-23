@@ -313,49 +313,121 @@ def generate_pcm_header(sf2_filename, pcm_sample_rate = 22050):
     p.write("};\n\n#endif  // __PCM_H\n")
 
 
-# N equal-amplitude cosines make a band-limited impulse.
-def cosines(num_cosines, args):
+def cos_lut(table_size, harmonics_weights, harmonics_phases=None):
     import numpy as np
-    num_points = len(args)
-    vals = np.zeros(num_points)
-    for i in range(num_cosines):
-        vals += np.cos((i + 1) * args)
-    return vals / float(num_cosines)
+    if harmonics_phases is None:
+        harmonics_phases = np.zeros(len(harmonics_weights))
+    table = np.zeros(table_size)
+    phases = np.arange(table_size) * 2 * np.pi / table_size
+    for harmonic_number, harmonic_weight in enumerate(harmonics_weights):
+        table += harmonic_weight * np.cos(
+            phases * harmonic_number + harmonics_phases[harmonic_number])
+    return table
 
-def make_lut(basename, function, tab_size=1024):
+
+
+
+# A LUTset is a list of LUTentries describing downsampled versions of the same
+# basic waveform, sorted with the longest (highest-bandwidth) first.
+def create_lutset(LUTentry, harmonic_weights, harmonic_phases=None, 
+                                    length_factor=8, bandwidth_factor=None):
     import numpy as np
-    filename = "main/{:s}_{:d}.h".format(basename, tab_size) 
-    cpp_base = basename.upper()
-    cpp_flag = "__" + cpp_base + "_H"
-    size_sym = cpp_base + "_SIZE"
-    mask_sym = cpp_base + "_MASK"
+    if bandwidth_factor is None:
+        bandwidth_factor = np.sqrt(0.5)
+    """Create an ordered list of LUTs with decreasing harmonic content.
 
-    sins = function(np.arange(tab_size) / tab_size * 2 * np.pi)
-    row_len = 8
+    These can then be used in interp_from_lutset to make an adaptive-bandwidth
+    interpolation.
+
+    Args:
+        harmonic_weights: vector of amplitudes for cosine harmonic components.
+        harmonic_phases: initial phases for each harmonic, in radians. Zero 
+            (default) indicates cosine phase.
+        length_factor: Each table's length is at least this factor times the order
+            of the highest harmonic it contains. Thus, this is a lower bound on the
+            number of samples per cycle for the highest harmonic. Higher factors make
+            the interpolation easier.
+        bandwidth_factor: Target ratio between the highest harmonics in successive
+            table entries. Default is sqrt(0.5), so after two tables, bandwidth is
+            reduced by 1/2 (and length with follow).
+
+    Returns:
+        A list of LUTentry objects, sorted in decreasing order of the highest 
+        harmonic they contain. Each LUT's length is a power of 2, and as small as
+        possible while respecting the length_factor for the highest contained 
+        harmonic.
+    """
+    if harmonic_phases is None:
+        harmonic_phases = np.zeros(len(harmonic_weights))
+    # Calculate the length of the longest LUT we need. Must be a power of 2, 
+    # must have at least length_factor * highest_harmonic samples.
+    # Harmonic 0 (dc) doesn't count.
+    float_num_harmonics = float(len(harmonic_weights))
+    lutsets = []
+    done = False
+    # harmonic 0 is DC; there's no point in generating that table.
+    while float_num_harmonics >= 2:
+        num_harmonics = int(round(float_num_harmonics))
+        highest_harmonic = num_harmonics - 1    # because zero doesn't count.
+        lut_size = int(2 ** np.ceil(np.log(length_factor * highest_harmonic) /
+                                                                np.log(2)))
+        lutsets.append(LUTentry(
+                table=cos_lut(lut_size, 
+                                            harmonic_weights[:num_harmonics], 
+                                            harmonic_phases[:num_harmonics]),    # / lut_size,
+                highest_harmonic=highest_harmonic))
+        float_num_harmonics = bandwidth_factor * float_num_harmonics
+    return lutsets
+
+
+def write_lutset_to_h(filename, variable_base, lutset):
+    """Savi out a lutset as a C-compatible header file."""
+    num_luts = len(lutset)
     with open(filename, "w") as f:
-        f.write("// {:s} - lookup table\n".format(filename))
-        f.write("// tab_size = {:d}\n".format(tab_size))
-        f.write("// function = {:s}\n".format(function.__name__))
+        f.write("// Automatically-generated LUTset\n")
+        f.write("#ifndef LUTSET_{:s}_DEFINED\n".format(variable_base.upper()))
+        f.write("#define LUTSET_{:s}_DEFINED\n".format(variable_base.upper()))
         f.write("\n")
-        f.write("#ifndef {:s}\n".format(cpp_flag))
-        f.write("#define {:s}\n".format(cpp_flag))
-        f.write("#define {:s} {:d}\n".format(size_sym, tab_size))
-        f.write("#define {:s} 0x{:x}\n".format(mask_sym, tab_size - 1))
-        f.write("const int16_t {:s}[{:s}] = {{\n".format(basename, size_sym))
-        for base in np.arange(0, tab_size, row_len):
-            for offset in np.arange(row_len):
-                val = int(round(32767 * sins[base + offset]))
-                _ = f.write("{:d},".format(val))
-            _ = f.write("\n")
+        # Define the structure.
+        f.write("#ifndef LUTENTRY_DEFINED\n")
+        f.write("#define LUTENTRY_DEFINED\n")
+        f.write("typedef struct {\n")
+        f.write("    const float *table;\n")
+        f.write("    int table_size;\n")
+        f.write("    int highest_harmonic;\n")
+        f.write("} lut_entry;\n")
+        f.write("#endif // LUTENTRY_DEFINED\n")
+        f.write("\n")
+        # Define the content of the individual tables.
+        samples_per_row = 8
+        for i in range(num_luts):
+            table_size = len(lutset[i].table)
+            f.write("const float {:s}_lutable_{:d}[{:d}] = {{\n".format(
+                variable_base, i, table_size))
+            for row_start in range(0, table_size, samples_per_row):
+                for sample_index in range(row_start, 
+                                                                    min(row_start + samples_per_row, table_size)):
+                    f.write("{:f},".format(lutset[i].table[sample_index]))
+                f.write("\n")
+            f.write("};\n")
+            f.write("\n")
+        # Define the table of LUTs.
+        f.write("lut_entry {:s}_lutset[{:d}] = {{\n".format(
+            variable_base, num_luts + 1))
+        for i in range(num_luts):
+            f.write("    {{{:s}_lutable_{:d}, {:d}, {:d}}},\n".format(
+                variable_base, i, len(lutset[i].table), 
+                lutset[i].highest_harmonic))
+        # Final entry is null to indicate end of table.
+        f.write("    {NULL, 0, 0},\n")
         f.write("};\n")
         f.write("\n")
-        f.write("#endif\n")
-
+        f.write("#endif // LUTSET_x_DEFINED\n")
     print("wrote", filename)
 
 
-def make_clipping_lut():
-    """make_clipping_lut.py - generate the lookup table used for soft clipping."""
+
+def make_clipping_lut(filename):
     import numpy as np
     # Soft clipping lookup table scratchpad.
     SAMPLE_MAX = 32767
@@ -363,15 +435,10 @@ def make_clipping_lut():
     NONLIN_RANGE = 4915  # // size of nonlinearity lookup table = round(1.5 * (INT16_MAX - LIN_MAX))
 
     clipping_lookup_table = np.arange(LIN_MAX + NONLIN_RANGE)
-    print(len(clipping_lookup_table))
 
     for x in range(NONLIN_RANGE):
         x_dash = float(x) / NONLIN_RANGE
         clipping_lookup_table[x + LIN_MAX] = LIN_MAX + int(np.floor(NONLIN_RANGE * (x_dash - x_dash * x_dash * x_dash / 3.0)))
-
-    print(max(clipping_lookup_table))
-
-    filename = "main/clipping_lookup_table.h"
 
     with open(filename, "w") as f:
         f.write("// Automatically generated.\n// Clipping lookup table\n")
@@ -390,13 +457,30 @@ def make_clipping_lut():
 
 def make_luts(tab_size=1024, num_harmonics=32):
     import numpy as np
-    from functools import partial
-    basename = "impulse{:d}".format(num_harmonics)
-    function = partial(cosines, num_harmonics)
-    function.__name__ = basename
-    make_lut(basename, function, tab_size=tab_size)
-    make_lut("sinLUT", np.sin, tab_size=tab_size)
-    make_clipping_lut()
+    import collections
+    # Implement the multiple lookup tables.
+    # A LUT is stored as an array of values (table) and the harmonic number of the
+    # highest harmonic they contain (i.e., the number of cycles it completes in the
+    # entire table, so must be <= len(table)/2.)
+    LUTentry = collections.namedtuple('LUTentry', ['table', 'highest_harmonic'])
+
+    # Impulses.
+    impulse_lutset = create_lutset(LUTentry, np.ones(128))
+    write_lutset_to_h('main/impulse_lutset.h', 'impulse', impulse_lutset)
+
+    # Triangle wave lutset
+    n_harms = 64
+    coefs = (np.arange(n_harms) % 2) * (
+        np.maximum(1, np.arange(n_harms, dtype=float))**(-2))
+    triangle_lutset = create_lutset(LUTentry, coefs, np.arange(len(coefs)) * -np.pi / 2)
+    write_lutset_to_h('main/triangle_lutset.h', 'triangle', triangle_lutset)
+
+    # Sinusoid "lutset" (only one table)
+    sine_lutset = create_lutset(LUTentry, np.array([0, 1]), length_factor=256)
+    write_lutset_to_h('main/sine_lutset.h', 'sine', sine_lutset)
+
+    # Clipping LUT
+    make_clipping_lut('main/clipping_lookup_table.h')
 
 
 

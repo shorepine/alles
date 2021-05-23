@@ -940,9 +940,9 @@ void app_main() {
     };
     gpio_config(&out_conf); 
     // Set them all to low
-    gpio_set_level(CPU_MONITOR_0, 0); 
-    gpio_set_level(CPU_MONITOR_1, 0);
-    gpio_set_level(CPU_MONITOR_2, 0);
+    gpio_set_level(CPU_MONITOR_0, 0); // use 0 as ground for the scope 
+    gpio_set_level(CPU_MONITOR_1, 0); // use 1 for the rendering loop 
+    gpio_set_level(CPU_MONITOR_2, 0); // use 2 for the parsing loop? 
 
     check_init(&setup_i2s, "i2s");
     check_init(&oscs_init, "oscs");
@@ -961,8 +961,9 @@ void app_main() {
 
     create_multicast_ipv4_socket();
 
-    // Pin the UDP task to the 2nd core so the audio / main core runs on its own without getting starved
+    // Create the task that waits for UDP messages, parses them and puts them on the sequencer queue (core 1)
     xTaskCreatePinnedToCore(&parse_task, "parse_task", 4096, NULL, 1, &parseTask, 0);
+    // Create the task that listens fro new incoming UDP messages (core 2)
     xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 2, &mcastTask, 1);
 
     // Allocate the FM RAM after the captive portal HTTP server is passed, as you can't have both at once
