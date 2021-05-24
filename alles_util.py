@@ -369,12 +369,10 @@ def create_lutset(LUTentry, harmonic_weights, harmonic_phases=None,
     while float_num_harmonics >= 2:
         num_harmonics = int(round(float_num_harmonics))
         highest_harmonic = num_harmonics - 1    # because zero doesn't count.
-        lut_size = int(2 ** np.ceil(np.log(length_factor * highest_harmonic) /
-                                                                np.log(2)))
+        lut_size = int(2 ** np.ceil(np.log(length_factor * highest_harmonic) / np.log(2)))
         lutsets.append(LUTentry(
-                table=cos_lut(lut_size, 
-                                            harmonic_weights[:num_harmonics], 
-                                            harmonic_phases[:num_harmonics]),    # / lut_size,
+                table=cos_lut(lut_size, harmonic_weights[:num_harmonics], 
+                                harmonic_phases[:num_harmonics]),    # / lut_size,
                 highest_harmonic=highest_harmonic))
         float_num_harmonics = bandwidth_factor * float_num_harmonics
     return lutsets
@@ -406,7 +404,7 @@ def write_lutset_to_h(filename, variable_base, lutset):
                 variable_base, i, table_size))
             for row_start in range(0, table_size, samples_per_row):
                 for sample_index in range(row_start, 
-                                                                    min(row_start + samples_per_row, table_size)):
+                        min(row_start + samples_per_row, table_size)):
                     f.write("{:f},".format(lutset[i].table[sample_index]))
                 f.write("\n")
             f.write("};\n")
