@@ -17,10 +17,9 @@ struct mod_event * msynth;
 
 // One floatblock per core, added up later
 float ** fbl;
+// And one as scratch space per oscillator
+float per_osc_fb[BLOCK_SIZE];
 
-// A second floatblock per core for independently generating e.g. triangle.
-// This can be used within a given render_* function as scratch space.
-float ** scratchbuf;
 // block -- what gets sent to the DAC -- -32768...32767 (wave file, int16 LE)
 int16_t * block;
 
@@ -218,7 +217,9 @@ void reset_osc(uint8_t i ) {
     synth[i].eq_m = 0;
     synth[i].eq_h = 0;
     synth[i].filter_freq = 0;
+    msynth[i].filter_freq = 0;
     synth[i].resonance = 0.7;
+    msynth[i].resonance = 0.7;
     synth[i].velocity = 0;
     synth[i].step = 0;
     synth[i].sample = DOWN;
@@ -259,7 +260,6 @@ esp_err_t oscs_init() {
     synth = (struct event*) malloc(sizeof(struct event) * OSCS);
     msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * OSCS);
     fbl = (float**) malloc(sizeof(float*) * 2); // one per core
-    scratchbuf = (float**) malloc(sizeof(float*) * 2); // one per core
     block = (int16_t *) malloc(sizeof(int16_t) * BLOCK_SIZE);
 
     // Set all oscillators to their default values
@@ -290,8 +290,6 @@ esp_err_t oscs_init() {
     // Create rendering threads, one per core so we can deal with dan ellis float math
     fbl[0] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
     fbl[1] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
-    scratchbuf[0] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
-    scratchbuf[1] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
     xTaskCreatePinnedToCore(&render_task, "render_task0", 4096, NULL, 1, &renderTask[0], 0);
     xTaskCreatePinnedToCore(&render_task, "render_task1", 4096, NULL, 1, &renderTask[1], 1);
 
@@ -382,9 +380,6 @@ void oscs_deinit() {
     free(fbl[0]); 
     free(fbl[1]); 
     free(fbl);
-    free(scratchbuf[0]);
-    free(scratchbuf[1]);
-    free(scratchbuf);
 
     free(synth);
     free(msynth);
@@ -470,6 +465,8 @@ void play_event(struct delta d) {
             // Start the ADSR clock
             synth[d.osc].adsr_on_clock = esp_timer_get_time() / 1000;
 
+            // If there was a filter active for this voice, reset it
+            if(synth[d.osc].filter_type != FILTER_NONE) update_filter(d.osc);
             // Restart the waveforms, adjusting for phase if given
             if(synth[d.osc].wave==SINE) sine_note_on(d.osc);
             if(synth[d.osc].wave==SAW) saw_note_on(d.osc);
@@ -538,21 +535,25 @@ void render_task() {
     printf("I'm rendering on core %d and i'm handling oscs %d up until %d\n", xPortGetCoreID(), start, end);
     while(1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        for(uint16_t i=0;i<BLOCK_SIZE;i++) fbl[core][i] = 0; 
+        for(uint16_t i=0;i<BLOCK_SIZE;i++) { fbl[core][i] = 0; per_osc_fb[i] = 0; }
         for(uint8_t osc=start; osc<end; osc++) {
             if(synth[osc].status==AUDIBLE) { // skip oscs that are silent or mod sources from playback
                 hold_and_modify(osc); // apply ADSR / mod
-                if(synth[osc].wave == FM) render_fm(fbl[core], osc);
-                if(synth[osc].wave == NOISE) render_noise(fbl[core], osc);
-                if(synth[osc].wave == SAW) render_saw(fbl[core], scratchbuf[core], osc);
-                if(synth[osc].wave == PULSE) render_pulse(fbl[core], scratchbuf[core], osc);
-                if(synth[osc].wave == TRIANGLE) render_triangle(fbl[core], scratchbuf[core], osc);
-                if(synth[osc].wave == SINE) render_sine(fbl[core], osc);
-                if(synth[osc].wave == KS) render_ks(fbl[core], osc);
-                if(synth[osc].wave == PCM) render_pcm(fbl[core], osc);
+                if(synth[osc].wave == FM) render_fm(per_osc_fb, osc);
+                if(synth[osc].wave == NOISE) render_noise(per_osc_fb, osc);
+                if(synth[osc].wave == SAW) render_saw(per_osc_fb, osc);
+                if(synth[osc].wave == PULSE) render_pulse(per_osc_fb, osc);
+                if(synth[osc].wave == TRIANGLE) render_triangle(per_osc_fb, osc);
+                if(synth[osc].wave == SINE) render_sine(per_osc_fb, osc);
+                if(synth[osc].wave == KS) render_ks(per_osc_fb, osc);
+                if(synth[osc].wave == PCM) render_pcm(per_osc_fb, osc);
 
-                // Apply filter to osc if set
-                if(synth[osc].filter_type != FILTER_NONE) filter_process(fbl[core], osc);
+                // Check it's not off, just in case
+                if(synth[osc].wave != OFF) {
+                    // Apply filter to osc if set
+                    if(synth[osc].filter_type != FILTER_NONE) filter_process(per_osc_fb, osc);
+                    for(uint16_t i=0;i<BLOCK_SIZE;i++) { fbl[core][i] += per_osc_fb[i]; }
+                }
             }
         }
         // apply the EQ filters if set

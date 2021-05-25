@@ -262,7 +262,9 @@ void mcast_listen_task(void *pvParameters) {
             }
             else if (s > 0) {
                 if (FD_ISSET(sock, &rfds)) {
-                    // Incoming datagram received
+                    // Incoming UDP packet received
+                    // Turn on the CPU monitor to see how long parsing takes
+                    gpio_set_level(CPU_MONITOR_2, 1);
                     struct sockaddr_in6 raddr; // Large enough for both IPv4 or IPv6
                     socklen_t socklen = sizeof(raddr);
                     full_message_length = recvfrom(sock, udp_message, sizeof(udp_message)-1, 0,
@@ -274,27 +276,27 @@ void mcast_listen_task(void *pvParameters) {
                     }
                     udp_message[full_message_length] = 0;
                     uint16_t start = 0;
+                    // Break the packet up into messages (delimited by \n.)
                     for(uint16_t i=0;i<full_message_length;i++) {
                         if(udp_message[i] == '\n') {
                             udp_message[i] = 0;
                             udp_message_counter++;
                             message_start_pointer = udp_message + start;
                             message_length = i - start;
-                            // tell the parse task, time to parse!
+                            // tell the parse task, time to parse this message into deltas and add to the queue
                             xTaskNotifyGive(parseTask);
                             // And wait for it to come back
                             ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
                             start = i+1;
                         }
                     }
+                    gpio_set_level(CPU_MONITOR_2, 0);
                 }
             }
-            //delay_ms(1);
             // Do a ping every so often
             int64_t sysclock = esp_timer_get_time() / 1000;
             if(sysclock > (last_ping_time+PING_TIME_MS)) {
                 ping(sysclock);
-                //printf("udp message counter is %d\n", udp_message_counter);
             }
         }
 

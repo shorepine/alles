@@ -19,7 +19,7 @@ def preset(which,osc=0, **kwargs):
     if(which==0): # simple note
         send(osc=osc, wave=SINE, envelope="10,250,0.7,250", adsr_target=TARGET_AMP, **kwargs)
     if(which==1): # filter bass
-        send(osc=osc, filter_freq=1000, resonance=2, wave=SAW, filter_type=FILTER_LPF, envelope="10,100,0.5,25", adsr_target=TARGET_AMP+TARGET_FILTER_FREQ, **kwargs)
+        send(osc=osc, filter_freq=2500, resonance=5, wave=SAW, filter_type=FILTER_LPF, envelope="10,100,0.5,25", adsr_target=TARGET_AMP+TARGET_FILTER_FREQ, **kwargs)
     if(which==2): # long square pad to test ADSR
         send(osc=osc, wave=PULSE, envelope="500,1000,0.25,750", adsr_target=TARGET_AMP, **kwargs)
     if(which==3): # amp LFO example
@@ -31,7 +31,7 @@ def preset(which,osc=0, **kwargs):
         send(osc=osc+1, wave=SINE, vel=0.50, freq=0.25, **kwargs)
         send(osc=osc, wave=PULSE, envelope="150,400,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=osc+1, **kwargs)
     if(which==5): # bass drum
-        # Uses a 0.25Hz sine wave at half phase (going down) to modify frequency of another sine wave
+        # Uses a 0.25Hz sine wave at 0.5 phase (going down) to modify frequency of another sine wave
         reset(osc=osc+1)
         send(osc=osc+1, wave=SINE, vel=0.50, freq=0.25, phase=0.5, **kwargs)
         send(osc=osc, wave=SINE, vel=0, envelope="0,500,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=osc+1, **kwargs)
@@ -127,7 +127,7 @@ def drums(bpm=120, loops=-1, **kwargs):
     preset(9, osc=4, **kwargs) # sample cow
     preset(10, osc=5, **kwargs) # sample hi cow
     preset(11, osc=2, **kwargs) # sample snare
-    preset(12, osc=7, **kwargs) # FM bass
+    preset(1, osc=7, **kwargs) # filter bass
     [bass, snare, hat, cow, hicow, silent] = [1, 2, 4, 8, 16, 32]
     pattern = [bass+hat, hat+hicow, bass+hat+snare, hat+cow, hat, hat+bass, snare+hat, hat]
     bassline = [50, 0, 0, 0, 50, 52, 51, 0]
@@ -135,7 +135,7 @@ def drums(bpm=120, loops=-1, **kwargs):
         loops = loops - 1
         for i,x in enumerate(pattern):
             if(x & bass): 
-                note_on(osc=0, note=50, vel=1.5, **kwargs)
+                note_on(osc=0, note=38, vel=2.5, **kwargs)
             if(x & snare):
                 note_on(osc=2, vel=1.5)
             if(x & hat): 
@@ -145,8 +145,9 @@ def drums(bpm=120, loops=-1, **kwargs):
             if(x & hicow): 
                 note_on(osc=5, vel=1)
             if(bassline[i]>0):
-                note_on(osc=7, vel=0.25, note=bassline[i], **kwargs)
+                note_on(osc=7, vel=0.5, note=bassline[i]-12, **kwargs)
             else:
+                pass
                 note_off(osc=7, **kwargs)
             time.sleep(1.0/(bpm*2/60))
 

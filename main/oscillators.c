@@ -88,7 +88,7 @@ float render_lut(float * buf, float step, float skip, float amp, const float* lu
         float cminusb = c - b;
         float sample = b + frac * (cminusb - 0.1666667f * (1.-frac) * ((d - a - 3.0f * cminusb) * frac + (d + 2.0f*a - 3.0f*b)));
 #endif /* LINEAR_INTERP */
-        buf[i] += sample * amp;
+        buf[i] = sample * amp;
         step += skip;
         if(step >= lut_size) step -= lut_size;
     }
@@ -104,16 +104,8 @@ void lpf_buf(float *buf, float decay, float *state) {
     }
 }
 
-void clear_buf(float *buf) {
-    // Clear a block-sized buf.
-    memset(buf, 0, BLOCK_SIZE * sizeof(float));
-}
 
-void cumulate_buf(const float *from, float *dest) {
-    for (uint16_t i = 0; i < BLOCK_SIZE; ++i) {
-        dest[i] += from[i];
-    }
-}
+
 
 /* PCM */
 
@@ -145,7 +137,7 @@ void render_pcm(float * buf, uint8_t osc) {
             synth[osc].status=OFF;
             sample = 0;
         }
-        buf[i] = buf[i] + (sample * msynth[osc].amp);
+        buf[i] = (sample * msynth[osc].amp);
     }
 }
 
@@ -174,7 +166,7 @@ void pulse_note_on(uint8_t osc) {
     synth[osc].lpf_state = -0.5 * amp * synth[osc].lut[0];
 }
 
-void render_pulse(float * buf, float * scratch, uint8_t osc) {
+void render_pulse(float * buf, uint8_t osc) {
     // LPF time constant should be ~ 10x osc period, so droop is minimal.
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lpf_alpha = 1.0 - 1.0 / (10.0 * period_samples);
@@ -186,12 +178,9 @@ void render_pulse(float * buf, float * scratch, uint8_t osc) {
     float amp = msynth[osc].amp * skip * 4.0 * SAMPLE_MAX / synth[osc].lut_size;
     float pwm_step = synth[osc].step + duty * synth[osc].lut_size;
     if (pwm_step >= synth[osc].lut_size)  pwm_step -= synth[osc].lut_size;
-    clear_buf(scratch);
-    synth[osc].step = render_lut(scratch, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size);
-    render_lut(scratch, pwm_step, skip, -amp, synth[osc].lut, synth[osc].lut_size);
-    lpf_buf(scratch, synth[osc].lpf_alpha, &synth[osc].lpf_state);
-    // Accumulate into actual output buffer.
-    cumulate_buf(scratch, buf);
+    synth[osc].step = render_lut(buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size);
+    render_lut(buf, pwm_step, skip, -amp, synth[osc].lut, synth[osc].lut_size);
+    lpf_buf(buf, synth[osc].lpf_alpha, &synth[osc].lpf_state);
 }
 
 void pulse_mod_trigger(uint8_t osc) {
@@ -241,22 +230,20 @@ void saw_note_on(uint8_t osc) {
     synth[osc].dc_offset = -lut_sum / synth[osc].lut_size;
 }
 
-void render_saw(float * buf, float * scratch, uint8_t osc) {
+void render_saw(float * buf, uint8_t osc) {
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lpf_alpha = 1.0 - 1.0 / (10.0 * period_samples);
     float skip = synth[osc].lut_size / period_samples;
     // Scale the impulse proportional to the skip so its integral remains ~constant.
     float amp = msynth[osc].amp * skip * 4.0 * SAMPLE_MAX / synth[osc].lut_size;
-    clear_buf(scratch);
     synth[osc].step = render_lut(
-          scratch, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size);
+          buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size);
     // Give the impulse train a negative bias so that it integrates to zero mean.
     float offset = amp * synth[osc].dc_offset;
     for (int i = 0; i < BLOCK_SIZE; ++i) {
-        scratch[i] += offset;
+        buf[i] += offset;
     }
-    lpf_buf(scratch, synth[osc].lpf_alpha, &synth[osc].lpf_state);
-    cumulate_buf(scratch, buf);
+    lpf_buf(buf, synth[osc].lpf_alpha, &synth[osc].lpf_state);
 }
 
 
@@ -290,7 +277,7 @@ void triangle_note_on(uint8_t osc) {
     synth[osc].step = (float)synth[osc].lut_size * synth[osc].phase;
 }
 
-void render_triangle(float * buf, float * scratch, uint8_t osc) {
+void render_triangle(float * buf, uint8_t osc) {
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     float skip = synth[osc].lut_size / period_samples;
     float amp = msynth[osc].amp * SAMPLE_MAX;
@@ -365,7 +352,7 @@ void sine_mod_trigger(uint8_t osc) {
 
 void render_noise(float *buf, uint8_t osc) {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        buf[i] = buf[i] + ( (int16_t) ((esp_random() >> 16) - 32768) * msynth[osc].amp);
+        buf[i] = ( (int16_t) ((esp_random() >> 16) - 32768) * msynth[osc].amp);
     }
 }
 
@@ -383,7 +370,7 @@ void render_ks(float * buf, uint8_t osc) {
             synth[osc].sample = ks_buffer[ks_polyphony_index][index];
             ks_buffer[ks_polyphony_index][index] = (ks_buffer[ks_polyphony_index][index] + ks_buffer[ks_polyphony_index][(index + 1) % buflen]) * 0.5 * synth[osc].feedback;
             synth[osc].step = (index + 1) % buflen;
-            buf[i] = buf[i] + synth[osc].sample * msynth[osc].amp;
+            buf[i] = synth[osc].sample * msynth[osc].amp;
         }
     }
 }

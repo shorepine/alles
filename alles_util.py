@@ -453,7 +453,7 @@ def make_clipping_lut(filename):
     print("wrote", filename)
 
 
-def make_luts(tab_size=1024, num_harmonics=32):
+def make_luts():
     import numpy as np
     import collections
     # Implement the multiple lookup tables.
@@ -474,7 +474,7 @@ def make_luts(tab_size=1024, num_harmonics=32):
     write_lutset_to_h('main/triangle_lutset.h', 'triangle', triangle_lutset)
 
     # Sinusoid "lutset" (only one table)
-    sine_lutset = create_lutset(LUTentry, np.array([0, 1]), length_factor=256)
+    sine_lutset = create_lutset(LUTentry, np.array([0, 1]),  harmonic_phases = -np.pi / 2 * np.ones(2), length_factor=256)
     write_lutset_to_h('main/sine_lutset.h', 'sine', sine_lutset)
 
     # Clipping LUT

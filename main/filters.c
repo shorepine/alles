@@ -6,11 +6,19 @@ extern struct mod_event *msynth;
 extern struct event *synth; 
 extern struct state global;
 
+#define LOWEST_RATIO 0.001
+
 float coeffs[OSCS][5];
 float delay[OSCS][2];
 
 float eq_coeffs[3][5];
 float eq_delay[3][2];
+
+void update_filter(uint8_t osc) {
+    // reset the delay for a filter
+    // normal mod / adsr will just change the coeffs
+    delay[osc][0] = 0; delay[osc][1] = 0;
+}
 
 void filters_init() {
     // update the parametric filters 
@@ -34,11 +42,14 @@ void parametric_eq_process(float *block) {
 }
 
 
+
 void filter_process(float * block, uint8_t osc) {
     float output[BLOCK_SIZE];
-    if(synth[osc].filter_type==FILTER_LPF) dsps_biquad_gen_lpf_f32(coeffs[osc], msynth[osc].filter_freq/(float)SAMPLE_RATE, msynth[osc].resonance);
-    if(synth[osc].filter_type==FILTER_BPF) dsps_biquad_gen_bpf_f32(coeffs[osc], msynth[osc].filter_freq/(float)SAMPLE_RATE, msynth[osc].resonance);
-    if(synth[osc].filter_type==FILTER_HPF) dsps_biquad_gen_hpf_f32(coeffs[osc], msynth[osc].filter_freq/(float)SAMPLE_RATE, msynth[osc].resonance);
+    float ratio = msynth[osc].filter_freq/(float)SAMPLE_RATE;
+    if(ratio < LOWEST_RATIO) ratio = LOWEST_RATIO;
+    if(synth[osc].filter_type==FILTER_LPF) dsps_biquad_gen_lpf_f32(coeffs[osc], ratio, msynth[osc].resonance);
+    if(synth[osc].filter_type==FILTER_BPF) dsps_biquad_gen_bpf_f32(coeffs[osc], ratio, msynth[osc].resonance);
+    if(synth[osc].filter_type==FILTER_HPF) dsps_biquad_gen_hpf_f32(coeffs[osc], ratio, msynth[osc].resonance);
     dsps_biquad_f32_ae32(block, output, BLOCK_SIZE, coeffs[osc], delay[osc]);
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         block[i] = output[i];

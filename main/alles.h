@@ -268,9 +268,9 @@ extern void ks_deinit();
 
 extern void render_ks(float * buf, uint8_t osc); 
 extern void render_sine(float * buf, uint8_t osc); 
-extern void render_pulse(float * buf, float * scratch, uint8_t osc); 
-extern void render_saw(float * buf, float * scratch, uint8_t osc); 
-extern void render_triangle(float * buf, float * scratch, uint8_t osc); 
+extern void render_pulse(float * buf, uint8_t osc); 
+extern void render_saw(float * buf, uint8_t osc); 
+extern void render_triangle(float * buf, uint8_t osc); 
 extern void render_noise(float * buf, uint8_t osc); 
 extern void render_pcm(float * buf, uint8_t osc);
 
@@ -302,6 +302,7 @@ extern void filters_init();
 extern void filters_deinit();
 extern void filter_process(float * block, uint8_t osc);
 extern void parametric_eq_process(float *block);
+extern void update_filter(uint8_t osc);
 
 // envelopes
 extern float compute_adsr_scale(uint8_t osc);
