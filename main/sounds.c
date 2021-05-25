@@ -18,10 +18,7 @@ void wifi_tone() {
     e.time = sysclock;
     e.wave = SINE;
     e.freq = 440;
-    e.adsr_a = 10;
-    e.adsr_d = 500;
-    e.adsr_s = 0;
-    e.adsr_r = 0;
+    parse_adsr(&e, "10,500,0,0");
     e.adsr_target = TARGET_AMP;
     add_event(e);
     e.osc = 1;

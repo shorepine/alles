@@ -264,7 +264,6 @@ void mcast_listen_task(void *pvParameters) {
                 if (FD_ISSET(sock, &rfds)) {
                     // Incoming UDP packet received
                     // Turn on the CPU monitor to see how long parsing takes
-                    gpio_set_level(CPU_MONITOR_2, 1);
                     struct sockaddr_in6 raddr; // Large enough for both IPv4 or IPv6
                     socklen_t socklen = sizeof(raddr);
                     full_message_length = recvfrom(sock, udp_message, sizeof(udp_message)-1, 0,
@@ -290,7 +289,6 @@ void mcast_listen_task(void *pvParameters) {
                             start = i+1;
                         }
                     }
-                    gpio_set_level(CPU_MONITOR_2, 0);
                 }
             }
             // Do a ping every so often

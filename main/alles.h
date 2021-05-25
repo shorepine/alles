@@ -170,10 +170,10 @@ struct event {
     int8_t filter_type;
     int64_t adsr_on_clock;
     int64_t adsr_off_clock;
-    int16_t adsr_a;
-    int16_t adsr_d;
+    int32_t adsr_a;
+    int32_t adsr_d;
     float adsr_s;
-    int16_t adsr_r;
+    int32_t adsr_r;
     // State variable for the impulse-integrating oscs.
     float lpf_state;
     // Constant offset to add to sawtooth before integrating.
@@ -245,7 +245,7 @@ extern uint8_t computed_delta_set; // have we set a delta yet?
 extern int16_t client_id;
 char *message_start_pointer;
 int16_t message_length;
-
+void parse_adsr(struct event * e, char* message) ;
 
 
 // FM 

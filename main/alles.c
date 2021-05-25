@@ -29,6 +29,9 @@ unsigned long last_task_counters[MAX_TASKS];
 // mutex that locks writes to the delta queue
 SemaphoreHandle_t xQueueSemaphore;
 
+int64_t total_samples = 0;
+
+
 void delay_ms(uint32_t ms) {
     vTaskDelay(ms / portTICK_PERIOD_MS);
 }
@@ -226,8 +229,8 @@ void reset_osc(uint8_t i ) {
     synth[i].substep = 0;
     synth[i].status = OFF;
     synth[i].mod_source = -1;
-    synth[i].mod_target = -1;
-    synth[i].adsr_target = -1;
+    synth[i].mod_target = 0; 
+    synth[i].adsr_target = 0;
     synth[i].adsr_on_clock = -1;
     synth[i].adsr_off_clock = -1;
     synth[i].filter_type = FILTER_NONE;
@@ -290,14 +293,14 @@ esp_err_t oscs_init() {
     // Create rendering threads, one per core so we can deal with dan ellis float math
     fbl[0] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
     fbl[1] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
-    xTaskCreatePinnedToCore(&render_task, "render_task0", 4096, NULL, 1, &renderTask[0], 0);
-    xTaskCreatePinnedToCore(&render_task, "render_task1", 4096, NULL, 1, &renderTask[1], 1);
+    xTaskCreatePinnedToCore(&render_task, "render_task0", 4096, NULL, 3, &renderTask[0], 0);
+    xTaskCreatePinnedToCore(&render_task, "render_task1", 4096, NULL, 3, &renderTask[1], 1);
 
     // Wait for the render tasks to get going before starting the i2s task
     delay_ms(100);
 
     // And the fill audio buffer thread, combines, does volume & filters
-    xTaskCreatePinnedToCore(&fill_audio_buffer_task, "fill_audio_buff", 4096, NULL, 1, &fillbufferTask, 0);
+    xTaskCreatePinnedToCore(&fill_audio_buffer_task, "fill_audio_buff", 4096, NULL, 4, &fillbufferTask, 0);
 
     // Grab the idle handles while we're here, we use them for CPU usage reporting
     idleTask0 = xTaskGetIdleTaskHandleForCPU(0);
@@ -404,7 +407,7 @@ esp_err_t setup_i2s(void) {
          .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_STAND_I2S),
          .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1, // high interrupt priority
          .dma_buf_count = 8, // TODO: check these numbers
-         .dma_buf_len = 64   //Interrupt level 1
+         .dma_buf_len = 128 
         };
         
     i2s_pin_config_t pin_config = {
@@ -432,10 +435,10 @@ void play_event(struct delta d) {
     if(d.param == FREQ) synth[d.osc].freq = *(float *)&d.data;
     if(d.param == ADSR_TARGET) synth[d.osc].adsr_target = (int8_t) d.data;
 
-    if(d.param == ADSR_A) synth[d.osc].adsr_a = *(int16_t *)&d.data;
-    if(d.param == ADSR_D) synth[d.osc].adsr_d = *(int16_t *)&d.data;
+    if(d.param == ADSR_A) synth[d.osc].adsr_a = *(int32_t *)&d.data;
+    if(d.param == ADSR_D) synth[d.osc].adsr_d = *(int32_t *)&d.data;
     if(d.param == ADSR_S) synth[d.osc].adsr_s = *(float *)&d.data;
-    if(d.param == ADSR_R) synth[d.osc].adsr_r = *(int16_t *)&d.data;
+    if(d.param == ADSR_R) synth[d.osc].adsr_r = *(int32_t *)&d.data;
 
     if(d.param == MOD_SOURCE) { synth[d.osc].mod_source = *(int8_t *)&d.data; synth[*(int8_t *)&d.data].status = IS_MOD_SOURCE; }
     if(d.param == MOD_TARGET) synth[d.osc].mod_target = *(int8_t *)&d.data; 
@@ -463,7 +466,7 @@ void play_event(struct delta d) {
         else {
             // an osc came in with a note on.
             // Start the ADSR clock
-            synth[d.osc].adsr_on_clock = esp_timer_get_time() / 1000;
+            synth[d.osc].adsr_on_clock = total_samples; //esp_timer_get_time() / 1000;
 
             // If there was a filter active for this voice, reset it
             if(synth[d.osc].filter_type != FILTER_NONE) update_filter(d.osc);
@@ -491,7 +494,7 @@ void play_event(struct delta d) {
         else {
             // osc note off, start release
             synth[d.osc].adsr_on_clock = -1;
-            synth[d.osc].adsr_off_clock = esp_timer_get_time() / 1000;
+            synth[d.osc].adsr_off_clock = total_samples; // esp_timer_get_time() / 1000;
         }
     }
 
@@ -511,7 +514,10 @@ void hold_and_modify(uint8_t osc) {
     if(synth[osc].adsr_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp * scale;
     if(synth[osc].adsr_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty * scale;
     if(synth[osc].adsr_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq * scale;
-    if(synth[osc].adsr_target & TARGET_FILTER_FREQ) msynth[osc].filter_freq = msynth[osc].filter_freq * scale;
+    if(synth[osc].adsr_target & TARGET_FILTER_FREQ) {
+        //printf("osc %d target %d scale: %f freq was %f and now is %f\n", osc, synth[osc].adsr_target, scale, msynth[osc].filter_freq, msynth[osc].filter_freq*scale);
+        msynth[osc].filter_freq = msynth[osc].filter_freq * scale;
+    }
     if(synth[osc].adsr_target & TARGET_RESONANCE) msynth[osc].resonance = msynth[osc].resonance * scale;
 
 
@@ -538,6 +544,7 @@ void render_task() {
         for(uint16_t i=0;i<BLOCK_SIZE;i++) { fbl[core][i] = 0; per_osc_fb[i] = 0; }
         for(uint8_t osc=start; osc<end; osc++) {
             if(synth[osc].status==AUDIBLE) { // skip oscs that are silent or mod sources from playback
+                for(uint16_t i=0;i<BLOCK_SIZE;i++) { per_osc_fb[i] = 0; }
                 hold_and_modify(osc); // apply ADSR / mod
                 if(synth[osc].wave == FM) render_fm(per_osc_fb, osc);
                 if(synth[osc].wave == NOISE) render_noise(per_osc_fb, osc);
@@ -562,13 +569,11 @@ void render_task() {
         xTaskNotifyGive(fillbufferTask);
     }
 }
-
 // This takes scheduled events and plays them at the right time
 void fill_audio_buffer_task() {
     while(1) {
         // Check to see which sounds to play 
         int64_t sysclock = esp_timer_get_time() / 1000;
-
         // put a mutex around this so that the mcastTask doesn't touch these while i'm running  
         xSemaphoreTake(xQueueSemaphore, portMAX_DELAY);
 
@@ -582,7 +587,6 @@ void fill_audio_buffer_task() {
 
         // Give the mutex back
         xSemaphoreGive(xQueueSemaphore);
-
         gpio_set_level(CPU_MONITOR_1, 1);
         // Tell the rendering threads to start rendering
         xTaskNotifyGive(renderTask[0]);
@@ -625,14 +629,22 @@ void fill_audio_buffer_task() {
         }
         gpio_set_level(CPU_MONITOR_1, 0);
         // And write to I2S
+        gpio_set_level(CPU_MONITOR_2, 1);
+
         size_t written = 0;
         i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
         if(written != BLOCK_SIZE*2) {
             printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*2);
         }
+        gpio_set_level(CPU_MONITOR_2, 0);
+
+        total_samples += BLOCK_SIZE;
     }
 }
 
+int32_t ms_to_samples(int32_t ms) {
+    return (((float)ms / 1000.0) * (float)SAMPLE_RATE);
+}
 
 // Helper to parse the special ADSR string
 void parse_adsr(struct event * e, char* message) {
@@ -642,13 +654,13 @@ void parse_adsr(struct event * e, char* message) {
     while(message[c] != 0 && c < MAX_RECEIVE_LEN) {
         if(message[c]!=',') {
             if(idx==0) {
-                e->adsr_a = atoi(message+c);
+                e->adsr_a = ms_to_samples(atoi(message+c));
             } else if(idx == 1) {
-                e->adsr_d = atoi(message+c);
+                e->adsr_d = ms_to_samples(atoi(message+c));
             } else if(idx == 2) {
                 e->adsr_s = atof(message+c);
             } else if(idx == 3) {
-                e->adsr_r = atoi(message+c);
+                e->adsr_r = ms_to_samples(atoi(message+c));
             }
         }
         while(message[c]!=',' && message[c]!=0 && c < MAX_RECEIVE_LEN) c++;

@@ -19,7 +19,7 @@ def preset(which,osc=0, **kwargs):
     if(which==0): # simple note
         send(osc=osc, wave=SINE, envelope="10,250,0.7,250", adsr_target=TARGET_AMP, **kwargs)
     if(which==1): # filter bass
-        send(osc=osc, filter_freq=2500, resonance=5, wave=SAW, filter_type=FILTER_LPF, envelope="10,100,0.5,25", adsr_target=TARGET_AMP+TARGET_FILTER_FREQ, **kwargs)
+        send(osc=osc, filter_freq=2500, resonance=5, wave=SAW, filter_type=FILTER_LPF, envelope="0,100,0.5,25", adsr_target=TARGET_AMP+TARGET_FILTER_FREQ, **kwargs)
     if(which==2): # long square pad to test ADSR
         send(osc=osc, wave=PULSE, envelope="500,1000,0.25,750", adsr_target=TARGET_AMP, **kwargs)
     if(which==3): # amp LFO example
@@ -147,7 +147,6 @@ def drums(bpm=120, loops=-1, **kwargs):
             if(bassline[i]>0):
                 note_on(osc=7, vel=0.5, note=bassline[i]-12, **kwargs)
             else:
-                pass
                 note_off(osc=7, **kwargs)
             time.sleep(1.0/(bpm*2/60))
 

@@ -6,7 +6,7 @@
 extern struct event* synth;
 extern struct mod_event* msynth;
 extern struct mod_state mglobal;
-
+extern int64_t total_samples;
 
 // for now i'll put voice stuff in here
 
@@ -43,23 +43,23 @@ float compute_mod_scale(uint8_t osc) {
 //    return S*exp(-3 * t / release)
 float compute_adsr_scale(uint8_t osc) {
     // get the scale out of a osc
-    int64_t sysclock = esp_timer_get_time() / 1000;
+    //int64_t sysclock = esp_timer_get_time() / 1000;
     float scale = 1.0; // the overall ratio to modify the thing
-    float t_a = synth[osc].adsr_a;
-    float t_d = synth[osc].adsr_d;
-    float S   = synth[osc].adsr_s;
-    float t_r = synth[osc].adsr_r;
+    int32_t t_a = synth[osc].adsr_a;
+    int32_t t_d = synth[osc].adsr_d;
+    float   S   = synth[osc].adsr_s;
+    int32_t t_r = synth[osc].adsr_r;
     float curve = 3.0;
     if(synth[osc].adsr_on_clock >= 0) { 
-        int64_t elapsed = (sysclock - synth[osc].adsr_on_clock) + 1; // +1ms to avoid nans 
+        int64_t elapsed = (total_samples - synth[osc].adsr_on_clock) + 1; // +1ms to avoid nans 
         if(elapsed > t_a) { // we're in sustain or decay
-            scale = S + (1.0-S)*expf(-(elapsed - t_a)/(t_d / curve));
+            scale = S + (1.0-S)*expf(-((float)elapsed - (float)t_a)/((float)t_d / curve));
         } else { // attack
-            scale = 1.0 - expf(-curve * (elapsed / t_a));
+            scale = 1.0 - expf(-curve * ((float)elapsed / (float)t_a));
         }
     } else if(synth[osc].adsr_off_clock >= 0) { // release
-        int64_t elapsed = (sysclock - synth[osc].adsr_off_clock) + 1;
-        scale = S * expf(-curve * elapsed / t_r);
+        int64_t elapsed = (total_samples - synth[osc].adsr_off_clock) + 1;
+        scale = S * expf(-curve * (float)elapsed / (float)t_r);
         if(elapsed > t_r) {
             // Turn off note
             synth[osc].status=OFF;

@@ -6,7 +6,7 @@ extern struct mod_event *msynth;
 extern struct event *synth; 
 extern struct state global;
 
-#define LOWEST_RATIO 0.001
+#define LOWEST_RATIO 0.0001
 
 float coeffs[OSCS][5];
 float delay[OSCS][2];
