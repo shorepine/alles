@@ -44,9 +44,12 @@ extern "C" {
 #define SAMPLE_RATE 44100    // playback sample rate
 #define SAMPLE_MAX 32767
 
-// sample width
+
+// buffering for i2s
 #define BYTES_PER_SAMPLE 2
 #define I2S_BUFFERS 4
+
+// This can be 32 bit, int32_t
 #define I2S_SAMPLE_TYPE I2S_BITS_PER_SAMPLE_16BIT
 typedef int16_t i2s_sample_type;
 
