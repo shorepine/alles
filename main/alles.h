@@ -44,6 +44,12 @@ extern "C" {
 #define SAMPLE_RATE 44100    // playback sample rate
 #define SAMPLE_MAX 32767
 
+// sample width
+#define BYTES_PER_SAMPLE 2
+#define I2S_BUFFERS 4
+#define I2S_SAMPLE_TYPE I2S_BITS_PER_SAMPLE_16BIT
+typedef int16_t i2s_sample_type;
+
 // D is how close the sample gets to the clip limit before the nonlinearity engages.  
 // So D=0.1 means output is linear for -0.9..0.9, then starts clipping.
 #define CLIP_D 0.1

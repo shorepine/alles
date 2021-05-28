@@ -6,6 +6,7 @@ extern struct mod_event *msynth;
 extern struct event *synth; 
 extern struct state global;
 
+// Filters tend to get weird under this ratio -- this corresponds to 4.4Hz 
 #define LOWEST_RATIO 0.0001
 
 float coeffs[OSCS][5];

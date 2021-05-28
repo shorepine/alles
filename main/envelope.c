@@ -13,6 +13,7 @@ extern int64_t total_samples;
 
 
 
+
 // modulation scale is not like ADSR scale, it can also make a thing bigger, so return range is between -1 and 1, where 1 = 2x and 0 = 1x
 float compute_mod_scale(uint8_t osc) {
     int8_t source = synth[osc].mod_source;
@@ -51,7 +52,7 @@ float compute_adsr_scale(uint8_t osc) {
     int32_t t_r = synth[osc].adsr_r;
     float curve = 3.0;
     if(synth[osc].adsr_on_clock >= 0) { 
-        int64_t elapsed = (total_samples - synth[osc].adsr_on_clock) + 1; // +1ms to avoid nans 
+        int64_t elapsed = (total_samples - synth[osc].adsr_on_clock) + 1; // +1 sample to avoid nans 
         if(elapsed > t_a) { // we're in sustain or decay
             scale = S + (1.0-S)*expf(-((float)elapsed - (float)t_a)/((float)t_d / curve));
         } else { // attack

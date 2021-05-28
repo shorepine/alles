@@ -21,7 +21,9 @@ float ** fbl;
 float per_osc_fb[BLOCK_SIZE];
 
 // block -- what gets sent to the DAC -- -32768...32767 (wave file, int16 LE)
-int16_t * block;
+i2s_sample_type * block;
+// double buffered blocks
+i2s_sample_type * dbl_block[I2S_BUFFERS];
 
 // For CPU usage
 unsigned long last_task_counters[MAX_TASKS];
@@ -263,8 +265,8 @@ esp_err_t oscs_init() {
     synth = (struct event*) malloc(sizeof(struct event) * OSCS);
     msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * OSCS);
     fbl = (float**) malloc(sizeof(float*) * 2); // one per core
-    block = (int16_t *) malloc(sizeof(int16_t) * BLOCK_SIZE);
-
+    for(uint8_t i=0;i<I2S_BUFFERS;i++) dbl_block[i] = (i2s_sample_type *) malloc(sizeof(i2s_sample_type) * BLOCK_SIZE);
+    block = dbl_block[0];
     // Set all oscillators to their default values
     reset_oscs();
 
@@ -293,14 +295,14 @@ esp_err_t oscs_init() {
     // Create rendering threads, one per core so we can deal with dan ellis float math
     fbl[0] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
     fbl[1] = (float*)malloc(sizeof(float) * BLOCK_SIZE);
-    xTaskCreatePinnedToCore(&render_task, "render_task0", 4096, NULL, 3, &renderTask[0], 0);
-    xTaskCreatePinnedToCore(&render_task, "render_task1", 4096, NULL, 3, &renderTask[1], 1);
+    xTaskCreatePinnedToCore(&render_task, "render_task0", 4096, NULL, 4, &renderTask[0], 0);
+    xTaskCreatePinnedToCore(&render_task, "render_task1", 4096, NULL, 4, &renderTask[1], 1);
 
     // Wait for the render tasks to get going before starting the i2s task
     delay_ms(100);
 
     // And the fill audio buffer thread, combines, does volume & filters
-    xTaskCreatePinnedToCore(&fill_audio_buffer_task, "fill_audio_buff", 4096, NULL, 4, &fillbufferTask, 0);
+    xTaskCreatePinnedToCore(&fill_audio_buffer_task, "fill_audio_buff", 4096, NULL, 22, &fillbufferTask, 0);
 
     // Grab the idle handles while we're here, we use them for CPU usage reporting
     idleTask0 = xTaskGetIdleTaskHandleForCPU(0);
@@ -379,7 +381,7 @@ void show_debug(uint8_t type) {
 
    
 void oscs_deinit() {
-    free(block);
+    for(uint8_t i=0;i<I2S_BUFFERS;i++) free(dbl_block[i]); 
     free(fbl[0]); 
     free(fbl[1]); 
     free(fbl);
@@ -406,8 +408,8 @@ esp_err_t setup_i2s(void) {
          .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
          .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_STAND_I2S),
          .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1, // high interrupt priority
-         .dma_buf_count = 8, // TODO: check these numbers
-         .dma_buf_len = 128 
+         .dma_buf_count =4,
+         .dma_buf_len = BLOCK_SIZE*BYTES_PER_SAMPLE
         };
         
     i2s_pin_config_t pin_config = {
@@ -595,6 +597,14 @@ void fill_audio_buffer_task() {
         // And wait for each of them to come back
         ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
         ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+        
+
+        for(uint8_t i=0;i<I2S_BUFFERS;i++) {
+            if(block == dbl_block[i]) { 
+                block = dbl_block[(i+1) % I2S_BUFFERS];
+                i = I2S_BUFFERS + 1;
+            }
+        }
 
     	// Global volume is supposed to max out at 10, so scale by 0.1.
     	float volume_scale = 0.1 * global.volume;
@@ -625,16 +635,17 @@ void fill_audio_buffer_task() {
                 sample = -uintval;
     	    }
             // ^ 0x01 implements word-swapping, needed for ESP32 I2S_CHANNEL_FMT_ONLY_LEFT
-            block[i ^ 0x01] = sample;   // for internal DAC:  + 32768.0); 
+            block[i ^ 0x01] = sample;
+            //block[i] = sample << 16;   // for internal DAC:  + 32768.0); 
         }
         gpio_set_level(CPU_MONITOR_1, 0);
         // And write to I2S
         gpio_set_level(CPU_MONITOR_2, 1);
 
         size_t written = 0;
-        i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * 2, &written, portMAX_DELAY);
-        if(written != BLOCK_SIZE*2) {
-            printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*2);
+        i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * BYTES_PER_SAMPLE, &written, portMAX_DELAY);
+        if(written != BLOCK_SIZE*BYTES_PER_SAMPLE) {
+            printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*BYTES_PER_SAMPLE);
         }
         gpio_set_level(CPU_MONITOR_2, 0);
 
@@ -644,7 +655,7 @@ void fill_audio_buffer_task() {
 
 int32_t ms_to_samples(int32_t ms) {
     return (((float)ms / 1000.0) * (float)SAMPLE_RATE);
-}
+} 
 
 // Helper to parse the special ADSR string
 void parse_adsr(struct event * e, char* message) {
@@ -945,17 +956,20 @@ void app_main() {
             NULL,
             power_monitor);
         xTimerStart(power_monitor_timer, 0);
+
     }
     // Setup GPIO outputs for watching CPU usage
+
     const gpio_config_t out_conf = {
          .mode = GPIO_MODE_OUTPUT,            
          .pin_bit_mask = (1ULL<<CPU_MONITOR_0) | (1ULL<<CPU_MONITOR_1) | (1ULL<<CPU_MONITOR_2),
     };
     gpio_config(&out_conf); 
+
     // Set them all to low
     gpio_set_level(CPU_MONITOR_0, 0); // use 0 as ground for the scope 
     gpio_set_level(CPU_MONITOR_1, 0); // use 1 for the rendering loop 
-    gpio_set_level(CPU_MONITOR_2, 0); // use 2 for the parsing loop? 
+    gpio_set_level(CPU_MONITOR_2, 0); // use 2 for whatever you want 
 
     check_init(&setup_i2s, "i2s");
     check_init(&oscs_init, "oscs");
@@ -975,9 +989,10 @@ void app_main() {
     create_multicast_ipv4_socket();
 
     // Create the task that waits for UDP messages, parses them and puts them on the sequencer queue (core 1)
-    xTaskCreatePinnedToCore(&parse_task, "parse_task", 4096, NULL, 1, &parseTask, 0);
+
+    xTaskCreatePinnedToCore(&parse_task, "parse_task", 4096, NULL, 2, &parseTask, 0);
     // Create the task that listens fro new incoming UDP messages (core 2)
-    xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 2, &mcastTask, 1);
+    xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 3, &mcastTask, 1);
 
     // Allocate the FM RAM after the captive portal HTTP server is passed, as you can't have both at once
     fm_init();
@@ -1009,7 +1024,6 @@ void app_main() {
     gpio_pullup_dis(15);
 
     esp_sleep_enable_ext1_wakeup((1ULL<<BUTTON_WAKEUP),ESP_EXT1_WAKEUP_ALL_LOW);
-
     esp_deep_sleep_start();
 }
 
