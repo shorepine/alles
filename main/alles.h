@@ -49,7 +49,7 @@ extern "C" {
 #define BYTES_PER_SAMPLE 2
 #define I2S_BUFFERS 4
 
-// This can be 32 bit, int32_t
+// This can be 32 bit, int32_t -- helpful for digital output to a i2s->USB teensy3 board
 #define I2S_SAMPLE_TYPE I2S_BITS_PER_SAMPLE_16BIT
 typedef int16_t i2s_sample_type;
 
@@ -86,12 +86,16 @@ typedef int16_t i2s_sample_type;
 #define BATTERY_VOLTAGE_3 0x20
 #define BATTERY_VOLTAGE_2 0x40
 #define BATTERY_VOLTAGE_1 0x80
+
 // modulation/ADSR target mask
 #define TARGET_AMP 1
 #define TARGET_DUTY 2
 #define TARGET_FREQ 4
 #define TARGET_FILTER_FREQ 8
 #define TARGET_RESONANCE 16
+#define TARGET_BETA 32 
+
+
 #define FILTER_LPF 1
 #define FILTER_BPF 2
 #define FILTER_HPF 3
@@ -104,15 +108,16 @@ typedef int16_t i2s_sample_type;
 #define FM 5
 #define KS 6
 #define PCM 7
-#define OFF 8
-
+#define ALGO 8
+#define OFF 9
 #define EMPTY 0
 #define SCHEDULED 1
 #define PLAYED 2
 #define AUDIBLE 3
 #define IS_MOD_SOURCE 4
-
+#define IS_ALGO_SOURCE 5
 #define MAX_TASKS 9
+#define MAX_OPERATORS 6 // dx7
 
 
 // Pins & buttons
@@ -137,8 +142,10 @@ typedef int16_t i2s_sample_type;
 
     
 enum params{
-    WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, RESONANCE, 
-    MOD_SOURCE, MOD_TARGET, FILTER_TYPE, EQ_L, EQ_M, EQ_H, ADSR_TARGET, ADSR_A, ADSR_D, ADSR_S, ADSR_R, NO_PARAM
+    WAVE, PATCH, MIDI_NOTE, AMP, DUTY, BETA, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, RESONANCE, 
+    MOD_SOURCE, MOD_TARGET, FILTER_TYPE, EQ_L, EQ_M, EQ_H, ADSR_TARGET, ADSR_A, ADSR_D, ADSR_S, ADSR_R, ALGORITHM, 
+    ALGO_SOURCE_0, ALGO_SOURCE_1, ALGO_SOURCE_2, ALGO_SOURCE_3,
+    NO_PARAM
 };
 
 // Delta holds the individual changes from an event, it's sorted in order of playback time 
@@ -175,6 +182,7 @@ struct event {
     float resonance;
     int8_t mod_source;
     int8_t mod_target;
+    int8_t algorithm;
     int8_t adsr_target;
     int8_t filter_type;
     int64_t adsr_on_clock;
@@ -183,6 +191,8 @@ struct event {
     int32_t adsr_d;
     float adsr_s;
     int32_t adsr_r;
+    int8_t algo_source[4];
+    float beta;
     // State variable for the impulse-integrating oscs.
     float lpf_state;
     // Constant offset to add to sawtooth before integrating.
@@ -201,6 +211,7 @@ struct event {
 struct mod_event {
     float amp;
     float duty;
+    float beta;
     float freq;
     float filter_freq;
     float resonance;
@@ -255,7 +266,8 @@ extern int16_t client_id;
 char *message_start_pointer;
 int16_t message_length;
 void parse_adsr(struct event * e, char* message) ;
-
+void parse_algorithm(struct event * e, char* message) ;
+void hold_and_modify(uint8_t osc) ;
 
 // FM 
 extern void fm_init();
@@ -268,7 +280,7 @@ extern void fm_note_off(uint8_t osc);
 // bandlimted oscs
 
 extern void lpf_buf(float *buf, float decay, float *state);
-extern float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size);
+extern float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod,  float beta);
 extern void clear_buf(float *buf);
 extern void cumulate_buf(const float *from, float *dest);
 
@@ -276,12 +288,13 @@ extern void ks_init();
 extern void ks_deinit();
 
 extern void render_ks(float * buf, uint8_t osc); 
-extern void render_sine(float * buf, uint8_t osc); 
-extern void render_pulse(float * buf, uint8_t osc); 
-extern void render_saw(float * buf, uint8_t osc); 
-extern void render_triangle(float * buf, uint8_t osc); 
+extern void render_sine(float * buf, uint8_t osc, float *mod); 
+extern void render_pulse(float * buf, uint8_t osc, float *mod); 
+extern void render_saw(float * buf, uint8_t osc, float* mod);
+extern void render_triangle(float * buf, uint8_t osc, float *mod); 
 extern void render_noise(float * buf, uint8_t osc); 
 extern void render_pcm(float * buf, uint8_t osc);
+extern void render_algo(float * buf, uint8_t osc) ;
 
 extern float compute_mod_pulse(uint8_t osc);
 extern float compute_mod_noise(uint8_t osc);
@@ -297,7 +310,8 @@ extern void saw_note_on(uint8_t osc);
 extern void triangle_note_on(uint8_t osc); 
 extern void pulse_note_on(uint8_t osc); 
 extern void pcm_note_on(uint8_t osc);
-
+extern void algo_note_on(uint8_t osc);
+extern void algo_note_off(uint8_t osc) ;
 extern void sine_mod_trigger(uint8_t osc);
 extern void saw_mod_trigger(uint8_t osc);
 extern void triangle_mod_trigger(uint8_t osc);

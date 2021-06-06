@@ -1,9 +1,7 @@
 #include "alles.h"
-
 #include "sine_lutset.h"
 #include "impulse_lutset.h"
 #include "triangle_lutset.h"
-
 #include "pcm.h"
 
 // We only allow a couple of KS oscs as they're RAM hogs 
@@ -62,7 +60,7 @@ const float *choose_from_lutset(float period, lut_entry *lutset, int16_t *plut_s
 
 
 // This is copying from Pure Data's tabread4~.
-float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size) { 
+float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod, float beta) { 
     // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
     int lut_mask = lut_size - 1;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -89,7 +87,11 @@ float render_lut(float * buf, float step, float skip, float amp, const float* lu
         float sample = b + frac * (cminusb - 0.1666667f * (1.-frac) * ((d - a - 3.0f * cminusb) * frac + (d + 2.0f*a - 3.0f*b)));
 #endif /* LINEAR_INTERP */
         buf[i] = sample * amp;
-        step += skip;
+        if(mod != NULL) {
+            step += skip * (1 + beta * mod[i]);
+        } else {
+            step += skip;
+        }
         if(step >= lut_size) step -= lut_size;
     }
     return step;
@@ -108,6 +110,31 @@ void lpf_buf(float *buf, float decay, float *state) {
 
 
 /* PCM */
+// todo -- fix this up so that lut_size works 
+/*
+void pcm_note_on(uint8_t osc) {
+    // If no freq given, we set it to default PCM SR. e.g. freq=11025 plays PCM at half speed, freq=44100 double speed 
+    if(synth[osc].freq <= 0) synth[osc].freq = PCM_SAMPLE_RATE;
+    // If patch is given, set step directly from patch's offset
+    if(synth[osc].patch>=0) {
+        synth[osc].step = offset_map[synth[osc].patch*2]; // start sample
+        // Use substep here as "end sample" so we don't have to add another field to the struct
+        synth[osc].substep = synth[osc].step + offset_map[synth[osc].patch*2 + 1]; // end sample
+    } else { // no patch # given? use phase as index into PCM buffer
+        synth[osc].step = PCM_LENGTH * synth[osc].phase; // start at phase offset
+        synth[osc].substep = PCM_LENGTH; // play until end of buffer and stop 
+    }
+
+    float period_samples = (float)SAMPLE_RATE / synth[osc].freq;
+    synth[osc].lut = pcm; 
+}
+
+void render_pcm(float * buf, uint8_t osc, float *mod) { 
+    float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
+    synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
+                 synth[osc].lut, synth[osc].lut_size, mod);
+}
+*/
 
 void pcm_note_on(uint8_t osc) {
     // If no freq given, we set it to default PCM SR. e.g. freq=11025 plays PCM at half speed, freq=44100 double speed 
@@ -131,7 +158,7 @@ void pcm_mod_trigger(uint8_t osc) {
 void render_pcm(float * buf, uint8_t osc) {
     float skip = msynth[osc].freq / (float)SAMPLE_RATE;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        float sample = pcm[(int)(synth[osc].step)];
+        float sample = pcm[(int)(synth[osc].step)]/(float)SAMPLE_MAX; // makes it -1 to 1
         synth[osc].step = (synth[osc].step + skip);
         if(synth[osc].step >= synth[osc].substep ) { // end
             synth[osc].status=OFF;
@@ -150,7 +177,7 @@ float compute_mod_pcm(uint8_t osc) {
         synth[osc].status=OFF;
         sample = 0;
     }
-    return (sample * msynth[osc].amp) / 16384.0; // -1 .. 1
+    return (sample * msynth[osc].amp) / SAMPLE_MAX; // -1 .. 1
     
 }
 
@@ -162,11 +189,11 @@ void pulse_note_on(uint8_t osc) {
     synth[osc].step = (float)synth[osc].lut_size * synth[osc].phase;
     // Tune the initial integrator state to compensate for mid-sample alignment of table.
     float skip = synth[osc].lut_size / period_samples;
-    float amp = synth[osc].amp * skip * 4.0 * SAMPLE_MAX / synth[osc].lut_size;
+    float amp = synth[osc].amp * skip * 4.0 / synth[osc].lut_size;
     synth[osc].lpf_state = -0.5 * amp * synth[osc].lut[0];
 }
 
-void render_pulse(float * buf, uint8_t osc) {
+void render_pulse(float * buf, uint8_t osc, float *mod) {
     // LPF time constant should be ~ 10x osc period, so droop is minimal.
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lpf_alpha = 1.0 - 1.0 / (10.0 * period_samples);
@@ -175,11 +202,11 @@ void render_pulse(float * buf, uint8_t osc) {
     if (duty > 0.99) duty = 0.99;
     float skip = synth[osc].lut_size / period_samples;
     // Scale the impulse proportional to the skip so its integral remains ~constant.
-    float amp = msynth[osc].amp * skip * 4.0 * SAMPLE_MAX / synth[osc].lut_size;
+    float amp = msynth[osc].amp * skip * 4.0 / synth[osc].lut_size;
     float pwm_step = synth[osc].step + duty * synth[osc].lut_size;
     if (pwm_step >= synth[osc].lut_size)  pwm_step -= synth[osc].lut_size;
-    synth[osc].step = render_lut(buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size);
-    render_lut(buf, pwm_step, skip, -amp, synth[osc].lut, synth[osc].lut_size);
+    synth[osc].step = render_lut(buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size, mod, msynth[osc].beta);
+    render_lut(buf, pwm_step, skip, -amp, synth[osc].lut, synth[osc].lut_size, mod, msynth[osc].beta);
     lpf_buf(buf, synth[osc].lpf_alpha, &synth[osc].lpf_state);
 }
 
@@ -197,17 +224,17 @@ float compute_mod_pulse(uint8_t osc) {
     float period = 1. / (msynth[osc].freq/(float)mod_sr);
     float period2 = msynth[osc].duty * period; // if duty is 0.5, square wave
     if(synth[osc].step >= period || synth[osc].step == 0)  {
-        synth[osc].sample = UP;
+        synth[osc].sample = 1;
         synth[osc].substep = 0; // start the duty cycle counter
         synth[osc].step = 0;
     } 
-    if(synth[osc].sample == UP) {
+    if(synth[osc].sample == 1) {
         if(synth[osc].substep++ > period2) {
-            synth[osc].sample = DOWN;
+            synth[osc].sample = -1;
         }
     }
     synth[osc].step++;
-    return (synth[osc].sample * msynth[osc].amp)/16384.0; // -1 .. 1
+    return (synth[osc].sample * msynth[osc].amp); // -1 .. 1
 }
 
 
@@ -220,7 +247,7 @@ void saw_note_on(uint8_t osc) {
     synth[osc].lpf_state = 0;
     // Tune the initial integrator state to compensate for mid-sample alignment of table.
     float skip = synth[osc].lut_size / period_samples;
-    float amp = synth[osc].amp * skip * 4.0 * SAMPLE_MAX / synth[osc].lut_size;
+    float amp = synth[osc].amp * skip * 4.0  / synth[osc].lut_size;
     synth[osc].lpf_state = -0.5 * amp * synth[osc].lut[0];
     // Calculate the mean of the LUT.
     float lut_sum = 0;
@@ -230,14 +257,14 @@ void saw_note_on(uint8_t osc) {
     synth[osc].dc_offset = -lut_sum / synth[osc].lut_size;
 }
 
-void render_saw(float * buf, uint8_t osc) {
+void render_saw(float * buf, uint8_t osc, float *mod) {
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lpf_alpha = 1.0 - 1.0 / (10.0 * period_samples);
     float skip = synth[osc].lut_size / period_samples;
     // Scale the impulse proportional to the skip so its integral remains ~constant.
-    float amp = msynth[osc].amp * skip * 4.0 * SAMPLE_MAX / synth[osc].lut_size;
+    float amp = msynth[osc].amp * skip * 4.0 / synth[osc].lut_size;
     synth[osc].step = render_lut(
-          buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size);
+          buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size, mod, msynth[osc].beta);
     // Give the impulse train a negative bias so that it integrates to zero mean.
     float offset = amp * synth[osc].dc_offset;
     for (int i = 0; i < BLOCK_SIZE; ++i) {
@@ -259,13 +286,13 @@ float compute_mod_saw(uint8_t osc) {
     float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
     float period = 1. / (msynth[osc].freq/mod_sr);
     if(synth[osc].step >= period || synth[osc].step == 0) {
-        synth[osc].sample = DOWN;
+        synth[osc].sample = -1;
         synth[osc].step = 0; // reset the period counter
     } else {
-        synth[osc].sample = DOWN + (synth[osc].step * ((UP-DOWN) / period));
+        synth[osc].sample = 1 + (synth[osc].step * (2.0 / period));
     }
     synth[osc].step++;
-    return (synth[osc].sample * msynth[osc].amp)/16384.0; // -1 .. 1    
+    return (synth[osc].sample * msynth[osc].amp); // -1 .. 1    
 }
 
 
@@ -277,11 +304,11 @@ void triangle_note_on(uint8_t osc) {
     synth[osc].step = (float)synth[osc].lut_size * synth[osc].phase;
 }
 
-void render_triangle(float * buf, uint8_t osc) {
+void render_triangle(float * buf, uint8_t osc, float *mod) {
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     float skip = synth[osc].lut_size / period_samples;
-    float amp = msynth[osc].amp * SAMPLE_MAX;
-    synth[osc].step = render_lut(buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size);
+    float amp = msynth[osc].amp;
+    synth[osc].step = render_lut(buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size, mod, msynth[osc].beta);
 }
 
 
@@ -296,17 +323,17 @@ float compute_mod_triangle(uint8_t osc) {
     float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;    
     float period = 1. / (msynth[osc].freq/mod_sr);
     if(synth[osc].step >= period || synth[osc].step == 0) {
-        synth[osc].sample = DOWN;
+        synth[osc].sample = -1;
         synth[osc].step = 0; // reset the period counter
     } else {
         if(synth[osc].step < (period/2.0)) {
-            synth[osc].sample = DOWN + (synth[osc].step * ((UP-DOWN) / period * 2));
+            synth[osc].sample = -1 + (synth[osc].step * (2 / period * 2));
         } else {
-            synth[osc].sample = UP - ((synth[osc].step-(period/2)) * ((UP-DOWN) / period * 2));
+            synth[osc].sample = 1 - ((synth[osc].step-(period/2)) * (2 / period * 2));
         }
     }
     synth[osc].step++;
-    return (synth[osc].sample * msynth[osc].amp) / 16384.0; // -1 .. 1
+    return (synth[osc].sample * msynth[osc].amp); // -1 .. 1
     
 }
 
@@ -319,12 +346,13 @@ void sine_note_on(uint8_t osc) {
     synth[osc].step = (float)synth[osc].lut_size * synth[osc].phase;
 }
 
-void render_sine(float * buf, uint8_t osc) { 
+void render_sine(float * buf, uint8_t osc, float *mod) { 
     float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
-    synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp * SAMPLE_MAX, 
-				 synth[osc].lut, synth[osc].lut_size);
+    synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
+				 synth[osc].lut, synth[osc].lut_size, mod, msynth[osc].beta);
 }
 
+// TOOD -- not needed anymore
 float compute_mod_sine(uint8_t osc) { 
     float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
     int sinlut_size = sine_lutset[0].table_size;
@@ -352,12 +380,12 @@ void sine_mod_trigger(uint8_t osc) {
 
 void render_noise(float *buf, uint8_t osc) {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        buf[i] = ( (int16_t) ((esp_random() >> 16) - 32768) * msynth[osc].amp);
+        buf[i] = ( (int16_t) ((esp_random() >> 16) - 32768) * msynth[osc].amp) / 32768.0;
     }
 }
 
 float compute_mod_noise(uint8_t osc) {
-    return ( (int16_t) ((esp_random() >> 16) - 32768) * msynth[osc].amp) / 16384.0; // -1..1
+    return ( (int16_t) ((esp_random() >> 16) - 32768) * msynth[osc].amp) / 32768.0; // -1..1
 }
 
 /* karplus-strong */
@@ -381,7 +409,7 @@ void ks_note_on(uint8_t osc) {
     if(buflen > MAX_KS_BUFFER_LEN) buflen = MAX_KS_BUFFER_LEN;
     // init KS buffer with noise up to max
     for(uint16_t i=0;i<buflen;i++) {
-        ks_buffer[ks_polyphony_index][i] = ( (int16_t) ((esp_random() >> 16) - 32768) );
+        ks_buffer[ks_polyphony_index][i] = ( (int16_t) ((esp_random() >> 16) - 32768) ) / 32768.0;
     }
     ks_polyphony_index++;
     if(ks_polyphony_index == KS_OSCS) ks_polyphony_index = 0;

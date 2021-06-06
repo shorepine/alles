@@ -1,4 +1,5 @@
 idf_component_register(SRCS alles.c
+							algorithms.c
 							multicast.c
 							oscillators.c
 							envelope.c
