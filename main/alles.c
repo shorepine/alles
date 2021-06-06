@@ -111,7 +111,6 @@ struct event default_event() {
     e.eq_m = -1;
     e.eq_h = -1;
     e.algorithm = -1;
-    e.beta = -1;
     e.algo_source[0] = -1;
     e.algo_source[1] = -1;
     e.algo_source[2] = -1;
@@ -185,7 +184,6 @@ void add_event(struct event e) {
     if(e.midi_note>-1) { d.param=MIDI_NOTE; d.data = *(uint32_t *)&e.midi_note; add_delta_to_queue(d); }
     if(e.amp>-1) { d.param=AMP; d.data = *(uint32_t *)&e.amp; add_delta_to_queue(d); }
     if(e.duty>-1) { d.param=DUTY; d.data = *(uint32_t *)&e.duty; add_delta_to_queue(d); }
-    if(e.beta>-1) { d.param=BETA; d.data = *(uint32_t *)&e.beta; add_delta_to_queue(d); }
     if(e.feedback>-1) { d.param=FEEDBACK; d.data = *(uint32_t *)&e.feedback; add_delta_to_queue(d); }
     if(e.freq>-1) { d.param=FREQ; d.data = *(uint32_t *)&e.freq; add_delta_to_queue(d); }
     if(e.phase>-1) { d.param=PHASE; d.data = *(uint32_t *)&e.phase; add_delta_to_queue(d); }
@@ -259,8 +257,6 @@ void reset_osc(uint8_t i ) {
     synth[i].algo_source[1] = -1;
     synth[i].algo_source[2] = -1;
     synth[i].algo_source[3] = -1;
-    synth[i].beta = 1;
-    msynth[i].beta = 1;
 }
 
 void reset_oscs() {
@@ -388,11 +384,11 @@ void show_debug(uint8_t type) {
         printf("global: volume %f eq: %f %f %f status %d\n", global.volume, global.eq[0], global.eq[1], global.eq[2], global.status);
         //printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
         for(uint8_t i=0;i<OSCS;i++) {
-            printf("osc %d: status %d amp %f wave %d freq %f duty %f adsr_target %d mod_target %d mod source %d velocity %f filter_freq %f resonance %f E: %d,%d,%2.2f,%d step %f algo %d source %d,%d,%d,%d beta %f \n",
+            printf("osc %d: status %d amp %f wave %d freq %f duty %f adsr_target %d mod_target %d mod source %d velocity %f filter_freq %f resonance %f E: %d,%d,%2.2f,%d step %f algo %d source %d,%d,%d,%d  \n",
                 i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].adsr_target, synth[i].mod_target, synth[i].mod_source, 
                 synth[i].velocity, synth[i].filter_freq, synth[i].resonance, synth[i].adsr_a, synth[i].adsr_d, synth[i].adsr_s, synth[i].adsr_r, synth[i].step, synth[i].algorithm, 
-                synth[i].algo_source[0], synth[i].algo_source[1], synth[i].algo_source[2], synth[i].algo_source[3], synth[i].beta );
-            if(type>3) printf("mod osc %d: amp: %f, freq %f duty %f filter_freq %f resonance %f beta %f\n", i, msynth[i].amp, msynth[i].freq, msynth[i].duty, msynth[i].filter_freq, msynth[i].resonance, msynth[i].beta);
+                synth[i].algo_source[0], synth[i].algo_source[1], synth[i].algo_source[2], synth[i].algo_source[3] );
+            if(type>3) printf("mod osc %d: amp: %f, freq %f duty %f filter_freq %f resonance %f \n", i, msynth[i].amp, msynth[i].freq, msynth[i].duty, msynth[i].filter_freq, msynth[i].resonance);
         }
     }
 }
@@ -452,7 +448,6 @@ void play_event(struct delta d) {
     if(d.param == PHASE) synth[d.osc].phase = *(float *)&d.data;
     if(d.param == PATCH) synth[d.osc].patch = *(int16_t *)&d.data;
     if(d.param == DUTY) synth[d.osc].duty = *(float *)&d.data;
-    if(d.param == BETA) synth[d.osc].beta = *(float *)&d.data;
     if(d.param == FEEDBACK) synth[d.osc].feedback = *(float *)&d.data;
     if(d.param == FREQ) synth[d.osc].freq = *(float *)&d.data;
     if(d.param == ADSR_TARGET) synth[d.osc].adsr_target = (int8_t) d.data;
@@ -534,7 +529,6 @@ void hold_and_modify(uint8_t osc) {
     // Copy all the modifier variables
     msynth[osc].amp = synth[osc].amp;
     msynth[osc].duty = synth[osc].duty;
-    msynth[osc].beta = synth[osc].beta;
     msynth[osc].freq = synth[osc].freq;
     msynth[osc].filter_freq = synth[osc].filter_freq;
     msynth[osc].resonance = synth[osc].resonance;
@@ -543,7 +537,6 @@ void hold_and_modify(uint8_t osc) {
     float scale = compute_adsr_scale(osc);
     if(synth[osc].adsr_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp * scale;
     if(synth[osc].adsr_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty * scale;
-    if(synth[osc].adsr_target & TARGET_BETA) msynth[osc].beta = msynth[osc].beta * scale;
     if(synth[osc].adsr_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq * scale;
     if(synth[osc].adsr_target & TARGET_FILTER_FREQ) {
         //printf("osc %d target %d scale: %f freq was %f and now is %f\n", osc, synth[osc].adsr_target, scale, msynth[osc].filter_freq, msynth[osc].filter_freq*scale);
@@ -556,7 +549,6 @@ void hold_and_modify(uint8_t osc) {
     scale = compute_mod_scale(osc);
     if(synth[osc].mod_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp + (msynth[osc].amp * scale);
     if(synth[osc].mod_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty + (msynth[osc].duty * scale);
-    if(synth[osc].mod_target & TARGET_BETA) msynth[osc].beta = msynth[osc].beta + (msynth[osc].beta * scale);
     if(synth[osc].mod_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq + (msynth[osc].freq * scale);
     if(synth[osc].mod_target & TARGET_FILTER_FREQ) msynth[osc].filter_freq = msynth[osc].filter_freq + (msynth[osc].filter_freq * scale);
     if(synth[osc].mod_target & RESONANCE) msynth[osc].resonance = msynth[osc].resonance + (msynth[osc].resonance * scale);
@@ -771,7 +763,6 @@ void parse_task() {
                 if(mode=='a') e.amp=atof(message+start);
                 if(mode=='A') parse_adsr(&e, message+start);
                 if(mode=='b') e.feedback=atof(message+start);
-                if(mode=='B') e.beta=atof(message+start);
                 if(mode=='c') client = atoi(message + start); 
                 if(mode=='d') e.duty=atof(message + start);
                 if(mode=='D') {

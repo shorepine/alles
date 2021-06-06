@@ -60,7 +60,7 @@ const float *choose_from_lutset(float period, lut_entry *lutset, int16_t *plut_s
 
 
 // This is copying from Pure Data's tabread4~.
-float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod, float beta) { 
+float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod) { 
     // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
     int lut_mask = lut_size - 1;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -88,7 +88,7 @@ float render_lut(float * buf, float step, float skip, float amp, const float* lu
 #endif /* LINEAR_INTERP */
         buf[i] = sample * amp;
         if(mod != NULL) {
-            step += skip * (1 + beta * mod[i]);
+            step += skip * (1 + mod[i]);
         } else {
             step += skip;
         }
@@ -205,8 +205,8 @@ void render_pulse(float * buf, uint8_t osc, float *mod) {
     float amp = msynth[osc].amp * skip * 4.0 / synth[osc].lut_size;
     float pwm_step = synth[osc].step + duty * synth[osc].lut_size;
     if (pwm_step >= synth[osc].lut_size)  pwm_step -= synth[osc].lut_size;
-    synth[osc].step = render_lut(buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size, mod, msynth[osc].beta);
-    render_lut(buf, pwm_step, skip, -amp, synth[osc].lut, synth[osc].lut_size, mod, msynth[osc].beta);
+    synth[osc].step = render_lut(buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size, mod);
+    render_lut(buf, pwm_step, skip, -amp, synth[osc].lut, synth[osc].lut_size, mod);
     lpf_buf(buf, synth[osc].lpf_alpha, &synth[osc].lpf_state);
 }
 
@@ -264,7 +264,7 @@ void render_saw(float * buf, uint8_t osc, float *mod) {
     // Scale the impulse proportional to the skip so its integral remains ~constant.
     float amp = msynth[osc].amp * skip * 4.0 / synth[osc].lut_size;
     synth[osc].step = render_lut(
-          buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size, mod, msynth[osc].beta);
+          buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size, mod);
     // Give the impulse train a negative bias so that it integrates to zero mean.
     float offset = amp * synth[osc].dc_offset;
     for (int i = 0; i < BLOCK_SIZE; ++i) {
@@ -308,7 +308,7 @@ void render_triangle(float * buf, uint8_t osc, float *mod) {
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     float skip = synth[osc].lut_size / period_samples;
     float amp = msynth[osc].amp;
-    synth[osc].step = render_lut(buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size, mod, msynth[osc].beta);
+    synth[osc].step = render_lut(buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size, mod);
 }
 
 
@@ -349,7 +349,7 @@ void sine_note_on(uint8_t osc) {
 void render_sine(float * buf, uint8_t osc, float *mod) { 
     float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
     synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
-				 synth[osc].lut, synth[osc].lut_size, mod, msynth[osc].beta);
+				 synth[osc].lut, synth[osc].lut_size, mod);
 }
 
 // TOOD -- not needed anymore

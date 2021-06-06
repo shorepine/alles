@@ -93,7 +93,6 @@ typedef int16_t i2s_sample_type;
 #define TARGET_FREQ 4
 #define TARGET_FILTER_FREQ 8
 #define TARGET_RESONANCE 16
-#define TARGET_BETA 32 
 
 
 #define FILTER_LPF 1
@@ -142,7 +141,7 @@ typedef int16_t i2s_sample_type;
 
     
 enum params{
-    WAVE, PATCH, MIDI_NOTE, AMP, DUTY, BETA, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, RESONANCE, 
+    WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, RESONANCE, 
     MOD_SOURCE, MOD_TARGET, FILTER_TYPE, EQ_L, EQ_M, EQ_H, ADSR_TARGET, ADSR_A, ADSR_D, ADSR_S, ADSR_R, ALGORITHM, 
     ALGO_SOURCE_0, ALGO_SOURCE_1, ALGO_SOURCE_2, ALGO_SOURCE_3,
     NO_PARAM
@@ -192,7 +191,6 @@ struct event {
     float adsr_s;
     int32_t adsr_r;
     int8_t algo_source[4];
-    float beta;
     // State variable for the impulse-integrating oscs.
     float lpf_state;
     // Constant offset to add to sawtooth before integrating.
@@ -211,7 +209,6 @@ struct event {
 struct mod_event {
     float amp;
     float duty;
-    float beta;
     float freq;
     float filter_freq;
     float resonance;
@@ -280,7 +277,7 @@ extern void fm_note_off(uint8_t osc);
 // bandlimted oscs
 
 extern void lpf_buf(float *buf, float decay, float *state);
-extern float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod,  float beta);
+extern float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod);
 extern void clear_buf(float *buf);
 extern void cumulate_buf(const float *from, float *dest);
 

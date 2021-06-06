@@ -200,7 +200,7 @@ def trunc(number):
 
 def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, adsr_target=-1, lfo_target=-1, \
-        debug=-1, lfo_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, algo_source=None, beta=-1):
+        debug=-1, lfo_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, algo_source=None):
     global sock, send_buffer, buffer_size
     if(timestamp is None): timestamp = millis()
     m = "t" + trunc(timestamp)
@@ -208,7 +208,6 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, fe
     if(wave>=0): m = m + "w" + trunc(wave)
     if(duty>=0): m = m + "d" + trunc(duty)
     if(feedback>=0): m = m + "b" + trunc(feedback)
-    if(beta>=0): m = m + "B" + trunc(beta)
     if(freq>=0): m = m + "f" + trunc(freq)
     if(note>=0): m = m + "n" + trunc(note)
     if(patch>=0): m = m + "p" + trunc(patch)

@@ -62,6 +62,8 @@ G = filter type. 0 = none (default.) 1 = low pass, 2 = band pass, 3 = hi pass.
 L = modulation source oscillator. 0-63. Which oscillator is used as an modulation/LFO source for this oscillator. Source oscillator will be silent. 
 l = velocity (amplitude), float 0-1+, >0 to trigger note on, 0 to trigger note off.  
 n = midinote, uint, 0-127 (this will also set f). default 0
+o = algorithm, choose which algorithm for the algorithm oscillator, uint, 0-16
+O = algorithn source oscillators, choose which oscillators make up the algorithm oscillator, like "0,1,2,3" for algorithm 0
 p = patch, uint, 0-999, choose a preloaded PCM sample or DX7 patch number for FM waveforms. See patches.h, pcm.h. default 0
 P = phase, float 0-1. where in the oscillator's cycle to start sampling from (also works on the PCM buffer). default 0
 R = q factor / "resonance" of biquad filter. float. in practice, 0 to 10.0. default 0.7.
