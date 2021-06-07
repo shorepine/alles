@@ -8,29 +8,6 @@ extern struct event *synth;
 extern struct mod_event *msynth; // the synth that is being modified by modulations & envelopes
 extern struct state global; 
 extern int64_t total_samples ;
-// a struct for operators/algorithms?
-// need a->b, (a+b), (a+b)->c, etc
-// sort of like an in-order tree of things, each that work on the output of the last
-
-/*
-
-1,2,3,4
-1+2,3,4
-((1,2)+3),4
-1,(2+3),4 
-1,2,(3+4)
-1,2,3,+4
-(1+2+3),4
-
-0:
-MIX(0)
-MOD(1)
-MOD(2)
-MOD(3)
-
-meh, let's just do this manually for now with a big switch/case
-
-*/
 
 void mix(float *a, float*b, float *out) {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {

@@ -26,29 +26,46 @@ elif(os.uname().nodename=='cedar.local'):
 sock = 0
 ALLES_LATENCY_MS = 1000
 is_local = False
+stream = None
 
+# Functions for AMY local mode
+try:
+    import sounddevice as sd
+    import amy
+except ImportError:
+    pass
+
+def amy_callback(indata, outdata, frames, time, status):
+    f = frames
+    c = 0
+    while(f>0):
+        samps = amy.render()
+        for i in samps:
+            outdata[c] = i/32767.0
+            c = c + 1
+        f = f - 128
 
 def local_start():
     global is_local, stream
     # Start a local AMY session
-    import amy
-    import sounddevice as sd
-    def callback(indata, outdata, frames, time, status):
-        f = frames
-        c = 0
-        while(f>0):
-            for i in amy.render():
-                outdata[c] = i/32767.0
-                c = c + 1
-            f = f - 128
-    is_local = True
-    stream = sd.Stream(callback=callback)
-    stream.start()
+    if(is_local):
+        print("Already started AMY")
+    else:
+        is_local = True
+        sd.default.samplerate = 44100
+        sd.default.channels = 1
+        stream = sd.Stream(callback=amy_callback)
+        amy.start()
+        stream.start()
 
 def local_stop():
     global stream, is_local
-    stream.stop()
-    is_local = False
+    if(not is_local):
+        print("AMY not running")
+    else:
+        stream.stop()
+        amy.stop()
+        is_local = False
 
 def connect():
     # Set up the socket for multicast send & receive

@@ -8,7 +8,7 @@
 #define MAX_KS_BUFFER_LEN 802 // 44100/55  -- 55Hz (A1) lowest we can go for KS
 #define KS_OSCS 1
 float ** ks_buffer; 
-uint8_t ks_polyphony_index = 0; 
+uint8_t ks_polyphony_index; 
 
 
 extern struct event *synth;
@@ -435,6 +435,7 @@ void ks_note_off(uint8_t osc) {
 
 void ks_init(void) {
     // 6ms buffer
+    ks_polyphony_index = 0;
     ks_buffer = (float**) malloc(sizeof(float*)*KS_OSCS);
     for(int i=0;i<KS_OSCS;i++) ks_buffer[i] = (float*)malloc(sizeof(float)*MAX_KS_BUFFER_LEN); 
 }

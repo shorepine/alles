@@ -24,14 +24,19 @@ struct mod_event * msynth;
 
 float ** fbl;
 float per_osc_fb[BLOCK_SIZE];
-
 // block -- what gets sent to the DAC -- -32768...32767 (wave file, int16 LE)
 i2s_sample_type * block;
 // double buffered blocks
 i2s_sample_type * dbl_block[I2S_BUFFERS];
+int64_t total_samples;
+uint32_t event_counter ;
+uint32_t message_counter ;
 
-int64_t total_samples = 0;
+char *message_start_pointer;
+int16_t message_length;
 
+int64_t computed_delta; // can be negative no prob, but usually host is larger # than client
+uint8_t computed_delta_set; // have we set a delta yet?
 
 int8_t global_init() {
     global.next_event_write = 0;
@@ -92,14 +97,7 @@ struct event default_event() {
     return e;
 }
 
-uint32_t event_counter = 0;
-uint32_t message_counter = 0;
 
-char *message_start_pointer;
-int16_t message_length;
-
-int64_t computed_delta = 0; // can be negative no prob, but usually host is larger # than client
-uint8_t computed_delta_set = 0; // have we set a delta yet?
 
 
 void add_delta_to_queue(struct delta d) {
@@ -284,6 +282,13 @@ int8_t oscs_init() {
     fbl = (float**) malloc(sizeof(float*) * 2); // one per core, just core 0 used off esp32
     fbl[0]= (float*)malloc(sizeof(float) * BLOCK_SIZE);
     fbl[1]= (float*)malloc(sizeof(float) * BLOCK_SIZE);
+    // Clear out both as local mode won't use fbl[1] 
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) { fbl[0][i] =0; fbl[1][i] = 0;}
+    total_samples = 0;
+    computed_delta = 0;
+    computed_delta_set = 0;
+    event_counter = 0;
+    message_counter = 0;
     return 0;
 }
 
@@ -552,7 +557,6 @@ int16_t * fill_audio_buffer_task() {
         block[i] = sample;
 #endif
     }
-
     total_samples += BLOCK_SIZE;
     return block;
 }
@@ -751,6 +755,10 @@ void parse_task() {
         add_event(e);
 #endif
     }
+}
+
+void stop_amy() {
+    oscs_deinit();
 }
 
 void start_amy() {

@@ -13,22 +13,49 @@ static PyObject * send_wrapper(PyObject *self, PyObject *args) {
     return Py_None;
 }
 
-static PyObject * render_wrapper(PyObject *self, PyObject *args) {
-    int16_t * result;
-    result = fill_audio_buffer_task();
-    // Create a python list of ints (they are signed shorts that come back)
-    PyObject* ret = PyList_New(BLOCK_SIZE); 
-    for (int i = 0; i < BLOCK_SIZE; ++i) {
-        PyObject* python_int = Py_BuildValue("i", result[i]);
-        PyList_SetItem(ret, i, python_int);
+uint8_t started;
+static PyObject * start_wrapper(PyObject *self, PyObject *args) {
+    if(started==0) {
+        start_amy();
+        started = 1;
+    } else {
+        printf("Already started\n");
     }
-    return ret;
+    return Py_None;
+}
+
+static PyObject * stop_wrapper(PyObject *self, PyObject *args) {
+    if(started == 1) {
+        stop_amy();
+        started = 0;
+    } else {
+        printf("Already stopped.\n");
+    }
+    return Py_None;
+}
+
+static PyObject * render_wrapper(PyObject *self, PyObject *args) {
+    if(started) {
+        int16_t * result = fill_audio_buffer_task();
+        // Create a python list of ints (they are signed shorts that come back)
+        PyObject* ret = PyList_New(BLOCK_SIZE); 
+        for (int i = 0; i < BLOCK_SIZE; i++) {
+            PyObject* python_int = Py_BuildValue("i", result[i]);
+            PyList_SetItem(ret, i, python_int);
+        }
+        return ret;
+    } else {
+        printf("Not started, can't render. call amy.start() first.\n");
+        return Py_None;
+    }
 }
 
 
 static PyMethodDef AMYMethods[] = {
     {"render", render_wrapper, METH_VARARGS, "Render audio"},
     {"send", send_wrapper, METH_VARARGS, "Send a message"},
+    {"start", start_wrapper, METH_VARARGS, "Start AMY"},
+    {"stop", stop_wrapper, METH_VARARGS, "Stop AMY"},
     { NULL, NULL, 0, NULL }
 };
 
@@ -43,7 +70,7 @@ static struct PyModuleDef amyDef =
 
 PyMODINIT_FUNC PyInit_amy(void)
 {
-    start_amy();
+    started=0;
     return PyModule_Create(&amyDef);
 
 }

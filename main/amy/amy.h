@@ -16,7 +16,7 @@
 #ifdef ESP_PLATFORM
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #else
-#define LATENCY_MS 0         // no latency for local mode
+#define LATENCY_MS 10         // small latency for local mode
 #endif
 #define SAMPLE_RATE 44100    // playback sample rate
 #define SAMPLE_MAX 32767
@@ -173,6 +173,7 @@ int16_t * fill_audio_buffer_task();
 void parse_task();
 void parse_message(char * message);
 void start_amy();
+void stop_amy();
 
 // bandlimted oscs
 extern void lpf_buf(float *buf, float decay, float *state);
