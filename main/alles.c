@@ -4,7 +4,6 @@
 #include "alles.h"
 
 
-
 // For CPU usage
 unsigned long last_task_counters[MAX_TASKS];
 
@@ -18,13 +17,6 @@ void delay_ms(uint32_t ms) {
 uint8_t board_level = ALLES_BOARD_V2;
 uint8_t status = RUNNING;
 
-extern struct state global;
-extern uint32_t event_counter;
-extern uint32_t message_counter;
-
-
-static const char TAG[] = "main";
-
 // Button event
 extern xQueueHandle gpio_evt_queue;
 
@@ -36,15 +28,16 @@ static TaskHandle_t fillbufferTask = NULL;
 static TaskHandle_t idleTask0 = NULL;
 static TaskHandle_t idleTask1 = NULL;
 
-
 // Battery status for V2 board. If no v2 board, will stay at 0
 uint8_t battery_mask = 0;
 
+// AMY synth states
+extern struct state global;
+extern uint32_t event_counter;
+extern uint32_t message_counter;
 
 
-
-
-// Wrap AMY's renderer into 2 cores
+// Wrap AMY's renderer into 2 FreeRTOS tasks, one per core
 void esp_render_task() {
     uint8_t start, end;
     if(xPortGetCoreID() == 0) {
@@ -60,13 +53,22 @@ void esp_render_task() {
     }
 }
 
-// Make AMY's FABT run forever , as a task 
+// Make AMY's FABT run forever , as a FreeRTOS task 
 void esp_fill_audio_buffer_task() {
     while(1) {
-        fill_audio_buffer_task();
+        int16_t *block = fill_audio_buffer_task();
+        gpio_set_level(CPU_MONITOR_1, 0);
+        gpio_set_level(CPU_MONITOR_2, 1);
+        size_t written = 0;
+        i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * BYTES_PER_SAMPLE, &written, portMAX_DELAY);
+        if(written != BLOCK_SIZE*BYTES_PER_SAMPLE) {
+            printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*BYTES_PER_SAMPLE);
+        }
+        gpio_set_level(CPU_MONITOR_2, 0);
     }
 }
 
+// Make AMY's parse task run forever, as a FreeRTOS task (with notifications)
 void esp_parse_task() {
     while(1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -142,8 +144,9 @@ void esp_show_debug(uint8_t type) {
     event_counter = 0;
     message_counter = 0;
     vPortFree(pxTaskStatusArray);
-    // Now call the AMY show debug too
-    show_debug(type);
+
+    // Now call the AMY show debug too if asked
+    if(type>1) show_debug(type);
 }
 
    
@@ -196,7 +199,7 @@ void wifi_connected(void *pvParameter){
     char str_ip[16];
     esp_ip4addr_ntoa(&param->ip_info.ip, str_ip, IP4ADDR_STRLEN_MAX);
 
-    ESP_LOGI(TAG, "I have a connection and my IP is %s!", str_ip);
+    ESP_LOGI("main", "I have a connection and my IP is %s!", str_ip);
     status |= WIFI_MANAGER_OK;
 }
 

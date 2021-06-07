@@ -1,5 +1,10 @@
-// filters.cc
 #include "amy.h"
+
+// Use the esp32 optimized biquad filter if available
+#ifdef ESP_PLATFORM
+#include "esp_err.h"
+esp_err_t dsps_biquad_f32_ae32(const float *input, float *output, int len, float *coef, float *w);
+#endif
 
 extern struct mod_event *msynth; 
 extern struct event *synth; 
@@ -97,8 +102,7 @@ int8_t dsps_biquad_gen_bpf_f32(float *coeffs, float f, float qFactor)
 }
 
 
-int8_t dsps_biquad_f32_ansi(const float *input, float *output, int len, float *coef, float *w)
-{
+int8_t dsps_biquad_f32_ansi(const float *input, float *output, int len, float *coef, float *w) {
     for (int i = 0 ; i < len ; i++) {
         float d0 = input[i] - coef[3] * w[0] - coef[4] * w[1];
         output[i] = coef[0] * d0 +  coef[1] * w[0] + coef[2] * w[1];
@@ -107,8 +111,6 @@ int8_t dsps_biquad_f32_ansi(const float *input, float *output, int len, float *c
     }
     return 0;
 }
-
-
 
 void update_filter(uint8_t osc) {
     // reset the delay for a filter
@@ -127,12 +129,18 @@ void filters_init() {
     eq_delay[2][0] = 0; eq_delay[2][1] = 0;
 }
 
+
 void parametric_eq_process(float *block) {
     float output[3][BLOCK_SIZE];
+#ifdef ESP_PLATFORM
+    dsps_biquad_f32_ae32(block, output[0], BLOCK_SIZE, eq_coeffs[0], eq_delay[0]);
+    dsps_biquad_f32_ae32(block, output[1], BLOCK_SIZE, eq_coeffs[1], eq_delay[1]);
+    dsps_biquad_f32_ae32(block, output[2], BLOCK_SIZE, eq_coeffs[2], eq_delay[2]);
+#else
     dsps_biquad_f32_ansi(block, output[0], BLOCK_SIZE, eq_coeffs[0], eq_delay[0]);
     dsps_biquad_f32_ansi(block, output[1], BLOCK_SIZE, eq_coeffs[1], eq_delay[1]);
     dsps_biquad_f32_ansi(block, output[2], BLOCK_SIZE, eq_coeffs[2], eq_delay[2]);
-
+#endif
     for(uint16_t i=0;i<BLOCK_SIZE;i++)
         block[i] = (output[0][i] * global.eq[0]) - (output[1][i] * global.eq[1]) + (output[2][i] * global.eq[2]);
 }
@@ -146,7 +154,11 @@ void filter_process(float * block, uint8_t osc) {
     if(synth[osc].filter_type==FILTER_LPF) dsps_biquad_gen_lpf_f32(coeffs[osc], ratio, msynth[osc].resonance);
     if(synth[osc].filter_type==FILTER_BPF) dsps_biquad_gen_bpf_f32(coeffs[osc], ratio, msynth[osc].resonance);
     if(synth[osc].filter_type==FILTER_HPF) dsps_biquad_gen_hpf_f32(coeffs[osc], ratio, msynth[osc].resonance);
+#ifdef ESP_PLATFORM
+    dsps_biquad_f32_ae32(block, output, BLOCK_SIZE, coeffs[osc], delay[osc]);
+#else
     dsps_biquad_f32_ansi(block, output, BLOCK_SIZE, coeffs[osc], delay[osc]);
+#endif
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         block[i] = output[i];
     }

@@ -6,11 +6,11 @@
 #include "amy.h"
 #include "clipping_lookup_table.h"
 
+// TODO -- refactor this to make this not so reliant, maybe a callback for rendering
 #ifdef ESP_PLATFORM
 #include "../alles.h"
 extern SemaphoreHandle_t xQueueSemaphore;
 extern TaskHandle_t renderTask[2]; // one per core
-
 #endif
 
 // Global state 
@@ -468,6 +468,7 @@ void render_task(uint8_t start, uint8_t end, uint8_t core) {
     }
 }
 
+// TODO -- maybe just use total_samples on both platforms 
 int64_t get_sysclock() {
 #ifdef ESP_PLATFORM
     return esp_timer_get_time() / 1000;
@@ -516,34 +517,34 @@ int16_t * fill_audio_buffer_task() {
         }
     }
 
-	// Global volume is supposed to max out at 10, so scale by 0.1.
-	float volume_scale = 0.1 * global.volume;
+    // Global volume is supposed to max out at 10, so scale by 0.1.
+    float volume_scale = 0.1 * global.volume;
     for(int16_t i=0; i < BLOCK_SIZE; ++i) {
         // Mix all the oscillator buffers into one
         float fsample = volume_scale * (fbl[0][i] + fbl[1][i]) * 32767.0;
         // Soft clipping.
         int positive = 1; 
         if (fsample < 0) positive = 0;
-	    // Using a uint gives us factor-of-2 headroom (up to 65535 not 32767).
- 	    uint16_t uintval;
+    	// Using a uint gives us factor-of-2 headroom (up to 65535 not 32767).
+      	uint16_t uintval;
 	    if (positive) {  // avoid fabs()
             uintval = (int)fsample;
-	    } else {
+    	} else {
             uintval = (int)(-fsample);
 	    }
         if (uintval > LIN_MAX) {
-	        if (uintval > NONLIN_MAX) {
+    	    if (uintval > NONLIN_MAX) {
                 uintval = SAMPLE_MAX;
             } else {
                 uintval = clipping_lookup_table[uintval - LIN_MAX];
             }
         }
 	    int16_t sample;
-	    if (positive) {
+    	if (positive) {
             sample = uintval;
 	    } else {
             sample = -uintval;
-	    }
+    	}
 #ifdef ESP_PLATFORM
         // ESP32's i2s driver has this bug
         block[i ^ 0x01] = sample;
@@ -552,30 +553,9 @@ int16_t * fill_audio_buffer_task() {
 #endif
     }
 
-#ifdef ESP_PLATFORM
-    gpio_set_level(CPU_MONITOR_1, 0);
-    // And write to I2S
-    gpio_set_level(CPU_MONITOR_2, 1);
-    size_t written = 0;
-    i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * BYTES_PER_SAMPLE, &written, portMAX_DELAY);
-    if(written != BLOCK_SIZE*BYTES_PER_SAMPLE) {
-        printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*BYTES_PER_SAMPLE);
-    }
-    gpio_set_level(CPU_MONITOR_2, 0);
-#endif
     total_samples += BLOCK_SIZE;
     return block;
 }
-
-
-
-
-
-
-
-
-
-
 
 int32_t ms_to_samples(int32_t ms) {
     return (((float)ms / 1000.0) * (float)SAMPLE_RATE);
@@ -767,6 +747,8 @@ void parse_task() {
             }
             if(for_me) add_event(e);
         }
+#else
+        add_event(e);
 #endif
     }
 }

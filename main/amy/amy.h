@@ -11,12 +11,12 @@
 
 // Constants you can change if you want
 #define OSCS 64              // # of simultaneous oscs to keep track of 
-#define BLOCK_SIZE 128        // i2s buffer block size in samples
-#define EVENT_FIFO_LEN 3000   // number of events the queue can store
+#define BLOCK_SIZE 128       // buffer block size in samples
+#define EVENT_FIFO_LEN 3000  // number of events the queue can store
 #ifdef ESP_PLATFORM
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #else
-#define LATENCY_MS 0      // fixed latency in milliseconds
+#define LATENCY_MS 0         // no latency for local mode
 #endif
 #define SAMPLE_RATE 44100    // playback sample rate
 #define SAMPLE_MAX 32767
@@ -46,16 +46,12 @@ typedef int16_t i2s_sample_type;
 #define EQ_CENTER_MED 2500.0
 #define EQ_CENTER_HIGH 7000.0
 
-
-
-
 // modulation/ADSR target mask
 #define TARGET_AMP 1
 #define TARGET_DUTY 2
 #define TARGET_FREQ 4
 #define TARGET_FILTER_FREQ 8
 #define TARGET_RESONANCE 16
-
 
 #define FILTER_LPF 1
 #define FILTER_BPF 2

@@ -1,7 +1,8 @@
-
 #include <Python.h>
 #include <math.h>
 #include "amy.h"
+
+// Python module wrapper for AMY commands
 
 static PyObject * send_wrapper(PyObject *self, PyObject *args) {
     char *arg1;

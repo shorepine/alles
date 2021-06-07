@@ -8,12 +8,6 @@ extern struct mod_event* msynth;
 extern struct mod_state mglobal;
 extern int64_t total_samples;
 
-// for now i'll put voice stuff in here
-
-
-
-
-
 // modulation scale is not like ADSR scale, it can also make a thing bigger, so return range is between -1 and 1, where 1 = 2x and 0 = 1x
 float compute_mod_scale(uint8_t osc) {
     int8_t source = synth[osc].mod_source;

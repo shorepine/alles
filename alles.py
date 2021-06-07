@@ -1,5 +1,5 @@
 # Import all the utilities from alles_util needed to make sounds
-from alles_util import send, sync, volume, note_on, note_off, reset, connect, disconnect, millis, flush, buffer
+from alles_util import send, sync, volume, note_on, note_off, reset, connect, disconnect, millis, flush, buffer, local_start, local_stop
 import time
 
 # Some constants shared with the synth that help

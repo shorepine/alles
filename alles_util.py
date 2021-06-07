@@ -25,7 +25,30 @@ elif(os.uname().nodename=='cedar.local'):
 
 sock = 0
 ALLES_LATENCY_MS = 1000
+is_local = False
 
+
+def local_start():
+    global is_local, stream
+    # Start a local AMY session
+    import amy
+    import sounddevice as sd
+    def callback(indata, outdata, frames, time, status):
+        f = frames
+        c = 0
+        while(f>0):
+            for i in amy.render():
+                outdata[c] = i/32767.0
+                c = c + 1
+            f = f - 128
+    is_local = True
+    stream = sd.Stream(callback=callback)
+    stream.start()
+
+def local_stop():
+    global stream, is_local
+    stream.stop()
+    is_local = False
 
 def connect():
     # Set up the socket for multicast send & receive
@@ -179,6 +202,10 @@ send_buffer = ""
 buffer_size = 0
 
 def transmit(message, retries=1):
+    global is_local
+    if(is_local):
+        import amy
+        amy.send(message)
     for x in range(retries):
         sock.sendto(message.encode('ascii'), multicast_group)
 

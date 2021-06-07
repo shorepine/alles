@@ -10,6 +10,7 @@ idf_component_register(SRCS alles.c
 							amy/oscillators.c
 							amy/filters.c
 							amy/envelope.c
+							amy/dsps_biquad_f32_ae32.S
                     INCLUDE_DIRS amy)
 
 set_source_files_properties(alles.c amy/amy.c

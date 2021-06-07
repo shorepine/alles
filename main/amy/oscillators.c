@@ -15,6 +15,10 @@ extern struct event *synth;
 extern struct mod_event *msynth; // the synth that is being modified by modulations & envelopes
 extern struct state global; 
 
+// For hardware random
+#ifdef ESP_PLATFORM
+#include <esp_system.h>
+#endif
 
 /* Dan Ellis libblosca functions */
 const float *choose_from_lutset(float period, lut_entry *lutset, int16_t *plut_size) {
@@ -376,16 +380,25 @@ void sine_mod_trigger(uint8_t osc) {
     sine_note_on(osc);
 }
 
+// returns a # between -1 and 1
+float get_random() {
+#ifdef ESP_PLATFORM
+    return (((float)esp_random() / UINT32_MAX) * 2.0) - 1.0;
+#else
+    return (rand() / (float)RAND_MAX * 2.0) - 1.0;
+#endif
+}
+
 /* noise */
 
 void render_noise(float *buf, uint8_t osc) {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        buf[i] = (rand() / (float)RAND_MAX * 2.0) - 1.0;
+        buf[i] = get_random() * msynth[osc].amp; 
     }
 }
 
 float compute_mod_noise(uint8_t osc) {
-    return (rand() / (float)RAND_MAX * 2.0) - 1.0;
+    return get_random() * msynth[osc].amp;
 }
 
 /* karplus-strong */
@@ -409,7 +422,7 @@ void ks_note_on(uint8_t osc) {
     if(buflen > MAX_KS_BUFFER_LEN) buflen = MAX_KS_BUFFER_LEN;
     // init KS buffer with noise up to max
     for(uint16_t i=0;i<buflen;i++) {
-        ks_buffer[ks_polyphony_index][i] = (rand() / (float)RAND_MAX * 2.0) - 1.0;
+        ks_buffer[ks_polyphony_index][i] = get_random();
     }
     ks_polyphony_index++;
     if(ks_polyphony_index == KS_OSCS) ks_polyphony_index = 0;
