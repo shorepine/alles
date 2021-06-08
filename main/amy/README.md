@@ -13,7 +13,9 @@
  * Selectable FM-style algorithms for modulating frequency and mixing oscillators
  * Partial synthesis in the style of Alles or Atari's AMY
 
-AMY's wire protocol is a series of ascii characters that define all possible parameters of a voice. You can use any language to pass AMY commands to the synthesizer and render audio samples back using a very simple API:
+AMY's wire protocol is a series of ascii characters that define all possible parameters of an oscillator. This was a design decision to make using AMY from any sort of environment as easy as possible, with no data structure or parsing overhead on the client. It's also readable and compact, and far more expressive than MIDI. We send AMY messages over multicast UDP to power [`alles`](https://github.com/bwhitman/alles). 
+
+You can use any language to pass AMY commands to the synthesizer and render audio samples back using a very simple API:
 
 ```c
 #include "amy.h"
