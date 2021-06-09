@@ -63,8 +63,32 @@ const float *choose_from_lutset(float period, lut_entry *lutset, int16_t *plut_s
 }
 
 
+float render_lut_with_feedback(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float feedback_level) { 
+    // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
+    int lut_mask = lut_size - 1;
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+        // Floor is very slow on the esp32, so we just cast. Dan told me to add this comment. -- baw
+        //uint16_t base_index = (uint16_t)floor(step);
+        uint16_t base_index = (uint16_t)step;
+        float frac = step - (float)base_index;
+        float b = lut[(base_index + 0) & lut_mask];
+        float c = lut[(base_index + 1) & lut_mask];
+        // linear interpolation.
+        float sample = b + ((c - b) * frac);
+        buf[i] = sample * amp;
+
+        float average;
+        // "Tomisawa’s anti-hunting filter. The latter is used in all PM synths by Yamaha to stop self-feedback going crazy: 
+        // the input from feedback is actually the mean of the previous two samples, not just the most recent sample."
+        if(i>1) average  = (buf[i-2] + buf[i-1]) / 2.0; else average  = buf[i];
+        step += skip * (1 + average * feedback_level);
+        if(step >= lut_size) step -= lut_size;
+    }
+    return step;
+}
+
 // This is copying from Pure Data's tabread4~.
-float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod, float feedback_level) { 
+float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod) { 
     // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
     int lut_mask = lut_size - 1;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -94,18 +118,7 @@ float render_lut(float * buf, float step, float skip, float amp, const float* lu
 
         // Are we doing FM?
         if(mod != NULL) {
-            // Is this a self-feedback operator?
-            if(feedback_level <= 0) {
-                // No, just do normal FM
-                step += skip * (1 + mod[i]);
-            } else {
-                float average;
-                // "Tomisawa’s anti-hunting filter. The latter is used in all PM synths by Yamaha to stop self-feedback going crazy: 
-                // the input from feedback is actually the mean of the previous two samples, not just the most recent sample."
-                if(i>1) average  = (mod[i-2] + mod[i-1]) / 2.0; else average  = mod[i];
-                step += skip * (1 + average * feedback_level);
-            }
-
+            step += skip * (1 + mod[i]);
         } else {
             step += skip;
         }

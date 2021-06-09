@@ -178,6 +178,7 @@ void stop_amy();
 // bandlimted oscs
 extern void lpf_buf(float *buf, float decay, float *state);
 extern float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod);
+extern float render_lut_with_feedback(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float feedback_level);
 extern void clear_buf(float *buf);
 extern void cumulate_buf(const float *from, float *dest);
 
