@@ -64,7 +64,7 @@ const float *choose_from_lutset(float period, lut_entry *lutset, int16_t *plut_s
 
 
 // This is copying from Pure Data's tabread4~.
-float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod) { 
+float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod, float feedback_level) { 
     // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
     int lut_mask = lut_size - 1;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -91,8 +91,21 @@ float render_lut(float * buf, float step, float skip, float amp, const float* lu
         float sample = b + frac * (cminusb - 0.1666667f * (1.-frac) * ((d - a - 3.0f * cminusb) * frac + (d + 2.0f*a - 3.0f*b)));
 #endif /* LINEAR_INTERP */
         buf[i] = sample * amp;
+
+        // Are we doing FM?
         if(mod != NULL) {
-            step += skip * (1 + mod[i]);
+            // Is this a self-feedback operator?
+            if(feedback_level <= 0) {
+                // No, just do normal FM
+                step += skip * (1 + mod[i]);
+            } else {
+                float average;
+                // "Tomisawa’s anti-hunting filter. The latter is used in all PM synths by Yamaha to stop self-feedback going crazy: 
+                // the input from feedback is actually the mean of the previous two samples, not just the most recent sample."
+                if(i>1) average  = (mod[i-2] + mod[i-1]) / 2.0; else average  = mod[i];
+                step += skip * (1 + average * feedback_level);
+            }
+
         } else {
             step += skip;
         }
