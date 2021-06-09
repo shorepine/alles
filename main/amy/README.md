@@ -97,6 +97,7 @@ alles.local_stop()
 ```
 $ cd alles/main/amy
 $ python3 setup.py install
+$ python3 -m pip install sounddevice # needed to render live audio in the shell
 ```
 
 
