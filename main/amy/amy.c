@@ -236,6 +236,9 @@ void reset_osc(uint8_t i ) {
     synth[i].algo_source[1] = -1;
     synth[i].algo_source[2] = -1;
     synth[i].algo_source[3] = -1;
+    synth[i].last_two[0] = 0;
+    synth[i].last_two[1] = 0;
+    synth[i].feedback_level = 0;
 }
 
 void reset_oscs() {
@@ -253,6 +256,7 @@ void reset_oscs() {
 int8_t oscs_init() {
     ks_init();
     filters_init();
+    algo_init();
     events = (struct delta*)malloc(sizeof(struct delta) * EVENT_FIFO_LEN);
     synth = (struct event*) malloc(sizeof(struct event) * OSCS);
     msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * OSCS);
@@ -454,10 +458,10 @@ void render_task(uint8_t start, uint8_t end, uint8_t core) {
             for(uint16_t i=0;i<BLOCK_SIZE;i++) { per_osc_fb[i] = 0; }
             hold_and_modify(osc); // apply ADSR / mod
             if(synth[osc].wave == NOISE) render_noise(per_osc_fb, osc);
-            if(synth[osc].wave == SAW) render_saw(per_osc_fb, osc, NULL);
-            if(synth[osc].wave == PULSE) render_pulse(per_osc_fb, osc, NULL);
-            if(synth[osc].wave == TRIANGLE) render_triangle(per_osc_fb, osc, NULL);
-            if(synth[osc].wave == SINE) render_sine(per_osc_fb, osc, NULL);
+            if(synth[osc].wave == SAW) render_saw(per_osc_fb, osc);
+            if(synth[osc].wave == PULSE) render_pulse(per_osc_fb, osc);
+            if(synth[osc].wave == TRIANGLE) render_triangle(per_osc_fb, osc);
+            if(synth[osc].wave == SINE) render_sine(per_osc_fb, osc);
             if(synth[osc].wave == KS) render_ks(per_osc_fb, osc);
             if(synth[osc].wave == PCM) render_pcm(per_osc_fb, osc);
             if(synth[osc].wave == ALGO) render_algo(per_osc_fb, osc);

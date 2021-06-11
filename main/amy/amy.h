@@ -137,6 +137,8 @@ struct event {
     float eq_l;
     float eq_m;
     float eq_h;
+    float feedback_level;
+    float last_two[2];
 };
 
 // events, but only the things that mods/env can change. one per osc
@@ -176,20 +178,22 @@ void start_amy();
 void stop_amy();
 
 // bandlimted oscs
-extern void lpf_buf(float *buf, float decay, float *state);
-extern float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod);
+/*extern void lpf_buf(float *buf, float decay, float *state);
+extern float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size);
 extern float render_lut_with_feedback(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float feedback_level);
 extern void clear_buf(float *buf);
 extern void cumulate_buf(const float *from, float *dest);
+*/
 
 extern void ks_init();
 extern void ks_deinit();
-
+extern void algo_init();
 extern void render_ks(float * buf, uint8_t osc); 
-extern void render_sine(float * buf, uint8_t osc, float *mod); 
-extern void render_pulse(float * buf, uint8_t osc, float *mod); 
-extern void render_saw(float * buf, uint8_t osc, float* mod);
-extern void render_triangle(float * buf, uint8_t osc, float *mod); 
+extern void render_sine(float * buf, uint8_t osc); 
+extern void render_fm_sine(float * buf, uint8_t osc, float *mod); 
+extern void render_pulse(float * buf, uint8_t osc); 
+extern void render_saw(float * buf, uint8_t osc);
+extern void render_triangle(float * buf, uint8_t osc); 
 extern void render_noise(float * buf, uint8_t osc); 
 extern void render_pcm(float * buf, uint8_t osc);
 extern void render_algo(float * buf, uint8_t osc) ;
@@ -204,6 +208,7 @@ extern float compute_mod_pcm(uint8_t osc);
 extern void ks_note_on(uint8_t osc); 
 extern void ks_note_off(uint8_t osc);
 extern void sine_note_on(uint8_t osc); 
+extern void fm_sine_note_on(uint8_t osc); 
 extern void saw_note_on(uint8_t osc); 
 extern void triangle_note_on(uint8_t osc); 
 extern void pulse_note_on(uint8_t osc); 

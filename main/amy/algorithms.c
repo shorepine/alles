@@ -78,20 +78,12 @@ void mix(float *a, float*b, float *out) {
 
 void render_mod(float *in, float*out, int8_t osc) {
     hold_and_modify(osc);
-    if(synth[osc].wave == NOISE) render_noise(out, osc);
-    if(synth[osc].wave == SAW) render_saw(out, osc, in);
-    if(synth[osc].wave == PULSE) render_pulse(out, osc, in);
-    if(synth[osc].wave == TRIANGLE) render_triangle(out, osc, in);
-    if(synth[osc].wave == SINE) render_sine(out, osc, in);
+    if(synth[osc].wave == SINE) render_fm_sine(out, osc, in);
 }
 
 void note_on_mod(int8_t osc) {
     synth[osc].adsr_on_clock = total_samples;
-    if(synth[osc].wave==SINE) sine_note_on(osc);
-    if(synth[osc].wave==SAW) saw_note_on(osc);
-    if(synth[osc].wave==TRIANGLE) triangle_note_on(osc);
-    if(synth[osc].wave==PULSE) pulse_note_on(osc);
-    if(synth[osc].wave==PCM) pcm_note_on(osc);
+    if(synth[osc].wave==SINE) fm_sine_note_on(osc);
 }
 
 void algo_note_off(uint8_t osc) {
@@ -122,6 +114,14 @@ void algo_note_on(uint8_t osc) {
         note_on_mod(synth[osc].algo_source[0]);
         note_on_mod(synth[osc].algo_source[1]);        
     }
+    if(synth[osc].algorithm==5) {
+        note_on_mod(synth[osc].algo_source[0]);        
+    }
+}
+float zeros[BLOCK_SIZE];
+
+void algo_init() {
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) zeros[i] = 0;
 }
 
 void render_algo(float * buf, uint8_t osc) { 
@@ -129,7 +129,7 @@ void render_algo(float * buf, uint8_t osc) {
     switch(synth[osc].algorithm) {
         case 0:
             // 0->1->2->C
-            render_mod(NULL, scratch[0], synth[osc].algo_source[0]);
+            render_mod(zeros, scratch[0], synth[osc].algo_source[0]);
             render_mod(scratch[0], scratch[1], synth[osc].algo_source[1]);
             render_mod(scratch[1], scratch[0], synth[osc].algo_source[2]);
             render_mod(scratch[0], buf, synth[osc].algo_source[3]);
@@ -137,23 +137,23 @@ void render_algo(float * buf, uint8_t osc) {
             break;
         case 1:
             //(0+1)->2->C
-            render_mod(NULL, scratch[0], synth[osc].algo_source[0]);
-            render_mod(NULL, scratch[1], synth[osc].algo_source[1]);
+            render_mod(zeros, scratch[0], synth[osc].algo_source[0]);
+            render_mod(zeros, scratch[1], synth[osc].algo_source[1]);
             mix(scratch[0], scratch[1], scratch[0]);
             render_mod(scratch[0], scratch[1], synth[osc].algo_source[2]);
             render_mod(scratch[1], buf, osc);
             break;
         case 2:
             // ((0->1)+2)->C
-            render_mod(NULL, scratch[0], synth[osc].algo_source[0]);
+            render_mod(zeros, scratch[0], synth[osc].algo_source[0]);
             render_mod(scratch[0], scratch[1], synth[osc].algo_source[1]);
-            render_mod(NULL, scratch[0], synth[osc].algo_source[2]);
+            render_mod(zeros, scratch[0], synth[osc].algo_source[2]);
             mix(scratch[1], scratch[0], scratch[1]);
             render_mod(scratch[1], buf, osc);
             break;
         case 3:
             // 0->(1+2)->C
-            render_mod(NULL, scratch[0], synth[osc].algo_source[0]);
+            render_mod(zeros, scratch[0], synth[osc].algo_source[0]);
             render_mod(scratch[0], scratch[1], synth[osc].algo_source[1]);
             render_mod(scratch[0], buf, synth[osc].algo_source[2]);
             mix(scratch[1], buf, scratch[0]);
@@ -161,8 +161,13 @@ void render_algo(float * buf, uint8_t osc) {
             break;
         case 4:
             // 0->C
-            render_mod(NULL, scratch[0], synth[osc].algo_source[0]);
+            render_mod(zeros, scratch[0], synth[osc].algo_source[0]);
             render_mod(scratch[0], buf, synth[osc].algo_source[1]);
+            break;
+        case 5:
+            // 0
+            //printf("Case 5, algo source is %d\n",synth[osc].algo_source[0] );
+            render_mod(zeros, buf, synth[osc].algo_source[0]);
             break;
     }
     // freq and etc can go elsehwere

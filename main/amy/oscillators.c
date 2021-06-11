@@ -62,33 +62,84 @@ const float *choose_from_lutset(float period, lut_entry *lutset, int16_t *plut_s
     return lut_table;
 }
 
+/*
 
-float render_lut_with_feedback(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float feedback_level) { 
-    // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
+def lut(table, indices):
+  """Look up samples in a table.  indices are floats in range 0..1."""
+  tab_size = len(table)
+  scaled_indices = indices * tab_size
+  base_indices = np.floor(scaled_indices).astype(int)
+  frac_part = scaled_indices - base_indices
+  # Linear interpolation.
+  base_samples = table[base_indices % tab_size]
+  return base_samples + frac_part * (table[(base_indices + 1) % tab_size] - base_samples)
+
+*/
+
+
+/*
+
+tab_size = 256
+sin_tab = np.sin(np.arange(tab_size) * 2 * np.pi / tab_size)
+
+def fm_osc(period, num_samples, table=sin_tab, feedback=0.0, modulator=None):
+  step = 1.0 / period
+  tab_size = len(table)
+  output = np.zeros(num_samples)
+  if modulator is None:
+    modulator = np.zeros(num_samples)
+  if not len(modulator) == num_samples:
+    raise ValueError("modulator must be None, or a vector of length num_samples")
+  if isinstance(feedback, float):
+    feedback = feedback * np.ones(num_samples)
+  phase = 0.0
+  past = np.zeros(2)
+  for i in range(num_samples):
+    scaled_phase = tab_size * (phase + modulator[i] + feedback[i] * np.mean(past))
+    base_index = np.floor(scaled_phase).astype(int)
+    frac = scaled_phase - base_index
+    base_sample = table[base_index % tab_size]
+    next_sample = table[(base_index + 1) % tab_size]
+    output[i] = base_sample + frac * (next_sample - base_sample)
+    phase += step
+    past[1] = past[0]
+    past[0] = output[i]
+  # Final phase, should we want to carry on (but we'd need to preserve past[] too)
+  phase = phase - np.floor(phase)
+  return output
+
+*/
+
+// dictionary:
+// oldC -- python
+// step == scaled_phase
+// skip == step (scaled_step)
+
+float render_lut_fm_osc(float * buf, float phase, float step, float amp, const float* lut, int16_t lut_size, float * mod, float feedback_level, float * last_two) { 
     int lut_mask = lut_size - 1;
+    float past0 = last_two[0];
+    float past1 = last_two[1];
+    //printf("Incoming phase %f. step %f feedback %f last_two %f %f\n", phase, step, feedback_level, last_two[0], last_two[1]);
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        // Floor is very slow on the esp32, so we just cast. Dan told me to add this comment. -- baw
-        //uint16_t base_index = (uint16_t)floor(step);
-        uint16_t base_index = (uint16_t)step;
-        float frac = step - (float)base_index;
-        float b = lut[(base_index + 0) & lut_mask];
-        float c = lut[(base_index + 1) & lut_mask];
-        // linear interpolation.
+        float scaled_phase = lut_size * (phase + mod[i] + feedback_level * ((past1 + past0) / 2.0));
+        int base_index = (int)scaled_phase;
+        float frac = scaled_phase - base_index;
+        //printf("Trying to access lut[%d]. base_index %d lut_mask %d. frac %f step %f\n", base_index & lut_mask, base_index, lut_mask, frac, step);
+        float b = lut[base_index & lut_mask];
+        float c = lut[(base_index+1) & lut_mask];
         float sample = b + ((c - b) * frac);
         buf[i] = sample * amp;
-
-        float average;
-        // "Tomisawa’s anti-hunting filter. The latter is used in all PM synths by Yamaha to stop self-feedback going crazy: 
-        // the input from feedback is actually the mean of the previous two samples, not just the most recent sample."
-        if(i>1) average  = (buf[i-2] + buf[i-1]) / 2.0; else average  = buf[i];
-        step += skip * (1 + average * feedback_level);
-        if(step >= lut_size) step -= lut_size;
+        phase += step;
+        phase -= (int)phase;
+        past1 = past0;
+        past0 = sample;
     }
-    return step;
+    last_two[0] = past0;
+    last_two[1] = past1;
+    return phase;// - (int)phase;
 }
-
 // This is copying from Pure Data's tabread4~.
-float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod) { 
+float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size) { 
     // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
     int lut_mask = lut_size - 1;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -116,12 +167,7 @@ float render_lut(float * buf, float step, float skip, float amp, const float* lu
 #endif /* LINEAR_INTERP */
         buf[i] = sample * amp;
 
-        // Are we doing FM?
-        if(mod != NULL) {
-            step += skip * (1 + mod[i]);
-        } else {
-            step += skip;
-        }
+        step += skip;
         if(step >= lut_size) step -= lut_size;
     }
     return step;
@@ -223,7 +269,7 @@ void pulse_note_on(uint8_t osc) {
     synth[osc].lpf_state = -0.5 * amp * synth[osc].lut[0];
 }
 
-void render_pulse(float * buf, uint8_t osc, float *mod) {
+void render_pulse(float * buf, uint8_t osc) {
     // LPF time constant should be ~ 10x osc period, so droop is minimal.
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lpf_alpha = 1.0 - 1.0 / (10.0 * period_samples);
@@ -235,8 +281,8 @@ void render_pulse(float * buf, uint8_t osc, float *mod) {
     float amp = msynth[osc].amp * skip * 4.0 / synth[osc].lut_size;
     float pwm_step = synth[osc].step + duty * synth[osc].lut_size;
     if (pwm_step >= synth[osc].lut_size)  pwm_step -= synth[osc].lut_size;
-    synth[osc].step = render_lut(buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size, mod);
-    render_lut(buf, pwm_step, skip, -amp, synth[osc].lut, synth[osc].lut_size, mod);
+    synth[osc].step = render_lut(buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size);
+    render_lut(buf, pwm_step, skip, -amp, synth[osc].lut, synth[osc].lut_size);
     lpf_buf(buf, synth[osc].lpf_alpha, &synth[osc].lpf_state);
 }
 
@@ -287,14 +333,14 @@ void saw_note_on(uint8_t osc) {
     synth[osc].dc_offset = -lut_sum / synth[osc].lut_size;
 }
 
-void render_saw(float * buf, uint8_t osc, float *mod) {
+void render_saw(float * buf, uint8_t osc) {
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lpf_alpha = 1.0 - 1.0 / (10.0 * period_samples);
     float skip = synth[osc].lut_size / period_samples;
     // Scale the impulse proportional to the skip so its integral remains ~constant.
     float amp = msynth[osc].amp * skip * 4.0 / synth[osc].lut_size;
     synth[osc].step = render_lut(
-          buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size, mod);
+          buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size);
     // Give the impulse train a negative bias so that it integrates to zero mean.
     float offset = amp * synth[osc].dc_offset;
     for (int i = 0; i < BLOCK_SIZE; ++i) {
@@ -334,11 +380,11 @@ void triangle_note_on(uint8_t osc) {
     synth[osc].step = (float)synth[osc].lut_size * synth[osc].phase;
 }
 
-void render_triangle(float * buf, uint8_t osc, float *mod) {
+void render_triangle(float * buf, uint8_t osc) {
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     float skip = synth[osc].lut_size / period_samples;
     float amp = msynth[osc].amp;
-    synth[osc].step = render_lut(buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size, mod);
+    synth[osc].step = render_lut(buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size);
 }
 
 
@@ -367,6 +413,18 @@ float compute_mod_triangle(uint8_t osc) {
     
 }
 
+/* FM */
+// NB this uses new lingo for step, skip, phase etc
+void fm_sine_note_on(uint8_t osc) {
+    float period_samples = (float)SAMPLE_RATE / synth[osc].freq;
+    synth[osc].lut = choose_from_lutset(period_samples, sine_lutset, &synth[osc].lut_size);
+}
+void render_fm_sine(float *buf, uint8_t osc, float *mod) {
+    float step = msynth[osc].freq / (float)SAMPLE_RATE;
+    synth[osc].phase = render_lut_fm_osc(buf, synth[osc].phase, step, msynth[osc].amp, 
+                 synth[osc].lut, synth[osc].lut_size, mod, synth[osc].feedback, synth[osc].last_two);
+}
+
 /* sine */
 
 void sine_note_on(uint8_t osc) {
@@ -376,10 +434,10 @@ void sine_note_on(uint8_t osc) {
     synth[osc].step = (float)synth[osc].lut_size * synth[osc].phase;
 }
 
-void render_sine(float * buf, uint8_t osc, float *mod) { 
+void render_sine(float * buf, uint8_t osc) { 
     float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
     synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
-				 synth[osc].lut, synth[osc].lut_size, mod);
+				 synth[osc].lut, synth[osc].lut_size);
 }
 
 // TOOD -- not needed anymore
