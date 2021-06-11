@@ -87,20 +87,15 @@ void note_on_mod(int8_t osc) {
 }
 
 void algo_note_off(uint8_t osc) {
-    if(synth[osc].algorithm>=0 && synth[osc].algorithm<4) {
-        for(uint8_t i=0;i<4;i++) {
-            uint8_t o = synth[osc].algo_source[i];
-            synth[o].adsr_on_clock = -1;
-            synth[o].adsr_off_clock = total_samples; // esp_timer_get_time() / 1000;
-        }            
-    }
-    if(synth[osc].algorithm==4) {
-        for(uint8_t i=0;i<2;i++) {
-            uint8_t o = synth[osc].algo_source[i];
-            synth[o].adsr_on_clock = -1;
-            synth[o].adsr_off_clock = total_samples; // esp_timer_get_time() / 1000;
-        }            
-    }
+    uint8_t algo_source_count = 4;
+    if(synth[osc].algorithm==4) algo_source_count = 2;
+    if(synth[osc].algorithm==5) algo_source_count = 1;
+    for(uint8_t i=0;i<algo_source_count;i++) {
+        uint8_t o = synth[osc].algo_source[i];
+        synth[o].adsr_on_clock = -1;
+        synth[o].adsr_off_clock = total_samples; // esp_timer_get_time() / 1000;
+        synth[o].amp = 0;
+    }            
 }
 
 void algo_note_on(uint8_t osc) {    
