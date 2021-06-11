@@ -201,7 +201,7 @@ void reset_osc(uint8_t i ) {
     synth[i].midi_note = 0;
     synth[i].freq = 0;
     msynth[i].freq = 0;
-    synth[i].feedback = 0.996;
+    synth[i].feedback = 0; //.996; TODO KS feedback is v different from FM feedback
     synth[i].amp = 1;
     msynth[i].amp = 1;
     synth[i].phase = 0;
