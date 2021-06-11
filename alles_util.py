@@ -25,47 +25,79 @@ elif(os.uname().nodename=='cedar.local'):
 
 sock = 0
 ALLES_LATENCY_MS = 1000
+AMY_LATENCY_MS = 10
+AMY_BLOCK_SIZE = 128
+AMY_SAMPLE_RATE = 44100.0
 is_local = False
+is_immediate = False
 stream = None
 
 # Functions for AMY local mode
 try:
     import sounddevice as sd
     import amy
+    import numpy as np
+    sd.default.samplerate = AMY_SAMPLE_RATE
+    sd.default.channels = 1
+
 except ImportError:
     pass
 
-def amy_callback(indata, outdata, frames, time, status):
-    f = frames
-    c = 0
-    while(f>0):
-        samps = amy.render()
-        for i in samps:
-            outdata[c] = i/32767.0
-            c = c + 1
-        f = f - 128
 
-def local_start():
-    global is_local, stream
-    # Start a local AMY session
+def play_audio(samples):
+    sd.play(samples)
+
+def amy_render(seconds):
+    # Output a npy array of samples
+    frame_count = int((seconds*AMY_SAMPLE_RATE)/AMY_BLOCK_SIZE)
+    #print("Asked for %f seconds or %d amy frames" % (seconds, frame_count))
+    frames = []
+    for f in range(frame_count):
+        frames.append( np.array(amy.render())/32767.0 )
+    return np.hstack(frames)
+
+def amy_callback(indata, outdata, frames, time, status):
+    outdata = amy_render(frames/AMY_SAMPLE_RATE)
+
+def amy_start():
+    global is_local, is_immediate
     if(is_local):
         print("Already started AMY")
     else:
+        # Set immediate until live is started
         is_local = True
-        sd.default.samplerate = 44100
-        sd.default.channels = 1
-        stream = sd.Stream(callback=amy_callback)
+        is_immediate = True
         amy.start()
-        stream.start()
 
-def local_stop():
-    global stream, is_local
+def amy_stop():
+    global is_local, is_immediate
     if(not is_local):
         print("AMY not running")
     else:
-        stream.stop()
         amy.stop()
         is_local = False
+        is_immediate = False
+
+
+def live():
+    global stream, is_immediate
+    amy_start()
+    if stream is not None:
+        print("Stream running")
+    else:
+        is_immediate = False
+        stream = sd.Stream(callback=amy_callback)
+        stream.start()
+
+def live_stop():
+    global stream
+    if stream is None:
+        print("Stream already stopped")
+    else:
+        stream.stop()
+        stream = None
+        amy_stop()
+
 
 def connect():
     # Set up the socket for multicast send & receive
@@ -222,6 +254,7 @@ def transmit(message, retries=1):
     global is_local
     if(is_local):
         import amy
+        print(message)
         amy.send(message)
     for x in range(retries):
         sock.sendto(message.encode('ascii'), multicast_group)
@@ -245,9 +278,11 @@ def trunc(number):
 def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, adsr_target=-1, lfo_target=-1, \
         debug=-1, lfo_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, algo_source=None):
-    global sock, send_buffer, buffer_size
-    if(timestamp is None): timestamp = millis()
-    m = "t" + trunc(timestamp)
+    global sock, send_buffer, buffer_size, is_immediate
+    m = ""
+    if(not is_immediate):
+        if(timestamp is None): timestamp = millis()
+        m = m + "t" + trunc(timestamp)
     if(osc>=0): m = m + "v" + trunc(osc)
     if(wave>=0): m = m + "w" + trunc(wave)
     if(duty>=0): m = m + "d" + trunc(duty)
