@@ -80,23 +80,14 @@ struct event default_event() {
     e.filter_type = -1;
     e.mod_source = -1;
     e.mod_target = -1;
-    e.adsr_target = -1;
-    e.adsr_on_clock = -1;
-    e.adsr_off_clock = -1;
-    e.adsr_a = -1;
-    e.adsr_d = -1;
-    e.adsr_s = -1;
-    e.adsr_r = -1;
+    e.note_on_clock = -1;
+    e.note_off_clock = -1;
     e.eq_l = -1;
     e.eq_m = -1;
     e.eq_h = -1;
     e.algorithm = -1;
-    e.algo_source[0] = -1;
-    e.algo_source[1] = -1;
-    e.algo_source[2] = -1;
-    e.algo_source[3] = -1;
-    e.algo_source[4] = -1;
-    e.algo_source[5] = -1;
+    for(uint8_t i=0;i<MAX_ALGO_OPS;i++) e.algo_source[i] = -1;
+    for(uint8_t i=0;i<MAX_BREAKPOINT_SETS;i++) { for(uint8_t j=0;j<MAX_BREAKPOINTS;j++) { e.breakpoint_times[i][j] = -1; e.breakpoint_values[i][j] = -1; } e.breakpoint_target[i] = -1; }
     return e;
 }
 
@@ -175,19 +166,19 @@ void add_event(struct event e) {
     if(e.resonance>-1) { d.param=RESONANCE; d.data = *(uint32_t *)&e.resonance; add_delta_to_queue(d); }
     if(e.mod_source>-1) { d.param=MOD_SOURCE; d.data = *(uint32_t *)&e.mod_source; add_delta_to_queue(d); }
     if(e.mod_target>-1) { d.param=MOD_TARGET; d.data = *(uint32_t *)&e.mod_target; add_delta_to_queue(d); }
-    if(e.adsr_target>-1) { d.param=ADSR_TARGET; d.data = *(uint32_t *)&e.adsr_target; add_delta_to_queue(d); }
+    if(e.breakpoint_target[0]>-1) { d.param=BP0_TARGET; d.data = *(uint32_t *)&e.breakpoint_target[0]; add_delta_to_queue(d); }
+    if(e.breakpoint_target[1]>-1) { d.param=BP1_TARGET; d.data = *(uint32_t *)&e.breakpoint_target[1]; add_delta_to_queue(d); }
     if(e.filter_type>-1) { d.param=FILTER_TYPE; d.data = *(uint32_t *)&e.filter_type; add_delta_to_queue(d); }
     if(e.algorithm>-1) { d.param=ALGORITHM; d.data = *(uint32_t *)&e.algorithm; add_delta_to_queue(d); }
-    if(e.adsr_a>-1) { d.param=ADSR_A; d.data = *(uint32_t *)&e.adsr_a; add_delta_to_queue(d); }
-    if(e.adsr_d>-1) { d.param=ADSR_D; d.data = *(uint32_t *)&e.adsr_d; add_delta_to_queue(d); }
-    if(e.adsr_s>-1) { d.param=ADSR_S; d.data = *(uint32_t *)&e.adsr_s; add_delta_to_queue(d); }
-    if(e.adsr_r>-1) { d.param=ADSR_R; d.data = *(uint32_t *)&e.adsr_r; add_delta_to_queue(d); }
-    if(e.algo_source[0]>-1) { d.param=ALGO_SOURCE_0; d.data = *(uint32_t *)&e.algo_source[0]; add_delta_to_queue(d); }
-    if(e.algo_source[1]>-1) { d.param=ALGO_SOURCE_1; d.data = *(uint32_t *)&e.algo_source[1]; add_delta_to_queue(d); }
-    if(e.algo_source[2]>-1) { d.param=ALGO_SOURCE_2; d.data = *(uint32_t *)&e.algo_source[2]; add_delta_to_queue(d); }
-    if(e.algo_source[3]>-1) { d.param=ALGO_SOURCE_3; d.data = *(uint32_t *)&e.algo_source[3]; add_delta_to_queue(d); }
-    if(e.algo_source[4]>-1) { d.param=ALGO_SOURCE_4; d.data = *(uint32_t *)&e.algo_source[4]; add_delta_to_queue(d); }
-    if(e.algo_source[5]>-1) { d.param=ALGO_SOURCE_5; d.data = *(uint32_t *)&e.algo_source[5]; add_delta_to_queue(d); }
+    for(uint8_t i=0;i<MAX_ALGO_OPS;i++) 
+        if(e.algo_source[i]>-1) { d.param=ALGO_SOURCE_START+i; d.data = *(uint32_t *)&e.algo_source[i]; add_delta_to_queue(d); }
+    for(uint8_t i=0;i<MAX_BREAKPOINTS;i++) {
+        if(e.breakpoint_times[0][i]>-1) { d.param=BP_START+(i*2)+(0*MAX_BREAKPOINTS*2); d.data = *(uint32_t *)&e.breakpoint_times[0][i]; add_delta_to_queue(d); }
+        if(e.breakpoint_times[1][i]>-1) { d.param=BP_START+(i*2)+(1*MAX_BREAKPOINTS*2); d.data = *(uint32_t *)&e.breakpoint_times[1][i]; add_delta_to_queue(d); }
+        if(e.breakpoint_values[0][i]>-1) { d.param=BP_START+(i*2 + 1)+(0*MAX_BREAKPOINTS*2); d.data = *(uint32_t *)&e.breakpoint_values[0][i]; add_delta_to_queue(d); }
+        if(e.breakpoint_values[1][i]>-1) { d.param=BP_START+(i*2 + 1)+(1*MAX_BREAKPOINTS*2); d.data = *(uint32_t *)&e.breakpoint_values[1][i]; add_delta_to_queue(d); }
+    }
+
     if(e.eq_l>-1) { d.param=EQ_L; d.data = *(uint32_t *)&e.eq_l; add_delta_to_queue(d); }
     if(e.eq_m>-1) { d.param=EQ_M; d.data = *(uint32_t *)&e.eq_m; add_delta_to_queue(d); }
     if(e.eq_h>-1) { d.param=EQ_H; d.data = *(uint32_t *)&e.eq_h; add_delta_to_queue(d); }
@@ -227,27 +218,17 @@ void reset_osc(uint8_t i ) {
     synth[i].status = OFF;
     synth[i].mod_source = -1;
     synth[i].mod_target = 0; 
-    synth[i].adsr_target = 0;
-    synth[i].adsr_on_clock = -1;
-    synth[i].adsr_off_clock = -1;
+    synth[i].note_on_clock = -1;
+    synth[i].note_off_clock = -1;
     synth[i].filter_type = FILTER_NONE;
-    synth[i].adsr_a = 0;
-    synth[i].adsr_d = 0;
-    synth[i].adsr_s = 1.0;
-    synth[i].adsr_r = 0;
     synth[i].lpf_state = 0;
     synth[i].lpf_alpha = 0;
     synth[i].dc_offset = 0;
     synth[i].algorithm = 0;
-    synth[i].algo_source[0] = -1;
-    synth[i].algo_source[1] = -1;
-    synth[i].algo_source[2] = -1;
-    synth[i].algo_source[3] = -1;
-    synth[i].algo_source[4] = -1;
-    synth[i].algo_source[5] = -1;
+    for(uint8_t j=0;j<MAX_ALGO_OPS;j++) synth[i].algo_source[j] = -1;
+    for(uint8_t j=0;j<MAX_BREAKPOINT_SETS;j++) { for(uint8_t k=0;k<MAX_BREAKPOINTS;k++) { synth[i].breakpoint_times[j][k] =-1; synth[i].breakpoint_values[j][k] = -1; } synth[i].breakpoint_target[j] = 0; }
     synth[i].last_two[0] = 0;
     synth[i].last_two[1] = 0;
-    synth[i].feedback_level = 0;
 }
 
 void reset_oscs() {
@@ -322,11 +303,20 @@ void show_debug(uint8_t type) {
         printf("global: volume %f eq: %f %f %f \n", global.volume, global.eq[0], global.eq[1], global.eq[2]);
         //printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
         for(uint8_t i=0;i<OSCS;i++) {
-            printf("osc %d: status %d amp %f wave %d freq %f duty %f adsr_target %d mod_target %d mod source %d velocity %f filter_freq %f freq_ratio %f feedback %f resonance %f E: %d,%d,%2.2f,%d step %f algo %d source %d,%d,%d,%d,%d,%d  \n",
-                i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].adsr_target, synth[i].mod_target, synth[i].mod_source, 
-                synth[i].velocity, synth[i].filter_freq, synth[i].freq_ratio, synth[i].feedback, synth[i].resonance, synth[i].adsr_a, synth[i].adsr_d, synth[i].adsr_s, synth[i].adsr_r, synth[i].step, synth[i].algorithm, 
+            printf("osc %d: status %d amp %f wave %d freq %f duty %f mod_target %d mod source %d velocity %f filter_freq %f freq_ratio %f feedback %f resonance %f step %f algo %d source %d,%d,%d,%d,%d,%d  \n",
+                i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].mod_target, synth[i].mod_source, 
+                synth[i].velocity, synth[i].filter_freq, synth[i].freq_ratio, synth[i].feedback, synth[i].resonance, synth[i].step, synth[i].algorithm, 
                 synth[i].algo_source[0], synth[i].algo_source[1], synth[i].algo_source[2], synth[i].algo_source[3], synth[i].algo_source[4], synth[i].algo_source[5] );
-            if(type>3) printf("mod osc %d: amp: %f, freq %f duty %f filter_freq %f resonance %f \n", i, msynth[i].amp, msynth[i].freq, msynth[i].duty, msynth[i].filter_freq, msynth[i].resonance);
+            if(type>3) { 
+                for(uint8_t j=0;j<MAX_BREAKPOINT_SETS;j++) {
+                    printf("bp%d (target %d): ", j, synth[i].breakpoint_target[j]);
+                    for(uint8_t k=0;k<MAX_BREAKPOINTS;k++) {
+                        printf("%d: %f ", synth[i].breakpoint_times[j][k], synth[i].breakpoint_values[j][k]);
+                    }
+                }
+                printf("\n");
+                printf("mod osc %d: amp: %f, freq %f duty %f filter_freq %f resonance %f \n", i, msynth[i].amp, msynth[i].freq, msynth[i].duty, msynth[i].filter_freq, msynth[i].resonance);
+            }
         }
     }
 }
@@ -358,12 +348,21 @@ void play_event(struct delta d) {
     if(d.param == FEEDBACK) synth[d.osc].feedback = *(float *)&d.data;
     if(d.param == AMP) synth[d.osc].amp = *(float *)&d.data;
     if(d.param == FREQ) synth[d.osc].freq = *(float *)&d.data;
-    if(d.param == ADSR_TARGET) synth[d.osc].adsr_target = *(int8_t *)&d.data;
+    
 
-    if(d.param == ADSR_A) synth[d.osc].adsr_a = *(int32_t *)&d.data;
-    if(d.param == ADSR_D) synth[d.osc].adsr_d = *(int32_t *)&d.data;
-    if(d.param == ADSR_S) synth[d.osc].adsr_s = *(float *)&d.data;
-    if(d.param == ADSR_R) synth[d.osc].adsr_r = *(int32_t *)&d.data;
+
+    if(d.param == BP0_TARGET) synth[d.osc].breakpoint_target[0] = *(int8_t *)&d.data;
+    if(d.param == BP1_TARGET) synth[d.osc].breakpoint_target[1] = *(int8_t *)&d.data;
+    if(d.param >= BP_START && d.param < BP_END) {
+        uint8_t pos = d.param - BP_START;
+        uint8_t bp_set = 0;
+        if(pos > (MAX_BREAKPOINTS * 2)) { bp_set = 1; pos = pos - (MAX_BREAKPOINTS * 2); }
+        if(pos % 2 == 0) {
+            synth[d.osc].breakpoint_times[bp_set][pos / 2] = *(int32_t *)&d.data;
+        } else {
+            synth[d.osc].breakpoint_values[bp_set][(pos-1) / 2] = *(float *)&d.data;
+        }
+    }
 
     if(d.param == MOD_SOURCE) { synth[d.osc].mod_source = *(int8_t *)&d.data; synth[*(int8_t *)&d.data].status = IS_MOD_SOURCE; }
     if(d.param == MOD_TARGET) synth[d.osc].mod_target = *(int8_t *)&d.data; 
@@ -375,12 +374,12 @@ void play_event(struct delta d) {
     if(d.param == RESONANCE) synth[d.osc].resonance = *(float *)&d.data;
 
     if(d.param == ALGORITHM) synth[d.osc].algorithm = *(int8_t *)&d.data; 
-    if(d.param == ALGO_SOURCE_0) { synth[d.osc].algo_source[0] = *(int8_t *)&d.data; synth[*(int8_t*)&d.data].status=IS_ALGO_SOURCE; }
-    if(d.param == ALGO_SOURCE_1) { synth[d.osc].algo_source[1] = *(int8_t *)&d.data; synth[*(int8_t*)&d.data].status=IS_ALGO_SOURCE; }
-    if(d.param == ALGO_SOURCE_2) { synth[d.osc].algo_source[2] = *(int8_t *)&d.data; synth[*(int8_t*)&d.data].status=IS_ALGO_SOURCE; }
-    if(d.param == ALGO_SOURCE_3) { synth[d.osc].algo_source[3] = *(int8_t *)&d.data; synth[*(int8_t*)&d.data].status=IS_ALGO_SOURCE; }
-    if(d.param == ALGO_SOURCE_4) { synth[d.osc].algo_source[4] = *(int8_t *)&d.data; synth[*(int8_t*)&d.data].status=IS_ALGO_SOURCE; }
-    if(d.param == ALGO_SOURCE_5) { synth[d.osc].algo_source[5] = *(int8_t *)&d.data; synth[*(int8_t*)&d.data].status=IS_ALGO_SOURCE; }
+
+    if(d.param >= ALGO_SOURCE_START && d.param < ALGO_SOURCE_END) {
+        uint8_t which_source = d.param - ALGO_SOURCE_START;
+        synth[d.osc].algo_source[which_source] = *(int8_t *)&d.data; 
+        synth[*(int8_t*)&d.data].status=IS_ALGO_SOURCE;
+    }
 
     // For global changes, just make the change, no need to update the per-osc synth
     if(d.param == VOLUME) global.volume = *(float *)&d.data;
@@ -394,12 +393,12 @@ void play_event(struct delta d) {
         synth[d.osc].amp = *(float *)&d.data; // these could be decoupled, later
         synth[d.osc].velocity = *(float *)&d.data;
         synth[d.osc].status = AUDIBLE;
-        // Take care of FM & KS first -- no special treatment for ADSR/MOD
+        // Take care of FM & KS first -- no special treatment for bp/MOD
         if(synth[d.osc].wave==KS) { ks_note_on(d.osc); } 
         else {
             // an osc came in with a note on.
-            // Start the ADSR clock
-            synth[d.osc].adsr_on_clock = total_samples; //esp_timer_get_time() / 1000;
+            // Start the bp clock
+            synth[d.osc].note_on_clock = total_samples; //esp_timer_get_time() / 1000;
 
             // If there was a filter active for this voice, reset it
             if(synth[d.osc].filter_type != FILTER_NONE) update_filter(d.osc);
@@ -427,14 +426,14 @@ void play_event(struct delta d) {
         else if(synth[d.osc].wave==ALGO) { algo_note_off(d.osc); }
         else {
             // osc note off, start release
-            synth[d.osc].adsr_on_clock = -1;
-            synth[d.osc].adsr_off_clock = total_samples; // esp_timer_get_time() / 1000;
+            synth[d.osc].note_on_clock = -1;
+            synth[d.osc].note_off_clock = total_samples; // esp_timer_get_time() / 1000;
         }
     }
 
 }
 
-// Apply an mod & ADSR, if any, to the osc
+// Apply an mod & bp, if any, to the osc
 void hold_and_modify(uint8_t osc) {
     // Copy all the modifier variables
     msynth[osc].amp = synth[osc].amp;
@@ -443,24 +442,18 @@ void hold_and_modify(uint8_t osc) {
     msynth[osc].filter_freq = synth[osc].filter_freq;
     msynth[osc].resonance = synth[osc].resonance;
 
-    // Modify the synth params by scale -- ADSR scale is (original * scale)
-    float scale = compute_adsr_scale(osc);
-    if(synth[osc].adsr_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp * scale;
-    if(synth[osc].adsr_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty * scale;
-    if(synth[osc].adsr_target & TARGET_FREQ) {
-        //if(osc==6)
-            //printf("osc %d target %d scale: %f freq was %f and now is %f\n", osc, synth[osc].adsr_target, scale, msynth[osc].freq, msynth[osc].freq*scale);
-        msynth[osc].freq = msynth[osc].freq * scale;
+    // Modify the synth params by scale -- bp scale is (original * scale)
+    for(uint8_t i=0;i<MAX_BREAKPOINT_SETS;i++) {
+        float scale = compute_breakpoint_scale(osc, i);
+        if(synth[osc].breakpoint_target[i] & TARGET_AMP) msynth[osc].amp = msynth[osc].amp * scale;
+        if(synth[osc].breakpoint_target[i] & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty * scale;
+        if(synth[osc].breakpoint_target[i] & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq * scale;
+        if(synth[osc].breakpoint_target[i] & TARGET_FILTER_FREQ) msynth[osc].filter_freq = msynth[osc].filter_freq * scale;
+        if(synth[osc].breakpoint_target[i] & TARGET_RESONANCE) msynth[osc].resonance = msynth[osc].resonance * scale;
     }
-    if(synth[osc].adsr_target & TARGET_FILTER_FREQ) {
-        //printf("osc %d target %d scale: %f freq was %f and now is %f\n", osc, synth[osc].adsr_target, scale, msynth[osc].filter_freq, msynth[osc].filter_freq*scale);
-        msynth[osc].filter_freq = msynth[osc].filter_freq * scale;
-    }
-    if(synth[osc].adsr_target & TARGET_RESONANCE) msynth[osc].resonance = msynth[osc].resonance * scale;
-
 
     // And the mod -- mod scale is (original + (original * scale))
-    scale = compute_mod_scale(osc);
+    float scale = compute_mod_scale(osc);
     if(synth[osc].mod_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp + (msynth[osc].amp * scale);
     if(synth[osc].mod_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty + (msynth[osc].duty * scale);
     if(synth[osc].mod_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq + (msynth[osc].freq * scale);
@@ -474,7 +467,7 @@ void render_task(uint8_t start, uint8_t end, uint8_t core) {
     for(uint8_t osc=start; osc<end; osc++) {
         if(synth[osc].status==AUDIBLE) { // skip oscs that are silent or mod sources from playback
             for(uint16_t i=0;i<BLOCK_SIZE;i++) { per_osc_fb[i] = 0; }
-            hold_and_modify(osc); // apply ADSR / mod
+            hold_and_modify(osc); // apply bp / mod
             if(synth[osc].wave == NOISE) render_noise(per_osc_fb, osc);
             if(synth[osc].wave == SAW) render_saw(per_osc_fb, osc);
             if(synth[osc].wave == PULSE) render_pulse(per_osc_fb, osc);
@@ -602,26 +595,29 @@ void parse_algorithm(struct event * e, char *message) {
 
 }
 
-// Helper to parse the special ADSR string
-void parse_adsr(struct event * e, char* message) {
+// Helper to parse the special bp string
+void parse_breakpoint(struct event * e, char* message, uint8_t which_bpset) {
     uint8_t idx = 0;
     uint16_t c = 0;
-    // Change only the ones i received
-    while(message[c] != 0 && c < MAX_RECEIVE_LEN) {
+    // Set the breakpoint to default (-1) first
+    for(uint8_t i=0;i<MAX_BREAKPOINTS;i++) {
+        e->breakpoint_times[which_bpset][i] = -1;
+        e->breakpoint_values[which_bpset][i] = -1;
+    }
+    while(message[c] != 0 && c < MAX_RECEIVE_LEN && message[c] < 'A') {
         if(message[c]!=',') {
-            if(idx==0) {
-                e->adsr_a = ms_to_samples(atoi(message+c));
-            } else if(idx == 1) {
-                e->adsr_d = ms_to_samples(atoi(message+c));
-            } else if(idx == 2) {
-                e->adsr_s = atof(message+c);
-            } else if(idx == 3) {
-                e->adsr_r = ms_to_samples(atoi(message+c));
+            if(idx % 2 == 0) {
+                e->breakpoint_times[which_bpset][idx/2] = ms_to_samples(atoi(message+c));
+            } else {
+                e->breakpoint_values[which_bpset][(idx-1) / 2] = atof(message+c);
             }
         }
-        while(message[c]!=',' && message[c]!=0 && c < MAX_RECEIVE_LEN) c++;
+        while(message[c]!=',' && message[c]!=0 && c < MAX_RECEIVE_LEN && message[c] < 'A') c++;
         c++; idx++;
     }
+    //printf("[%d] got message %s... parsed into .. ", which_bpset, message);
+    //for(uint8_t i=0;i<MAX_BREAKPOINTS;i++) printf("%d,%f ", e->breakpoint_times[which_bpset][i], e->breakpoint_values[which_bpset][i]);
+    //printf("\n");
 }
 
 void parse_message(char * message) {
@@ -678,7 +674,8 @@ void parse_task() {
                 }
             }
             if(mode=='a') e.amp=atof(message+start);
-            if(mode=='A') parse_adsr(&e, message+start);
+            if(mode=='A') parse_breakpoint(&e, message+start, 0);
+            if(mode=='B') parse_breakpoint(&e, message+start, 1);
             if(mode=='b') e.feedback=atof(message+start);
             if(mode=='c') client = atoi(message + start); 
             if(mode=='d') e.duty=atof(message + start);
@@ -707,7 +704,8 @@ void parse_task() {
                 uint8_t osc = atoi(message + start); 
                 if(osc > OSCS-1) { reset_oscs(); } else { reset_osc(osc); }
             }
-            if(mode=='T') e.adsr_target = atoi(message + start); 
+            if(mode=='T') e.breakpoint_target[0] = atoi(message + start); 
+            if(mode=='t') e.breakpoint_target[1] = atoi(message + start); 
             if(mode=='v') e.osc=(atoi(message + start) % OSCS); // allow osc wraparound
             if(mode=='V') { e.volume = atof(message + start); }
             if(mode=='w') e.wave=atoi(message + start);

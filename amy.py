@@ -23,7 +23,7 @@ SAMPLE_RATE = 44100.0
 OSCS = 64
 MAX_QUEUE = 400
 [SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, PCM, ALGO, OFF] = range(10)
-TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE = (1, 2, 4, 8, 16)
+TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE, TARGET_LINEAR = (1, 2, 4, 8, 16, 32)
 FILTER_NONE, FILTER_LPF, FILTER_BPF, FILTER_HPF = range(4)
 
 
@@ -86,7 +86,7 @@ def trunc(number):
     return ('%.10f' % number).rstrip('0').rstrip('.')
 
 def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
-        client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, envelope=None, adsr_target=-1, lfo_target=-1, \
+        client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, bp0=None, bp1=None, bp0_target=-1, bp1_target=-1, lfo_target=-1, \
         debug=-1, lfo_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, freq_ratio = -1, algo_source=None):
     global send_buffer, buffer_size, is_immediate
     m = ""
@@ -109,9 +109,11 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, fe
     if(filter_freq>=0): m = m + "F" + trunc(filter_freq)
     if(freq_ratio>=0): m = m + "I" + trunc(freq_ratio)
     if(algorithm>=0): m = m + "o" + trunc(algorithm)
-    if(envelope is not None): m = m +"A%s" % (envelope)
+    if(bp0 is not None): m = m +"A%s" % (bp0)
+    if(bp1 is not None): m = m +"B%s" % (bp1)
     if(algo_source is not None): m = m +"O%s" % (algo_source)
-    if(adsr_target>=0): m = m + "T" +trunc(adsr_target)
+    if(bp0_target>=0): m = m + "T" +trunc(bp0_target)
+    if(bp1_target>=0): m = m + "t" +trunc(bp1_target)
     if(lfo_target>=0): m = m + "g" + trunc(lfo_target)
     if(lfo_source>=0): m = m + "L" + trunc(lfo_source)
     if(reset>=0): m = m + "S" + trunc(reset)

@@ -93,7 +93,7 @@ void render_mod(float *in, float*out, uint8_t osc, float feedback_level, uint8_t
 }
 
 void note_on_mod(uint8_t osc, uint8_t algo_osc) {
-    synth[osc].adsr_on_clock = total_samples;
+    synth[osc].note_on_clock = total_samples;
     synth[osc].status = IS_ALGO_SOURCE; // to ensure it's rendered
     if(synth[osc].wave==SINE) fm_sine_note_on(osc, algo_osc);
 }
@@ -102,14 +102,14 @@ void algo_note_off(uint8_t osc) {
     for(uint8_t i=0;i<6;i++) {
         if(synth[osc].algo_source[i] >=0 ) {
             uint8_t o = synth[osc].algo_source[i];
-            synth[o].adsr_on_clock = -1;
-            synth[o].adsr_off_clock = total_samples; // esp_timer_get_time() / 1000;
+            synth[o].note_on_clock = -1;
+            synth[o].note_off_clock = total_samples; // esp_timer_get_time() / 1000;
             //synth[o].amp = 0;
         }
     }
     // osc note off, start release
-    synth[osc].adsr_on_clock = -1;
-    synth[osc].adsr_off_clock = total_samples; // esp_timer_get_time() / 1000;            
+    synth[osc].note_on_clock = -1;
+    synth[osc].note_off_clock = total_samples; // esp_timer_get_time() / 1000;            
 }
 
 void algo_note_on(uint8_t osc) {    

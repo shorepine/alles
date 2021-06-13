@@ -14,28 +14,28 @@ def preset(which,osc=0, **kwargs):
     # Reset the osc first
     reset(osc=osc)
     if(which==0): # simple note
-        send(osc=osc, wave=SINE, envelope="10,250,0.7,250", adsr_target=TARGET_AMP, **kwargs)
+        send(osc=osc, wave=SINE, bp0="10,1,250,0.7,250,0", bp0_target=TARGET_AMP, **kwargs)
     if(which==1): # filter bass
-        send(osc=osc, filter_freq=2500, resonance=5, wave=SAW, filter_type=FILTER_LPF, envelope="0,100,0.5,25", adsr_target=TARGET_AMP+TARGET_FILTER_FREQ, **kwargs)
-    if(which==2): # long square pad to test ADSR
-        send(osc=osc, wave=PULSE, envelope="500,1000,0.25,750", adsr_target=TARGET_AMP, **kwargs)
+        send(osc=osc, filter_freq=2500, resonance=5, wave=SAW, filter_type=FILTER_LPF, bp0="100,0.5,25,0", bp0_target=TARGET_AMP+TARGET_FILTER_FREQ, **kwargs)
+    if(which==2): # long sine pad to test ADSR
+        send(osc=osc, wave=SINE, bp0="0,0,500,1,1000,0.25,750,0", bp0_target=TARGET_AMP, **kwargs)
     if(which==3): # amp LFO example
         reset(osc=osc+1)
         send(osc=osc+1, wave=SINE, vel=0.50, freq=1.5, **kwargs)
-        send(osc=osc, wave=PULSE, envelope="150,250,0.25,250", adsr_target=TARGET_AMP, lfo_target=TARGET_AMP, lfo_source=osc+1, **kwargs)
+        send(osc=osc, wave=PULSE, envelope="150,1,250,0.25,250,0", bp0_target=TARGET_AMP, lfo_target=TARGET_AMP, lfo_source=osc+1, **kwargs)
     if(which==4): # pitch LFO going up 
         reset(osc=osc+1)
         send(osc=osc+1, wave=SINE, vel=0.50, freq=0.25, **kwargs)
-        send(osc=osc, wave=PULSE, envelope="150,400,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=osc+1, **kwargs)
+        send(osc=osc, wave=PULSE, bp0="150,1,400,0,0,0", bp0_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=osc+1, **kwargs)
     if(which==5): # bass drum
         # Uses a 0.25Hz sine wave at 0.5 phase (going down) to modify frequency of another sine wave
         reset(osc=osc+1)
         send(osc=osc+1, wave=SINE, vel=0.50, freq=0.25, phase=0.5, **kwargs)
-        send(osc=osc, wave=SINE, vel=0, envelope="0,500,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=osc+1, **kwargs)
+        send(osc=osc, wave=SINE, vel=0, bp0="500,0,0,0", bp0_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=osc+1, **kwargs)
     if(which==6): # noise snare
-        send(osc=osc, wave=NOISE, vel=0, envelope="0,250,0,0", adsr_target=TARGET_AMP, **kwargs)
+        send(osc=osc, wave=NOISE, vel=0, bp0="250,0,0,0", bp0_target=TARGET_AMP, **kwargs)
     if(which==7): # closed hat
-        send(osc=osc, wave=NOISE, vel=0, envelope="25,75,0,0", adsr_target=TARGET_AMP, **kwargs)
+        send(osc=osc, wave=NOISE, vel=0, envelope="25,1,75,0,0,0", bp0_target=TARGET_AMP, **kwargs)
     if(which==8): # closed hat from PCM 
         send(osc=osc, wave=PCM, vel=0, patch=17, freq=22050, **kwargs)
     if(which==9): # cowbell from PCM

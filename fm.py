@@ -14,6 +14,7 @@ def dx7_render(patch_number, midinote, velocity, samples, keyup_sample):
 	return np.array(s)/32767.0
 
 def setup_patch(p, midinote):
+	pitchenv = p["bp_pitch"]
 	for i,op in enumerate(p["ops"]):
 		freq_ratio = -1
 		freq = -1
@@ -22,12 +23,11 @@ def setup_patch(p, midinote):
 		else:
 			freq_ratio = op["ratio"]
 		amp = op["opamp"]/1.0
-		print("osc %d (op %d) freq %f ratio %f env %s amp %f" % (i, np.abs(i-6), freq, freq_ratio, op["envelope"], amp))
-		amy.send(osc=i, freq=freq, freq_ratio=freq_ratio,adsr_target=amy.TARGET_AMP,envelope=op["envelope"], amp=amp)
+		print("osc %d (op %d) freq %f ratio %f env %s amp %f" % (i, np.abs(i-6), freq, freq_ratio, op["bp_opamp"], amp))
+		amy.send(osc=i, freq=freq, freq_ratio=freq_ratio,bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR,bp0=op["bp_opamp"], bp1=pitchenv, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR, amp=amp)
 	feedback = p["feedback"]/14.0
-	pitch_envelope = "0,50,0,100"
-	print("osc 6 (main) note %d algo %d feedback %f env %s" % (midinote, p["algo"], feedback, envelope))
-	amy.send(osc=6, note=midinote, wave=amy.ALGO, algorithm=p["algo"], feedback=feedback, algo_source="0,1,2,3,4,5", envelope=pitch_envelope, adsr_target=amy.TARGET_FREQ)
+	print("osc 6 (main) note %d algo %d feedback %f env %s" % (midinote, p["algo"], feedback, pitchenv))
+	amy.send(osc=6, note=midinote, wave=amy.ALGO, algorithm=p["algo"], feedback=feedback, algo_source="0,1,2,3,4,5", bp1=pitchenv, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR)
 
 
 
@@ -67,7 +67,7 @@ def get_patch(patch_number):
     return patch_data
 
 def decode_patch(p):
-	def eg_to_adsr_amp(egrate, eglevel):
+	def eg_to_bp(egrate, eglevel):
 		def rate_to_ms(rate):
 			return (99-rate)*2.5 # 250ms is rate=0, 0ms is rate=99
 		# http://www.audiocentralmagazine.com/wp-content/uploads/2012/04/dx7-envelope.png
@@ -75,16 +75,15 @@ def decode_patch(p):
 		# rate seems to be "speed", so higher rate == less time
 		# NO idea what the time units are, so going to have to fudge this a bit
 		# level is probably exp, but so is our ADSR? 
-		(r1,r2,r3,r4) = egrate
-		(l1,l2,l3,l4) = eglevel
-		A = rate_to_ms(r1)
-		D = rate_to_ms(r2) + rate_to_ms(r3)
-		R = rate_to_ms(r4)
-		S = l3/99.0
-		amp = l1 / 99.0
-		# we ignore l2 and l4 -- l4 should be 0, and l2 is that weird elbow
-		# amp tbh is not really fair here , maybe for the carrier? 
-		return ("%d,%d,%f,%d" % (A,D,S,R), amp)
+		bp = ""
+		for i in range(4):
+			ms = rate_to_ms(egrate[i])
+			l = eglevel[i] / 99.0
+			if(ms==0 and i>0):
+				pass
+			else:
+				bp = bp + "%d,%f," % (ms,l)
+		return bp[:-1]
 
 
 	def output_level_to_amp(byte):
@@ -153,7 +152,7 @@ def decode_patch(p):
 		op = {}
 		op["rate"] = [x for x in p[c:c+4]]
 		op["level"] =  [x for x in p[c+4:c+8]]
-		(op["envelope"], op["amp"]) = eg_to_adsr_amp([x for x in p[c:c+4]], [x for x in p[c+4:c+8]])
+		op["bp_opamp"] = eg_to_bp([x for x in p[c:c+4]], [x for x in p[c+4:c+8]])
 		c = c + 8
 		op["brkpt"] = p[c]
 		c = c + 1
@@ -179,7 +178,7 @@ def decode_patch(p):
 		ops.append(op)
 	ops.reverse() # start from op 1
 	patch["ops"] = ops
-	patch["pitcheg"] = [x for x in p[c:c+8]]
+	patch["bp_pitch"] = eg_to_bp([x for x in p[c:c+4]], [x for x in p[c+4:c+8]])
 	c = c + 8
 	patch["algo"] = p[c]
 	c = c + 1

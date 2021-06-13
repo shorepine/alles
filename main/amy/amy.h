@@ -20,6 +20,9 @@
 #endif
 #define SAMPLE_RATE 44100    // playback sample rate
 #define SAMPLE_MAX 32767
+#define MAX_ALGO_OPS 6 // dx7
+#define MAX_BREAKPOINTS 8
+#define MAX_BREAKPOINT_SETS 2
 
 // buffering for i2s
 #define BYTES_PER_SAMPLE 2
@@ -46,12 +49,13 @@ typedef int16_t i2s_sample_type;
 #define EQ_CENTER_MED 2500.0
 #define EQ_CENTER_HIGH 7000.0
 
-// modulation/ADSR target mask
+// modulation/breakpoint target mask
 #define TARGET_AMP 1
 #define TARGET_DUTY 2
 #define TARGET_FREQ 4
 #define TARGET_FILTER_FREQ 8
 #define TARGET_RESONANCE 16
+#define TARGET_LINEAR 32 // default exp, linear as an option
 
 #define FILTER_LPF 1
 #define FILTER_BPF 2
@@ -76,8 +80,11 @@ typedef int16_t i2s_sample_type;
 
 enum params{
     WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, FREQ_RATIO, RESONANCE, 
-    MOD_SOURCE, MOD_TARGET, FILTER_TYPE, EQ_L, EQ_M, EQ_H, ADSR_TARGET, ADSR_A, ADSR_D, ADSR_S, ADSR_R, ALGORITHM, 
-    ALGO_SOURCE_0, ALGO_SOURCE_1, ALGO_SOURCE_2, ALGO_SOURCE_3, ALGO_SOURCE_4, ALGO_SOURCE_5,
+    MOD_SOURCE, MOD_TARGET, FILTER_TYPE, EQ_L, EQ_M, EQ_H, BP0_TARGET, BP1_TARGET, ALGORITHM, 
+    ALGO_SOURCE_START=30, 
+    ALGO_SOURCE_END=30+MAX_ALGO_OPS,
+    BP_START=ALGO_SOURCE_END+1,   
+    BP_END=BP_START + (MAX_BREAKPOINT_SETS * MAX_BREAKPOINTS * 2),
     NO_PARAM
 };
 
@@ -117,15 +124,16 @@ struct event {
     int8_t mod_source;
     int8_t mod_target;
     int8_t algorithm;
-    int8_t adsr_target;
     int8_t filter_type;
-    int64_t adsr_on_clock;
-    int64_t adsr_off_clock;
-    int32_t adsr_a;
-    int32_t adsr_d;
-    float adsr_s;
-    int32_t adsr_r;
-    int8_t algo_source[6];
+    int8_t algo_source[MAX_ALGO_OPS];
+
+    // TODO -- this may be too much for Alles, to have per osc. Could have a fixed stack of EGs that get assigned to oscs, maybe 32 of them 
+    int64_t note_on_clock;
+    int64_t note_off_clock;
+    int8_t breakpoint_target[MAX_BREAKPOINT_SETS];
+    int32_t breakpoint_times[MAX_BREAKPOINT_SETS][MAX_BREAKPOINTS];
+    float breakpoint_values[MAX_BREAKPOINT_SETS][MAX_BREAKPOINTS];
+
     // State variable for the impulse-integrating oscs.
     float lpf_state;
     // Constant offset to add to sawtooth before integrating.
@@ -138,7 +146,7 @@ struct event {
     float eq_l;
     float eq_m;
     float eq_h;
-    float feedback_level;
+    // For ALGO feedback ops
     float last_two[2];
 };
 
@@ -169,7 +177,7 @@ struct state {
 
 
 int8_t oscs_init();
-void parse_adsr(struct event * e, char* message) ;
+void parse_breakpoint(struct event * e, char* message, uint8_t bp_set) ;
 void parse_algorithm(struct event * e, char* message) ;
 void hold_and_modify(uint8_t osc) ;
 int16_t * fill_audio_buffer_task();
@@ -230,7 +238,7 @@ extern void parametric_eq_process(float *block);
 extern void update_filter(uint8_t osc);
 
 // envelopes
-extern float compute_adsr_scale(uint8_t osc);
+extern float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set);
 extern float compute_mod_scale(uint8_t osc);
 extern void retrigger_mod_source(uint8_t osc);
 
