@@ -55,8 +55,10 @@ float compute_adsr_scale(uint8_t osc) {
     } else if(synth[osc].adsr_off_clock >= 0) { // release
         int64_t elapsed = (total_samples - synth[osc].adsr_off_clock) + 1;
         scale = S * expf(-curve * (float)elapsed / (float)t_r);
+        //printf("Release! osc %d t_r is %d S is %f elapsed is %d, so scale is %f\n", osc, t_r, S, elapsed, scale);
         if(elapsed > t_r) {
             // Turn off note
+            //printf("Off! osc %d\n", osc);
             synth[osc].status=OFF;
             synth[osc].adsr_off_clock = -1;
         }

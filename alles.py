@@ -1,15 +1,11 @@
-# Import all the utilities from alles_util needed to make sounds
-from alles_util import send, sync, volume, note_on, note_off, reset, connect, disconnect, millis, flush, \
-    buffer, amy_start, amy_stop, live, live_stop, amy_render, play_audio
+from amy import send, volume, note_on, note_off, reset, millis
+from alles_util import connect, disconnect
 import time
 
-# Some constants shared with the synth that help
-ALLES_OSCS = 64
-ALLES_MAX_QUEUE = 400
-[SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, PCM, ALGO, OFF] = range(10)
-TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE = (1, 2, 4, 8, 16)
-FILTER_NONE, FILTER_LPF, FILTER_BPF, FILTER_HPF = range(4)
-
+from amy import SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, PCM, ALGO, OFF
+from amy import TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE
+from amy import FILTER_NONE, FILTER_LPF, FILTER_BPF, FILTER_HPF
+from amy import BLOCK_SIZE, SAMPLE_RATE, OSCS, MAX_QUEUE
 
 """
     A bunch of useful presets
@@ -73,19 +69,19 @@ def play_patches(wait=0.500, patch_total = 100, **kwargs):
         for i in range(24):
             patch = patch_count % patch_total
             patch_count = patch_count + 1
-            note_on(osc=i % ALLES_OSCS, note=i+50, wave=FM, patch=patch, **kwargs)
+            note_on(osc=i % OSCS, note=i+50, wave=FM, patch=patch, **kwargs)
             time.sleep(wait)
-            note_off(osc=i % ALLES_OSCS)
+            note_off(osc=i % OSCS)
 
 """
     Play up to ALLES_OSCS patches at once
 """
-def polyphony(max_voices=ALLES_OSCS,**kwargs):
+def polyphony(max_voices=OSCS,**kwargs):
     note = 0
     oscs = []
     for i in range(int(max_voices/2)):
         oscs.append(int(i))
-        oscs.append(int(i+(ALLES_OSCS/2)))
+        oscs.append(int(i+(OSCS/2)))
     print(str(oscs))
     while(1):
         osc = oscs[note % max_voices]

@@ -6,6 +6,6 @@ sources = glob.glob("*.c")
 os.environ["CC"] = "gcc"
 os.environ["CXX"] = "g++"
 
-extension_mod = Extension("amy", sources=sources) 
+extension_mod = Extension("libamy", sources=sources) 
 
-setup(name = "amy", ext_modules=[extension_mod])
+setup(name = "libamy", ext_modules=[extension_mod])

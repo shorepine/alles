@@ -16,7 +16,7 @@
 #ifdef ESP_PLATFORM
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #else
-#define LATENCY_MS 10         // small latency for local mode
+#define LATENCY_MS 0         // no latency for local mode
 #endif
 #define SAMPLE_RATE 44100    // playback sample rate
 #define SAMPLE_MAX 32767
@@ -75,9 +75,9 @@ typedef int16_t i2s_sample_type;
 #define IS_ALGO_SOURCE 5
 
 enum params{
-    WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, RESONANCE, 
+    WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, FREQ_RATIO, RESONANCE, 
     MOD_SOURCE, MOD_TARGET, FILTER_TYPE, EQ_L, EQ_M, EQ_H, ADSR_TARGET, ADSR_A, ADSR_D, ADSR_S, ADSR_R, ALGORITHM, 
-    ALGO_SOURCE_0, ALGO_SOURCE_1, ALGO_SOURCE_2, ALGO_SOURCE_3,
+    ALGO_SOURCE_0, ALGO_SOURCE_1, ALGO_SOURCE_2, ALGO_SOURCE_3, ALGO_SOURCE_4, ALGO_SOURCE_5,
     NO_PARAM
 };
 
@@ -112,6 +112,7 @@ struct event {
     float sample;
     float volume;
     float filter_freq;
+    float freq_ratio;
     float resonance;
     int8_t mod_source;
     int8_t mod_target;
@@ -124,7 +125,7 @@ struct event {
     int32_t adsr_d;
     float adsr_s;
     int32_t adsr_r;
-    int8_t algo_source[4];
+    int8_t algo_source[6];
     // State variable for the impulse-integrating oscs.
     float lpf_state;
     // Constant offset to add to sawtooth before integrating.
@@ -190,7 +191,7 @@ extern void ks_deinit();
 extern void algo_init();
 extern void render_ks(float * buf, uint8_t osc); 
 extern void render_sine(float * buf, uint8_t osc); 
-extern void render_fm_sine(float * buf, uint8_t osc, float *mod); 
+extern void render_fm_sine(float *buf, uint8_t osc, float *mod, float feedback_level, uint8_t algo_osc);
 extern void render_pulse(float * buf, uint8_t osc); 
 extern void render_saw(float * buf, uint8_t osc);
 extern void render_triangle(float * buf, uint8_t osc); 
@@ -208,7 +209,7 @@ extern float compute_mod_pcm(uint8_t osc);
 extern void ks_note_on(uint8_t osc); 
 extern void ks_note_off(uint8_t osc);
 extern void sine_note_on(uint8_t osc); 
-extern void fm_sine_note_on(uint8_t osc); 
+extern void fm_sine_note_on(uint8_t osc, uint8_t algo_osc); 
 extern void saw_note_on(uint8_t osc); 
 extern void triangle_note_on(uint8_t osc); 
 extern void pulse_note_on(uint8_t osc); 

@@ -74,6 +74,7 @@ struct event default_event() {
     e.amp = 1;
     e.freq = -1;
     e.volume = -1;
+    e.freq_ratio = -1;
     e.filter_freq = -1;
     e.resonance = -1;
     e.filter_type = -1;
@@ -94,6 +95,8 @@ struct event default_event() {
     e.algo_source[1] = -1;
     e.algo_source[2] = -1;
     e.algo_source[3] = -1;
+    e.algo_source[4] = -1;
+    e.algo_source[5] = -1;
     return e;
 }
 
@@ -167,6 +170,7 @@ void add_event(struct event e) {
     if(e.freq>-1) { d.param=FREQ; d.data = *(uint32_t *)&e.freq; add_delta_to_queue(d); }
     if(e.phase>-1) { d.param=PHASE; d.data = *(uint32_t *)&e.phase; add_delta_to_queue(d); }
     if(e.volume>-1) { d.param=VOLUME; d.data = *(uint32_t *)&e.volume; add_delta_to_queue(d); }
+    if(e.freq_ratio>-1) { d.param=FREQ_RATIO; d.data = *(uint32_t *)&e.freq_ratio; add_delta_to_queue(d); }
     if(e.filter_freq>-1) { d.param=FILTER_FREQ; d.data = *(uint32_t *)&e.filter_freq; add_delta_to_queue(d); }
     if(e.resonance>-1) { d.param=RESONANCE; d.data = *(uint32_t *)&e.resonance; add_delta_to_queue(d); }
     if(e.mod_source>-1) { d.param=MOD_SOURCE; d.data = *(uint32_t *)&e.mod_source; add_delta_to_queue(d); }
@@ -182,6 +186,8 @@ void add_event(struct event e) {
     if(e.algo_source[1]>-1) { d.param=ALGO_SOURCE_1; d.data = *(uint32_t *)&e.algo_source[1]; add_delta_to_queue(d); }
     if(e.algo_source[2]>-1) { d.param=ALGO_SOURCE_2; d.data = *(uint32_t *)&e.algo_source[2]; add_delta_to_queue(d); }
     if(e.algo_source[3]>-1) { d.param=ALGO_SOURCE_3; d.data = *(uint32_t *)&e.algo_source[3]; add_delta_to_queue(d); }
+    if(e.algo_source[4]>-1) { d.param=ALGO_SOURCE_4; d.data = *(uint32_t *)&e.algo_source[4]; add_delta_to_queue(d); }
+    if(e.algo_source[5]>-1) { d.param=ALGO_SOURCE_5; d.data = *(uint32_t *)&e.algo_source[5]; add_delta_to_queue(d); }
     if(e.eq_l>-1) { d.param=EQ_L; d.data = *(uint32_t *)&e.eq_l; add_delta_to_queue(d); }
     if(e.eq_m>-1) { d.param=EQ_M; d.data = *(uint32_t *)&e.eq_m; add_delta_to_queue(d); }
     if(e.eq_h>-1) { d.param=EQ_H; d.data = *(uint32_t *)&e.eq_h; add_delta_to_queue(d); }
@@ -209,6 +215,7 @@ void reset_osc(uint8_t i ) {
     synth[i].eq_l = 0;
     synth[i].eq_m = 0;
     synth[i].eq_h = 0;
+    synth[i].freq_ratio = -1;
     synth[i].filter_freq = 0;
     msynth[i].filter_freq = 0;
     synth[i].resonance = 0.7;
@@ -236,6 +243,8 @@ void reset_osc(uint8_t i ) {
     synth[i].algo_source[1] = -1;
     synth[i].algo_source[2] = -1;
     synth[i].algo_source[3] = -1;
+    synth[i].algo_source[4] = -1;
+    synth[i].algo_source[5] = -1;
     synth[i].last_two[0] = 0;
     synth[i].last_two[1] = 0;
     synth[i].feedback_level = 0;
@@ -313,10 +322,10 @@ void show_debug(uint8_t type) {
         printf("global: volume %f eq: %f %f %f \n", global.volume, global.eq[0], global.eq[1], global.eq[2]);
         //printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
         for(uint8_t i=0;i<OSCS;i++) {
-            printf("osc %d: status %d amp %f wave %d freq %f duty %f adsr_target %d mod_target %d mod source %d velocity %f filter_freq %f resonance %f E: %d,%d,%2.2f,%d step %f algo %d source %d,%d,%d,%d  \n",
+            printf("osc %d: status %d amp %f wave %d freq %f duty %f adsr_target %d mod_target %d mod source %d velocity %f filter_freq %f freq_ratio %f feedback %f resonance %f E: %d,%d,%2.2f,%d step %f algo %d source %d,%d,%d,%d,%d,%d  \n",
                 i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].adsr_target, synth[i].mod_target, synth[i].mod_source, 
-                synth[i].velocity, synth[i].filter_freq, synth[i].resonance, synth[i].adsr_a, synth[i].adsr_d, synth[i].adsr_s, synth[i].adsr_r, synth[i].step, synth[i].algorithm, 
-                synth[i].algo_source[0], synth[i].algo_source[1], synth[i].algo_source[2], synth[i].algo_source[3] );
+                synth[i].velocity, synth[i].filter_freq, synth[i].freq_ratio, synth[i].feedback, synth[i].resonance, synth[i].adsr_a, synth[i].adsr_d, synth[i].adsr_s, synth[i].adsr_r, synth[i].step, synth[i].algorithm, 
+                synth[i].algo_source[0], synth[i].algo_source[1], synth[i].algo_source[2], synth[i].algo_source[3], synth[i].algo_source[4], synth[i].algo_source[5] );
             if(type>3) printf("mod osc %d: amp: %f, freq %f duty %f filter_freq %f resonance %f \n", i, msynth[i].amp, msynth[i].freq, msynth[i].duty, msynth[i].filter_freq, msynth[i].resonance);
         }
     }
@@ -347,8 +356,9 @@ void play_event(struct delta d) {
     if(d.param == PATCH) synth[d.osc].patch = *(int16_t *)&d.data;
     if(d.param == DUTY) synth[d.osc].duty = *(float *)&d.data;
     if(d.param == FEEDBACK) synth[d.osc].feedback = *(float *)&d.data;
+    if(d.param == AMP) synth[d.osc].amp = *(float *)&d.data;
     if(d.param == FREQ) synth[d.osc].freq = *(float *)&d.data;
-    if(d.param == ADSR_TARGET) synth[d.osc].adsr_target = (int8_t) d.data;
+    if(d.param == ADSR_TARGET) synth[d.osc].adsr_target = *(int8_t *)&d.data;
 
     if(d.param == ADSR_A) synth[d.osc].adsr_a = *(int32_t *)&d.data;
     if(d.param == ADSR_D) synth[d.osc].adsr_d = *(int32_t *)&d.data;
@@ -357,6 +367,8 @@ void play_event(struct delta d) {
 
     if(d.param == MOD_SOURCE) { synth[d.osc].mod_source = *(int8_t *)&d.data; synth[*(int8_t *)&d.data].status = IS_MOD_SOURCE; }
     if(d.param == MOD_TARGET) synth[d.osc].mod_target = *(int8_t *)&d.data; 
+
+    if(d.param == FREQ_RATIO) synth[d.osc].freq_ratio = *(float *)&d.data;
 
     if(d.param == FILTER_FREQ) synth[d.osc].filter_freq = *(float *)&d.data;
     if(d.param == FILTER_TYPE) synth[d.osc].filter_type = *(int8_t *)&d.data; 
@@ -367,6 +379,8 @@ void play_event(struct delta d) {
     if(d.param == ALGO_SOURCE_1) { synth[d.osc].algo_source[1] = *(int8_t *)&d.data; synth[*(int8_t*)&d.data].status=IS_ALGO_SOURCE; }
     if(d.param == ALGO_SOURCE_2) { synth[d.osc].algo_source[2] = *(int8_t *)&d.data; synth[*(int8_t*)&d.data].status=IS_ALGO_SOURCE; }
     if(d.param == ALGO_SOURCE_3) { synth[d.osc].algo_source[3] = *(int8_t *)&d.data; synth[*(int8_t*)&d.data].status=IS_ALGO_SOURCE; }
+    if(d.param == ALGO_SOURCE_4) { synth[d.osc].algo_source[4] = *(int8_t *)&d.data; synth[*(int8_t*)&d.data].status=IS_ALGO_SOURCE; }
+    if(d.param == ALGO_SOURCE_5) { synth[d.osc].algo_source[5] = *(int8_t *)&d.data; synth[*(int8_t*)&d.data].status=IS_ALGO_SOURCE; }
 
     // For global changes, just make the change, no need to update the per-osc synth
     if(d.param == VOLUME) global.volume = *(float *)&d.data;
@@ -674,7 +688,7 @@ void parse_task() {
             if(mode=='G') e.filter_type=atoi(message + start);
             if(mode=='g') e.mod_target = atoi(message + start); 
             if(mode=='i') sync_index = atoi(message + start);
-
+            if(mode=='I') e.freq_ratio = atof(message + start);
             if(mode=='l') e.velocity=atof(message + start);
             if(mode=='L') e.mod_source=atoi(message + start);
             if(mode=='n') e.midi_note=atoi(message + start);

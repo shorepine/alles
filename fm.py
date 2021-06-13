@@ -1,6 +1,57 @@
 # fm.py
+import amy, dx7
+import numpy as np
+import time
+#import matplotlib.pyplot as plt
 
-# Converting DX7 patches to Alles commands
+# Converting DX7 patches to AMY commands
+
+#amy.start()
+
+
+def dx7_render(patch_number, midinote, velocity, samples, keyup_sample):
+	s = dx7.render(patch_number, midinote, velocity, samples, keyup_sample)
+	return np.array(s)/32767.0
+
+def setup_patch(p, midinote):
+	for i,op in enumerate(p["ops"]):
+		freq_ratio = -1
+		freq = -1
+		if(op.get("fixedhz",None) is not None):
+			freq = op["fixedhz"]
+		else:
+			freq_ratio = op["ratio"]
+		amy.send(osc=i, freq=freq, freq_ratio=freq_ratio,adsr_target=amy.TARGET_AMP,envelope=op["envelope"], amp=op["opamp"]/4.0)
+	amy.send(osc=6, note=midinote, wave=amy.ALGO, algorithm=p["algo"], feedback=p["feedback"]/7.0, algo_source="0,1,2,3,4,5", envelope="0,0,1.0,1000", adsr_target=amy.TARGET_AMP)
+
+
+
+def play_patch(patch_number, midinote=50, length_s = 2, keyup_s = 1):
+	dx7_patch = dx7.unpack(patch_number)
+	p = decode_patch(dx7_patch)
+	print(str(p["name"]))
+	setup_patch(p,midinote)
+
+	amy.note_on(osc=6,vel=4)
+	us_samples0 = amy.render(keyup_s)
+	amy.note_off(osc=6)
+	us_samples1 = amy.render(length_s - keyup_s)
+	us_samples = np.hstack((us_samples0, us_samples1))
+
+	them_samples = dx7_render(patch_number, midinote, 90, int(length_s*amy.SAMPLE_RATE),int(keyup_s*amy.SAMPLE_RATE))
+	#fig, (s0,s1) = plt.subplots(2,1)
+	#s0.specgram(us_samples, NFFT=512, Fs=amy.SAMPLE_RATE)
+	#s1.specgram(them_samples, NFFT=512, Fs=amy.SAMPLE_RATE)
+	#fig.show()
+	print("AMY:")
+	amy.play(us_samples)
+	time.sleep(length_s)
+	# A/B against MSFA 
+	time.sleep(0.25)
+	print("MSFA:")
+	amy.play(them_samples)
+	time.sleep(length_s)
+	return p
 
 def get_patch(patch_number):
 	# returns a patch (as in patches.h) from 
@@ -70,19 +121,21 @@ def decode_patch(p):
 		if(byte==3): return "+lin"
 		return "unknown"
 	def coarse_fine_fixed_hz(coarse, fine):
+		coarse = coarse & 3 # so many are > 3 (7500 out of 38K.) msfa cuts it like this, not sure whats' up here. maybe the knob loops over? 
 		if(coarse==0):
-			return 1 + ((fine / 10.0) - 1.0)
+			return 1 + ((fine / 10.0) )
 		if(coarse==1):
-			return 10 + ((fine) - 10.0)
+			return 10 + (fine  )
 		if(coarse==2):
-			return 100 + ((fine * 10.0) - 100.0)
+			return 100 + ((fine * 10) )
 		if(coarse==3):
-			return 1000 + ((fine * 100.0) - 1000.0)
-		print("fixed coarse > 3")
+			return 1000 + ((fine * 100.0) )
+		print("fixed coarse > 3, is %d" % (coarse))
 		return 0
 	def coarse_fine_ratio(coarse,fine):
 		if(coarse==0):
 			return 0.5 + ((fine/200.0) - 0.5)
+		coarse = coarse & 31 # see above
 		return coarse + (fine/100.0)
 		
 
@@ -90,8 +143,10 @@ def decode_patch(p):
 	ops = []
 	# Starts at op 6
 	c = 0
-	for i in range(5,-1,-1):
+	for i in range(6):
 		op = {}
+		op["rate"] = [x for x in p[c:c+4]]
+		op["level"] =  [x for x in p[c+4:c+8]]
 		(op["envelope"], op["amp"]) = eg_to_adsr_amp([x for x in p[c:c+4]], [x for x in p[c+4:c+8]])
 		c = c + 8
 		op["brkpt"] = p[c]
@@ -110,6 +165,8 @@ def decode_patch(p):
 			op["fixedhz"] = coarse_fine_fixed_hz(p[c+1], p[c+2])
 		else:
 			op["ratio"] = coarse_fine_ratio(p[c+1], p[c+2])
+		op["coarse"] = p[c+1]
+		op["fine"] = p[c+2]
 		c = c + 3
 		op["detunehz"] = p[c] - 7
 		c = c + 1
@@ -140,7 +197,7 @@ def decode_patch(p):
 	c = c + 1
 	patch["transpose"] = p[c]
 	c = c + 1
-	patch["name"] = p[c:c+10]
+	patch["name"] =  ''.join(chr(i) for i in p[c:c+10])
 	c = c + 10
 	return patch
 

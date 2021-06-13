@@ -45,13 +45,13 @@ static PyObject * render_wrapper(PyObject *self, PyObject *args) {
         }
         return ret;
     } else {
-        printf("Not started, can't render. call amy.start() first.\n");
+        printf("Not started, can't render. call libamy.start() first.\n");
         return Py_None;
     }
 }
 
 
-static PyMethodDef AMYMethods[] = {
+static PyMethodDef libAMYMethods[] = {
     {"render", render_wrapper, METH_VARARGS, "Render audio"},
     {"send", send_wrapper, METH_VARARGS, "Send a message"},
     {"start", start_wrapper, METH_VARARGS, "Start AMY"},
@@ -59,19 +59,19 @@ static PyMethodDef AMYMethods[] = {
     { NULL, NULL, 0, NULL }
 };
 
-static struct PyModuleDef amyDef =
+static struct PyModuleDef libamyDef =
 {
     PyModuleDef_HEAD_INIT,
-    "amy", /* name of module */
+    "libamy", /* name of module */
     "",          /* module documentation, may be NULL */
     -1,          /* size of per-interpreter state of the module, or -1 if the module keeps state in global variables. */
-    AMYMethods
+    libAMYMethods
 };
 
-PyMODINIT_FUNC PyInit_amy(void)
+PyMODINIT_FUNC PyInit_libamy(void)
 {
     started=0;
-    return PyModule_Create(&amyDef);
+    return PyModule_Create(&libamyDef);
 
 }
 

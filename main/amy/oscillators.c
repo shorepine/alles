@@ -115,16 +115,15 @@ def fm_osc(period, num_samples, table=sin_tab, feedback=0.0, modulator=None):
 // step == scaled_phase
 // skip == step (scaled_step)
 
+
 float render_lut_fm_osc(float * buf, float phase, float step, float amp, const float* lut, int16_t lut_size, float * mod, float feedback_level, float * last_two) { 
     int lut_mask = lut_size - 1;
     float past0 = last_two[0];
     float past1 = last_two[1];
-    //printf("Incoming phase %f. step %f feedback %f last_two %f %f\n", phase, step, feedback_level, last_two[0], last_two[1]);
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         float scaled_phase = lut_size * (phase + mod[i] + feedback_level * ((past1 + past0) / 2.0));
         int base_index = (int)scaled_phase;
         float frac = scaled_phase - base_index;
-        //printf("Trying to access lut[%d]. base_index %d lut_mask %d. frac %f step %f\n", base_index & lut_mask, base_index, lut_mask, frac, step);
         float b = lut[base_index & lut_mask];
         float c = lut[(base_index+1) & lut_mask];
         float sample = b + ((c - b) * frac);
@@ -138,6 +137,7 @@ float render_lut_fm_osc(float * buf, float phase, float step, float amp, const f
     last_two[1] = past1;
     return phase;// - (int)phase;
 }
+
 // This is copying from Pure Data's tabread4~.
 float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size) { 
     // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
@@ -413,16 +413,29 @@ float compute_mod_triangle(uint8_t osc) {
     
 }
 
+extern int64_t total_samples;
+
+
+// TODO - if wave changes from e.g. SINE, to algo, then, this will segfault looking up the LUT? why though
+
 /* FM */
 // NB this uses new lingo for step, skip, phase etc
-void fm_sine_note_on(uint8_t osc) {
+void fm_sine_note_on(uint8_t osc, uint8_t algo_osc) {
+    if(synth[osc].freq_ratio >= 0) {
+        synth[osc].freq = synth[algo_osc].freq * synth[osc].freq_ratio;
+        //printf("Ratio set for osc %d from algo osc %d. freq = %f * %f = %f\n", osc, algo_osc, synth[algo_osc].freq, synth[osc].freq_ratio, synth[osc].freq);
+    }
     float period_samples = (float)SAMPLE_RATE / synth[osc].freq;
     synth[osc].lut = choose_from_lutset(period_samples, sine_lutset, &synth[osc].lut_size);
 }
-void render_fm_sine(float *buf, uint8_t osc, float *mod) {
+void render_fm_sine(float *buf, uint8_t osc, float *mod, float feedback_level, uint8_t algo_osc) {
+    if(synth[osc].freq_ratio >= 0) {
+        synth[osc].freq = msynth[algo_osc].freq * synth[osc].freq_ratio;
+    }
+    //printf("osc %d algo_osc %d fb %f amp %f mamp %f total_samples %d\n",osc, algo_osc, feedback_level, synth[osc].amp, msynth[osc].amp, total_samples );
     float step = msynth[osc].freq / (float)SAMPLE_RATE;
     synth[osc].phase = render_lut_fm_osc(buf, synth[osc].phase, step, msynth[osc].amp, 
-                 synth[osc].lut, synth[osc].lut_size, mod, synth[osc].feedback, synth[osc].last_two);
+                 synth[osc].lut, synth[osc].lut_size, mod, feedback_level, synth[osc].last_two);
 }
 
 /* sine */
