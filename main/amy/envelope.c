@@ -8,6 +8,14 @@ extern struct mod_event* msynth;
 extern struct mod_state mglobal;
 extern int64_t total_samples;
 
+
+// Breakpoints as/well (?) instead of adsr
+// user defines BP as time(ms), ratio, time, ratio
+// but also needs to ID a BP for key release 
+// and each BP curve can be for any # of targets, there can be multiple
+
+
+
 // modulation scale is not like ADSR scale, it can also make a thing bigger, so return range is between -1 and 1, where 1 = 2x and 0 = 1x
 float compute_mod_scale(uint8_t osc) {
     int8_t source = synth[osc].mod_source;
