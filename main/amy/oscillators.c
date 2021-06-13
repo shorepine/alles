@@ -422,18 +422,21 @@ extern int64_t total_samples;
 // NB this uses new lingo for step, skip, phase etc
 void fm_sine_note_on(uint8_t osc, uint8_t algo_osc) {
     if(synth[osc].freq_ratio >= 0) {
-        synth[osc].freq = synth[algo_osc].freq * synth[osc].freq_ratio;
+        msynth[osc].freq = msynth[algo_osc].freq * synth[osc].freq_ratio;
         //printf("Ratio set for osc %d from algo osc %d. freq = %f * %f = %f\n", osc, algo_osc, synth[algo_osc].freq, synth[osc].freq_ratio, synth[osc].freq);
     }
-    float period_samples = (float)SAMPLE_RATE / synth[osc].freq;
+    float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lut = choose_from_lutset(period_samples, sine_lutset, &synth[osc].lut_size);
 }
 void render_fm_sine(float *buf, uint8_t osc, float *mod, float feedback_level, uint8_t algo_osc) {
     if(synth[osc].freq_ratio >= 0) {
-        synth[osc].freq = msynth[algo_osc].freq * synth[osc].freq_ratio;
+        msynth[osc].freq = msynth[algo_osc].freq * synth[osc].freq_ratio;
     }
     //printf("osc %d algo_osc %d fb %f amp %f mamp %f total_samples %d\n",osc, algo_osc, feedback_level, synth[osc].amp, msynth[osc].amp, total_samples );
     float step = msynth[osc].freq / (float)SAMPLE_RATE;
+    //if(osc==4) {
+        //printf("o4/op2. step %f mfreq %f from algo freq %f and ratio %f\n", step, msynth[osc].freq, msynth[algo_osc].freq ,synth[osc].freq_ratio);
+    //}
     synth[osc].phase = render_lut_fm_osc(buf, synth[osc].phase, step, msynth[osc].amp, 
                  synth[osc].lut, synth[osc].lut_size, mod, feedback_level, synth[osc].last_two);
 }

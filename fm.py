@@ -21,8 +21,13 @@ def setup_patch(p, midinote):
 			freq = op["fixedhz"]
 		else:
 			freq_ratio = op["ratio"]
-		amy.send(osc=i, freq=freq, freq_ratio=freq_ratio,adsr_target=amy.TARGET_AMP,envelope=op["envelope"], amp=op["opamp"]/4.0)
-	amy.send(osc=6, note=midinote, wave=amy.ALGO, algorithm=p["algo"], feedback=p["feedback"]/7.0, algo_source="0,1,2,3,4,5", envelope="0,0,1.0,1000", adsr_target=amy.TARGET_AMP)
+		amp = op["opamp"]/1.0
+		print("osc %d (op %d) freq %f ratio %f env %s amp %f" % (i, np.abs(i-6), freq, freq_ratio, op["envelope"], amp))
+		amy.send(osc=i, freq=freq, freq_ratio=freq_ratio,adsr_target=amy.TARGET_AMP,envelope=op["envelope"], amp=amp)
+	feedback = p["feedback"]/14.0
+	pitch_envelope = "0,50,0,100"
+	print("osc 6 (main) note %d algo %d feedback %f env %s" % (midinote, p["algo"], feedback, envelope))
+	amy.send(osc=6, note=midinote, wave=amy.ALGO, algorithm=p["algo"], feedback=feedback, algo_source="0,1,2,3,4,5", envelope=pitch_envelope, adsr_target=amy.TARGET_FREQ)
 
 
 
@@ -66,6 +71,7 @@ def decode_patch(p):
 		def rate_to_ms(rate):
 			return (99-rate)*2.5 # 250ms is rate=0, 0ms is rate=99
 		# http://www.audiocentralmagazine.com/wp-content/uploads/2012/04/dx7-envelope.png
+		# or https://yamahasynth.com/images/RefaceSynthBasics/EG_RatesLevels.png
 		# rate seems to be "speed", so higher rate == less time
 		# NO idea what the time units are, so going to have to fudge this a bit
 		# level is probably exp, but so is our ADSR? 

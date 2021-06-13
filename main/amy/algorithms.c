@@ -137,44 +137,53 @@ void render_algo(float * buf, uint8_t osc) {
     zero(scratch[1]);
     zero(scratch[2]);
     for(uint8_t op=0;op<6;op++) {
+        int8_t opl = (op - 6) * -1; 
         if(synth[osc].algo_source[op] >=0 && synth[synth[osc].algo_source[op]].status == IS_ALGO_SOURCE) {
             float feedback_level = 0;
             in_buf = zeros; // just in case not set elsewhere
             if(algo.ops[op] & FB_IN) { 
-                //printf("op%d FB_IN\n", op); 
+                //printf("op%d FB_IN\n", opl); 
                 feedback_level = synth[osc].feedback; 
             } // main algo voice stores feedback, not the op 
             if(algo.ops[op] & IN_BUS_ONE) { 
-                //printf("op%d in_buf=s0\n", op); 
+                //printf("op%d in_buf=s0\n", opl); 
                 in_buf = scratch[0]; 
             }
             if(algo.ops[op] & IN_BUS_TWO) { 
-                //printf("op%d in_buf=s1\n", op); 
+                //printf("op%d in_buf=s1\n", opl); 
                 in_buf = scratch[1]; 
             }
             if(algo.ops[op] & OUT_BUS_ONE) { 
-                //printf("op%d out_buf=s0\n", op); 
+                //printf("op%d out_buf=s0\n", opl); 
                 out_buf = scratch[0]; 
             }
             if(algo.ops[op] & OUT_BUS_TWO) { 
-                //printf("op%d out_buf=s1\n" , op); 
+                //printf("op%d out_buf=s1\n" , opl); 
                 out_buf = scratch[1]; 
             }
             if(algo.ops[op] & OUT_BUS_ADD) { 
-                //printf("op%d out_buf=s2\n", op); 
+                //printf("op%d out_buf=s2\n", opl); 
                 out_buf = scratch[2]; 
             }
-            //printf("rendering op %d their_osc %d fb %f my_osc %d\n", op, synth[osc].algo_source[op], feedback_level, osc);
+            //printf("rendering op %d their_osc %d fb %f my_osc %d\n", opl, synth[osc].algo_source[op], feedback_level, osc);
             render_mod(in_buf, out_buf, synth[osc].algo_source[op], feedback_level, osc);
             if(algo.ops[op] & OUT_BUS_ADD) { 
-                //printf("op%d adding out_buf to buf\n", op); 
-                add(out_buf, buf); 
+                // which thing to add to?
+                if(algo.ops[op] & OUT_BUS_ONE) {
+                    //printf("op%d adding s2 to s0\n", opl); 
+                    add(scratch[2], scratch[0]); 
+                } else if(algo.ops[op] & OUT_BUS_TWO) {
+                    //printf("op%d adding s2 to s1\n", opl); 
+                    add(scratch[2], scratch[1]); 
+                } else {
+                    //printf("op%d adding s2 to buf\n", opl);
+                    add(scratch[2], buf);
+                }
+
+
             }
         }
     }
-
-
-    // freq and etc can go elsehwere
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         buf[i] = buf[i] * msynth[osc].amp;
     }

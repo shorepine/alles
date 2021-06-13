@@ -447,7 +447,11 @@ void hold_and_modify(uint8_t osc) {
     float scale = compute_adsr_scale(osc);
     if(synth[osc].adsr_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp * scale;
     if(synth[osc].adsr_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty * scale;
-    if(synth[osc].adsr_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq * scale;
+    if(synth[osc].adsr_target & TARGET_FREQ) {
+        //if(osc==6)
+            //printf("osc %d target %d scale: %f freq was %f and now is %f\n", osc, synth[osc].adsr_target, scale, msynth[osc].freq, msynth[osc].freq*scale);
+        msynth[osc].freq = msynth[osc].freq * scale;
+    }
     if(synth[osc].adsr_target & TARGET_FILTER_FREQ) {
         //printf("osc %d target %d scale: %f freq was %f and now is %f\n", osc, synth[osc].adsr_target, scale, msynth[osc].filter_freq, msynth[osc].filter_freq*scale);
         msynth[osc].filter_freq = msynth[osc].filter_freq * scale;

@@ -178,9 +178,10 @@ def render(seconds):
         frames.append( np.array(libamy.render())/32767.0 )
     return np.hstack(frames)
 
+# TODO - airpods ask for 2880 samples in a block, /64 but not /128
 def amy_callback(indata, outdata, frames, time, status):
-	single = render(frames/SAMPLE_RATE)
-	outdata[:] = single.reshape(single.shape[0],1)
+    single = render(frames/SAMPLE_RATE)
+    outdata[:] = single.reshape(single.shape[0],1)
 
 def start():
     global is_local, is_immediate
