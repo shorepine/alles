@@ -155,14 +155,17 @@ void render_algo(float * buf, uint8_t osc) {
             }
             if(algo.ops[op] & OUT_BUS_ONE) { 
                 //printf("op%d out_buf=s0\n", opl); 
+                zero(scratch[0]);
                 out_buf = scratch[0]; 
             }
             if(algo.ops[op] & OUT_BUS_TWO) { 
                 //printf("op%d out_buf=s1\n" , opl); 
+                zero(scratch[1]);
                 out_buf = scratch[1]; 
             }
             if(algo.ops[op] & OUT_BUS_ADD) { 
                 //printf("op%d out_buf=s2\n", opl); 
+                zero(scratch[2]);
                 out_buf = scratch[2]; 
             }
             //printf("rendering op %d their_osc %d fb %f my_osc %d\n", opl, synth[osc].algo_source[op], feedback_level, osc);

@@ -127,7 +127,8 @@ float render_lut_fm_osc(float * buf, float phase, float step, float amp, const f
         float b = lut[base_index & lut_mask];
         float c = lut[(base_index+1) & lut_mask];
         float sample = b + ((c - b) * frac);
-        buf[i] = sample * amp;
+        // The other render_LUT is cumulative. should this one be? probably
+        buf[i] += sample * amp;
         phase += step;
         phase -= (int)phase;
         past1 = past0;
@@ -165,7 +166,7 @@ float render_lut(float * buf, float step, float skip, float amp, const float* lu
         float cminusb = c - b;
         float sample = b + frac * (cminusb - 0.1666667f * (1.-frac) * ((d - a - 3.0f * cminusb) * frac + (d + 2.0f*a - 3.0f*b)));
 #endif /* LINEAR_INTERP */
-        buf[i] = sample * amp;
+        buf[i] += sample * amp;
 
         step += skip;
         if(step >= lut_size) step -= lut_size;

@@ -151,7 +151,6 @@ void filter_process(float * block, uint8_t osc) {
     float output[BLOCK_SIZE];
     float ratio = msynth[osc].filter_freq/(float)SAMPLE_RATE;
     if(ratio < LOWEST_RATIO) ratio = LOWEST_RATIO;
-    printf("Filtering %d ff %f res %f ratio %f\n", osc, msynth[osc].filter_freq, msynth[osc].resonance, ratio);
     if(synth[osc].filter_type==FILTER_LPF) dsps_biquad_gen_lpf_f32(coeffs[osc], ratio, msynth[osc].resonance);
     if(synth[osc].filter_type==FILTER_BPF) dsps_biquad_gen_bpf_f32(coeffs[osc], ratio, msynth[osc].resonance);
     if(synth[osc].filter_type==FILTER_HPF) dsps_biquad_gen_hpf_f32(coeffs[osc], ratio, msynth[osc].resonance);
