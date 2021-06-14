@@ -113,7 +113,7 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, fe
     if(bp1 is not None): m = m +"B%s" % (bp1)
     if(algo_source is not None): m = m +"O%s" % (algo_source)
     if(bp0_target>=0): m = m + "T" +trunc(bp0_target)
-    if(bp1_target>=0): m = m + "t" +trunc(bp1_target)
+    if(bp1_target>=0): m = m + "W" +trunc(bp1_target)
     if(lfo_target>=0): m = m + "g" + trunc(lfo_target)
     if(lfo_source>=0): m = m + "L" + trunc(lfo_source)
     if(reset>=0): m = m + "S" + trunc(reset)

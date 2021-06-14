@@ -604,7 +604,11 @@ void parse_breakpoint(struct event * e, char* message, uint8_t which_bpset) {
         e->breakpoint_times[which_bpset][i] = -1;
         e->breakpoint_values[which_bpset][i] = -1;
     }
-    while(message[c] != 0 && c < MAX_RECEIVE_LEN && message[c] < 'A') {
+    uint16_t stop = MAX_RECEIVE_LEN;
+    for(uint16_t i=0;i<MAX_RECEIVE_LEN;i++) {
+        if(message[i] >= 'A' || message[i] == 0) { stop =i; i = MAX_RECEIVE_LEN; }
+    }
+    while(c < stop) {
         if(message[c]!=',') {
             if(idx % 2 == 0) {
                 e->breakpoint_times[which_bpset][idx/2] = ms_to_samples(atoi(message+c));
@@ -612,12 +616,9 @@ void parse_breakpoint(struct event * e, char* message, uint8_t which_bpset) {
                 e->breakpoint_values[which_bpset][(idx-1) / 2] = atof(message+c);
             }
         }
-        while(message[c]!=',' && message[c]!=0 && c < MAX_RECEIVE_LEN && message[c] < 'A') c++;
+        while(message[c]!=',' && message[c]!=0 && c < MAX_RECEIVE_LEN) c++;
         c++; idx++;
     }
-    //printf("[%d] got message %s... parsed into .. ", which_bpset, message);
-    //for(uint8_t i=0;i<MAX_BREAKPOINTS;i++) printf("%d,%f ", e->breakpoint_times[which_bpset][i], e->breakpoint_values[which_bpset][i]);
-    //printf("\n");
 }
 
 void parse_message(char * message) {
@@ -705,7 +706,7 @@ void parse_task() {
                 if(osc > OSCS-1) { reset_oscs(); } else { reset_osc(osc); }
             }
             if(mode=='T') e.breakpoint_target[0] = atoi(message + start); 
-            if(mode=='t') e.breakpoint_target[1] = atoi(message + start); 
+            if(mode=='W') e.breakpoint_target[1] = atoi(message + start); 
             if(mode=='v') e.osc=(atoi(message + start) % OSCS); // allow osc wraparound
             if(mode=='V') { e.volume = atof(message + start); }
             if(mode=='w') e.wave=atoi(message + start);
