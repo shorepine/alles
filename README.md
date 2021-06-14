@@ -6,7 +6,7 @@
 
 The synthesizers automatically form a mesh and listen to multicast WiFi messages. You can control the mesh from a host computer using any programming language or environments like Max or Pd. You can also wire one synth up to MIDI or MIDI over Bluetooth, and use any MIDI software or controller; the directly connected synth will broadcast to the rest of the mesh for you. 
 
-We intended their first use as distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 64 partials, all controlled as a group or individually. But you can just treat them as dozens of individual synthesizers and do whatever you want with them. It's pretty fun!
+We intended their first use as distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [Atari AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 64 partials, all controlled as a group or individually. But you can just treat them as dozens of individual synthesizers and do whatever you want with them. It's pretty fun!
 
 Our friends at [Blinkinlabs](https://blinkinlabs.com) are helping us produce small self-contained battery powered speakers with Alles built in. But in the meantime, or if you want to DIY, you can easily build your own! They're cheap to make ($7 for the microcontroller, $6 for the amplifier, speakers from $0.50 up depending on quality). And very easy to put together with hookup wire or only a few soldering points. 
 
@@ -14,7 +14,7 @@ Our friends at [Blinkinlabs](https://blinkinlabs.com) are helping us produce sma
 
 Each individual synthesizer supports:
 
- * 64 oscillators, each with adjustable frequency and amplitude:
+ * The [AMY synthesis engine](https://github.com/bwhitman/alles/main/amy/README.md) with 64 oscillators, each with adjustable frequency and amplitude:
    * pulse (+ adjustable duty cycle)
    * sine
    * saw
@@ -22,11 +22,11 @@ Each individual synthesizer supports:
    * noise
    * PCM, reading from a baked-in buffer of percussive and misc samples
    * karplus-strong string with adjustable feedback (can have up to 2 per synth)
-   * FM, using a DX7 simulation, with support for DX7 patches and 1000 presets (1 per synth)
+   * An operator / algorithm-based frequency modulation synth, similar to a DX7
  * Up to 32 biquad low-pass, bandpass or hi-pass filters with cutoff and resonance, can be assigned to any oscillator
  * Oscillators can be specified by frequency in floating point or midi note 
- * Each oscillator has a dedicated ADSR VCA, which can modify any combination of amplitude, frequency, duty, filter cutoff or resonance
- * Each oscillator (except for those using KS or FM) can also act as an modulator to modify any combination of parameters of another oscillator, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave, or a 220Hz sine wave can modulate the frequency of a 440Hz sine wave to do FM synthesis. 
+ * Each oscillator has two breakpoint generators, which can modify any combination of amplitude, frequency, duty, filter cutoff or resonance
+ * Each oscillator (except for those using KS or FM) can also act as an modulator to modify any combination of parameters of another oscillator, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave. 
  * Control of speaker gain and 3-band parametric EQ
 
 
@@ -41,45 +41,22 @@ Alles can be used two ways:
  * **MIDI mode**, using MIDI over Bluetooth or a MIDI cable: A single Alles synth can be set up as a MIDI relay, by hitting the `MIDI` (or `BOOT0 / GPIO0` on DIY Alles) button. Once in MIDI relay mode, that synth stops making its own sound and acts as a relay to the rest of the mesh. You can connect to the relay over MIDI cable (details below) or wirelessly via MIDI bluetooth, supported by most OSes. You can then control the mesh using any MIDI sequencer or DAW of your choice. You are limited to directly addressing 16 synths in this mode (vs 100s), and lose some control over fine grained parameter tuning. 
 
 
-In direct mode, Alles responds to commands via UDP in ASCII delimited by a character, each message terminated with a newline, like
+In direct mode, Alles responds to [AMY commands](https://github.com/bwhitman/alles/tree/main/amy/README.md) commands via UDP. They are ASCII delimited by a character, each message terminated with a newline, like
 
 ```
 v0w4f440.0l0.9\n
 ```
 
-Where
+
+All the [AMY commands](https://github.com/bwhitman/alles/tree/main/amy/README.md) are supported, with a few additions:
+
 ```
-a = amplitude, float 0-1+. use after a note on is triggered with velocity to adjust amplitude without re-triggering the note
-A = ADSR envelope, string, in commas, like 100,50,0.5,200 -- A, D, R are in ms, S is in fraction of the peak, 0-1. default 0,0,1,0
-b = feedback, float 0-1 for karplus-strong. default 0.996
 c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_id % (x-255) == 0) for groups, default all clients
-d = duty cycle, float 0.001-0.999. duty cycle for pulse wave, default 0.5
 D = debug, uint, 1-4. 1 shows CPU usage on the serial console, 2 shows queue sample, 3 shows oscillator data, 4 shows modified oscillator. will interrupt audio!
-f = frequency, float 0-44100 (and above). default 0. Sampling rate of synth is 44,100Hz but higher numbers can be used for PCM waveforms
-F = center frequency of biquad filter. default 0. 
-g = modulation target mask. Which parameter modulation/LFO controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add them together
-G = filter type. 0 = none (default.) 1 = low pass, 2 = band pass, 3 = hi pass. 
-L = modulation source oscillator. 0-63. Which oscillator is used as an modulation/LFO source for this oscillator. Source oscillator will be silent. 
-l = velocity (amplitude), float 0-1+, >0 to trigger note on, 0 to trigger note off.  
-n = midinote, uint, 0-127 (this will also set f). default 0
-o = algorithm, choose which algorithm for the algorithm oscillator, uint, 0-16
-O = algorithn source oscillators, choose which oscillators make up the algorithm oscillator, like "0,1,2,3" for algorithm 0
-p = patch, uint, 0-999, choose a preloaded PCM sample or DX7 patch number for FM waveforms. See patches.h, pcm.h. default 0
-P = phase, float 0-1. where in the oscillator's cycle to start sampling from (also works on the PCM buffer). default 0
-R = q factor / "resonance" of biquad filter. float. in practice, 0 to 10.0. default 0.7.
-S = reset oscillator, uint 0-63 or for all oscillators, anything >63, which also resets speaker gain and EQ.
 s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py
-T = ADSR target mask. Which parameter ADSR controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add them together
-t = time, int64: ms since some fixed start point on your host. you should always give this if you can.
-v = oscillator, uint, 0 to 63. default: 0
-V = volume, float 0 to about 10 in practice. volume knob for the entire synth / speaker. default 1.0
-w = waveform, uint, 0 to 8 [SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, PCM, OFF]. default: 0/SINE
-x = "low" EQ amount for the entire synth (Fc=800Hz). float, in dB, -15 to 15. 0 is off. default: 0
-y = "mid" EQ amount for the entire synth (Fc=2500Hz). float, in dB, -15 to 15. 0 is off. default: 0
-z = "high" EQ amount for the entire synth (Fc=7500Hz). float, in dB, -15 to 15. 0 is off. default: 0
 ```
 
-Synthesizer state is held per oscillator, so you can optionally send only changes in parameters each message per oscillator. For higher throughput, it's recommended to batch many messages into one UDP message, up to 508 bytes per message. (`alles.py` does this for you, optionally.)
+For higher throughput, it's recommended to batch many messages into one UDP message, up to 508 bytes per message. (`alles.py` does this for you, optionally.)
 
 
 ## alles.py 
@@ -103,6 +80,20 @@ Or experiment with oscillators:
 >>> alles.note_on(osc=0, note=60, vel=1.5) # Bass drum!
 >>> alles.send(osc=0, filter_freq=800, resonance=1.5) # filter it
 >>> alles.note_on(osc=0, note=50, vel=1.5)
+```
+
+You can also compile [AMY](https://github.com/bwhitman/alles/tree/main/amy/README.md) locally and render audio within your Python terminal instead of remotely to your hardware synths. This is useful for composing and debugging (of course, just one synth engine at a time.)
+
+```
+$ cd alles/main/amy
+$ python3 setup.py install
+$ python3 -m pip install sounddevice numpy
+$ python3
+
+>>> import amy, alles
+>>> amy.live() # this starts a real time audio playback thread, and redirects all commands to the local AMY instance
+>>> alles.drums() # plays locally
+>>> amy.pause() # shuts down the local instance
 ```
 
 
@@ -255,7 +246,7 @@ Alles comes prebaked with 1,000 DX7 patches from the [learnFM](https://github.co
 
 * dan ellis, for many great changes and fixes to the oscillators, and finding out about that weird word-swapping i2s bug!!
 * douglas repetto
-* [MSFA](https://github.com/google/music-synthesizer-for-android) for their FM impl
+* [MSFA](https://github.com/google/music-synthesizer-for-android) for a lot of hints for our FM implmentation
 * mark fell
 * [esp32 WiFi Manager](https://github.com/tonyp7/esp32-wifi-manager)
 * kyle mcdonald 

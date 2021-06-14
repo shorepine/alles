@@ -1,32 +1,19 @@
 idf_component_register(SRCS alles.c
-							algorithms.c
 							multicast.c
-							oscillators.c
-							envelope.c
-							filters.c
-							fm.cc
 							blemidi.c
 							midi.c
 							buttons.c
 							sounds.c
 							power.c
-							dx7/dx7note.cc
-							dx7/env.cc
-							dx7/exp2.cc
-							dx7/fir.cc
-							dx7/fm_core.cc
-							dx7/fm_op_kernel.cc
-							dx7/freqlut.cc
-							dx7/lfo.cc
-							dx7/log2.cc
-							dx7/pitchenv.cc
-							dx7/resofilter.cc
-							dx7/ringbuffer.cc
-							dx7/sawtooth.cc
-							dx7/sin.cc
-                    INCLUDE_DIRS dx7)
+							amy/amy.c
+							amy/algorithms.c
+							amy/oscillators.c
+							amy/filters.c
+							amy/envelope.c
+							amy/dsps_biquad_f32_ae32.S
+                    INCLUDE_DIRS amy)
 
-set_source_files_properties(alles.c
+set_source_files_properties(alles.c amy/amy.c
     PROPERTIES COMPILE_FLAGS
     -Wno-strict-aliasing
 )

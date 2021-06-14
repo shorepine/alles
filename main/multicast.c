@@ -37,8 +37,22 @@ int16_t client_id;
 int64_t clocks[255];
 int64_t ping_times[255];
 uint8_t alive = 1;
-int64_t computed_delta = 0; // can be negative no prob, but usually host is larger # than client
-uint8_t computed_delta_set = 0; // have we set a delta yet?
+
+char udp_message[MAX_RECEIVE_LEN];
+
+
+extern char *message_start_pointer;
+extern int16_t message_length;
+
+extern int64_t computed_delta ; // can be negative no prob, but usually host is larger # than client
+extern uint8_t computed_delta_set ; // have we set a delta yet?
+
+
+//int16_t last_udp_message_length;
+
+extern void delay_ms(uint32_t ms);
+uint32_t udp_message_counter = 0;
+
 
 
 int64_t last_ping_time = PING_TIME_MS; // do the first ping at 10s in to wait for other synths to announce themselves
@@ -217,14 +231,6 @@ void ping(int64_t sysclock) {
 }
 
 
-char udp_message[MAX_RECEIVE_LEN];
-char *message_start_pointer;
-int16_t message_length;
-
-//int16_t last_udp_message_length;
-
-extern void delay_ms(uint32_t ms);
-uint32_t udp_message_counter = 0;
 
 void mcast_listen_task(void *pvParameters) {
     struct timeval tv = {

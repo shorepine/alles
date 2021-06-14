@@ -1,14 +1,11 @@
-# Import all the utilities from alles_util needed to make sounds
-from alles_util import send, sync, volume, note_on, note_off, reset, connect, disconnect, millis, flush, buffer
+from amy import send, volume, note_on, note_off, reset, millis
+from alles_util import connect, disconnect
 import time
 
-# Some constants shared with the synth that help
-ALLES_OSCS = 64
-ALLES_MAX_QUEUE = 400
-[SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, PCM, ALGO, OFF] = range(10)
-TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE = (1, 2, 4, 8, 16)
-FILTER_NONE, FILTER_LPF, FILTER_BPF, FILTER_HPF = range(4)
-
+from amy import SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, PCM, ALGO, OFF
+from amy import TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE
+from amy import FILTER_NONE, FILTER_LPF, FILTER_BPF, FILTER_HPF
+from amy import BLOCK_SIZE, SAMPLE_RATE, OSCS, MAX_QUEUE
 
 """
     A bunch of useful presets
@@ -17,28 +14,28 @@ def preset(which,osc=0, **kwargs):
     # Reset the osc first
     reset(osc=osc)
     if(which==0): # simple note
-        send(osc=osc, wave=SINE, envelope="10,250,0.7,250", adsr_target=TARGET_AMP, **kwargs)
+        send(osc=osc, wave=SINE, bp0="10,1,250,0.7,250,0", bp0_target=TARGET_AMP, **kwargs)
     if(which==1): # filter bass
-        send(osc=osc, filter_freq=2500, resonance=5, wave=SAW, filter_type=FILTER_LPF, envelope="0,100,0.5,25", adsr_target=TARGET_AMP+TARGET_FILTER_FREQ, **kwargs)
-    if(which==2): # long square pad to test ADSR
-        send(osc=osc, wave=PULSE, envelope="500,1000,0.25,750", adsr_target=TARGET_AMP, **kwargs)
+        send(osc=osc, filter_freq=2500, resonance=5, wave=SAW, filter_type=FILTER_LPF, bp0="100,0.5,25,0", bp0_target=TARGET_AMP+TARGET_FILTER_FREQ, **kwargs)
+    if(which==2): # long sine pad to test ADSR
+        send(osc=osc, wave=SINE, bp0="0,0,500,1,1000,0.25,750,0", bp0_target=TARGET_AMP, **kwargs)
     if(which==3): # amp LFO example
         reset(osc=osc+1)
         send(osc=osc+1, wave=SINE, vel=0.50, freq=1.5, **kwargs)
-        send(osc=osc, wave=PULSE, envelope="150,250,0.25,250", adsr_target=TARGET_AMP, lfo_target=TARGET_AMP, lfo_source=osc+1, **kwargs)
+        send(osc=osc, wave=PULSE, envelope="150,1,250,0.25,250,0", bp0_target=TARGET_AMP, lfo_target=TARGET_AMP, lfo_source=osc+1, **kwargs)
     if(which==4): # pitch LFO going up 
         reset(osc=osc+1)
         send(osc=osc+1, wave=SINE, vel=0.50, freq=0.25, **kwargs)
-        send(osc=osc, wave=PULSE, envelope="150,400,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=osc+1, **kwargs)
+        send(osc=osc, wave=PULSE, bp0="150,1,400,0,0,0", bp0_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=osc+1, **kwargs)
     if(which==5): # bass drum
         # Uses a 0.25Hz sine wave at 0.5 phase (going down) to modify frequency of another sine wave
         reset(osc=osc+1)
         send(osc=osc+1, wave=SINE, vel=0.50, freq=0.25, phase=0.5, **kwargs)
-        send(osc=osc, wave=SINE, vel=0, envelope="0,500,0,0", adsr_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=osc+1, **kwargs)
+        send(osc=osc, wave=SINE, vel=0, bp0="500,0,0,0", bp0_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=osc+1, **kwargs)
     if(which==6): # noise snare
-        send(osc=osc, wave=NOISE, vel=0, envelope="0,250,0,0", adsr_target=TARGET_AMP, **kwargs)
+        send(osc=osc, wave=NOISE, vel=0, bp0="250,0,0,0", bp0_target=TARGET_AMP, **kwargs)
     if(which==7): # closed hat
-        send(osc=osc, wave=NOISE, vel=0, envelope="25,75,0,0", adsr_target=TARGET_AMP, **kwargs)
+        send(osc=osc, wave=NOISE, vel=0, envelope="25,1,75,0,0,0", bp0_target=TARGET_AMP, **kwargs)
     if(which==8): # closed hat from PCM 
         send(osc=osc, wave=PCM, vel=0, patch=17, freq=22050, **kwargs)
     if(which==9): # cowbell from PCM
@@ -72,19 +69,19 @@ def play_patches(wait=0.500, patch_total = 100, **kwargs):
         for i in range(24):
             patch = patch_count % patch_total
             patch_count = patch_count + 1
-            note_on(osc=i % ALLES_OSCS, note=i+50, wave=FM, patch=patch, **kwargs)
+            note_on(osc=i % OSCS, note=i+50, wave=FM, patch=patch, **kwargs)
             time.sleep(wait)
-            note_off(osc=i % ALLES_OSCS)
+            note_off(osc=i % OSCS)
 
 """
     Play up to ALLES_OSCS patches at once
 """
-def polyphony(max_voices=ALLES_OSCS,**kwargs):
+def polyphony(max_voices=OSCS,**kwargs):
     note = 0
     oscs = []
     for i in range(int(max_voices/2)):
         oscs.append(int(i))
-        oscs.append(int(i+(ALLES_OSCS/2)))
+        oscs.append(int(i+(OSCS/2)))
     print(str(oscs))
     while(1):
         osc = oscs[note % max_voices]
