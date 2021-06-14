@@ -62,59 +62,11 @@ const float *choose_from_lutset(float period, lut_entry *lutset, int16_t *plut_s
     return lut_table;
 }
 
-/*
-
-def lut(table, indices):
-  """Look up samples in a table.  indices are floats in range 0..1."""
-  tab_size = len(table)
-  scaled_indices = indices * tab_size
-  base_indices = np.floor(scaled_indices).astype(int)
-  frac_part = scaled_indices - base_indices
-  # Linear interpolation.
-  base_samples = table[base_indices % tab_size]
-  return base_samples + frac_part * (table[(base_indices + 1) % tab_size] - base_samples)
-
-*/
-
-
-/*
-
-tab_size = 256
-sin_tab = np.sin(np.arange(tab_size) * 2 * np.pi / tab_size)
-
-def fm_osc(period, num_samples, table=sin_tab, feedback=0.0, modulator=None):
-  step = 1.0 / period
-  tab_size = len(table)
-  output = np.zeros(num_samples)
-  if modulator is None:
-    modulator = np.zeros(num_samples)
-  if not len(modulator) == num_samples:
-    raise ValueError("modulator must be None, or a vector of length num_samples")
-  if isinstance(feedback, float):
-    feedback = feedback * np.ones(num_samples)
-  phase = 0.0
-  past = np.zeros(2)
-  for i in range(num_samples):
-    scaled_phase = tab_size * (phase + modulator[i] + feedback[i] * np.mean(past))
-    base_index = np.floor(scaled_phase).astype(int)
-    frac = scaled_phase - base_index
-    base_sample = table[base_index % tab_size]
-    next_sample = table[(base_index + 1) % tab_size]
-    output[i] = base_sample + frac * (next_sample - base_sample)
-    phase += step
-    past[1] = past[0]
-    past[0] = output[i]
-  # Final phase, should we want to carry on (but we'd need to preserve past[] too)
-  phase = phase - np.floor(phase)
-  return output
-
-*/
 
 // dictionary:
 // oldC -- python
 // step == scaled_phase
 // skip == step (scaled_step)
-
 
 float render_lut_fm_osc(float * buf, float phase, float step, float amp, const float* lut, int16_t lut_size, float * mod, float feedback_level, float * last_two) { 
     int lut_mask = lut_size - 1;
@@ -139,7 +91,8 @@ float render_lut_fm_osc(float * buf, float phase, float step, float amp, const f
     return phase;// - (int)phase;
 }
 
-// This is copying from Pure Data's tabread4~.
+// TODO -- move this render_LUT to use the "New terminology" that render_lut_fm_osc uses
+// pass in unscaled phase, use step instead of skip, etc
 float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size) { 
     // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
     int lut_mask = lut_size - 1;
@@ -424,7 +377,6 @@ extern int64_t total_samples;
 void fm_sine_note_on(uint8_t osc, uint8_t algo_osc) {
     if(synth[osc].freq_ratio >= 0) {
         msynth[osc].freq = msynth[algo_osc].freq * synth[osc].freq_ratio;
-        //printf("Ratio set for osc %d from algo osc %d. freq = %f * %f = %f\n", osc, algo_osc, synth[algo_osc].freq, synth[osc].freq_ratio, synth[osc].freq);
     }
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lut = choose_from_lutset(period_samples, sine_lutset, &synth[osc].lut_size);
@@ -433,11 +385,7 @@ void render_fm_sine(float *buf, uint8_t osc, float *mod, float feedback_level, u
     if(synth[osc].freq_ratio >= 0) {
         msynth[osc].freq = msynth[algo_osc].freq * synth[osc].freq_ratio;
     }
-    //printf("osc %d algo_osc %d fb %f amp %f mamp %f total_samples %d\n",osc, algo_osc, feedback_level, synth[osc].amp, msynth[osc].amp, total_samples );
     float step = msynth[osc].freq / (float)SAMPLE_RATE;
-    //if(osc==4) {
-        //printf("o4/op2. step %f mfreq %f from algo freq %f and ratio %f\n", step, msynth[osc].freq, msynth[algo_osc].freq ,synth[osc].freq_ratio);
-    //}
     synth[osc].phase = render_lut_fm_osc(buf, synth[osc].phase, step, msynth[osc].amp, 
                  synth[osc].lut, synth[osc].lut_size, mod, feedback_level, synth[osc].last_two);
 }

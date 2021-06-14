@@ -87,13 +87,12 @@ void algo_note_off(uint8_t osc) {
         if(synth[osc].algo_source[i] >=0 ) {
             uint8_t o = synth[osc].algo_source[i];
             synth[o].note_on_clock = -1;
-            synth[o].note_off_clock = total_samples; // esp_timer_get_time() / 1000;
-            //synth[o].amp = 0;
+            synth[o].note_off_clock = total_samples; 
         }
     }
     // osc note off, start release
     synth[osc].note_on_clock = -1;
-    synth[osc].note_off_clock = total_samples; // esp_timer_get_time() / 1000;            
+    synth[osc].note_off_clock = total_samples;          
 }
 
 void algo_note_on(uint8_t osc) {    
@@ -147,6 +146,7 @@ void render_algo(float * buf, uint8_t osc) {
                 out_buf = scratch[2]; 
             }
             render_mod(in_buf, out_buf, synth[osc].algo_source[op], feedback_level, osc);
+            // TODO -- we could save a buffer here as render adds to out_buf anyway
             if(algo.ops[op] & OUT_BUS_ADD) { 
                 // which thing to add to?
                 if(algo.ops[op] & OUT_BUS_ONE) {

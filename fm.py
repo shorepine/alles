@@ -15,8 +15,13 @@ def dx7_render(patch_number, midinote, velocity, samples, keyup_sample):
 	return np.array(s)/32767.0
 
 def setup_patch(p):
-	# Take a patch and output AMY commands to set up the patch. Send amy.send(vel=0,osc=6,note=50) after
+	# Take a FM patch and output AMY commands to set up the patch. Send amy.send(vel=0,osc=6,note=50) after
+	
+	# Problem here, pitch values are such that 0 = -n octave, 99 = + n octave 
+	# pitch level = 50 means no change (or 1 for us)
+	# can our breakpoints handle negative numbers? 
 	pitchenv = p["bp_pitch"]
+
 	# Set up each operator
 	for i,op in enumerate(p["ops"]):
 		freq_ratio = -1
@@ -26,14 +31,20 @@ def setup_patch(p):
 			freq = op["fixedhz"]
 		else:
 			freq_ratio = op["ratio"]
-		amp = op["opamp"]/1.0
+		amp = op["opamp"] / 2.0
 		# Set the operator-- freq, breakpoints for amp, breakpoints for pitch
-		print("osc %d (op %d) freq %f ratio %f env %s amp %f" % (i, np.abs(i-6), freq, freq_ratio, op["bp_opamp"], amp))
+		# Not yet implemented:
+		#	detune -- have to pass +/- Hz somehow, even for ratio 
+		#	LFOs
+		#   keyboard scaling
+		#   transpose
+		#   osc sync
+		print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f" % (i, (i-6)*-1, freq, freq_ratio, op["bp_opamp"], pitchenv, amp))
 		amy.send(osc=i, freq=freq, freq_ratio=freq_ratio,bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR,bp0=op["bp_opamp"], bp1=pitchenv, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR, amp=amp)
 
 	# Set up the main carrier note
 	feedback = p["feedback"]/14.0
-	print("osc 6 (main)  algo %d feedback %f env %s" % ( p["algo"], feedback, pitchenv))
+	print("osc 6 (main)  algo %d feedback %f pitchenv %s" % ( p["algo"], feedback, pitchenv))
 	amy.send(osc=6, wave=amy.ALGO, algorithm=p["algo"], feedback=feedback, algo_source="0,1,2,3,4,5", bp1=pitchenv, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR)
 
 def plot(us, them):
@@ -83,31 +94,52 @@ def get_patch(patch_number):
 
 # Given a patch byte stream, return a json object that describes it
 def decode_patch(p):
-
 	def eg_to_bp(egrate, eglevel):
 		# This is likely incorrect, but an ok start
 		def rate_to_ms(rate):
-			return (99-rate)*2.5 # 250ms is rate=0, 0ms is rate=99
+			"""
+				"It may take over half a minute to reach level 1, depending on the setting of RATE 1 (R1)."
+			"""
+			# From MSFA. This is likely in samples to advance per sample?
+			ratetab = [
+				1, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12,
+				12, 13, 13, 14, 14, 15, 16, 16, 17, 18, 18, 19, 20, 21, 22, 23, 24,
+				25, 26, 27, 28, 30, 31, 33, 34, 36, 37, 38, 39, 41, 42, 44, 46, 47,
+				49, 51, 53, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 79, 82,
+				85, 88, 91, 94, 98, 102, 106, 110, 115, 120, 125, 130, 135, 141, 147,
+				153, 159, 165, 171, 178, 185, 193, 202, 211, 232, 243, 254, 255]
+			# This must be exp scaled so that 0 is 30 seconds, 1 is 10 seconds, 2 is 1 second, etc .. 
+			# I don't know what i'm doing here, need help with this bit 
+			return 90000. / (ratetab[rate]*64.0)
+
 		# http://www.audiocentralmagazine.com/wp-content/uploads/2012/04/dx7-envelope.png
 		# or https://yamahasynth.com/images/RefaceSynthBasics/EG_RatesLevels.png
 		# rate seems to be "speed", so higher rate == less time
-		# NO idea what the time units are, so going to have to fudge this a bit
 		# level is probably exp, but so is our ADSR? 
+		print ("Input rate %s level %s" %(egrate, eglevel))
 		bp = ""
+		total_ms = 0
 		for i in range(4):
 			ms = rate_to_ms(egrate[i])
 			l = eglevel[i] / 99.0
-			# Don't throw in the 0,0 type egs
-			if(ms==0 and i>0):
-				pass
+			if(i!=3):
+				total_ms = total_ms + ms
+				bp = bp + "%d,%f," % (total_ms,l)
 			else:
-				bp = bp + "%d,%f," % (ms,l)
+				# Release ms counter happens separately, so don't add
+				bp = bp + "%d,%f" % (ms, l)
+		print ("return %s" % (bp[:-1]))
 		return bp[:-1]
 
 
 	def output_level_to_amp(byte):
 		# Sure could be a exp curve but seems a bit custom
 		# https://i.stack.imgur.com/1FQqR.jpg
+		"""
+		From Dan:
+			When doing phase modulation in LUTs, there’s the factor of lut_size (the difference between 
+			phase and scaled_phase).  So 0.2 in the “phase” domain becomes 51.2 if we scale it up for a 256 pt LUT
+		"""
 		if(byte<20): return 0
 		if(byte<40): return 0.1/14
 		if(byte<50): return 0.25/14
@@ -136,7 +168,7 @@ def decode_patch(p):
 		if(byte == 2): return "ramp_up"
 		if(byte == 3): return "pulse"
 		if(byte == 4): return "sine"
-		if(byte == 5): return "samplehold"
+		if(byte == 5): return "samplehold" # noise?
 		return "unknown"
 
 	def curve(byte):
@@ -199,8 +231,9 @@ def decode_patch(p):
 		op["detunehz"] = p[c] - 7
 		c = c + 1
 		ops.append(op)
-	ops.reverse() # start from op 1
+
 	patch["ops"] = ops
+
 	patch["bp_pitch"] = eg_to_bp([x for x in p[c:c+4]], [x for x in p[c+4:c+8]])
 	c = c + 8
 	patch["algo"] = p[c]
