@@ -14,7 +14,7 @@ Our friends at [Blinkinlabs](https://blinkinlabs.com) are helping us produce sma
 
 Each individual synthesizer supports:
 
- * The [AMY synthesis engine](https://github.com/bwhitman/alles/main/amy/README.md) with 64 oscillators, each with adjustable frequency and amplitude:
+ * The [AMY synthesis engine](https://github.com/bwhitman/alles/tree/master/main/amy/README.md) with 64 oscillators, each with adjustable frequency and amplitude:
    * pulse (+ adjustable duty cycle)
    * sine
    * saw
@@ -41,14 +41,14 @@ Alles can be used two ways:
  * **MIDI mode**, using MIDI over Bluetooth or a MIDI cable: A single Alles synth can be set up as a MIDI relay, by hitting the `MIDI` (or `BOOT0 / GPIO0` on DIY Alles) button. Once in MIDI relay mode, that synth stops making its own sound and acts as a relay to the rest of the mesh. You can connect to the relay over MIDI cable (details below) or wirelessly via MIDI bluetooth, supported by most OSes. You can then control the mesh using any MIDI sequencer or DAW of your choice. You are limited to directly addressing 16 synths in this mode (vs 100s), and lose some control over fine grained parameter tuning. 
 
 
-In direct mode, Alles responds to [AMY commands](https://github.com/bwhitman/alles/tree/main/amy/README.md) commands via UDP. They are ASCII delimited by a character, each message terminated with a newline, like
+In direct mode, Alles responds to [AMY commands](https://github.com/bwhitman/alles/tree/master/main/amy/README.md) commands via UDP. They are ASCII delimited by a character, each message terminated with a newline, like
 
 ```
 v0w4f440.0l0.9\n
 ```
 
 
-All the [AMY commands](https://github.com/bwhitman/alles/tree/main/amy/README.md) are supported, with a few additions:
+All the [AMY commands](https://github.com/bwhitman/alles/tree/master/main/amy/README.md) are supported, with a few additions:
 
 ```
 c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_id % (x-255) == 0) for groups, default all clients
@@ -82,7 +82,7 @@ Or experiment with oscillators:
 >>> alles.note_on(osc=0, note=50, vel=1.5)
 ```
 
-You can also compile [AMY](https://github.com/bwhitman/alles/tree/main/amy/README.md) locally and render audio within your Python terminal instead of remotely to your hardware synths. This is useful for composing and debugging (of course, just one synth engine at a time.)
+You can also compile [AMY](https://github.com/bwhitman/alles/tree/master/main/amy/README.md) locally and render audio within your Python terminal instead of remotely to your hardware synths. This is useful for composing and debugging (of course, just one synth engine at a time.)
 
 ```
 $ cd alles/main/amy
