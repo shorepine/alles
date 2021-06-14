@@ -25,8 +25,8 @@ Each individual synthesizer supports:
    * An operator / algorithm-based frequency modulation synth, similar to a DX7
  * Up to 32 biquad low-pass, bandpass or hi-pass filters with cutoff and resonance, can be assigned to any oscillator
  * Oscillators can be specified by frequency in floating point or midi note 
- * Each oscillator has a dedicated ADSR VCA, which can modify any combination of amplitude, frequency, duty, filter cutoff or resonance
- * Each oscillator (except for those using KS or FM) can also act as an modulator to modify any combination of parameters of another oscillator, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave, or a 220Hz sine wave can modulate the frequency of a 440Hz sine wave to do FM synthesis. 
+ * Each oscillator has two breakpoint generators, which can modify any combination of amplitude, frequency, duty, filter cutoff or resonance
+ * Each oscillator (except for those using KS or FM) can also act as an modulator to modify any combination of parameters of another oscillator, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave. 
  * Control of speaker gain and 3-band parametric EQ
 
 
@@ -87,12 +87,13 @@ You can also compile [AMY](https://github.com/bwhitman/alles/main/amy/README.md)
 ```
 $ cd alles/main/amy
 $ python3 setup.py install
+$ python3 -m pip install sounddevice numpy
 $ python3
 
->>> import alles
->>> alles.local_start() # this starts a real time audio playback thread, and redirects all commands to the local AMY instance
+>>> import amy, alles
+>>> amy.live() # this starts a real time audio playback thread, and redirects all commands to the local AMY instance
 >>> alles.drums() # plays locally
->>> alles.local_stop() # shuts down the local instance
+>>> amy.pause() # shuts down the local instance
 ```
 
 
