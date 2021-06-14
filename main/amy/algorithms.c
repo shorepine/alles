@@ -18,7 +18,7 @@ enum FmOperatorFlags {
   FB_IN = 1 << 6,
   FB_OUT = 1 << 7
 };
-struct FmAlgorithm { uint8_t ops[6] };
+struct FmAlgorithm { uint8_t ops[6]; };
 struct FmAlgorithm algorithms[32] = {
     // 6     5     4     3     2      1   
   { { 0xc1, 0x11, 0x11, 0x14, 0x01, 0x14 } }, // 1

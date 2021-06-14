@@ -1,36 +1,50 @@
 # fm.py
+
+# Get dx7 from https://github.com/bwhitman/learnfm
 import amy, dx7
 import numpy as np
 import time
-#import matplotlib.pyplot as plt
-
-# Converting DX7 patches to AMY commands
-
-#amy.start()
 
 
+# Convert DX7 patches to AMY commands
+
+
+# Use learnfm's dx7 to render a dx7 note from MSFA
 def dx7_render(patch_number, midinote, velocity, samples, keyup_sample):
 	s = dx7.render(patch_number, midinote, velocity, samples, keyup_sample)
 	return np.array(s)/32767.0
 
-def setup_patch(p, midinote):
+def setup_patch(p):
+	# Take a patch and output AMY commands to set up the patch. Send amy.send(vel=0,osc=6,note=50) after
 	pitchenv = p["bp_pitch"]
+	# Set up each operator
 	for i,op in enumerate(p["ops"]):
 		freq_ratio = -1
 		freq = -1
+		# Set the ratio or the fixed freq
 		if(op.get("fixedhz",None) is not None):
 			freq = op["fixedhz"]
 		else:
 			freq_ratio = op["ratio"]
 		amp = op["opamp"]/1.0
+		# Set the operator-- freq, breakpoints for amp, breakpoints for pitch
 		print("osc %d (op %d) freq %f ratio %f env %s amp %f" % (i, np.abs(i-6), freq, freq_ratio, op["bp_opamp"], amp))
 		amy.send(osc=i, freq=freq, freq_ratio=freq_ratio,bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR,bp0=op["bp_opamp"], bp1=pitchenv, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR, amp=amp)
+
+	# Set up the main carrier note
 	feedback = p["feedback"]/14.0
-	print("osc 6 (main) note %d algo %d feedback %f env %s" % (midinote, p["algo"], feedback, pitchenv))
-	amy.send(osc=6, note=midinote, wave=amy.ALGO, algorithm=p["algo"], feedback=feedback, algo_source="0,1,2,3,4,5", bp1=pitchenv, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR)
+	print("osc 6 (main)  algo %d feedback %f env %s" % ( p["algo"], feedback, pitchenv))
+	amy.send(osc=6, wave=amy.ALGO, algorithm=p["algo"], feedback=feedback, algo_source="0,1,2,3,4,5", bp1=pitchenv, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR)
+
+def plot(us, them):
+	import matplotlib.pyplot as plt
+	fig, (s0,s1) = plt.subplots(2,1)
+	s0.specgram(us_samples, NFFT=512, Fs=amy.SAMPLE_RATE)
+	s1.specgram(them_samples, NFFT=512, Fs=amy.SAMPLE_RATE)
+	fig.show()
 
 
-
+# Play our version vs the MSFA version to A/B test
 def play_patch(patch_number, midinote=50, length_s = 2, keyup_s = 1):
 	dx7_patch = dx7.unpack(patch_number)
 	p = decode_patch(dx7_patch)
@@ -44,13 +58,14 @@ def play_patch(patch_number, midinote=50, length_s = 2, keyup_s = 1):
 	us_samples = np.hstack((us_samples0, us_samples1))
 
 	them_samples = dx7_render(patch_number, midinote, 90, int(length_s*amy.SAMPLE_RATE),int(keyup_s*amy.SAMPLE_RATE))
-	#fig, (s0,s1) = plt.subplots(2,1)
-	#s0.specgram(us_samples, NFFT=512, Fs=amy.SAMPLE_RATE)
-	#s1.specgram(them_samples, NFFT=512, Fs=amy.SAMPLE_RATE)
-	#fig.show()
+
+	# Uncomment this to show a spectra
+	#plot(us_samples, them_samples)
+
 	print("AMY:")
 	amy.play(us_samples)
 	time.sleep(length_s)
+
 	# A/B against MSFA 
 	time.sleep(0.25)
 	print("MSFA:")
@@ -66,8 +81,11 @@ def get_patch(patch_number):
     #name = ''.join([i if (ord(i) < 128 and ord(i) > 31) else ' ' for i in str(patch_data[145:155])])
     return patch_data
 
+# Given a patch byte stream, return a json object that describes it
 def decode_patch(p):
+
 	def eg_to_bp(egrate, eglevel):
+		# This is likely incorrect, but an ok start
 		def rate_to_ms(rate):
 			return (99-rate)*2.5 # 250ms is rate=0, 0ms is rate=99
 		# http://www.audiocentralmagazine.com/wp-content/uploads/2012/04/dx7-envelope.png
@@ -79,6 +97,7 @@ def decode_patch(p):
 		for i in range(4):
 			ms = rate_to_ms(egrate[i])
 			l = eglevel[i] / 99.0
+			# Don't throw in the 0,0 type egs
 			if(ms==0 and i>0):
 				pass
 			else:
@@ -119,14 +138,17 @@ def decode_patch(p):
 		if(byte == 4): return "sine"
 		if(byte == 5): return "samplehold"
 		return "unknown"
+
 	def curve(byte):
 		if(byte==0): return "-lin"
 		if(byte==1): return "-exp"
 		if(byte==2): return "+exp"
 		if(byte==3): return "+lin"
 		return "unknown"
+
 	def coarse_fine_fixed_hz(coarse, fine):
-		coarse = coarse & 3 # so many are > 3 (7500 out of 38K.) msfa cuts it like this, not sure whats' up here. maybe the knob loops over? 
+		# so many are > 3 (7500 out of 38K.) msfa cuts it like this, not sure whats' up here. maybe the knob loops over? 
+		coarse = coarse & 3 
 		if(coarse==0):
 			return 1 + ((fine / 10.0) )
 		if(coarse==1):
@@ -137,6 +159,7 @@ def decode_patch(p):
 			return 1000 + ((fine * 100.0) )
 		print("fixed coarse > 3, is %d" % (coarse))
 		return 0
+
 	def coarse_fine_ratio(coarse,fine):
 		if(coarse==0):
 			return 0.5 + ((fine/200.0) - 0.5)
