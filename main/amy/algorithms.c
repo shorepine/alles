@@ -1,8 +1,5 @@
 // algorithms.c
 // FM2 and partial synths that involve combinations of oscillators
-
-
-
 #include "amy.h"
 
 extern struct event *synth;
@@ -10,9 +7,7 @@ extern struct mod_event *msynth; // the synth that is being modified by modulati
 extern struct state global; 
 extern int64_t total_samples ;
 
-
-// From MSFA, they encode the dx7's 32 algorithms this way:
-
+// Thank you MFSA for the DX7 op structure , borrowed here \/ \/ \/ 
 enum FmOperatorFlags {
   OUT_BUS_ONE = 1 << 0,
   OUT_BUS_TWO = 1 << 1,
@@ -23,12 +18,7 @@ enum FmOperatorFlags {
   FB_IN = 1 << 6,
   FB_OUT = 1 << 7
 };
-
-struct FmAlgorithm {
-  uint8_t ops[6];
-};
-
-
+struct FmAlgorithm { uint8_t ops[6] };
 struct FmAlgorithm algorithms[32] = {
     // 6     5     4     3     2      1   
   { { 0xc1, 0x11, 0x11, 0x14, 0x01, 0x14 } }, // 1
@@ -64,18 +54,13 @@ struct FmAlgorithm algorithms[32] = {
   { { 0xc1, 0x14, 0x04, 0x04, 0x04, 0x04 } }, // 31
   { { 0xc4, 0x04, 0x04, 0x04, 0x04, 0x04 } }, // 32
 };
+// End of MSFA stuff
+
 
 // a = 0
 void zero(float *a) {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         a[i] = 0;
-    }
-}
-
-// out = (a + b) / 2
-void mix(float *a, float*b, float *out) {
-    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        out[i] = (a[i] + b[i]) * 0.5;
     }
 }
 
@@ -85,7 +70,6 @@ void add(float *a, float*b) {
         b[i] = (a[i] + b[i]);
     }
 }
-
 
 void render_mod(float *in, float*out, uint8_t osc, float feedback_level, uint8_t algo_osc) {
     hold_and_modify(osc);
@@ -130,56 +114,46 @@ void render_algo(float * buf, uint8_t osc) {
     float scratch[3][BLOCK_SIZE];
 
     struct FmAlgorithm algo = algorithms[synth[osc].algorithm-1];
-    // make sure to check that algo_source >= 0
+
     // starts at op 6
     float *in_buf, *out_buf;
     zero(scratch[0]);
     zero(scratch[1]);
     zero(scratch[2]);
     for(uint8_t op=0;op<6;op++) {
-        int8_t opl = (op - 6) * -1; 
+        //int8_t opl = (op - 6) * -1; 
         if(synth[osc].algo_source[op] >=0 && synth[synth[osc].algo_source[op]].status == IS_ALGO_SOURCE) {
             float feedback_level = 0;
             in_buf = zeros; // just in case not set elsewhere
             if(algo.ops[op] & FB_IN) { 
-                //printf("op%d FB_IN\n", opl); 
                 feedback_level = synth[osc].feedback; 
             } // main algo voice stores feedback, not the op 
             if(algo.ops[op] & IN_BUS_ONE) { 
-                //printf("op%d in_buf=s0\n", opl); 
                 in_buf = scratch[0]; 
             }
             if(algo.ops[op] & IN_BUS_TWO) { 
-                //printf("op%d in_buf=s1\n", opl); 
                 in_buf = scratch[1]; 
             }
             if(algo.ops[op] & OUT_BUS_ONE) { 
-                //printf("op%d out_buf=s0\n", opl); 
                 zero(scratch[0]);
                 out_buf = scratch[0]; 
             }
             if(algo.ops[op] & OUT_BUS_TWO) { 
-                //printf("op%d out_buf=s1\n" , opl); 
                 zero(scratch[1]);
                 out_buf = scratch[1]; 
             }
             if(algo.ops[op] & OUT_BUS_ADD) { 
-                //printf("op%d out_buf=s2\n", opl); 
                 zero(scratch[2]);
                 out_buf = scratch[2]; 
             }
-            //printf("rendering op %d their_osc %d fb %f my_osc %d\n", opl, synth[osc].algo_source[op], feedback_level, osc);
             render_mod(in_buf, out_buf, synth[osc].algo_source[op], feedback_level, osc);
             if(algo.ops[op] & OUT_BUS_ADD) { 
                 // which thing to add to?
                 if(algo.ops[op] & OUT_BUS_ONE) {
-                    //printf("op%d adding s2 to s0\n", opl); 
                     add(scratch[2], scratch[0]); 
                 } else if(algo.ops[op] & OUT_BUS_TWO) {
-                    //printf("op%d adding s2 to s1\n", opl); 
                     add(scratch[2], scratch[1]); 
                 } else {
-                    //printf("op%d adding s2 to buf\n", opl);
                     add(scratch[2], buf);
                 }
 

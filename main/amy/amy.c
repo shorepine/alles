@@ -584,8 +584,11 @@ int32_t ms_to_samples(int32_t ms) {
 void parse_algorithm(struct event * e, char *message) {
     uint8_t idx = 0;
     uint16_t c = 0;
-    // Change only the ones i received
-    while(message[c] != 0 && c < MAX_RECEIVE_LEN) {
+    uint16_t stop = MAX_RECEIVE_LEN;
+    for(uint16_t i=0;i<MAX_RECEIVE_LEN;i++) {
+        if(message[i] >= 'A' || message[i] == 0) { stop =i; i = MAX_RECEIVE_LEN; }
+    }
+    while(c < stop) {
         if(message[c]!=',') {
             e->algo_source[idx] = atoi(message+c);
         }
