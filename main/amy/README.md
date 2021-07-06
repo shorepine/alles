@@ -103,5 +103,24 @@ $ python3 setup.py install
 $ python3 -m pip install sounddevice numpy # needed to render live audio in the shell
 ```
 
+## Synth details
+
+### Breakpoints
+
+AMY allows you to set 2 "breakpoint generators" per oscillator. You can see these as ADSR / envelopes (and they can perform the same task), but they are slightly more capable. Breakpoints are defined as pairs (up to 8 per breakpoint) of time (specified in milliseconds) and ratio. You can specify any amount of pairs, but the last pair you specify will always be seen as the "release" pair, which doesn't trigger until note off. All other pairs previously have time in the aggregate, e.g. 10ms, then 100ms is 90ms later, then 250ms is 150ms after the last one. The last "release" pair counts from ms from the note-off. 
+
+For example, to define a common ADSR curve where a sound sweeps up in volume from note on over 50ms, then has a 100ms decay stage to 50% of the volume, then is held until note off at which point it takes 250ms to trail off to 0, you'd set time to be 50ms at ratio to be 1.0, then 150ms with ratio .5, then a 250ms release with ratio 0. You then set the target of this breakpoint to be amplitude. At every synthesizer tick, the given amplitude (default of 1.0) will be multiplied by the breakpoint modifier. In AMY string parlance, this would look like "`v0f220w0A50,1.0,150,0.5,250,0T1`" to specify a sine wave at 220Hz with this envelope. Every note on (specified by setting velocity / `l` to anything > 0) will trigger this envelope, and setting `l` to 0 will trigger the note off / releae section. 
+
+Adding 32 to the target mask `T` will set the breakpoints to compute in linear, while the default is an exponential curve. 
+
+You can set a completely separate breakpoint using the second breakpoint operator and target mask, for example, to change pitch and amplitude at different rates.
+
+
+
+
+
+
+
+
 
 

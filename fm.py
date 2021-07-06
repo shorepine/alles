@@ -1,12 +1,13 @@
 # fm.py
-
-# Get dx7 from https://github.com/bwhitman/learnfm
+# Some code to try to convert dx7 patches into AMY commands
+# Use the dx7 module if you want to A/B test AMY's FM mode against a dx7 emulation.
+# AMY is not a dx7 emulator, so it's not going to be perfect or even close, especially for some of the weirder modes of the dx7
+# but fun to play with!
+# Get the dx7 module from https://github.com/bwhitman/learnfm
 import amy, dx7
 import numpy as np
 import time
 
-
-# Convert DX7 patches to AMY commands
 
 
 # Use learnfm's dx7 to render a dx7 note from MSFA
@@ -53,7 +54,6 @@ def plot(us, them):
 	s0.specgram(us_samples, NFFT=512, Fs=amy.SAMPLE_RATE)
 	s1.specgram(them_samples, NFFT=512, Fs=amy.SAMPLE_RATE)
 	fig.show()
-
 
 # Play our version vs the MSFA version to A/B test
 def play_patch(patch_number, midinote=50, length_s = 2, keyup_s = 1):
@@ -172,6 +172,7 @@ def decode_patch(p):
 		return "unknown"
 
 	def curve(byte):
+		# What is this curve for? Pi
 		if(byte==0): return "-lin"
 		if(byte==1): return "-exp"
 		if(byte==2): return "+exp"
@@ -207,12 +208,17 @@ def decode_patch(p):
 		op = {}
 		op["rate"] = [x for x in p[c:c+4]]
 		op["level"] =  [x for x in p[c+4:c+8]]
+		# TODO, this should be computed after scaling 
 		op["bp_opamp"] = eg_to_bp([x for x in p[c:c+4]], [x for x in p[c+4:c+8]])
 		c = c + 8
-		op["brkpt"] = p[c]
+		op["breakpoint"] = p[c]
 		c = c + 1
-		op["leftrightcurves"] = [x for x in p[c:c+4]]
-		c = c + 4
+		# left depth, right depth -- this + the curve scales the op rates left and right of note # specified in breakpoint
+		op["bp_depths"] = [p[c], p[c+1]]
+		c = c + 2
+		# curve type (l , r)
+		op["bp_curves"] = [curve(p[c]), curve(p[c+1])]
+		c = c + 2
 		op["kbdratescaling"] = p[c]
 		c = c + 1
 		op["ampmodsens"] = p[c]
