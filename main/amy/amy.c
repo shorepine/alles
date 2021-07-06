@@ -409,7 +409,7 @@ void play_event(struct delta d) {
             if(synth[d.osc].wave==PULSE) pulse_note_on(d.osc);
             if(synth[d.osc].wave==PCM) pcm_note_on(d.osc);
             if(synth[d.osc].wave==ALGO) algo_note_on(d.osc);
-
+            if(synth[d.osc].wave==PARTIAL) partial_note_on(d.osc);
             // Trigger the MOD source, if we have one
             if(synth[d.osc].mod_source >= 0) {
                 if(synth[synth[d.osc].mod_source].wave==SINE) sine_mod_trigger(synth[d.osc].mod_source);
@@ -476,6 +476,7 @@ void render_task(uint8_t start, uint8_t end, uint8_t core) {
             if(synth[osc].wave == KS) render_ks(per_osc_fb, osc);
             if(synth[osc].wave == PCM) render_pcm(per_osc_fb, osc);
             if(synth[osc].wave == ALGO) render_algo(per_osc_fb, osc);
+            if(synth[osc].wave == PARTIAL) render_partial(per_osc_fb, osc);
             // Check it's not off, just in case. TODO, why do i care?
             if(synth[osc].wave != OFF) {
                 // Apply filter to osc if set

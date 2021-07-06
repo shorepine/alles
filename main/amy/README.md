@@ -10,7 +10,7 @@
    * Bandpass, lowpass and hi-pass filters, with adjustable center frequency and resonance
    * 2 breakpoint generators that can control amplitude, frequency, pulse width or filter parameters
  * Any oscillator can modulate another using LFO modulation of amplitude, frequency, pulse width or filter parameters
- * Selectable FM-style algorithms for modulating frequency and mixing oscillators, DX7-like and somewhat compatible
+ * Selectable routing algorithms for modulating frequency and mixing oscillators, DX7-like and somewhat compatible
  * Partial synthesis in the style of Alles or Atari's AMY
 
 ## Controlling AMY

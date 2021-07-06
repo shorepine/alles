@@ -127,6 +127,22 @@ float render_lut(float * buf, float step, float skip, float amp, const float* lu
     return step;
 }
 
+float render_am_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod, float bandwidth) { 
+    int lut_mask = lut_size - 1;
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
+        uint16_t base_index = (uint16_t)step;
+        float frac = step - (float)base_index;
+        float b = lut[(base_index + 0) & lut_mask];
+        float c = lut[(base_index + 1) & lut_mask];
+        float sample = b + ((c - b) * frac);
+        float am = dsps_sqrtf_f32_ansi(1.0-bandwidth) + (mod[i] * dsps_sqrtf_f32_ansi(2.0*bandwidth));
+        buf[i] += sample * amp * am;
+        step += skip;
+        if(step >= lut_size) step -= lut_size;
+    }
+    return step;
+}
+
 void lpf_buf(float *buf, float decay, float *state) {
     // Implement first-order low-pass (leaky integrator).
     for (uint16_t i = 0; i < BLOCK_SIZE; ++i) {
@@ -404,6 +420,7 @@ void render_sine(float * buf, uint8_t osc) {
     synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
 				 synth[osc].lut, synth[osc].lut_size);
 }
+
 
 // TOOD -- not needed anymore
 float compute_mod_sine(uint8_t osc) { 

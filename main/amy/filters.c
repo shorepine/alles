@@ -1,10 +1,6 @@
 #include "amy.h"
 
-// Use the esp32 optimized biquad filter if available
-#ifdef ESP_PLATFORM
-#include "esp_err.h"
-esp_err_t dsps_biquad_f32_ae32(const float *input, float *output, int len, float *coef, float *w);
-#endif
+
 
 extern struct mod_event *msynth; 
 extern struct event *synth; 
@@ -19,6 +15,14 @@ float delay[OSCS][2];
 float eq_coeffs[3][5];
 float eq_delay[3][2];
 
+
+float dsps_sqrtf_f32_ansi(float f)
+{
+    int* f_ptr = (int*)&f;
+    const int result = 0x1fbb4000 + (*f_ptr >> 1);
+    float* f_result = (float*)&result;
+    return *f_result;   
+}
 
 int8_t dsps_biquad_gen_lpf_f32(float *coeffs, float f, float qFactor)
 {

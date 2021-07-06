@@ -70,7 +70,8 @@ typedef int16_t i2s_sample_type;
 #define KS 6
 #define PCM 7
 #define ALGO 8
-#define OFF 9
+#define PARTIAL 9
+#define OFF 10
 #define EMPTY 0
 #define SCHEDULED 1
 #define PLAYED 2
@@ -194,6 +195,7 @@ extern void clear_buf(float *buf);
 extern void cumulate_buf(const float *from, float *dest);
 */
 
+extern float render_am_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod, float bandwidth);
 extern void ks_init();
 extern void ks_deinit();
 extern void algo_init();
@@ -206,6 +208,7 @@ extern void render_triangle(float * buf, uint8_t osc);
 extern void render_noise(float * buf, uint8_t osc); 
 extern void render_pcm(float * buf, uint8_t osc);
 extern void render_algo(float * buf, uint8_t osc) ;
+extern void render_partial(float *buf, uint8_t osc) ;
 
 extern float compute_mod_pulse(uint8_t osc);
 extern float compute_mod_noise(uint8_t osc);
@@ -222,6 +225,7 @@ extern void saw_note_on(uint8_t osc);
 extern void triangle_note_on(uint8_t osc); 
 extern void pulse_note_on(uint8_t osc); 
 extern void pcm_note_on(uint8_t osc);
+extern void partial_note_on(uint8_t osc);
 extern void algo_note_on(uint8_t osc);
 extern void algo_note_off(uint8_t osc) ;
 extern void sine_mod_trigger(uint8_t osc);
@@ -229,6 +233,7 @@ extern void saw_mod_trigger(uint8_t osc);
 extern void triangle_mod_trigger(uint8_t osc);
 extern void pulse_mod_trigger(uint8_t osc);
 extern void pcm_mod_trigger(uint8_t osc);
+extern float get_random();
 
 // filters
 extern void filters_init();
@@ -236,6 +241,15 @@ extern void filters_deinit();
 extern void filter_process(float * block, uint8_t osc);
 extern void parametric_eq_process(float *block);
 extern void update_filter(uint8_t osc);
+extern float dsps_sqrtf_f32_ansi(float f);
+extern int8_t dsps_biquad_gen_lpf_f32(float *coeffs, float f, float qFactor);
+extern int8_t dsps_biquad_f32_ansi(const float *input, float *output, int len, float *coef, float *w);
+// Use the esp32 optimized biquad filter if available
+#ifdef ESP_PLATFORM
+#include "esp_err.h"
+esp_err_t dsps_biquad_f32_ae32(const float *input, float *output, int len, float *coef, float *w);
+#endif
+
 
 // envelopes
 extern float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set);
