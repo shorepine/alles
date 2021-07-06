@@ -135,8 +135,9 @@ float render_am_lut(float * buf, float step, float skip, float amp, const float*
         float b = lut[(base_index + 0) & lut_mask];
         float c = lut[(base_index + 1) & lut_mask];
         float sample = b + ((c - b) * frac);
-        float am = dsps_sqrtf_f32_ansi(1.0-bandwidth) + (mod[i] * dsps_sqrtf_f32_ansi(2.0*bandwidth));
-        buf[i] += sample * amp * am;
+        float mod_sample = mod[i]; // * (1.0 / bandwidth);
+        float am = dsps_sqrtf_f32_ansi(1.0-bandwidth) + (mod_sample * dsps_sqrtf_f32_ansi(2.0*bandwidth));
+        buf[i] += sample * amp * am ;
         step += skip;
         if(step >= lut_size) step -= lut_size;
     }

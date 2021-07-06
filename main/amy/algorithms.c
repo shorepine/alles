@@ -130,7 +130,8 @@ void render_partial(float * buf, uint8_t osc) {
     hold_and_modify(osc);
     // render a partial using the algo setup
     noise(scratch[0]);
-    dsps_biquad_gen_lpf_f32(partial_coeffs, 0.25, 0.707);
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) scratch[0][i] = scratch[0][i] *  (1.0 / synth[osc].feedback);
+    dsps_biquad_gen_lpf_f32(partial_coeffs, 100.0/SAMPLE_RATE, 0.707);
     #ifdef ESP_PLATFORM
         dsps_biquad_f32_ae32(scratch[0], scratch[1], BLOCK_SIZE, partial_coeffs, partial_delay);
     #else
