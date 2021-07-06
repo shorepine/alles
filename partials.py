@@ -1,4 +1,4 @@
-import alles, sys
+import alles, amy, sys
 
 # Sorry I have to add this. getting loris to compile cleanly was a PITA. looking for a better one
 sys.path.append('/usr/local/lib/python3.8/site-packages')
@@ -9,6 +9,35 @@ import numpy as np
 from math import pi
 import queue
 
+
+
+def parse_wav_file(wav_filename):
+    # Use APS code to parse a wave file 
+    # This is a forked version of wavdumper that saves these variables and works in py3
+    import wavdumper
+    w = wavdumper.Wav(wav_filename)
+    w.printInfo()
+    return (w.midiUnityNote, (w.loopstart, w.loopend), w.samples, w.channels, w.sampleRate)
+
+tests = [
+    "/Users/bwhitman/sounds/aps/samples/ADVORCH1/BA LONG FF/BA LGFF#C3.wav",
+    "/Users/bwhitman/sounds/aps/samples/ADVORCH2/VIS LONG F/VIS LGF G2.wav"
+]
+
+def partial_analyze(filename=tests[0]):
+    # Take a wav file from APS, output partials + noise train?
+    import simpl
+    import sounddevice as sd
+    sd.default.samplerate = amy.SAMPLE_RATE
+    sd.default.channels = 1
+    (note, (loopstart, loopend), samples, channels, samplerate) = parse_wav_file(filename)
+    audio, sampling_rate = simpl.read_wav(filename)
+    r = simpl.SMSResidual()
+    p = simpl.SMSPartialTracking()
+
+    audio_out = r.synth(audio)
+    audio_out = np.asarray(audio_out * 32768, np.int16)
+    sd.play(audio_out)
 
 
 def partial_scheduler(filename, len_s = 10, noise_ratio = 1, freq_res = 150, analysis_window = 100, freq_drift = 50, min_partial_len_s = 0.25, \
@@ -60,19 +89,19 @@ def partial_scheduler(filename, len_s = 10, noise_ratio = 1, freq_res = 150, ana
 
 
 
-def play_partial_sequence(sequence, amp_mult=1, max_oscs=alles.ALLES_OSCS, show_cpu=False, **kwargs):
-    alles.reset()
-    alles.buffer()
+def play_partial_sequence(sequence, amp_mult=1, max_oscs=amy.OSCS, show_cpu=False, **kwargs):
+    amy.reset()
+    amy.buffer()
     (time_ms, partial_idx, bp_idx, freq, amp, bw, phase) = range(7)
     q = queue.Queue(max_oscs)
     for i in range(int(max_oscs/2)):
         q.put(int(i))
-        q.put(int(i+alles.ALLES_OSCS/2))
+        q.put(int(i+amy.OSCS/2))
     osc_map = {}
     start = alles.millis()
     offset = alles.millis() - sequence[0][time_ms]
     m = 0
-    alles.send(debug=2)
+    amy.send(debug=2)
     for event in sequence:
         event_time_ms = (event[time_ms] + offset)
         while(event_time_ms - alles.millis() > 1):
@@ -103,9 +132,9 @@ def play_partial_sequence(sequence, amp_mult=1, max_oscs=alles.ALLES_OSCS, show_
     print("Voice allocator was able to send %d messages out of %d (%2.2f%%)" % (m, len(sequence), float(m)/len(sequence)*100.0))
     # Wait for the last bits in the latency buffer
     time.sleep(1)
-    alles.send(debug=1)
-    alles.reset()
-    alles.buffer(size=0)
+    amy.send(debug=1)
+    amy.reset()
+    amy.buffer(size=0)
 
 
 
