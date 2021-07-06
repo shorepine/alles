@@ -56,6 +56,11 @@ struct FmAlgorithm algorithms[32] = {
 };
 // End of MSFA stuff
 
+float scratch[3][BLOCK_SIZE];
+float zeros[BLOCK_SIZE];
+float partial_coeffs[5];
+float partial_delay[2] = {0,0};
+
 
 // a = 0
 void zero(float *a) {
@@ -110,7 +115,6 @@ void algo_note_on(uint8_t osc) {
         }
     }            
 }
-float zeros[BLOCK_SIZE];
 
 void algo_init() {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) zeros[i] = 0;
@@ -122,11 +126,8 @@ void partial_note_on(uint8_t osc) {
 }
 
 
-float partial_coeffs[5];
-float partial_delay[2] = {0,0};
 void render_partial(float * buf, uint8_t osc) {
     hold_and_modify(osc);
-    float scratch[2][BLOCK_SIZE];
     // render a partial using the algo setup
     noise(scratch[0]);
     dsps_biquad_gen_lpf_f32(partial_coeffs, 0.25, 0.707);
@@ -142,7 +143,6 @@ void render_partial(float * buf, uint8_t osc) {
 }
 
 void render_algo(float * buf, uint8_t osc) { 
-    float scratch[3][BLOCK_SIZE];
 
     struct FmAlgorithm algo = algorithms[synth[osc].algorithm-1];
 
