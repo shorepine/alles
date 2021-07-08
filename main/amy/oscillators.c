@@ -135,9 +135,9 @@ float render_am_lut(float * buf, float step, float skip, float amp, const float*
         float b = lut[(base_index + 0) & lut_mask];
         float c = lut[(base_index + 1) & lut_mask];
         float sample = b + ((c - b) * frac);
-        float mod_sample = mod[i]; // * (1.0 / bandwidth);
-        float am = dsps_sqrtf_f32_ansi(1.0-bandwidth) + (mod_sample * dsps_sqrtf_f32_ansi(2.0*bandwidth));
-        buf[i] += sample * amp * am ;
+        //float mod_sample = mod[i]; // * (1.0 / bandwidth);
+        //float am = dsps_sqrtf_f32_ansi(1.0-bandwidth) + (mod_sample * dsps_sqrtf_f32_ansi(2.0*bandwidth));
+        buf[i] += sample * amp; // * am ;
         step += skip;
         if(step >= lut_size) step -= lut_size;
     }
@@ -411,15 +411,65 @@ void render_fm_sine(float *buf, uint8_t osc, float *mod, float feedback_level, u
 
 void sine_note_on(uint8_t osc) {
     // There's really only one sine table, but for symmetry with the other ones...
-    float period_samples = (float)SAMPLE_RATE / synth[osc].freq;
-    synth[osc].lut = choose_from_lutset(period_samples, sine_lutset, &synth[osc].lut_size);
+    //float period_samples = (float)SAMPLE_RATE / synth[osc].freq;
+    synth[osc].lut = sine_lutable_0; //choose_from_lutset(period_samples, sine_lutset, &synth[osc].lut_size);
+    synth[osc].lut_size = 256;
     synth[osc].step = (float)synth[osc].lut_size * synth[osc].phase;
+    synth[osc].substep = 1; // use for block fade
+}
+
+void render_partial(float * buf, uint8_t osc) {
+    //float scratch[2][BLOCK_SIZE];
+    //hold_and_modify(osc);
+    // render a partial using the algo setup
+    //noise(scratch[0]);
+    //for(uint16_t i=0;i<BLOCK_SIZE;i++) scratch[0][i] = scratch[0][i] *  100.0;
+    //dsps_biquad_gen_lpf_f32(coeffs[osc], 100.0/SAMPLE_RATE, 0.707);
+    //#ifdef ESP_PLATFORM
+    //    dsps_biquad_f32_ae32(scratch[0], scratch[1], BLOCK_SIZE, coeffs[osc], delay[osc]);
+    //#else
+    //    dsps_biquad_f32_ansi(scratch[0], scratch[1], BLOCK_SIZE, coeffs[osc], delay[osc]);
+    //#endif
+    float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
+    //synth[osc].step = render_am_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
+    //             synth[osc].lut, synth[osc].lut_size, scratch[1], synth[osc].feedback);    
+
+    synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
+                 synth[osc].lut, synth[osc].lut_size);
+    if(synth[osc].substep==2) {
+        // fade out
+        //printf("partial note off fade out osc %d\n", osc);
+        synth[osc].substep = 0;
+        for(uint16_t i=0;i<BLOCK_SIZE;i++) buf[i] = buf[i] * ((float)(BLOCK_SIZE-i)/(float)BLOCK_SIZE);
+    }
+}
+
+
+void partial_note_on(uint8_t osc) {
+    synth[osc].lut = sine_lutable_0; //choose_from_lutset(period_samples, sine_lutset, &synth[osc].lut_size);
+    synth[osc].lut_size = 256;
+    //synth[osc].step = (float)synth[osc].lut_size * synth[osc].phase;    
+}
+
+void partial_note_off(uint8_t osc) {
+    // ramp to 0
+    synth[osc].substep = 2;
+    // osc note off, start release
+    synth[osc].note_on_clock = -1;
+    synth[osc].note_off_clock = total_samples;          
+
 }
 
 void render_sine(float * buf, uint8_t osc) { 
     float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
     synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
 				 synth[osc].lut, synth[osc].lut_size);
+    if(synth[osc].substep==1) {
+        // fade
+        //printf("partial note on fade in osc %d\n", osc);
+        synth[osc].substep = 0;
+        for(uint16_t i=0;i<BLOCK_SIZE;i++) buf[i] = buf[i] * ((float)i/(float)BLOCK_SIZE);
+    }
 }
 
 

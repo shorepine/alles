@@ -16,9 +16,9 @@ except ImportError:
 	print("Couldn't load libAMY. This is fine, but you can't run locally.")
 
 
-
+#TODO , generate these from amy.h when compiling
 LATENCY_MS = 10
-BLOCK_SIZE = 128
+BLOCK_SIZE = 64
 SAMPLE_RATE = 44100.0
 OSCS = 64
 MAX_QUEUE = 400
@@ -63,6 +63,7 @@ send_buffer = ""
 buffer_size = 0
 
 def transmit(message, retries=1):
+    #print(message)
     if(local()):
         libamy.send(message)
     else:
@@ -90,6 +91,7 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, fe
         debug=-1, lfo_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, freq_ratio = -1, algo_source=None):
     global send_buffer, buffer_size, is_immediate
     m = ""
+    #if(osc>0): return # debug
     if(not immediate()):
         if(timestamp is None): timestamp = millis()
         m = m + "t" + trunc(timestamp)
@@ -122,7 +124,7 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, fe
     if(eq_m>=0): m = m + "y" + trunc(eq_m)
     if(eq_h>=0): m = m + "z" + trunc(eq_h)
     if(filter_type>=0): m = m + "G" + trunc(filter_type)
-
+    #print(m)
     if(buffer_size > 0):
         if(len(send_buffer + m + '\n') > buffer_size):
             transmit(send_buffer)
@@ -146,8 +148,11 @@ def immediate():
 
 
 def spec(data):
-	plt.specgram(data, NFFT=512, Fs=SAMPLE_RATE)
-	plt.show()
+    import matplotlib.pyplot as plt
+    fig, (s0,s1) = plt.subplots(2,1)
+    s0.specgram(data, NFFT=512, Fs=SAMPLE_RATE)
+    s1.plot(data)
+    fig.show()	
 
 def show(data):
 	fftsize = len(data)
@@ -181,18 +186,20 @@ def render(seconds):
     return np.hstack(frames)
 
 # TODO - airpods ask for 2880 samples in a block, /64 but not /128
-def amy_callback(indata, outdata, frames, time, status):
+def amy_callback(outdata, frames, time, status):
+    if(status): # buffer underrun
+        print(str(status))
     single = render(frames/SAMPLE_RATE)
     outdata[:] = single.reshape(single.shape[0],1)
 
-def start():
+def start(immediate=True):
     global is_local, is_immediate
     if(is_local):
         print("Already started AMY")
     else:
         # Set immediate until live is started
         is_local = True
-        is_immediate = True
+        is_immediate = immediate
         libamy.start()
 
 def stop():
@@ -212,7 +219,7 @@ def live():
         print("Stream running")
     else:
         is_immediate = False
-        stream = sd.Stream(callback=amy_callback)
+        stream = sd.OutputStream(callback=amy_callback)
         stream.start()
 
 def pause():

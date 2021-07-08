@@ -85,6 +85,7 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
         if(elapsed > synth[osc].breakpoint_times[bp_set][bp_r]) {
             synth[osc].status=OFF;
             synth[osc].note_off_clock = -1;
+            return 0; // i am pretty sure
         }
     }
 
@@ -102,6 +103,7 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
         return scale;
     } else {
         float scale = v0 + ((v1-v0) * time_ratio);
+        //if(bp_set == 1)
         //printf("[%d,%d] LIN t0 %d v0 %f t1 %d v1 %f elapsed %d tr %f scale %f\n", bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
         return scale;
     }

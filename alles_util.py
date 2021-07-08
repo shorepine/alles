@@ -18,7 +18,7 @@ finally:
 if(os.uname().nodename=='colossus'):
     local_ip = '192.168.1.2'
 elif(os.uname().nodename=='cedar.local'):
-    local_ip = '192.168.1.2'
+    local_ip = '192.168.1.3'
 
 
 sock = 0

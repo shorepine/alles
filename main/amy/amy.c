@@ -71,7 +71,7 @@ struct event default_event() {
     e.feedback = -1;
     e.velocity = -1;
     e.midi_note = -1;
-    e.amp = 1;
+    e.amp = -1; // this was set to 1 and it was wrong, i am hoping i haven't messed up other things, but i don't think so 
     e.freq = -1;
     e.volume = -1;
     e.freq_ratio = -1;
@@ -155,7 +155,7 @@ void add_event(struct event e) {
     if(e.wave>-1) { d.param=WAVE; d.data = *(uint32_t *)&e.wave; add_delta_to_queue(d); }
     if(e.patch>-1) { d.param=PATCH; d.data = *(uint32_t *)&e.patch; add_delta_to_queue(d); }
     if(e.midi_note>-1) { d.param=MIDI_NOTE; d.data = *(uint32_t *)&e.midi_note; add_delta_to_queue(d); }
-    if(e.amp>-1) { d.param=AMP; d.data = *(uint32_t *)&e.amp; add_delta_to_queue(d); }
+    if(e.amp>-1) {  d.param=AMP; d.data = *(uint32_t *)&e.amp; add_delta_to_queue(d); }
     if(e.duty>-1) { d.param=DUTY; d.data = *(uint32_t *)&e.duty; add_delta_to_queue(d); }
     if(e.feedback>-1) { d.param=FEEDBACK; d.data = *(uint32_t *)&e.feedback; add_delta_to_queue(d); }
     if(e.freq>-1) { d.param=FREQ; d.data = *(uint32_t *)&e.freq; add_delta_to_queue(d); }
@@ -346,7 +346,7 @@ void play_event(struct delta d) {
     if(d.param == PATCH) synth[d.osc].patch = *(int16_t *)&d.data;
     if(d.param == DUTY) synth[d.osc].duty = *(float *)&d.data;
     if(d.param == FEEDBACK) synth[d.osc].feedback = *(float *)&d.data;
-    if(d.param == AMP) synth[d.osc].amp = *(float *)&d.data;
+    if(d.param == AMP) synth[d.osc].amp = *(float *)&d.data; 
     if(d.param == FREQ) synth[d.osc].freq = *(float *)&d.data;
     
 
@@ -423,7 +423,8 @@ void play_event(struct delta d) {
     } else if(synth[d.osc].velocity > 0 && d.param == VELOCITY && *(float *)&d.data == 0) { // new note off
         synth[d.osc].velocity = 0;
         if(synth[d.osc].wave==KS) { ks_note_off(d.osc); }
-        else if(synth[d.osc].wave==ALGO) { algo_note_off(d.osc); }
+        else if(synth[d.osc].wave==ALGO) { algo_note_off(d.osc); } 
+        else if(synth[d.osc].wave==PARTIAL) { partial_note_off(d.osc); }
         else {
             // osc note off, start release
             synth[d.osc].note_on_clock = -1;
@@ -678,7 +679,7 @@ void parse_task() {
                     computed_delta_set = 1;
                 }
             }
-            if(mode=='a') e.amp=atof(message+start);
+            if(mode=='a') e.amp=atof(message+start); 
             if(mode=='A') parse_breakpoint(&e, message+start, 0);
             if(mode=='B') parse_breakpoint(&e, message+start, 1);
             if(mode=='b') e.feedback=atof(message+start);

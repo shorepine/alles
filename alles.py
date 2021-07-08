@@ -2,7 +2,7 @@ from amy import send, volume, note_on, note_off, reset, millis
 from alles_util import connect, disconnect
 import time
 
-from amy import SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, PCM, ALGO, OFF
+from amy import SINE, PULSE, SAW, TRIANGLE, NOISE, FM, KS, PCM, ALGO, OFF, PARTIAL
 from amy import TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE
 from amy import FILTER_NONE, FILTER_LPF, FILTER_BPF, FILTER_HPF
 from amy import BLOCK_SIZE, SAMPLE_RATE, OSCS, MAX_QUEUE

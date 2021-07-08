@@ -56,7 +56,6 @@ struct FmAlgorithm algorithms[32] = {
 };
 // End of MSFA stuff
 
-float scratch[3][BLOCK_SIZE];
 float zeros[BLOCK_SIZE];
 float partial_coeffs[5];
 float partial_delay[2] = {0,0};
@@ -121,29 +120,11 @@ void algo_init() {
 }
 
 
-void partial_note_on(uint8_t osc) {
-    sine_note_on(osc);
-}
 
 
-void render_partial(float * buf, uint8_t osc) {
-    hold_and_modify(osc);
-    // render a partial using the algo setup
-    noise(scratch[0]);
-    for(uint16_t i=0;i<BLOCK_SIZE;i++) scratch[0][i] = scratch[0][i] *  (1.0 / synth[osc].feedback);
-    dsps_biquad_gen_lpf_f32(partial_coeffs, 100.0/SAMPLE_RATE, 0.707);
-    #ifdef ESP_PLATFORM
-        dsps_biquad_f32_ae32(scratch[0], scratch[1], BLOCK_SIZE, partial_coeffs, partial_delay);
-    #else
-        dsps_biquad_f32_ansi(scratch[0], scratch[1], BLOCK_SIZE, partial_coeffs, partial_delay);
-    #endif
-    float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
-    synth[osc].step = render_am_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
-                 synth[osc].lut, synth[osc].lut_size, scratch[1], synth[osc].feedback);    
-
-}
 
 void render_algo(float * buf, uint8_t osc) { 
+    float scratch[3][BLOCK_SIZE];
 
     struct FmAlgorithm algo = algorithms[synth[osc].algorithm-1];
 

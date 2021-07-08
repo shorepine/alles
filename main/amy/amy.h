@@ -11,7 +11,7 @@
 
 // Constants you can change if you want
 #define OSCS 64              // # of simultaneous oscs to keep track of 
-#define BLOCK_SIZE 128       // buffer block size in samples
+#define BLOCK_SIZE 64       // buffer block size in samples
 #define EVENT_FIFO_LEN 3000  // number of events the queue can store
 #ifdef ESP_PLATFORM
 #define LATENCY_MS 1000      // fixed latency in milliseconds
@@ -37,7 +37,12 @@ typedef int16_t i2s_sample_type;
 #define CLIP_D 0.1
 #define MAX_RECEIVE_LEN 512  // max length of each message
 
+#ifdef ESP_PLATFORM
 #define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
+#else
+#define MAX_DRIFT_MS 60000
+#endif
+
 #define LINEAR_INTERP        // use linear interp for oscs
 // "The cubic stuff is just showing off.  One would only ever use linear in prod." -- dpwe, May 10 2021 
 //#define CUBIC_INTERP         // use cubic interpolation for oscs
@@ -226,6 +231,7 @@ extern void triangle_note_on(uint8_t osc);
 extern void pulse_note_on(uint8_t osc); 
 extern void pcm_note_on(uint8_t osc);
 extern void partial_note_on(uint8_t osc);
+extern void partial_note_off(uint8_t osc);
 extern void algo_note_on(uint8_t osc);
 extern void algo_note_off(uint8_t osc) ;
 extern void sine_mod_trigger(uint8_t osc);
@@ -249,6 +255,10 @@ extern int8_t dsps_biquad_f32_ansi(const float *input, float *output, int len, f
 #include "esp_err.h"
 esp_err_t dsps_biquad_f32_ae32(const float *input, float *output, int len, float *coef, float *w);
 #endif
+
+extern float coeffs[OSCS][5];
+extern float delay[OSCS][2];
+
 
 
 // envelopes
