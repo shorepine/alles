@@ -85,7 +85,7 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
         if(elapsed > synth[osc].breakpoint_times[bp_set][bp_r]) {
             synth[osc].status=OFF;
             synth[osc].note_off_clock = -1;
-            return 0; // i am pretty sure
+            return 1; //return 0; // i am pretty sure
         }
     }
 

@@ -11,12 +11,15 @@
 
 // Constants you can change if you want
 #define OSCS 64              // # of simultaneous oscs to keep track of 
-#define BLOCK_SIZE 64       // buffer block size in samples
-#define EVENT_FIFO_LEN 3000  // number of events the queue can store
+#define BLOCK_SIZE 128       // buffer block size in samples
 #ifdef ESP_PLATFORM
 #define LATENCY_MS 1000      // fixed latency in milliseconds
+#define EVENT_FIFO_LEN 3000  // number of events the queue can store
+#define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
 #else
 #define LATENCY_MS 0         // no latency for local mode
+#define EVENT_FIFO_LEN 30000  // number of events the queue can store
+#define MAX_DRIFT_MS 60000
 #endif
 #define SAMPLE_RATE 44100    // playback sample rate
 #define SAMPLE_MAX 32767
@@ -37,11 +40,6 @@ typedef int16_t i2s_sample_type;
 #define CLIP_D 0.1
 #define MAX_RECEIVE_LEN 512  // max length of each message
 
-#ifdef ESP_PLATFORM
-#define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
-#else
-#define MAX_DRIFT_MS 60000
-#endif
 
 #define LINEAR_INTERP        // use linear interp for oscs
 // "The cubic stuff is just showing off.  One would only ever use linear in prod." -- dpwe, May 10 2021 

@@ -18,7 +18,7 @@ except ImportError:
 
 #TODO , generate these from amy.h when compiling
 LATENCY_MS = 10
-BLOCK_SIZE = 64
+BLOCK_SIZE = 128
 SAMPLE_RATE = 44100.0
 OSCS = 64
 MAX_QUEUE = 400
@@ -171,8 +171,9 @@ def show(data):
 	plt.show()
 
 def write(data, filename):
-	"""Write a waveform to a WAV file."""
-	wav.write(filename, int(SAMPLE_RATE), (32768.0 * data).astype(np.int16))
+    """Write a waveform to a WAV file."""
+    print(str(data.shape))
+    wav.write(filename, int(SAMPLE_RATE), (32768.0 * data).astype(np.int16))
 
 def play(samples):
     sd.play(samples)
