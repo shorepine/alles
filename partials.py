@@ -186,16 +186,18 @@ def generate_partials_header(filenames, **kwargs):
     for f in filenames:
         m, s = sequence(f, **kwargs)
         all_partials.append((m ,s))
-    out.write("const uint32_t offset_map[%d] = {\n" % (len(all_partials) *2))
+    out.write("const uint32_t partial_breakpoints_offset_map[%d] = {\n" % (len(all_partials) *4))
+    out.write("\t// offset, length, midi_note, sustain_ms\n")
     start = 0
     for p in all_partials:
-        out.write("\t%d, %d, /* %s */\n" % (start, len(p[1]), m["filename"]))
+        out.write("\t%d, %d, %d, %d, /* %s */\n" % (start, len(p[1]), p[0].get("midi_note", 0), p[0].get("sustain_ms", 0),  p[0]["filename"]))
         start = start + len(p[1])
     out.write("};\n");
     out.write("const partial_breakpoint_t partial_breakpoints[%d] = {\n" % (start))
+    out.write("\t// ms_offset, osc, freq, amp, bw, phase, ms_delta, amp_delta, freq_delta, bw_delta\n")
     for p in all_partials:
         for s in p[1]:
-            out.write("\t { %d, %d, %f, %f, %f, %f, %d, %f, %f, %f }, \n" % s)
+            out.write("\t { %d, %d, %f, %f, %f, %f, %d, %f, %f, %f }, \n" % tuple(s))
     out.write("};\n")
     out.write("#endif // __PARTIALS_H\n")
     out.close()
