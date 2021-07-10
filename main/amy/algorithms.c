@@ -68,12 +68,6 @@ void zero(float *a) {
     }
 }
 
-// a = rand()
-void noise(float *a) {
-    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        a[i] = get_random();
-    }
-}
 
 // b = a + b
 void add(float *a, float*b) {

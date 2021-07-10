@@ -135,9 +135,9 @@ float render_am_lut(float * buf, float step, float skip, float amp, const float*
         float b = lut[(base_index + 0) & lut_mask];
         float c = lut[(base_index + 1) & lut_mask];
         float sample = b + ((c - b) * frac);
-        //float mod_sample = mod[i]; // * (1.0 / bandwidth);
-        //float am = dsps_sqrtf_f32_ansi(1.0-bandwidth) + (mod_sample * dsps_sqrtf_f32_ansi(2.0*bandwidth));
-        buf[i] += sample * amp; // * am ;
+        float mod_sample = mod[i]; // * (1.0 / bandwidth);
+        float am = dsps_sqrtf_f32_ansi(1.0-bandwidth) + (mod_sample * dsps_sqrtf_f32_ansi(2.0*bandwidth));
+        buf[i] += sample * amp * am ;
         step += skip;
         if(step >= lut_size) step -= lut_size;
     }
@@ -419,24 +419,18 @@ void sine_note_on(uint8_t osc) {
 }
 
 void render_partial(float * buf, uint8_t osc) {
-    //float scratch[2][BLOCK_SIZE];
-    //hold_and_modify(osc);
-    // render a partial using the algo setup
-    //noise(scratch[0]);
-    //for(uint16_t i=0;i<BLOCK_SIZE;i++) scratch[0][i] = scratch[0][i] *  100.0;
-    //dsps_biquad_gen_lpf_f32(coeffs[osc], 100.0/SAMPLE_RATE, 0.707);
-    //#ifdef ESP_PLATFORM
-    //    dsps_biquad_f32_ae32(scratch[0], scratch[1], BLOCK_SIZE, coeffs[osc], delay[osc]);
-    //#else
-    //    dsps_biquad_f32_ansi(scratch[0], scratch[1], BLOCK_SIZE, coeffs[osc], delay[osc]);
-    //#endif
+    float scratch[2][BLOCK_SIZE];
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) scratch[0][i] = get_random() *  20.0;
+    dsps_biquad_gen_lpf_f32(coeffs[osc], 100.0/SAMPLE_RATE, 0.707);
+    #ifdef ESP_PLATFORM
+        dsps_biquad_f32_ae32(scratch[0], scratch[1], BLOCK_SIZE, coeffs[osc], delay[osc]);
+    #else
+        dsps_biquad_f32_ansi(scratch[0], scratch[1], BLOCK_SIZE, coeffs[osc], delay[osc]);
+    #endif
     float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
-    //synth[osc].step = render_am_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
-    //             synth[osc].lut, synth[osc].lut_size, scratch[1], synth[osc].feedback);    
+    synth[osc].step = render_am_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
+                 synth[osc].lut, synth[osc].lut_size, scratch[1], msynth[osc].feedback);    
 
-    synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
-                 synth[osc].lut, synth[osc].lut_size);
-    //printf("rendered osc %d ss %f partial at sample %d time %f amp was %f\n", osc, synth[osc].substep, total_samples, total_samples/44100.0, msynth[osc].amp);
     if(synth[osc].substep==2) {
         // fade out
         //printf("partial note off fade out osc %d\n", osc);

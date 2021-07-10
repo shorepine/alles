@@ -25,7 +25,7 @@
 #define SAMPLE_MAX 32767
 #define MAX_ALGO_OPS 6 // dx7
 #define MAX_BREAKPOINTS 8
-#define MAX_BREAKPOINT_SETS 2
+#define MAX_BREAKPOINT_SETS 3
 
 // buffering for i2s
 #define BYTES_PER_SAMPLE 2
@@ -58,7 +58,8 @@ typedef int16_t i2s_sample_type;
 #define TARGET_FREQ 4
 #define TARGET_FILTER_FREQ 8
 #define TARGET_RESONANCE 16
-#define TARGET_LINEAR 32 // default exp, linear as an option
+#define TARGET_FEEDBACK 32
+#define TARGET_LINEAR 64 // default exp, linear as an option
 
 #define FILTER_LPF 1
 #define FILTER_BPF 2
@@ -161,6 +162,7 @@ struct mod_event {
     float freq;
     float filter_freq;
     float resonance;
+    float feedback;
 };
 
 struct event default_event();

@@ -199,6 +199,7 @@ void reset_osc(uint8_t i ) {
     synth[i].freq = 0;
     msynth[i].freq = 0;
     synth[i].feedback = 0; //.996; TODO KS feedback is v different from FM feedback
+    msynth[i].feedback = 0; //.996; TODO KS feedback is v different from FM feedback
     synth[i].amp = 1;
     msynth[i].amp = 1;
     synth[i].phase = 0;
@@ -315,7 +316,7 @@ void show_debug(uint8_t type) {
                     }
                 }
                 printf("\n");
-                printf("mod osc %d: amp: %f, freq %f duty %f filter_freq %f resonance %f \n", i, msynth[i].amp, msynth[i].freq, msynth[i].duty, msynth[i].filter_freq, msynth[i].resonance);
+                printf("mod osc %d: amp: %f, freq %f duty %f filter_freq %f resonance %f fb/bw %f \n", i, msynth[i].amp, msynth[i].freq, msynth[i].duty, msynth[i].filter_freq, msynth[i].resonance, msynth[i].feedback);
             }
         }
     }
@@ -440,6 +441,7 @@ void hold_and_modify(uint8_t osc) {
     msynth[osc].amp = synth[osc].amp;
     msynth[osc].duty = synth[osc].duty;
     msynth[osc].freq = synth[osc].freq;
+    msynth[osc].feedback = synth[osc].feedback;
     msynth[osc].filter_freq = synth[osc].filter_freq;
     msynth[osc].resonance = synth[osc].resonance;
 
@@ -449,6 +451,7 @@ void hold_and_modify(uint8_t osc) {
         if(synth[osc].breakpoint_target[i] & TARGET_AMP) msynth[osc].amp = msynth[osc].amp * scale;
         if(synth[osc].breakpoint_target[i] & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty * scale;
         if(synth[osc].breakpoint_target[i] & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq * scale;
+        if(synth[osc].breakpoint_target[i] & TARGET_FEEDBACK) msynth[osc].feedback = msynth[osc].feedback * scale;
         if(synth[osc].breakpoint_target[i] & TARGET_FILTER_FREQ) msynth[osc].filter_freq = msynth[osc].filter_freq * scale;
         if(synth[osc].breakpoint_target[i] & TARGET_RESONANCE) msynth[osc].resonance = msynth[osc].resonance * scale;
     }
@@ -458,6 +461,7 @@ void hold_and_modify(uint8_t osc) {
     if(synth[osc].mod_target & TARGET_AMP) msynth[osc].amp = msynth[osc].amp + (msynth[osc].amp * scale);
     if(synth[osc].mod_target & TARGET_DUTY) msynth[osc].duty = msynth[osc].duty + (msynth[osc].duty * scale);
     if(synth[osc].mod_target & TARGET_FREQ) msynth[osc].freq = msynth[osc].freq + (msynth[osc].freq * scale);
+    if(synth[osc].mod_target & TARGET_FEEDBACK) msynth[osc].feedback = msynth[osc].feedback + (msynth[osc].feedback * scale);
     if(synth[osc].mod_target & TARGET_FILTER_FREQ) msynth[osc].filter_freq = msynth[osc].filter_freq + (msynth[osc].filter_freq * scale);
     if(synth[osc].mod_target & RESONANCE) msynth[osc].resonance = msynth[osc].resonance + (msynth[osc].resonance * scale);
 }
@@ -683,6 +687,7 @@ void parse_task() {
             if(mode=='A') parse_breakpoint(&e, message+start, 0);
             if(mode=='B') parse_breakpoint(&e, message+start, 1);
             if(mode=='b') e.feedback=atof(message+start);
+            if(mode=='C') parse_breakpoint(&e, message+start, 2);
             if(mode=='c') client = atoi(message + start); 
             if(mode=='d') e.duty=atof(message + start);
             if(mode=='D') {
@@ -714,6 +719,7 @@ void parse_task() {
             if(mode=='W') e.breakpoint_target[1] = atoi(message + start); 
             if(mode=='v') e.osc=(atoi(message + start) % OSCS); // allow osc wraparound
             if(mode=='V') { e.volume = atof(message + start); }
+            if(mode=='X') e.breakpoint_target[2] = atoi(message + start);
             if(mode=='w') e.wave=atoi(message + start);
             if(mode=='x') e.eq_l = atof(message+start);
             if(mode=='y') e.eq_m = atof(message+start);

@@ -28,6 +28,7 @@ float compute_mod_scale(uint8_t osc) {
             msynth[source].duty = synth[source].duty;
             msynth[source].freq = synth[source].freq;
             msynth[source].filter_freq = synth[source].filter_freq;
+            msynth[source].feedback = synth[source].feedback;
             msynth[source].resonance = synth[source].resonance;
             if(synth[source].wave == NOISE) return compute_mod_noise(source);
             if(synth[source].wave == SAW) return compute_mod_saw(source);
