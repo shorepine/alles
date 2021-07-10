@@ -132,6 +132,8 @@ void render_algo(float * buf, uint8_t osc) {
         if(synth[osc].algo_source[op] >=0 && synth[synth[osc].algo_source[op]].status == IS_ALGO_SOURCE) {
             float feedback_level = 0;
             in_buf = zeros; // just in case not set elsewhere
+            out_buf = scratch[0]; // same
+            
             if(algo.ops[op] & FB_IN) { 
                 feedback_level = synth[osc].feedback; 
             } // main algo voice stores feedback, not the op 
