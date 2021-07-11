@@ -3,12 +3,12 @@
 #define __PARTIALS_H
 const uint32_t partial_breakpoints_offset_map[24] = {
 	// offset, length, midi_note, sustain_ms
-	0, 750, 61, 3665, /* /Users/bwhitman/sounds/aps/samples/ADVORCH1/BA LONG FF/BA LGFF#C3.wav */
+	0, 750, 61, 3488, /* /Users/bwhitman/sounds/aps/samples/ADVORCH1/BA LONG FF/BA LGFF#C3.wav */
 	750, 1327, 55, 0, /* /Users/bwhitman/sounds/aps/samples/ADVORCH2/VIS LONG F/VIS LGF G2.wav */
-	2077, 114, 55, 1113, /* /Users/bwhitman/sounds/aps/samples/AMTMODERNCOMPOSER/DAMP GUITAR/DAMP GTR G2.wav */
-	2191, 36, 67, 1318, /* /Users/bwhitman/sounds/aps/samples/AMTMODERNCOMPOSER/BA HARMONICS/DBL HARM G3.wav */
-	2227, 268, 60, 1246, /* /Users/bwhitman/sounds/aps/samples/AMTMODERNCOMPOSER/BAROQUE MIX/BP C3.wav */
-	2495, 366, 48, 3089, /* /Users/bwhitman/sounds/aps/samples/AMTMODERNCOMPOSER/ALPHA BASS/ALPHA B.-C2.wav */
+	2077, 114, 55, 1006, /* /Users/bwhitman/sounds/aps/samples/AMTMODERNCOMPOSER/DAMP GUITAR/DAMP GTR G2.wav */
+	2191, 36, 67, 1180, /* /Users/bwhitman/sounds/aps/samples/AMTMODERNCOMPOSER/BA HARMONICS/DBL HARM G3.wav */
+	2227, 268, 60, 1109, /* /Users/bwhitman/sounds/aps/samples/AMTMODERNCOMPOSER/BAROQUE MIX/BP C3.wav */
+	2495, 366, 48, 2981, /* /Users/bwhitman/sounds/aps/samples/AMTMODERNCOMPOSER/ALPHA BASS/ALPHA B.-C2.wav */
 };
 const partial_breakpoint_t partial_breakpoints[2861] = {
 	// ms_offset, osc, freq, amp, bw, phase, ms_delta, amp_delta, freq_delta, bw_delta
