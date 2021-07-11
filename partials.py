@@ -7,7 +7,7 @@ import loris
 import time
 import numpy as np
 from math import pi
-import queue
+from collections import dequeue
 
 
 tests = [
@@ -108,8 +108,11 @@ def sequence(filename, max_len_s = 10, amp_floor=-30, hop_time=0.04, max_oscs=am
     min_q_len = max_oscs
     # Now add in a voice / osc # 
     osc_map = {}
-    osc_q = queue.Queue(max_oscs) 
-    for i in range(max_oscs): osc_q.put(i)
+    osc_q = dequeue(range(max_oscs)) 
+    # There's a bug,     "/Users/bwhitman/sounds/aps/samples/ADVORCH1/BA LONG FF/BA LGFF#C3.wav",
+    # has osc #s going up to 63 even though it says 
+    # 105 partials and 750 breakpoints, max oscs used at once was 8
+    # That's not a bug, just how a queue works
     for i,s in enumerate(time_ordered):
         next_idx = -1
         time_delta, amp_delta, freq_delta, bw_delta = (0,0,0,0)
@@ -135,8 +138,8 @@ def sequence(filename, max_len_s = 10, amp_floor=-30, hop_time=0.04, max_oscs=am
         s[0] = s[0] - first_time
 
         if(s[5]>=0): #new partial
-            if(not osc_q.empty()):
-                osc_map[s[1]] = osc_q.get()
+            if(len(osc_q)):
+                osc_map[s[1]] = osc_q.popleft()
                 # Replace the partial_idx with a osc offset
                 s[1] = osc_map[s[1]]
                 sequence.append(s)
@@ -147,12 +150,12 @@ def sequence(filename, max_len_s = 10, amp_floor=-30, hop_time=0.04, max_oscs=am
                 sequence.append(s)
                 if(s[5] == -2): # last bp
                     # Put the oscillator back
-                    osc_q.put(osc)
-        if(osc_q.qsize() < min_q_len): min_q_len = osc_q.qsize()
+                    osc_q.appendleft(osc)
+        if(len(osc_q) < min_q_len): min_q_len = len(osc_q)
     print("%d partials and %d breakpoints, max oscs used at once was %d" % (partial_count, len(sequence), max_oscs - min_q_len))
     # Fix sustain_ms
     if(metadata.get("sustain_ms", 0) > 0):
-        metadata["sustain_ms"] = metadata["sustain_ms"] - first_time - 100
+        metadata["sustain_ms"] = metadata["sustain_ms"] - first_time
     return (metadata, sequence)
 
 

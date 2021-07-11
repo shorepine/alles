@@ -20,9 +20,7 @@ typedef struct {
 // Automatically generated from partials.generate_partials_header()
 #include "partials.h"
 
-extern struct event *synth;
-extern struct mod_event *msynth; // the synth that is being modified by modulations & envelopes
-extern struct state global; 
+
 
 
 // who defines which partials go to which speakers? 
@@ -54,8 +52,8 @@ void render_partials(float *buf, uint8_t osc) {
 	uint32_t ms_since_started = ((total_samples - synth[osc].note_on_clock) / (float)SAMPLE_RATE)*1000.0;
 	if(synth[osc].step >= 0) {
 		// do we either have no sustain, or are we past sustain? 
+		// TODO: sustain is likely more complicated --we want to bounce between the closest bps for loopstart & loopend
 		uint32_t sustain_ms = partial_breakpoints_offset_map[synth[osc].patch*4 + 3];
-		//printf("sustain_ms %d ms_since_started %d\n", sustain_ms, ms_since_started);
 		if((sustain_ms > 0 && (ms_since_started < sustain_ms)) || sustain_ms == 0) {
 			partial_breakpoint_t pb = partial_breakpoints[(uint32_t)synth[osc].step];
 			if(ms_since_started >= pb.ms_offset ) {
@@ -94,7 +92,6 @@ void render_partials(float *buf, uint8_t osc) {
 					e.wave = SINE;
 					e.phase = pb.phase;
 				}
-				//printf("Adding event at time %d osc %d ms %d offset %d\n", e.time, e.osc, ms_since_started, pb.ms_offset);
 		        add_event(e);
 
 				synth[osc].step++;
@@ -105,6 +102,10 @@ void render_partials(float *buf, uint8_t osc) {
 			}
 		}
 	}
+	// TODO, this could be more like an algorithm where we render into this buf, i'd want to filter it, for example
+	// yeah, this could be done. i could just set the things to ALGO_SOURCE 
+	// and make sure I do hold_and_modify on each one, then render them into my own additive buf here
 	for(uint16_t i=0;i<BLOCK_SIZE;i++) buf[i] = 0;
+
 }
 

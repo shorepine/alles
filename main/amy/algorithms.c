@@ -2,10 +2,6 @@
 // FM2 and partial synths that involve combinations of oscillators
 #include "amy.h"
 
-extern struct event *synth;
-extern struct mod_event *msynth; // the synth that is being modified by modulations & envelopes
-extern struct state global; 
-extern int64_t total_samples ;
 
 // Thank you MFSA for the DX7 op structure , borrowed here \/ \/ \/ 
 enum FmOperatorFlags {
@@ -133,7 +129,7 @@ void render_algo(float * buf, uint8_t osc) {
             float feedback_level = 0;
             in_buf = zeros; // just in case not set elsewhere
             out_buf = scratch[0]; // same
-            
+
             if(algo.ops[op] & FB_IN) { 
                 feedback_level = synth[osc].feedback; 
             } // main algo voice stores feedback, not the op 

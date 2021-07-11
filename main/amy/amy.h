@@ -184,6 +184,14 @@ struct state {
     struct delta * event_start; // start of the sorted list
 };
 
+// Shared structures
+extern float coeffs[OSCS][5];
+extern float delay[OSCS][2];
+extern int64_t total_samples;
+extern struct event *synth;
+extern struct mod_event *msynth; // the synth that is being modified by modulations & envelopes
+extern struct state global; 
+
 
 int8_t oscs_init();
 void parse_breakpoint(struct event * e, char* message, uint8_t bp_set) ;
@@ -194,14 +202,6 @@ void parse_task();
 void parse_message(char * message);
 void start_amy();
 void stop_amy();
-
-// bandlimted oscs
-/*extern void lpf_buf(float *buf, float decay, float *state);
-extern float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size);
-extern float render_lut_with_feedback(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float feedback_level);
-extern void clear_buf(float *buf);
-extern void cumulate_buf(const float *from, float *dest);
-*/
 
 extern float render_am_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod, float bandwidth);
 extern void ks_init();
@@ -261,10 +261,6 @@ extern int8_t dsps_biquad_f32_ansi(const float *input, float *output, int len, f
 #include "esp_err.h"
 esp_err_t dsps_biquad_f32_ae32(const float *input, float *output, int len, float *coef, float *w);
 #endif
-
-extern float coeffs[OSCS][5];
-extern float delay[OSCS][2];
-extern int64_t total_samples;
 
 
 

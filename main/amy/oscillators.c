@@ -11,9 +11,6 @@ float ** ks_buffer;
 uint8_t ks_polyphony_index; 
 
 
-extern struct event *synth;
-extern struct mod_event *msynth; // the synth that is being modified by modulations & envelopes
-extern struct state global; 
 
 // For hardware random
 #ifdef ESP_PLATFORM
