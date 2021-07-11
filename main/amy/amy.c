@@ -74,7 +74,7 @@ struct event default_event() {
     e.amp = -1; // this was set to 1 and it was wrong, i am hoping i haven't messed up other things, but i don't think so 
     e.freq = -1;
     e.volume = -1;
-    e.freq_ratio = -1;
+    e.ratio = -1;
     e.filter_freq = -1;
     e.resonance = -1;
     e.filter_type = -1;
@@ -161,7 +161,7 @@ void add_event(struct event e) {
     if(e.freq>-1) { d.param=FREQ; d.data = *(uint32_t *)&e.freq; add_delta_to_queue(d); }
     if(e.phase>-1) { d.param=PHASE; d.data = *(uint32_t *)&e.phase; add_delta_to_queue(d); }
     if(e.volume>-1) { d.param=VOLUME; d.data = *(uint32_t *)&e.volume; add_delta_to_queue(d); }
-    if(e.freq_ratio>-1) { d.param=FREQ_RATIO; d.data = *(uint32_t *)&e.freq_ratio; add_delta_to_queue(d); }
+    if(e.ratio>-1) { d.param=RATIO; d.data = *(uint32_t *)&e.ratio; add_delta_to_queue(d); }
     if(e.filter_freq>-1) { d.param=FILTER_FREQ; d.data = *(uint32_t *)&e.filter_freq; add_delta_to_queue(d); }
     if(e.resonance>-1) { d.param=RESONANCE; d.data = *(uint32_t *)&e.resonance; add_delta_to_queue(d); }
     if(e.mod_source>-1) { d.param=MOD_SOURCE; d.data = *(uint32_t *)&e.mod_source; add_delta_to_queue(d); }
@@ -207,7 +207,7 @@ void reset_osc(uint8_t i ) {
     synth[i].eq_l = 0;
     synth[i].eq_m = 0;
     synth[i].eq_h = 0;
-    synth[i].freq_ratio = -1;
+    synth[i].ratio = -1;
     synth[i].filter_freq = 0;
     msynth[i].filter_freq = 0;
     synth[i].resonance = 0.7;
@@ -304,9 +304,9 @@ void show_debug(uint8_t type) {
         printf("global: volume %f eq: %f %f %f \n", global.volume, global.eq[0], global.eq[1], global.eq[2]);
         //printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
         for(uint8_t i=0;i<OSCS;i++) {
-            printf("osc %d: status %d amp %f wave %d freq %f duty %f mod_target %d mod source %d velocity %f filter_freq %f freq_ratio %f feedback %f resonance %f step %f algo %d source %d,%d,%d,%d,%d,%d  \n",
+            printf("osc %d: status %d amp %f wave %d freq %f duty %f mod_target %d mod source %d velocity %f filter_freq %f ratio %f feedback %f resonance %f step %f algo %d source %d,%d,%d,%d,%d,%d  \n",
                 i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].mod_target, synth[i].mod_source, 
-                synth[i].velocity, synth[i].filter_freq, synth[i].freq_ratio, synth[i].feedback, synth[i].resonance, synth[i].step, synth[i].algorithm, 
+                synth[i].velocity, synth[i].filter_freq, synth[i].ratio, synth[i].feedback, synth[i].resonance, synth[i].step, synth[i].algorithm, 
                 synth[i].algo_source[0], synth[i].algo_source[1], synth[i].algo_source[2], synth[i].algo_source[3], synth[i].algo_source[4], synth[i].algo_source[5] );
             if(type>3) { 
                 for(uint8_t j=0;j<MAX_BREAKPOINT_SETS;j++) {
@@ -368,7 +368,7 @@ void play_event(struct delta d) {
     if(d.param == MOD_SOURCE) { synth[d.osc].mod_source = *(int8_t *)&d.data; synth[*(int8_t *)&d.data].status = IS_MOD_SOURCE; }
     if(d.param == MOD_TARGET) synth[d.osc].mod_target = *(int8_t *)&d.data; 
 
-    if(d.param == FREQ_RATIO) synth[d.osc].freq_ratio = *(float *)&d.data;
+    if(d.param == RATIO) synth[d.osc].ratio = *(float *)&d.data;
 
     if(d.param == FILTER_FREQ) synth[d.osc].filter_freq = *(float *)&d.data;
     if(d.param == FILTER_TYPE) synth[d.osc].filter_type = *(int8_t *)&d.data; 
@@ -703,7 +703,7 @@ void parse_task() {
             if(mode=='G') e.filter_type=atoi(message + start);
             if(mode=='g') e.mod_target = atoi(message + start); 
             if(mode=='i') sync_index = atoi(message + start);
-            if(mode=='I') e.freq_ratio = atof(message + start);
+            if(mode=='I') e.ratio = atof(message + start);
             if(mode=='l') e.velocity=atof(message + start);
             if(mode=='L') e.mod_source=atoi(message + start);
             if(mode=='n') e.midi_note=atoi(message + start);

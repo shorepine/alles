@@ -85,7 +85,7 @@ typedef int16_t i2s_sample_type;
 #define IS_ALGO_SOURCE 5
 
 enum params{
-    WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, FREQ_RATIO, RESONANCE, 
+    WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, RATIO, RESONANCE, 
     MOD_SOURCE, MOD_TARGET, FILTER_TYPE, EQ_L, EQ_M, EQ_H, BP0_TARGET, BP1_TARGET, ALGORITHM, 
     ALGO_SOURCE_START=30, 
     ALGO_SOURCE_END=30+MAX_ALGO_OPS,
@@ -125,7 +125,7 @@ struct event {
     float sample;
     float volume;
     float filter_freq;
-    float freq_ratio;
+    float ratio;
     float resonance;
     int8_t mod_source;
     int8_t mod_target;
@@ -202,6 +202,7 @@ void parse_task();
 void parse_message(char * message);
 void start_amy();
 void stop_amy();
+int32_t ms_to_samples(int32_t ms) ;
 
 extern float render_am_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod, float bandwidth);
 extern void ks_init();

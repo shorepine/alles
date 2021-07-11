@@ -88,7 +88,7 @@ def trunc(number):
 
 def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, bp0="", bp1="", bp2="", bp0_target=-1, bp1_target=-1, bp2_target=-1, lfo_target=-1, \
-        debug=-1, lfo_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, freq_ratio = -1, algo_source=None):
+        debug=-1, lfo_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, algo_source=None):
     global send_buffer, buffer_size, is_immediate
     m = ""
     #if(osc>0): return # debug
@@ -109,7 +109,7 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, fe
     if(volume>=0): m = m + "V" + trunc(volume)
     if(resonance>=0): m = m + "R" + trunc(resonance)
     if(filter_freq>=0): m = m + "F" + trunc(filter_freq)
-    if(freq_ratio>=0): m = m + "I" + trunc(freq_ratio)
+    if(ratio>=0): m = m + "I" + trunc(ratio)
     if(algorithm>=0): m = m + "o" + trunc(algorithm)
     if(len(bp0)): m = m +"A%s" % (bp0)
     if(len(bp1)): m = m +"B%s" % (bp1)

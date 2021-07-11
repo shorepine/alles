@@ -37,7 +37,7 @@ f = frequency, float 0-44100 (and above). default 0. Sampling rate of synth is 4
 F = center frequency of biquad filter. default 0. 
 g = modulation target mask. Which parameter modulation/LFO controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add them together
 G = filter type. 0 = none (default.) 1 = low pass, 2 = band pass, 3 = hi pass. 
-I = frequency ratio. used for ALGO types, where the base note frequency controls the modulators
+I = ratio. for ALGO types, where the base note frequency controls the modulators, or for PARTIALS, where the ratio controls the speed of the partials playback
 L = modulation source oscillator. 0-63. Which oscillator is used as an modulation/LFO source for this oscillator. Source oscillator will be silent. 
 l = velocity (amplitude), float 0-1+, >0 to trigger note on, 0 to trigger note off.  
 n = midinote, uint, 0-127 (this will also set f). default 0

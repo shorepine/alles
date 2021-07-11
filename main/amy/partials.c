@@ -33,8 +33,19 @@ void partials_note_on(uint8_t osc) {
 	// let's see how big they are
 	// just like PCM, start & end breakpoint are stored here
 	synth[osc].step = partial_breakpoints_offset_map[synth[osc].patch*4];
-	synth[osc].substep = synth[osc].step + partial_breakpoints_offset_map[synth[osc].patch*4 + 1];
-
+	synth[osc].substep = synth[osc].step + partial_breakpoints_offset_map[synth[osc].patch*5 + 1];
+	// Now let's start the oscillators (silently)
+	uint8_t oscs = partial_breakpoints_offset_map[synth[osc].patch*5 + 4];
+	if(osc + 1 + oscs > OSCS) {
+		printf("Asking for more oscs than you have -- starting %d, + 1 + %d more\n", osc, oscs);
+		// NO idea? Refuse to play? Set amp to 0? use a % ?  
+	}
+	for(uint8_t i=osc+1;i<osc+1+oscs;i++) {
+	    synth[i].note_on_clock = total_samples;
+    	synth[i].status = IS_ALGO_SOURCE; 
+	    sine_note_on(i);
+	}
+	printf("Turned on %d voices\n", oscs);
 }
 
 void partials_note_off(uint8_t osc) {
@@ -48,51 +59,81 @@ void partials_note_off(uint8_t osc) {
 // this is less "render" and more "set up a bunch of other oscillators" -- keep buf empty 
 void render_partials(float *buf, uint8_t osc) {
 	// we need to keep track of ms_offset here, yes
-	char bp[25];
-	uint32_t ms_since_started = ((total_samples - synth[osc].note_on_clock) / (float)SAMPLE_RATE)*1000.0;
+	//char bp[25];
+	float time_ratio = 1;
+	if(synth[osc].ratio > 0) time_ratio= synth[osc].ratio;
+	uint32_t ms_since_started = (((total_samples - synth[osc].note_on_clock) / (float)SAMPLE_RATE)*1000.0)*time_ratio;
 	if(synth[osc].step >= 0) {
 		// do we either have no sustain, or are we past sustain? 
 		// TODO: sustain is likely more complicated --we want to bounce between the closest bps for loopstart & loopend
-		uint32_t sustain_ms = partial_breakpoints_offset_map[synth[osc].patch*4 + 3];
+		uint32_t sustain_ms = partial_breakpoints_offset_map[synth[osc].patch*5 + 3];
 		if((sustain_ms > 0 && (ms_since_started < sustain_ms)) || sustain_ms == 0) {
 			partial_breakpoint_t pb = partial_breakpoints[(uint32_t)synth[osc].step];
 			if(ms_since_started >= pb.ms_offset ) {
 				// set up this oscillator
-			    struct event e = default_event();
-			    e.osc = pb.osc + 1 + osc;
-		        e.time = get_sysclock();
-		        e.wave = PARTIAL;
-		        e.amp = pb.amp * msynth[osc].amp;
+			    //struct event e = default_event();
+			    uint8_t o = pb.osc + 1 + osc;
+			    synth[o].wave = PARTIAL;
+
+			    //e.osc = pb.osc + 1 + osc;
+		        //e.time = get_sysclock();
+		        //e.wave = PARTIAL;
+		        //e.amp = pb.amp * msynth[osc].amp;
+		        synth[o].amp = pb.amp * msynth[osc].amp;
+
 		        if(pb.phase>=-1) { // start or continuation 
-		        	float source_freq = freq_for_midi_note(partial_breakpoints_offset_map[synth[osc].patch*4 + 2]);
+		        	float source_freq = freq_for_midi_note(partial_breakpoints_offset_map[synth[osc].patch*5 + 2]);
 		        	float freq_ratio = msynth[osc].freq / source_freq; 
 
-			        e.freq = pb.freq * freq_ratio; 
-			        e.feedback = pb.bw * msynth[osc].feedback;
+			        //e.freq = pb.freq * freq_ratio; 
+			        synth[o].freq = pb.freq * freq_ratio;
+			        //e.feedback = pb.bw * msynth[osc].feedback;
+			        synth[o].feedback = pb.bw * msynth[osc].feedback;
 
-			        sprintf(bp, "%d,%f,0,0", pb.ms_delta, pb.amp_delta);
-			        parse_breakpoint(&e, bp ,0);
-			        e.breakpoint_target[0] = TARGET_AMP + TARGET_LINEAR;
+			        //sprintf(bp, "%d,%f,0,0", (int)((float)pb.ms_delta/time_ratio), pb.amp_delta);
+			        //parse_breakpoint(&e, bp ,0);
+			        //e.breakpoint_target[0] = TARGET_AMP + TARGET_LINEAR;
 
-			        sprintf(bp, "%d,%f,0,0", pb.ms_delta, pb.freq_delta);
-			        parse_breakpoint(&e, bp ,1);
-			        e.breakpoint_target[1] = TARGET_FREQ + TARGET_LINEAR;
+			        //sprintf(bp, "%d,%f,0,0", (int)((float)pb.ms_delta/time_ratio), pb.freq_delta);
+			        //parse_breakpoint(&e, bp ,1);
+			        //e.breakpoint_target[1] = TARGET_FREQ + TARGET_LINEAR;
 
-			        if(e.feedback > 0) {
-				        sprintf(bp, "%d,%f,0,0", pb.ms_delta, pb.bw_delta);
-				        parse_breakpoint(&e, bp ,2);
-				        e.breakpoint_target[2] = TARGET_FEEDBACK + TARGET_LINEAR;
+			        synth[o].breakpoint_times[0][0] = ms_to_samples((int)((float)pb.ms_delta/time_ratio));
+			        synth[o].breakpoint_values[0][0] = pb.amp_delta; 
+			        synth[o].breakpoint_times[0][1] = 0; 
+			        synth[o].breakpoint_values[0][1] = 0; 
+			        synth[o].breakpoint_target[0] = TARGET_AMP + TARGET_LINEAR;
+
+			        synth[o].breakpoint_times[1][0] = ms_to_samples((int)((float)pb.ms_delta/time_ratio));
+			        synth[o].breakpoint_values[1][0] = pb.freq_delta; 
+			        synth[o].breakpoint_times[1][1] = 0; 
+			        synth[o].breakpoint_values[1][1] = 0; 
+			        synth[o].breakpoint_target[1] = TARGET_FREQ + TARGET_LINEAR;
+
+			        if(synth[o].feedback > 0) {
+				        //sprintf(bp, "%d,%f,0,0", (int)((float)pb.ms_delta/time_ratio), pb.bw_delta);
+				        //parse_breakpoint(&e, bp ,2);
+				        //e.breakpoint_target[2] = TARGET_FEEDBACK + TARGET_LINEAR;
+	      			    synth[o].breakpoint_times[2][0] = ms_to_samples((int)((float)pb.ms_delta/time_ratio));
+				        synth[o].breakpoint_values[2][0] = pb.freq_delta; 
+				        synth[o].breakpoint_times[2][1] = 0; 
+				        synth[o].breakpoint_values[2][1] = 0; 
+			    	    synth[o].breakpoint_target[2] = TARGET_FEEDBACK + TARGET_LINEAR;
 				    }
 
-			        e.velocity = e.amp; 
+			        //e.velocity = e.amp; 
 			    } else { // end
-			    	e.velocity = 0;
+			    	//e.velocity = 0;
+    	            synth[o].note_on_clock = -1;
+			    	synth[o].note_off_clock = total_samples;
 			    }
 				if(pb.phase >= 0) { // start
-					e.wave = SINE;
-					e.phase = pb.phase;
+					synth[o].wave = SINE;
+					synth[o].phase = pb.phase;
+					//e.wave = SINE;
+					//e.phase = pb.phase;
 				}
-		        add_event(e);
+		        //add_event(e);
 
 				synth[osc].step++;
 
@@ -102,10 +143,20 @@ void render_partials(float *buf, uint8_t osc) {
 			}
 		}
 	}
+	// now, render everything, add it up
+	uint8_t oscs = partial_breakpoints_offset_map[synth[osc].patch*5 + 4];
+	for(uint16_t i=0;i<BLOCK_SIZE;i++) buf[i] = 0;
+	for(uint8_t i=osc+1;i<osc+1+oscs;i++) {
+	    hold_and_modify(i);
+		if(synth[i].wave==SINE) render_sine(buf, i);
+		if(synth[i].wave==PARTIAL) render_partial(buf, i);
+		//printf("rendered voice %d\n", i);
+	}
+
+
 	// TODO, this could be more like an algorithm where we render into this buf, i'd want to filter it, for example
 	// yeah, this could be done. i could just set the things to ALGO_SOURCE 
 	// and make sure I do hold_and_modify on each one, then render them into my own additive buf here
-	for(uint16_t i=0;i<BLOCK_SIZE;i++) buf[i] = 0;
 
 }
 

@@ -47,8 +47,7 @@ def loris_synth(filename, freq_res=150, analysis_window=100,amp_floor=-30, max_l
     loris.scaleNoiseRatio(partials, noise_ratio)
     return loris.synthesize(partials,44100)
 
-
-def sequence(filename, max_len_s = 10, amp_floor=-30, hop_time=0.04, max_oscs=amy.OSCS, freq_res = 10, analysis_window = 100):
+def sequence(filename, max_len_s = 10, amp_floor=-30, hop_time=0.04, max_oscs=amy.OSCS, freq_res = 10, freq_drift=20, analysis_window = 100):
     # my job: take a file, analyze it, output a sequence + some metadata
     # i do voice stealing to keep maximum partials at once to max_oscs 
     # my sequence is an ordered list of partials/oscillators, a list with (ms, osc, freq, amp, bw, phase, time_delta, amp_delta, freq_delta, bw_delta)
@@ -79,6 +78,7 @@ def sequence(filename, max_len_s = 10, amp_floor=-30, hop_time=0.04, max_oscs=am
     # Do the loris analyze
     analyzer = loris.Analyzer(freq_res, analysis_window)
     analyzer.setAmpFloor(amp_floor)
+    analyzer.setFreqDrift(freq_drift)
     analyzer.setHopTime(hop_time)
     partials_it = analyzer.analyze(y, audio.frame_rate)
     # build the sequence
@@ -156,6 +156,7 @@ def sequence(filename, max_len_s = 10, amp_floor=-30, hop_time=0.04, max_oscs=am
     # Fix sustain_ms
     if(metadata.get("sustain_ms", 0) > 0):
         metadata["sustain_ms"] = metadata["sustain_ms"] - first_time
+    metadata["oscs_alloc"] = max_oscs-min_q_len
     return (metadata, sequence)
 
 
@@ -188,7 +189,7 @@ def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio
             amy.send(timestamp=s[0]*time_ratio + sustain_offset, osc=s[1]+osc_offset, vel=0, amp=s[3]*amp_ratio)
     return sequence[-1][0]*time_ratio
 
-
+#In [6]: partials.generate_partials_header(fns,amp_floor=-40,analysis_window=40,freq_drift=5,hop_time=0.04,freq_res=5)
 def generate_partials_header(filenames, **kwargs):
     # given a list of filenames, output a partials.h
     out = open("main/amy/partials.h", "w")
@@ -196,12 +197,13 @@ def generate_partials_header(filenames, **kwargs):
     all_partials = []
     for f in filenames:
         m, s = sequence(f, **kwargs)
-        all_partials.append((m ,s))
-    out.write("const uint32_t partial_breakpoints_offset_map[%d] = {\n" % (len(all_partials) *4))
-    out.write("\t// offset, length, midi_note, sustain_ms\n")
+        if(m is not None):
+            all_partials.append((m ,s))
+    out.write("const uint32_t partial_breakpoints_offset_map[%d] = {\n" % (len(all_partials) *5))
+    out.write("\t// offset, length, midi_note, sustain_ms, oscs_alloc\n")
     start = 0
     for p in all_partials:
-        out.write("\t%d, %d, %d, %d, /* %s */\n" % (start, len(p[1]), p[0].get("midi_note", 0), p[0].get("sustain_ms", 0),  p[0]["filename"]))
+        out.write("\t%d, %d, %d, %d, %d, /* %s */\n" % (start, len(p[1]), p[0].get("midi_note", 0), p[0].get("sustain_ms", 0),  p[0]["oscs_alloc"], p[0]["filename"]))
         start = start + len(p[1])
     out.write("};\n");
     out.write("const partial_breakpoint_t partial_breakpoints[%d] = {\n" % (start))
