@@ -102,6 +102,7 @@ def sequence(filename, max_len_s = 10, amp_floor=-30, hop_time=0.04, max_oscs=am
 
     # Now go and order them and figure out which oscillator gets which partial
     time_ordered = sorted(sequence, key=lambda x:x[0])
+    first_time = time_ordered[0][0]
     # Clear the sequence
     sequence = []
     min_q_len = max_oscs
@@ -129,6 +130,10 @@ def sequence(filename, max_len_s = 10, amp_floor=-30, hop_time=0.04, max_oscs=am
         s.append(amp_delta)
         s.append(freq_delta)
         s.append(bw_delta)
+
+        # Start the partials at 0
+        s[0] = s[0] - first_time
+
         if(s[5]>=0): #new partial
             if(not osc_q.empty()):
                 osc_map[s[1]] = osc_q.get()
@@ -168,7 +173,7 @@ def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio
                 sustain_offset = sustain_len_ms*time_ratio
 
         if(s[5]>=0): # start
-            amy.send(timestamp=s[0]*time_ratio + sustain_offset, osc=s[1]+osc_offset, wave=alles.SINE, freq=s[2]*pitch_ratio, phase=s[5], vel=s[3]*amp_ratio, feedback=s[4]*bw_ratio, bp0=bp0, bp1=bp1, bp2=bp2, \
+            amy.send(timestamp=s[0]*time_ratio + sustain_offset, osc=s[1]+osc_offset, wave=alles.SINE,    freq=s[2]*pitch_ratio, phase=s[5], vel=s[3]*amp_ratio, feedback=s[4]*bw_ratio, bp0=bp0, bp1=bp1, bp2=bp2, \
                 bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR, bp2_target=amy.TARGET_FEEDBACK+amy.TARGET_LINEAR)
         if(s[5]==-1): # continue
             amy.send(timestamp=s[0]*time_ratio + sustain_offset, osc=s[1]+osc_offset, wave=alles.PARTIAL, freq=s[2]*pitch_ratio, vel=s[3]*amp_ratio, feedback=s[4]*bw_ratio, bp0=bp0, bp1=bp1, bp2=bp2, \

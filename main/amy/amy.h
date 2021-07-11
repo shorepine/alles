@@ -75,7 +75,8 @@ typedef int16_t i2s_sample_type;
 #define PCM 7
 #define ALGO 8
 #define PARTIAL 9
-#define OFF 10
+#define PARTIALS 10
+#define OFF 11
 #define EMPTY 0
 #define SCHEDULED 1
 #define PLAYED 2
@@ -171,6 +172,8 @@ void render_task(uint8_t start, uint8_t end, uint8_t core);
 void show_debug(uint8_t type) ;
 void oscs_deinit() ;
 void reset_oscs() ;
+int64_t get_sysclock();
+float freq_for_midi_note(uint8_t midi_note);
 
 // global synth state
 struct state {
@@ -214,6 +217,9 @@ extern void render_noise(float * buf, uint8_t osc);
 extern void render_pcm(float * buf, uint8_t osc);
 extern void render_algo(float * buf, uint8_t osc) ;
 extern void render_partial(float *buf, uint8_t osc) ;
+extern void partials_note_on(uint8_t osc);
+extern void partials_note_off(uint8_t osc);
+extern void render_partials(float *buf, uint8_t osc);
 
 extern float compute_mod_pulse(uint8_t osc);
 extern float compute_mod_noise(uint8_t osc);

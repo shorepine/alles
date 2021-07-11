@@ -20,6 +20,10 @@ typedef struct {
 // Automatically generated from partials.generate_partials_header()
 #include "partials.h"
 
+extern struct event *synth;
+extern struct mod_event *msynth; // the synth that is being modified by modulations & envelopes
+extern struct state global; 
+
 
 // who defines which partials go to which speakers? 
 
@@ -29,14 +33,71 @@ void partials_note_on(uint8_t osc) {
 	// we can set patches as groups, and store octave-spaced midi note versions of them?
 	// this will choose the precise patch index from the whole set
 	// let's see how big they are
-	
+
+	// just like PCM, start & end breakpoint are stored here
+	synth[osc].step = partial_breakpoints_offset_map[synth[osc].patch*4];
+	synth[osc].substep = synth[osc].step + partial_breakpoints_offset_map[synth[osc].patch*4 + 1];
+
+}
+
+void partials_note_off(uint8_t osc) {
+	synth[osc].step = -1;
 }
 
 // render a full partial set at offset osc (with patch)
 // freq controls pitch_ratio -- what controls time ratio? 
 // do all patches have sustain point?
-void render_partials(uint8_t osc) {
+
+// this is less "render" and more "set up a bunch of other oscillators" -- keep buf empty 
+void render_partials(float *buf, uint8_t osc) {
 	// we need to keep track of ms_offset here, yes
+	char bp[25];
+	uint32_t ms_since_started = (synth[osc].note_on_clock / (float)SAMPLE_RATE)*1000.0;
+	if(synth[osc].step >= 0) {
+		// is the next item ready to play
+		partial_breakpoint_t pb = partial_breakpoints[(uint32_t)synth[osc].step];
+		if(ms_since_started >= pb.ms_offset ) {
+			// set up this oscillator
+		    struct event e = default_event();
+		    e.osc = pb.osc + osc;
+	        e.time = get_sysclock();
+	        e.wave = PARTIAL;
+	        e.amp = pb.amp * msynth[osc].amp;
+	        if(pb.phase>=-1) { // start or continuation 
+	        	float source_freq = freq_for_midi_note(partial_breakpoints_offset_map[synth[osc].patch*4 + 2]);
+	        	float freq_ratio = msynth[osc].freq / source_freq; 
 
+		        e.freq = pb.freq * freq_ratio; 
+		        e.feedback = pb.bw * msynth[osc].feedback;
 
+		        sprintf(bp, "%d,%f,0,0", pb.ms_delta, pb.amp_delta);
+		        parse_breakpoint(&e, bp ,0);
+		        e.breakpoint_target[0] = TARGET_AMP + TARGET_LINEAR;
+
+		        sprintf(bp, "%d,%f,0,0", pb.ms_delta, pb.freq_delta);
+		        parse_breakpoint(&e, bp ,1);
+		        e.breakpoint_target[1] = TARGET_FREQ + TARGET_LINEAR;
+
+		        sprintf(bp, "%d,%f,0,0", pb.ms_delta, pb.bw_delta);
+		        parse_breakpoint(&e, bp ,2);
+		        e.breakpoint_target[2] = TARGET_FEEDBACK + TARGET_LINEAR;
+
+		        e.velocity = e.amp; 
+		    } else { // end
+		    	e.velocity = 0;
+		    }
+			if(pb.phase >= 0) { // start
+				e.wave = SINE;
+				e.phase = pb.phase;
+			}
+	        add_event(e);
+	  		// and move to the next one
+			synth[osc].step++;
+			if(synth[osc].step == synth[osc].substep) {
+				partials_note_off(osc);
+			}
+		}
+	}
+	for(uint16_t i=0;i<BLOCK_SIZE;i++) buf[i] = 0;
 }
+
