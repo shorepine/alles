@@ -7,7 +7,7 @@ import loris
 import time
 import numpy as np
 from math import pi
-from collections import dequeue
+from collections import deque
 
 
 tests = [
@@ -108,7 +108,7 @@ def sequence(filename, max_len_s = 10, amp_floor=-30, hop_time=0.04, max_oscs=am
     min_q_len = max_oscs
     # Now add in a voice / osc # 
     osc_map = {}
-    osc_q = dequeue(range(max_oscs)) 
+    osc_q = deque(range(max_oscs)) 
     # There's a bug,     "/Users/bwhitman/sounds/aps/samples/ADVORCH1/BA LONG FF/BA LGFF#C3.wav",
     # has osc #s going up to 63 even though it says 
     # 105 partials and 750 breakpoints, max oscs used at once was 8
