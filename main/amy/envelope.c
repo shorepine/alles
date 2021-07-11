@@ -6,7 +6,6 @@
 extern struct event* synth;
 extern struct mod_event* msynth;
 extern struct mod_state mglobal;
-extern int64_t total_samples;
 
 
 // Breakpoints as/well (?) instead of adsr

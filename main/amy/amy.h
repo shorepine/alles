@@ -264,6 +264,7 @@ esp_err_t dsps_biquad_f32_ae32(const float *input, float *output, int len, float
 
 extern float coeffs[OSCS][5];
 extern float delay[OSCS][2];
+extern int64_t total_samples;
 
 
 

@@ -150,6 +150,9 @@ def sequence(filename, max_len_s = 10, amp_floor=-30, hop_time=0.04, max_oscs=am
                     osc_q.put(osc)
         if(osc_q.qsize() < min_q_len): min_q_len = osc_q.qsize()
     print("%d partials and %d breakpoints, max oscs used at once was %d" % (partial_count, len(sequence), max_oscs - min_q_len))
+    # Fix sustain_ms
+    if(metadata.get("sustain_ms", 0) > 0):
+        metadata["sustain_ms"] = metadata["sustain_ms"] - first_time
     return (metadata, sequence)
 
 
