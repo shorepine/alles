@@ -49,6 +49,7 @@ void partials_note_on(uint8_t osc) {
 	}
 	for(uint8_t i=osc+1;i<osc+1+oscs;i++) {
 		uint8_t o = i % OSCS;
+		synth[o].amp = 0;
 		sine_note_on(o);
 	}
 
@@ -128,9 +129,11 @@ void render_partials(float *buf, uint8_t osc) {
 	uint8_t oscs = patch.oscs_alloc;
 	for(uint8_t i=osc+1;i<osc+1+oscs;i++) {
 		uint8_t o = i % OSCS;
-	    hold_and_modify(o);
-		if(synth[o].wave==SINE) render_sine(buf, o);
-		if(synth[o].wave==PARTIAL) render_partial(buf, o);
+	    if(synth[o].status ==IS_ALGO_SOURCE) {
+		    hold_and_modify(o);
+			if(synth[o].wave==SINE) render_sine(buf, o);
+			if(synth[o].wave==PARTIAL) render_partial(buf, o);
+		}
 	}
 	for(uint16_t i=0;i<BLOCK_SIZE;i++) buf[i] = buf[i] * msynth[osc].amp;
 
