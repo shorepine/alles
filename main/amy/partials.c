@@ -3,6 +3,13 @@
 
 #include "amy.h"
 
+typedef struct {
+	uint32_t bp_offset;
+	uint32_t bp_length;
+	uint8_t midi_note;
+	uint32_t sustain_ms;
+	uint8_t oscs_alloc;
+} partial_breakpoint_map_t;
 
 typedef struct {
 	uint32_t ms_offset;
@@ -38,7 +45,6 @@ void partials_note_on(uint8_t osc) {
 	uint8_t oscs = partial_breakpoints_offset_map[synth[osc].patch*5 + 4];
 	if(osc + 1 + oscs > OSCS) {
 		printf("Asking for more oscs than you have -- starting %d, + 1 + %d more\n", osc, oscs);
-		// NO idea? Refuse to play? Set amp to 0? loop around anyway?  
 	}
 	for(uint8_t i=osc+1;i<osc+1+oscs;i++) {
 	    synth[i % OSCS].note_on_clock = total_samples;

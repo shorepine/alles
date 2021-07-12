@@ -199,11 +199,11 @@ def generate_partials_header(filenames, **kwargs):
         m, s = sequence(f, **kwargs)
         if(m is not None):
             all_partials.append((m ,s))
-    out.write("const uint32_t partial_breakpoints_offset_map[%d] = {\n" % (len(all_partials) *5))
+    out.write("const partial_breakpoint_map_t partial_breakpoint_map[%d] = {\n" % (len(all_partials)))
     out.write("\t// offset, length, midi_note, sustain_ms, oscs_alloc\n")
     start = 0
     for p in all_partials:
-        out.write("\t%d, %d, %d, %d, %d, /* %s */\n" % (start, len(p[1]), p[0].get("midi_note", 0), p[0].get("sustain_ms", 0),  p[0]["oscs_alloc"], p[0]["filename"]))
+        out.write("\t{ %d, %d, %d, %d, %d }, /* %s */ \n" % (start, len(p[1]), p[0].get("midi_note", 0), p[0].get("sustain_ms", 0),  p[0]["oscs_alloc"], p[0]["filename"]))
         start = start + len(p[1])
     out.write("};\n");
     out.write("const partial_breakpoint_t partial_breakpoints[%d] = {\n" % (start))
