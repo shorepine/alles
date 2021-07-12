@@ -48,10 +48,10 @@ void partials_note_on(uint8_t osc) {
 		printf("Asking for more oscs than you have -- starting %d, + 1 + %d more\n", osc, oscs);
 	}
 	for(uint8_t i=osc+1;i<osc+1+oscs;i++) {
-	    synth[i % OSCS].note_on_clock = total_samples;
-    	synth[i % OSCS].status = IS_ALGO_SOURCE; 
-	    sine_note_on(i % OSCS);
+		uint8_t o = i % OSCS;
+		sine_note_on(o);
 	}
+
 }
 
 void partials_note_off(uint8_t osc) {
@@ -78,7 +78,9 @@ void render_partials(float *buf, uint8_t osc) {
 				// set up this oscillator
 			    uint8_t o = (pb.osc + 1 + osc) % OSCS; // just in case
 			    synth[o].wave = PARTIAL;
+			    synth[o].status = IS_ALGO_SOURCE;
 		        synth[o].amp = pb.amp;
+			    synth[o].note_on_clock = total_samples; // start breakpoints
 
 		        if(pb.phase>=-1) { // start or continuation 
 		        	// Find our ratio using the midi note of the analyzed partial
@@ -113,7 +115,7 @@ void render_partials(float *buf, uint8_t osc) {
 				if(pb.phase >= 0) { // start of a partial, use SINE type to capture phase
 					synth[o].wave = SINE;
 					synth[o].phase = pb.phase;
-					synth[o].note_on_clock = total_samples;
+					sine_note_on(o);
 				}
 				synth[osc].step++;
 				if(synth[osc].step == synth[osc].substep) {
@@ -124,7 +126,6 @@ void render_partials(float *buf, uint8_t osc) {
 	}
 	// now, render everything, add it up
 	uint8_t oscs = patch.oscs_alloc;
-	for(uint16_t i=0;i<BLOCK_SIZE;i++) buf[i] = 0;
 	for(uint8_t i=osc+1;i<osc+1+oscs;i++) {
 		uint8_t o = i % OSCS;
 	    hold_and_modify(o);
