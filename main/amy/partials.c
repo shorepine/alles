@@ -39,10 +39,11 @@ void partials_note_on(uint8_t osc) {
 	// this will choose the precise patch index from the whole set
 	// let's see how big they are
 	// just like PCM, start & end breakpoint are stored here
-	synth[osc].step = partial_breakpoints_offset_map[synth[osc].patch*5 + 0];
-	synth[osc].substep = synth[osc].step + partial_breakpoints_offset_map[synth[osc].patch*5 + 1];
+	partial_breakpoint_map_t patch = partial_breakpoint_map[synth[osc].patch];
+	synth[osc].step = patch.bp_offset;
+	synth[osc].substep = synth[osc].step + patch.bp_length;
 	// Now let's start the oscillators (silently)
-	uint8_t oscs = partial_breakpoints_offset_map[synth[osc].patch*5 + 4];
+	uint8_t oscs = patch.oscs_alloc;
 	if(osc + 1 + oscs > OSCS) {
 		printf("Asking for more oscs than you have -- starting %d, + 1 + %d more\n", osc, oscs);
 	}
@@ -62,6 +63,7 @@ void partials_note_off(uint8_t osc) {
 // freq controls pitch_ratio, amp amp_ratio, ratio controls time ratio
 // do all patches have sustain point?
 void render_partials(float *buf, uint8_t osc) {
+	partial_breakpoint_map_t patch = partial_breakpoint_map[synth[osc].patch];
 	// If ratio is set (not 0 or -1), use it for a time stretch
 	float time_ratio = 1;
 	if(synth[osc].ratio > 0) time_ratio = synth[osc].ratio;
@@ -69,7 +71,7 @@ void render_partials(float *buf, uint8_t osc) {
 	if(synth[osc].step >= 0) {
 		// do we either have no sustain, or are we past sustain? 
 		// TODO: sustain is likely more complicated --we want to bounce between the closest bps for loopstart & loopend
-		uint32_t sustain_ms = partial_breakpoints_offset_map[synth[osc].patch*5 + 3];
+		uint32_t sustain_ms = patch.sustain_ms;
 		if((sustain_ms > 0 && (ms_since_started < sustain_ms)) || sustain_ms == 0) {
 			partial_breakpoint_t pb = partial_breakpoints[(uint32_t)synth[osc].step];
 			if(ms_since_started >= pb.ms_offset ) {
@@ -80,7 +82,7 @@ void render_partials(float *buf, uint8_t osc) {
 
 		        if(pb.phase>=-1) { // start or continuation 
 		        	// Find our ratio using the midi note of the analyzed partial
-		        	float freq_ratio = msynth[osc].freq / freq_for_midi_note(partial_breakpoints_offset_map[synth[osc].patch*5 + 2]); 
+		        	float freq_ratio = msynth[osc].freq / freq_for_midi_note(patch.midi_note); 
 
 			        synth[o].freq = pb.freq * freq_ratio;
 			        synth[o].feedback = pb.bw * msynth[osc].feedback;
@@ -114,7 +116,6 @@ void render_partials(float *buf, uint8_t osc) {
 					synth[o].note_on_clock = total_samples;
 				}
 				synth[osc].step++;
-				printf("ms is %d step is now %f sub %f\n", ms_since_started, synth[osc].step, synth[osc].substep);
 				if(synth[osc].step == synth[osc].substep) {
 					partials_note_off(osc);
 				}
@@ -122,7 +123,7 @@ void render_partials(float *buf, uint8_t osc) {
 		}
 	}
 	// now, render everything, add it up
-	uint8_t oscs = partial_breakpoints_offset_map[synth[osc].patch*5 + 4];
+	uint8_t oscs = patch.oscs_alloc;
 	for(uint16_t i=0;i<BLOCK_SIZE;i++) buf[i] = 0;
 	for(uint8_t i=osc+1;i<osc+1+oscs;i++) {
 		uint8_t o = i % OSCS;
