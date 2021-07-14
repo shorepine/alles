@@ -204,6 +204,11 @@ void start_amy();
 void stop_amy();
 int32_t ms_to_samples(int32_t ms) ;
 
+
+
+void live_start();
+void live_stop();
+
 extern float render_am_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod, float bandwidth);
 extern void ks_init();
 extern void ks_deinit();

@@ -54,6 +54,7 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
     if(synth[osc].breakpoint_target[bp_set] & TARGET_LINEAR) exp = 0;
 
     // Find out which one is release (the last one)
+    
     while(synth[osc].breakpoint_times[bp_set][bp_r] >= 0 && bp_r < MAX_BREAKPOINTS) bp_r++;
     bp_r--;
     //printf("[%d,%d] Found release BP at pos %d\n", bp_set, osc,bp_r);
@@ -82,10 +83,12 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
         found = bp_r;
         t0 = 0; // start the elapsed clock again
         if(found > 0) v0 = synth[osc].breakpoint_values[bp_set][found-1];
+        //printf("elapsed %d noc %d total_samples %d found %d v0 %f bpt %d\n", elapsed, synth[osc].note_off_clock, total_samples, found, v0, synth[osc].breakpoint_times[bp_set][bp_r]);
         if(elapsed > synth[osc].breakpoint_times[bp_set][bp_r]) {
+            //printf("past release, setting note off\n");
             synth[osc].status=OFF;
             synth[osc].note_off_clock = -1;
-            return 1; //return 0; // i am pretty sure
+            return 1; // i am pretty sure
         }
     }
 
@@ -103,7 +106,6 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
         return scale;
     } else {
         float scale = v0 + ((v1-v0) * time_ratio);
-        //if(bp_set == 1)
         //printf("[%d,%d] LIN t0 %d v0 %f t1 %d v1 %f elapsed %d tr %f scale %f\n", bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
         return scale;
     }

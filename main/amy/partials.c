@@ -78,42 +78,50 @@ void render_partials(float *buf, uint8_t osc) {
 			if(ms_since_started >= pb.ms_offset ) {
 				// set up this oscillator
 			    uint8_t o = (pb.osc + 1 + osc) % OSCS; // just in case
+				//printf("[%d %d] new pb: %d %d %f %f %f\n", total_samples, ms_since_started, pb.osc, pb.ms_offset, pb.amp, pb.freq, pb.phase);
+
+	        	// Find our ratio using the midi note of the analyzed partial
+	        	float freq_ratio = msynth[osc].freq / freq_for_midi_note(patch.midi_note); 
+
+				// All the types share these params or are overwritten
 			    synth[o].wave = PARTIAL;
 			    synth[o].status = IS_ALGO_SOURCE;
 		        synth[o].amp = pb.amp;
 			    synth[o].note_on_clock = total_samples; // start breakpoints
+			    synth[o].freq = pb.freq * freq_ratio;
+			    synth[o].feedback = pb.bw * msynth[osc].feedback;
+				
+				synth[o].breakpoint_times[0][0] = ms_to_samples((int)((float)pb.ms_delta/time_ratio));
+			    synth[o].breakpoint_values[0][0] = pb.amp_delta; 
+		        synth[o].breakpoint_times[0][1] = 0; 
+		        synth[o].breakpoint_values[0][1] = 0; 
+		        synth[o].breakpoint_target[0] = TARGET_AMP + TARGET_LINEAR;
 
-		        if(pb.phase>=-1) { // start or continuation 
-		        	// Find our ratio using the midi note of the analyzed partial
-		        	float freq_ratio = msynth[osc].freq / freq_for_midi_note(patch.midi_note); 
-
+		        synth[o].breakpoint_times[1][0] = ms_to_samples((int)((float)pb.ms_delta/time_ratio));
+		        synth[o].breakpoint_values[1][0] = pb.freq_delta; 
+		        synth[o].breakpoint_times[1][1] = 0; 
+		        synth[o].breakpoint_values[1][1] = 0; 
+		        synth[o].breakpoint_target[1] = TARGET_FREQ + TARGET_LINEAR;
+				
+		        if(synth[o].feedback > 0) {
+      			    synth[o].breakpoint_times[2][0] = ms_to_samples((int)((float)pb.ms_delta/time_ratio));
+			        synth[o].breakpoint_values[2][0] = pb.bw_delta; 
+			        synth[o].breakpoint_times[2][1] = 0; 
+			        synth[o].breakpoint_values[2][1] = 0; 
+		    	    synth[o].breakpoint_target[2] = TARGET_FEEDBACK + TARGET_LINEAR;
+			    }
+	        	if(pb.phase==-1) { // continuation 
 			        synth[o].freq = pb.freq * freq_ratio;
 			        synth[o].feedback = pb.bw * msynth[osc].feedback;
-
-			        synth[o].breakpoint_times[0][0] = ms_to_samples((int)((float)pb.ms_delta/time_ratio));
-			        synth[o].breakpoint_values[0][0] = pb.amp_delta; 
-			        synth[o].breakpoint_times[0][1] = 0; 
-			        synth[o].breakpoint_values[0][1] = 0; 
-			        synth[o].breakpoint_target[0] = TARGET_AMP + TARGET_LINEAR;
-
-			        synth[o].breakpoint_times[1][0] = ms_to_samples((int)((float)pb.ms_delta/time_ratio));
-			        synth[o].breakpoint_values[1][0] = pb.freq_delta; 
-			        synth[o].breakpoint_times[1][1] = 0; 
-			        synth[o].breakpoint_values[1][1] = 0; 
-			        synth[o].breakpoint_target[1] = TARGET_FREQ + TARGET_LINEAR;
-
-			        if(synth[o].feedback > 0) {
-	      			    synth[o].breakpoint_times[2][0] = ms_to_samples((int)((float)pb.ms_delta/time_ratio));
-				        synth[o].breakpoint_values[2][0] = pb.bw_delta; 
-				        synth[o].breakpoint_times[2][1] = 0; 
-				        synth[o].breakpoint_values[2][1] = 0; 
-			    	    synth[o].breakpoint_target[2] = TARGET_FEEDBACK + TARGET_LINEAR;
-				    }
-			    } else { // end partial
-    	            synth[o].note_on_clock = -1;
-			    	synth[o].note_off_clock = total_samples;
-			    }
-				if(pb.phase >= 0) { // start of a partial, use SINE type to capture phase
+				    //printf("[%d %d] o %d continue partial\n", total_samples, ms_since_started, o);
+			    } else if(pb.phase==-2) { // end partial
+    				//printf("[%d %d] o %d end partial\n", total_samples,ms_since_started, o);
+    				synth[o].substep = 2;
+					// osc note off, start release
+				    synth[o].note_on_clock = -1;
+				    synth[o].note_off_clock = total_samples;   
+    			} else { // start of a partial, use SINE type to capture phase
+    				//printf("[%d %d] o %d start partial\n", total_samples,ms_since_started, o);
 					synth[o].wave = SINE;
 					synth[o].phase = pb.phase;
 					sine_note_on(o);
@@ -127,15 +135,20 @@ void render_partials(float *buf, uint8_t osc) {
 	}
 	// now, render everything, add it up
 	uint8_t oscs = patch.oscs_alloc;
+	float pbuf[BLOCK_SIZE];
 	for(uint8_t i=osc+1;i<osc+1+oscs;i++) {
 		uint8_t o = i % OSCS;
 	    if(synth[o].status ==IS_ALGO_SOURCE) {
-		    hold_and_modify(o);
-			if(synth[o].wave==SINE) render_sine(buf, o);
-			if(synth[o].wave==PARTIAL) render_partial(buf, o);
+	    	hold_and_modify(o);
+			//printf("[%d %d] %d amp %f (%f) freq %f (%f) on %d off %d bp0 %d %f bp1 %d %f wave %d\n", total_samples, ms_since_started, o, synth[o].amp, msynth[o].amp, synth[o].freq, msynth[o].freq, synth[o].note_on_clock, synth[o].note_off_clock, synth[o].breakpoint_times[0][0], 
+			//	synth[o].breakpoint_values[0][0], synth[o].breakpoint_times[1][0], synth[o].breakpoint_values[1][0], synth[o].wave);
+			for(uint16_t j=0;j<BLOCK_SIZE;j++) pbuf[j] = 0;
+			if(synth[o].wave==SINE) render_sine(pbuf, o);
+			if(synth[o].wave==PARTIAL) render_partial(pbuf, o); 
+			for(uint16_t j=0;j<BLOCK_SIZE;j++) buf[j] = buf[j] + (pbuf[j] * msynth[osc].amp);
 		}
 	}
-	for(uint16_t i=0;i<BLOCK_SIZE;i++) buf[i] = buf[i] * msynth[osc].amp;
+	//for(uint16_t i=0;i<BLOCK_SIZE;i++) buf[i] = buf[i] * msynth[osc].amp;
 
 }
 
