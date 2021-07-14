@@ -11,7 +11,13 @@
 #include "../alles.h"
 extern SemaphoreHandle_t xQueueSemaphore;
 extern TaskHandle_t renderTask[2]; // one per core
+#else
+// Local rendering
+#include <soundio/soundio.h>
+#include <pthread.h>
+struct SoundIo *soundio;
 #endif
+
 
 // Global state 
 struct state global;
@@ -505,6 +511,121 @@ int64_t get_sysclock() {
     return (total_samples / (float)SAMPLE_RATE) * 1000;
 #endif
 }
+
+
+#ifndef ESP_PLATFORM
+static void soundio_callback(struct SoundIoOutStream *outstream, int frame_count_min, int frame_count_max) {
+    struct SoundIoChannelArea *areas;
+    int err;
+    // TODO: we can keep this in a buffer for the next callback instead of barfing
+    if(frame_count_max % BLOCK_SIZE !=0) fprintf(stderr, "not divisible %d v %d\n", frame_count_max, BLOCK_SIZE);
+    int frame_count = frame_count_max;
+    if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count))) {
+        fprintf(stderr, "unrecoverable stream error: %s\n", soundio_strerror(err));
+        exit(1);
+    }
+    for(uint8_t i=0;i<frame_count / BLOCK_SIZE;i++) {
+        int16_t *buf = fill_audio_buffer_task();
+        memcpy(areas[0].ptr, buf, BLOCK_SIZE*2);
+        areas[0].ptr += BLOCK_SIZE*2;
+    }
+    if ((err = soundio_outstream_end_write(outstream))) {
+        if (err == SoundIoErrorUnderflow)
+            return;
+        fprintf(stderr, "unrecoverable stream error: %s\n", soundio_strerror(err));
+        exit(1);
+    }
+}
+
+static void underflow_callback(struct SoundIoOutStream *outstream) {
+    static int count = 0;
+    fprintf(stderr, "underflow %d\n", count++);
+}
+
+// start soundio
+int soundio_init() {
+    soundio = soundio_create();
+    if (!soundio) {
+        fprintf(stderr, "out of memory\n");
+        return 1;
+    }
+    int err = soundio_connect(soundio);
+    if (err) {
+        fprintf(stderr, "Unable to connect to backend: %s\n", soundio_strerror(err));
+        return 1;
+    }
+
+    soundio_flush_events(soundio);
+    int selected_device_index = soundio_default_output_device_index(soundio);
+
+    if (selected_device_index < 0) {
+        fprintf(stderr, "Output device not found\n");
+        return 1;
+    }
+
+    struct SoundIoDevice *device = soundio_get_output_device(soundio, selected_device_index);
+    if (!device) {
+        fprintf(stderr, "out of memory\n");
+        return 1;
+    }
+
+    if (device->probe_error) {
+        fprintf(stderr, "Cannot probe device: %s\n", soundio_strerror(device->probe_error));
+        return 1;
+    }
+
+    struct SoundIoOutStream *outstream = soundio_outstream_create(device);
+    if (!outstream) {
+        fprintf(stderr, "out of memory\n");
+        return 1;
+    }
+
+    outstream->write_callback = soundio_callback;
+    outstream->underflow_callback = underflow_callback;
+    outstream->name = NULL;
+    outstream->software_latency = 0.0;
+    outstream->sample_rate = SAMPLE_RATE;
+    outstream->layout = *soundio_channel_layout_get_default(1);
+
+    if (soundio_device_supports_format(device, SoundIoFormatS16NE)) {
+        outstream->format = SoundIoFormatS16NE;
+    } else {
+        fprintf(stderr, "No suitable device format available.\n");
+        return 1;
+    }
+    
+    if ((err = soundio_outstream_open(outstream))) {
+        fprintf(stderr, "unable to open device: %s", soundio_strerror(err));
+        return 1;
+    }
+    if (outstream->layout_error)
+        fprintf(stderr, "unable to set channel layout: %s\n", soundio_strerror(outstream->layout_error));
+
+    if ((err = soundio_outstream_start(outstream))) {
+        fprintf(stderr, "unable to start device: %s\n", soundio_strerror(err));
+        return 1;
+    }
+    return 0;
+}
+
+void *soundio_run(void *vargp) {
+    soundio_init();
+    for(;;) {
+        soundio_flush_events(soundio);
+    }
+}
+
+void live_start() {
+    // kick off a thread running soundio_run
+    pthread_t thread_id;
+    pthread_create(&thread_id, NULL, soundio_run, NULL);
+}
+
+void live_stop() {
+    soundio_destroy(soundio);
+}
+
+#endif // ifndef ESP_PLATFORM
 
 // This takes scheduled events and plays them at the right time
 int16_t * fill_audio_buffer_task() {

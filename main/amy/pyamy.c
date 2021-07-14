@@ -24,6 +24,21 @@ static PyObject * start_wrapper(PyObject *self, PyObject *args) {
     return Py_None;
 }
 
+static PyObject * live_wrapper(PyObject *self, PyObject *args) {
+    if(started==1) {
+        live_start();
+    } else {
+        printf("Not yet started\n");
+    }
+    return Py_None;
+}
+
+static PyObject * pause_wrapper(PyObject *self, PyObject *args) {
+    live_stop();
+    return Py_None;
+}
+
+
 static PyObject * stop_wrapper(PyObject *self, PyObject *args) {
     if(started == 1) {
         stop_amy();
@@ -56,6 +71,8 @@ static PyMethodDef libAMYMethods[] = {
     {"send", send_wrapper, METH_VARARGS, "Send a message"},
     {"start", start_wrapper, METH_VARARGS, "Start AMY"},
     {"stop", stop_wrapper, METH_VARARGS, "Stop AMY"},
+    {"live", live_wrapper, METH_VARARGS, "Live AMY"},
+    {"pause", pause_wrapper, METH_VARARGS, "Pause AMY"},
     { NULL, NULL, 0, NULL }
 };
 

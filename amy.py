@@ -3,17 +3,14 @@
 from alles_util import get_sock, get_multicast_group
 import datetime
 
+import sounddevice as sd
+import libamy
+import numpy as np
 try:
-	import sounddevice as sd
-	import libamy
-	import numpy as np
-	try:
-		import scipy.io.wavfile as wav
-		import matplotlib.pyplot as plt
-	except ImportError:
-		print("libAMY loaded, but no scipy or matlplotlib, can't visualize or save to WAV")
+	import scipy.io.wavfile as wav
+	import matplotlib.pyplot as plt
 except ImportError:
-	print("Couldn't load libAMY. This is fine, but you can't run locally.")
+	print("libAMY loaded, but no scipy or matlplotlib, can't visualize or save to WAV")
 
 
 #TODO , generate these from amy.h when compiling
@@ -189,11 +186,11 @@ def render(seconds):
     return np.hstack(frames)
 
 # TODO - airpods ask for 2880 samples in a block, /64 but not /128
-def amy_callback(outdata, frames, time, status):
-    if(status): # buffer underrun
-        print(str(status))
-    single = render(frames/SAMPLE_RATE)
-    outdata[:] = single.reshape(single.shape[0],1)
+#def amy_callback(outdata, frames, time, status):
+#    if(status): # buffer underrun
+#        print(str(status))
+#    single = render(frames/SAMPLE_RATE)
+#    outdata[:] = single.reshape(single.shape[0],1)
 
 def start(immediate=True):
     global is_local, is_immediate
@@ -218,18 +215,22 @@ def stop():
 def live():
     global stream, is_immediate
     start()
-    if stream is not None:
-        print("Stream running")
-    else:
-        is_immediate = False
-        stream = sd.OutputStream(callback=amy_callback)
-        stream.start()
+    libamy.live()
+
+    #if stream is not None:
+    #    print("Stream running")
+    #else:
+    #    is_immediate = False
+    #    stream = sd.OutputStream(callback=amy_callback)
+    #    stream.start()
 
 def pause():
-    global stream
-    if stream is None:
-        print("Stream already stopped")
-    else:
-        stream.stop()
-        stream = None
-        stop()
+    #global stream
+    #if stream is None:
+    #    print("Stream already stopped")
+    #else:
+    #    stream.stop()
+    #    stream = None
+    #    stop()
+    libamy.pause()
+    stop()

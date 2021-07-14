@@ -6,6 +6,7 @@ sources = glob.glob("*.c")
 os.environ["CC"] = "gcc"
 os.environ["CXX"] = "g++"
 
-extension_mod = Extension("libamy", sources=sources) 
+extension_mod = Extension("libamy", sources=sources, extra_link_args=["-lsoundio", "-lpthread"])
 
-setup(name = "libamy", ext_modules=[extension_mod])
+setup(name = "libamy", 
+	ext_modules=[extension_mod])

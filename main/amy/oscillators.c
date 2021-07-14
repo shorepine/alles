@@ -427,29 +427,24 @@ void render_partial(float * buf, uint8_t osc) {
     float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
     synth[osc].step = render_am_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
                  synth[osc].lut, synth[osc].lut_size, scratch[1], msynth[osc].feedback);    
-
     if(synth[osc].substep==2) {
         // fade out
-        //printf("partial note off fade out osc %d\n", osc);
         synth[osc].substep = 0;
         for(uint16_t i=0;i<BLOCK_SIZE;i++) buf[i] = buf[i] * ((float)(BLOCK_SIZE-i)/(float)BLOCK_SIZE);
+        synth[osc].status=OFF;
+
     }
 }
-
 
 void partial_note_on(uint8_t osc) {
     synth[osc].lut = sine_lutable_0; //choose_from_lutset(period_samples, sine_lutset, &synth[osc].lut_size);
     synth[osc].lut_size = 256;
-    //synth[osc].step = (float)synth[osc].lut_size * synth[osc].phase;    
 }
 
 void partial_note_off(uint8_t osc) {
-    // ramp to 0
     synth[osc].substep = 2;
-    // osc note off, start release
     synth[osc].note_on_clock = -1;
-    synth[osc].note_off_clock = total_samples;          
-
+    synth[osc].note_off_clock = total_samples;   
 }
 
 void render_sine(float * buf, uint8_t osc) { 
@@ -457,10 +452,8 @@ void render_sine(float * buf, uint8_t osc) {
     float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
     synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
 				 synth[osc].lut, synth[osc].lut_size);
-    //printf("rendered osc %d ss %f partial at sample %d time %f amp was %f\n", osc, synth[osc].substep, total_samples, total_samples/44100.0, msynth[osc].amp);
     if(synth[osc].substep==1) {
         // fade
-        //printf("partial note on fade in osc %d\n", osc);
         synth[osc].substep = 0;
         for(uint16_t i=0;i<BLOCK_SIZE;i++) buf[i] = buf[i] * ((float)i/(float)BLOCK_SIZE);
     }

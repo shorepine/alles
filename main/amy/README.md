@@ -100,9 +100,9 @@ amy.pause()
 ## Compile AMY and install the Python library
 
 ```
+$ [brew/apt-get] install libsoundio # required for live audio 
 $ cd alles/main/amy
 $ python3 setup.py install
-$ python3 -m pip install sounddevice numpy # needed to render live audio in the shell
 ```
 
 ## Synth details
