@@ -1,7 +1,5 @@
 import alles, amy, sys
 
-# Sorry I have to add this. getting loris to compile cleanly was a PITA. looking for a better one
-sys.path.append('/usr/local/lib/python3.8/site-packages')
 import pydub
 import loris
 import time

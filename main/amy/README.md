@@ -111,7 +111,17 @@ $ python3 setup.py install
 
 AMY was imagined first as a partial synthesizer, where a series of sine waves are built and modified over time to recreate harmonic tones. `partials.py` has a number of functions to analyze PCM audio and emit partial commands for AMY to render. Once parameterized, you can modify a partials' time and pitch ratios in real time. You can set parameters in `partials.sequence()` to choose the density of breakpoints and oscillators. 
 
+To install the Loris partial analyzer Python library and use `partials.py`,
 
+```
+$ tar xvf loris.tar # from the main `alles` repository
+$ cd loris-1.8
+$ CPPFLAGS=`python3-config --includes` PYTHON=`which python3` ./configure --with-python
+$ make
+$ sudo make install
+```
+
+```
 ### FM 
 
 AMY also supports FM synthesis, modeled after the DX7 (but is not an emulator or clone.) The `ALGO` type lets you build up to 6 oscillators (also called operators) that can modulate and mix with each other to create complex tones. [You can read more about the algorithms here](https://djjondent.blogspot.com/2019/10/yamaha-dx7-algorithms.html). (Note our algorithm count starts at 0, so DX7 algorithm 1 is our algorithm 0.)
