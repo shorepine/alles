@@ -85,7 +85,7 @@ typedef int16_t i2s_sample_type;
 #define IS_ALGO_SOURCE 5
 
 enum params{
-    WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, VOLUME, FILTER_FREQ, RATIO, RESONANCE, 
+    WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, DETUNE, VOLUME, FILTER_FREQ, RATIO, RESONANCE, 
     MOD_SOURCE, MOD_TARGET, FILTER_TYPE, EQ_L, EQ_M, EQ_H, BP0_TARGET, BP1_TARGET, ALGORITHM, 
     ALGO_SOURCE_START=30, 
     ALGO_SOURCE_END=30+MAX_ALGO_OPS,
@@ -120,6 +120,7 @@ struct event {
     uint8_t status;
     float velocity;
     float phase;
+    float detune;
     float step;
     float substep;
     float sample;

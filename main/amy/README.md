@@ -49,6 +49,7 @@ R = q factor / "resonance" of biquad filter. float. in practice, 0 to 10.0. defa
 S = reset oscillator, uint 0-63 or for all oscillators, anything >63, which also resets speaker gain and EQ.
 T = breakpoint0 target mask. Which parameter the breakpoints controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonanc, 32=feedback. Can handle any combo, add them together. Add 64 to indicate linear ramp, otherwise exponential
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can.
+u = detune, in hertz, for partials and algorithm types, to apply after the ratio 
 v = oscillator, uint, 0 to 63. default: 0
 V = volume, float 0 to about 10 in practice. volume knob for the entire synth / speaker. default 1.0
 w = waveform, uint: [0=SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, PCM, ALGO, PARTIAL, OFF]. default: 0/SINE

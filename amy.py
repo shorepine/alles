@@ -85,7 +85,7 @@ def trunc(number):
 
 def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, bp0="", bp1="", bp2="", bp0_target=-1, bp1_target=-1, bp2_target=-1, lfo_target=-1, \
-        debug=-1, lfo_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, algo_source=None):
+        debug=-1, lfo_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, detune = -1, algo_source=None):
     global send_buffer, buffer_size, is_immediate
     m = ""
     #if(osc>0): return # debug
@@ -100,6 +100,7 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, fe
     if(note>=0): m = m + "n" + trunc(note)
     if(patch>=0): m = m + "p" + trunc(patch)
     if(phase>=0): m = m + "P" + trunc(phase)
+    if(detune>=0): m = m + "u" + trunc(detune)
     if(client>=0): m = m + "c" + trunc(client)
     if(amp>=0): m = m + "a" + trunc(amp)
     if(vel>=0): m = m + "l" + trunc(vel)
@@ -185,13 +186,6 @@ def render(seconds):
         frames.append( np.array(libamy.render())/32767.0 )
     return np.hstack(frames)
 
-# TODO - airpods ask for 2880 samples in a block, /64 but not /128
-#def amy_callback(outdata, frames, time, status):
-#    if(status): # buffer underrun
-#        print(str(status))
-#    single = render(frames/SAMPLE_RATE)
-#    outdata[:] = single.reshape(single.shape[0],1)
-
 def start(immediate=True):
     global is_local, is_immediate
     if(is_local):
@@ -217,20 +211,6 @@ def live():
     start()
     libamy.live()
 
-    #if stream is not None:
-    #    print("Stream running")
-    #else:
-    #    is_immediate = False
-    #    stream = sd.OutputStream(callback=amy_callback)
-    #    stream.start()
-
 def pause():
-    #global stream
-    #if stream is None:
-    #    print("Stream already stopped")
-    #else:
-    #    stream.stop()
-    #    stream = None
-    #    stop()
     libamy.pause()
     stop()

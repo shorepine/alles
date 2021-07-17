@@ -333,10 +333,10 @@ float compute_mod_saw(uint8_t osc) {
         synth[osc].sample = -1;
         synth[osc].step = 0; // reset the period counter
     } else {
-        synth[osc].sample = 1 + (synth[osc].step * (2.0 / period));
+        synth[osc].sample = -1 + (synth[osc].step * (2.0 / period));
     }
     synth[osc].step++;
-    return (synth[osc].sample * msynth[osc].amp); // -1 .. 1    
+    return (synth[osc].sample * msynth[osc].amp); 
 }
 
 
@@ -390,8 +390,9 @@ extern int64_t total_samples;
 // NB this uses new lingo for step, skip, phase etc
 void fm_sine_note_on(uint8_t osc, uint8_t algo_osc) {
     if(synth[osc].ratio >= 0) {
-        msynth[osc].freq = msynth[algo_osc].freq * synth[osc].ratio;
+        msynth[osc].freq = (msynth[algo_osc].freq * synth[osc].ratio);
     }
+    msynth[osc].freq += synth[osc].detune;
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lut = choose_from_lutset(period_samples, sine_lutset, &synth[osc].lut_size);
 }
@@ -399,6 +400,7 @@ void render_fm_sine(float *buf, uint8_t osc, float *mod, float feedback_level, u
     if(synth[osc].ratio >= 0) {
         msynth[osc].freq = msynth[algo_osc].freq * synth[osc].ratio;
     }
+    msynth[osc].freq += synth[osc].detune;    
     float step = msynth[osc].freq / (float)SAMPLE_RATE;
     synth[osc].phase = render_lut_fm_osc(buf, synth[osc].phase, step, msynth[osc].amp, 
                  synth[osc].lut, synth[osc].lut_size, mod, feedback_level, synth[osc].last_two);
