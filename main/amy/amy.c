@@ -350,6 +350,7 @@ void oscs_deinit() {
 
 // Play an event, now -- tell the audio loop to start making noise
 void play_event(struct delta d) {
+    // TODO: event-only side effect, remove
     if(d.param == MIDI_NOTE) { synth[d.osc].midi_note = *(uint16_t *)&d.data; synth[d.osc].freq = freq_for_midi_note(*(uint16_t *)&d.data); } 
     if(d.param == WAVE) synth[d.osc].wave = *(int16_t *)&d.data; 
     if(d.param == PHASE) synth[d.osc].phase = *(float *)&d.data;
@@ -374,7 +375,7 @@ void play_event(struct delta d) {
             synth[d.osc].breakpoint_values[bp_set][(pos-1) / 2] = *(float *)&d.data;
         }
     }
-
+    // TODO: event-only side effect, remove
     if(d.param == MOD_SOURCE) { synth[d.osc].mod_source = *(int8_t *)&d.data; synth[*(int8_t *)&d.data].status = IS_MOD_SOURCE; }
     if(d.param == MOD_TARGET) synth[d.osc].mod_target = *(int8_t *)&d.data; 
 

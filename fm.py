@@ -37,7 +37,6 @@ def setup_patch(p):
 			freq = op["fixedhz"]
 		else:
 			freq_ratio = op["ratio"]
-		amp = op["opamp"] 
 		# Set the operator-- freq, breakpoints for amp, breakpoints for pitch
 		# Not yet implemented:
 		#   keyboard scaling
@@ -49,9 +48,9 @@ def setup_patch(p):
 		)
 		print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f detune %d" % (i, (i-6)*-1, freq, freq_ratio, op["bp_opamp"], pitchenv, amp, op["detunehz"]))
 		if(freq>=0):
-			amy.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR,bp0=opbp, bp1=pitchbp, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR, amp=amp, detune=op["detunehz"])
+			amy.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR,bp0=opbp, bp1=pitchbp, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR, amp=op["opamp"], detune=op["detunehz"])
 		else:
-			amy.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR,bp0=opbp, amp=amp, detune=op["detunehz"])
+			amy.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR,bp0=opbp, amp=op["opamp"], detune=op["detunehz"])
 
 	# Set up the main carrier note
 

@@ -122,16 +122,18 @@ void algo_setup_patch(uint8_t osc) {
     synth[osc].algorithm = p.algo;
     synth[osc].feedback = p.feedback;
     synth[osc].breakpoint_target[1] = TARGET_FREQ;
+    synth[osc].mod_source = -1;
+    synth[osc].mod_target = 0;
     for(uint8_t i=0;i<4;i++) {
         synth[osc].breakpoint_values[1][i] = p.pitch_rate[i];
         synth[osc].breakpoint_times[1][i] = p.pitch_time[i] / synth[osc].ratio;
     }
     if(p.amp_lfo_amp>0 || p.freq_lfo_amp>0) {
-        synth[osc].mod_target = 0;
         synth[osc+ALGO_OPERATORS+1].freq = p.lfo_freq;
         synth[osc+ALGO_OPERATORS+1].wave = p.lfo_wave;
+        synth[osc+ALGO_OPERATORS+1].status = IS_MOD_SOURCE;
         // TODO, bug here are the amps are independent
-        synth[osc+ALGO_OPERATORS+1].amp = p.amp_lfo_amp + p.freq_lfo_amp;
+        synth[osc+ALGO_OPERATORS+1].amp = (p.amp_lfo_amp + p.freq_lfo_amp)/2.0;
         synth[osc].mod_source = osc+ALGO_OPERATORS+1;
         if(p.amp_lfo_amp>0) synth[osc].mod_target += TARGET_AMP;
         if(p.freq_lfo_amp>0) synth[osc].mod_target += TARGET_FREQ;
