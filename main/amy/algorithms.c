@@ -19,8 +19,8 @@ typedef struct  {
     uint16_t pitch_time[4];
     float lfo_freq;
     int8_t lfo_wave;
-    float amp_lfo_amp;
-    float freq_lfo_amp;
+    float lfo_amp;
+    int8_t lfo_target;
     operator_parameters_t ops[ALGO_OPERATORS];
 } algorithms_parameters_t;
 
@@ -121,39 +121,40 @@ void algo_setup_patch(uint8_t osc) {
     algorithms_parameters_t p = fm_patches[synth[osc].patch];
     synth[osc].algorithm = p.algo;
     synth[osc].feedback = p.feedback;
-    synth[osc].breakpoint_target[1] = TARGET_FREQ;
+    synth[osc].breakpoint_target[1] = TARGET_FREQ+TARGET_LINEAR;
     synth[osc].mod_source = -1;
     synth[osc].mod_target = 0;
+    float time_ratio = 1;
+    if(synth[osc].ratio >=0 ) time_ratio = synth[osc].ratio;
     for(uint8_t i=0;i<4;i++) {
         synth[osc].breakpoint_values[1][i] = p.pitch_rate[i];
-        synth[osc].breakpoint_times[1][i] = p.pitch_time[i] / synth[osc].ratio;
+        synth[osc].breakpoint_times[1][i] = ms_to_samples((int)((float)p.pitch_time[i]/time_ratio));
     }
-    if(p.amp_lfo_amp>0 || p.freq_lfo_amp>0) {
+    if(p.lfo_target > 0) {
+        synth[osc].mod_target = p.lfo_target;
         synth[osc+ALGO_OPERATORS+1].freq = p.lfo_freq;
         synth[osc+ALGO_OPERATORS+1].wave = p.lfo_wave;
         synth[osc+ALGO_OPERATORS+1].status = IS_MOD_SOURCE;
-        // TODO, bug here are the amps are independent
-        synth[osc+ALGO_OPERATORS+1].amp = (p.amp_lfo_amp + p.freq_lfo_amp)/2.0;
+        synth[osc+ALGO_OPERATORS+1].amp = p.lfo_amp;
         synth[osc].mod_source = osc+ALGO_OPERATORS+1;
-        if(p.amp_lfo_amp>0) synth[osc].mod_target += TARGET_AMP;
-        if(p.freq_lfo_amp>0) synth[osc].mod_target += TARGET_FREQ;
     }
 
     for(uint8_t i=0;i<ALGO_OPERATORS;i++) {
         synth[osc].algo_source[i] = osc+i+1;
         operator_parameters_t op = p.ops[i];
         synth[osc+i+1].freq = op.freq;
+        if(synth[osc+i+1].freq < 0) synth[osc+i+1].freq = 0;
         synth[osc+i+1].status = IS_ALGO_SOURCE;
         synth[osc+i+1].ratio = op.freq_ratio;
         synth[osc+i+1].amp = op.amp;
-        synth[osc+i+1].breakpoint_target[0] = TARGET_AMP;
+        synth[osc+i+1].breakpoint_target[0] = TARGET_AMP+TARGET_LINEAR;
         for(uint8_t j=0;j<4;j++) {
             synth[osc+i+1].breakpoint_values[0][j] = op.amp_rate[j];
-            synth[osc+i+1].breakpoint_times[0][j] = op.amp_time[j] / synth[osc].ratio;
+            synth[osc+i+1].breakpoint_times[0][j] =  ms_to_samples((int)((float)op.amp_time[j]/time_ratio));
             if(op.freq>0) { // set pitch BP for non ratio ops
-                synth[osc+i+1].breakpoint_target[1] = TARGET_FREQ;
+                synth[osc+i+1].breakpoint_target[1] = TARGET_FREQ+TARGET_LINEAR;
                 synth[osc+i+1].breakpoint_values[1][j] = p.pitch_rate[j];
-                synth[osc+i+1].breakpoint_times[1][j] = p.pitch_time[j] / synth[osc].ratio;                
+                synth[osc+i+1].breakpoint_times[1][j] = ms_to_samples((int)((float)p.pitch_time[j]/time_ratio));              
             }
         }
         synth[osc+i+1].detune = op.detune;
