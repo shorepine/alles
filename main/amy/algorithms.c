@@ -1,7 +1,30 @@
 // algorithms.c
 // FM2 and partial synths that involve combinations of oscillators
 #include "amy.h"
+#define ALGO_OPERATORS 6
 
+typedef struct {
+    float freq;
+    float freq_ratio;
+    float amp;
+    float amp_rate[4];
+    float amp_time[4];
+    float detune;
+} operator_parameters_t;
+
+typedef struct  {
+    uint8_t algo;
+    float feedback;
+    float pitch_rate[4];
+    uint16_t pitch_time[4];
+    float lfo_freq;
+    int8_t lfo_wave;
+    float amp_lfo_amp;
+    float freq_lfo_amp;
+    operator_parameters_t ops[ALGO_OPERATORS];
+} algorithms_parameters_t;
+
+#include "fm.h"
 
 // Thank you MFSA for the DX7 op structure , borrowed here \/ \/ \/ 
 enum FmOperatorFlags {
@@ -14,7 +37,7 @@ enum FmOperatorFlags {
     FB_IN = 1 << 6,
     FB_OUT = 1 << 7
 };
-struct FmAlgorithm { uint8_t ops[6]; };
+struct FmAlgorithm { uint8_t ops[ALGO_OPERATORS]; };
 struct FmAlgorithm algorithms[32] = {
     // 6     5     4     3     2      1   
     { { 0xc1, 0x11, 0x11, 0x14, 0x01, 0x14 } }, // 1
@@ -53,8 +76,6 @@ struct FmAlgorithm algorithms[32] = {
 // End of MSFA stuff
 
 float zeros[BLOCK_SIZE];
-float partial_coeffs[5];
-float partial_delay[2] = {0,0};
 
 
 // a = 0
@@ -84,7 +105,7 @@ void note_on_mod(uint8_t osc, uint8_t algo_osc) {
 }
 
 void algo_note_off(uint8_t osc) {
-    for(uint8_t i=0;i<6;i++) {
+    for(uint8_t i=0;i<ALGO_OPERATORS;i++) {
         if(synth[osc].algo_source[i] >=0 ) {
             uint8_t o = synth[osc].algo_source[i];
             synth[o].note_on_clock = -1;
@@ -96,9 +117,53 @@ void algo_note_off(uint8_t osc) {
     synth[osc].note_off_clock = total_samples;          
 }
 
+void algo_setup_patch(uint8_t osc) {
+    algorithms_parameters_t p = fm_patches[synth[osc].patch];
+    synth[osc].algorithm = p.algo;
+    synth[osc].feedback = p.feedback;
+    synth[osc].breakpoint_target[1] = TARGET_FREQ;
+    for(uint8_t i=0;i<4;i++) {
+        synth[osc].breakpoint_values[1][i] = p.pitch_rate[i];
+        synth[osc].breakpoint_times[1][i] = p.pitch_time[i] / synth[osc].ratio;
+    }
+    if(p.amp_lfo_amp>0 || p.freq_lfo_amp>0) {
+        synth[osc].mod_target = 0;
+        synth[osc+ALGO_OPERATORS+1].freq = p.lfo_freq;
+        synth[osc+ALGO_OPERATORS+1].wave = p.lfo_wave;
+        // TODO, bug here are the amps are independent
+        synth[osc+ALGO_OPERATORS+1].amp = p.amp_lfo_amp + p.freq_lfo_amp;
+        synth[osc].mod_source = osc+ALGO_OPERATORS+1;
+        if(p.amp_lfo_amp>0) synth[osc].mod_target += TARGET_AMP;
+        if(p.freq_lfo_amp>0) synth[osc].mod_target += TARGET_FREQ;
+    }
+
+    for(uint8_t i=0;i<ALGO_OPERATORS;i++) {
+        synth[osc].algo_source[i] = osc+i+1;
+        operator_parameters_t op = p.ops[i];
+        synth[osc+i+1].freq = op.freq;
+        synth[osc+i+1].status = IS_ALGO_SOURCE;
+        synth[osc+i+1].ratio = op.freq_ratio;
+        synth[osc+i+1].amp = op.amp;
+        synth[osc+i+1].breakpoint_target[0] = TARGET_AMP;
+        for(uint8_t i=0;i<4;i++) {
+            synth[osc+i+1].breakpoint_values[0][i] = op.amp_rate[i];
+            synth[osc+i+1].breakpoint_times[0][i] = op.amp_time[i] / synth[osc].ratio;
+            if(op.freq>0) { // set pitch BP for non ratio ops
+                synth[osc+i+1].breakpoint_target[1] = TARGET_FREQ;
+                synth[osc+i+1].breakpoint_values[1][i] = p.pitch_rate[i];
+                synth[osc+i+1].breakpoint_times[1][i] = p.pitch_time[i] / synth[osc].ratio;                
+            }
+        }
+        synth[osc+i+1].detune = op.detune;
+    }
+}
+
 void algo_note_on(uint8_t osc) {    
     // trigger all the source operator voices
-    for(uint8_t i=0;i<6;i++) {
+    if(synth[osc].patch >= 0) { 
+        algo_setup_patch(osc);
+    }
+    for(uint8_t i=0;i<ALGO_OPERATORS;i++) {
         if(synth[osc].algo_source[i] >=0 ) {
             note_on_mod(synth[osc].algo_source[i], osc);
         }
@@ -112,19 +177,17 @@ void algo_init() {
 
 
 
-
 void render_algo(float * buf, uint8_t osc) { 
     float scratch[3][BLOCK_SIZE];
 
-    struct FmAlgorithm algo = algorithms[synth[osc].algorithm-1];
+    struct FmAlgorithm algo = algorithms[synth[osc].algorithm];
 
     // starts at op 6
     float *in_buf, *out_buf;
     zero(scratch[0]);
     zero(scratch[1]);
     zero(scratch[2]);
-    for(uint8_t op=0;op<6;op++) {
-        //int8_t opl = (op - 6) * -1; 
+    for(uint8_t op=0;op<ALGO_OPERATORS;op++) {
         if(synth[osc].algo_source[op] >=0 && synth[synth[osc].algo_source[op]].status == IS_ALGO_SOURCE) {
             float feedback_level = 0;
             in_buf = zeros; // just in case not set elsewhere
