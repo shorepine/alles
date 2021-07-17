@@ -147,13 +147,13 @@ void algo_setup_patch(uint8_t osc) {
         synth[osc+i+1].ratio = op.freq_ratio;
         synth[osc+i+1].amp = op.amp;
         synth[osc+i+1].breakpoint_target[0] = TARGET_AMP;
-        for(uint8_t i=0;i<4;i++) {
-            synth[osc+i+1].breakpoint_values[0][i] = op.amp_rate[i];
-            synth[osc+i+1].breakpoint_times[0][i] = op.amp_time[i] / synth[osc].ratio;
+        for(uint8_t j=0;j<4;j++) {
+            synth[osc+i+1].breakpoint_values[0][j] = op.amp_rate[j];
+            synth[osc+i+1].breakpoint_times[0][j] = op.amp_time[j] / synth[osc].ratio;
             if(op.freq>0) { // set pitch BP for non ratio ops
                 synth[osc+i+1].breakpoint_target[1] = TARGET_FREQ;
-                synth[osc+i+1].breakpoint_values[1][i] = p.pitch_rate[i];
-                synth[osc+i+1].breakpoint_times[1][i] = p.pitch_time[i] / synth[osc].ratio;                
+                synth[osc+i+1].breakpoint_values[1][j] = p.pitch_rate[j];
+                synth[osc+i+1].breakpoint_times[1][j] = p.pitch_time[j] / synth[osc].ratio;                
             }
         }
         synth[osc+i+1].detune = op.detune;
