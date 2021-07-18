@@ -1,7 +1,6 @@
 // algorithms.c
 // FM2 and partial synths that involve combinations of oscillators
 #include "amy.h"
-#define ALGO_OPERATORS 6
 
 typedef struct {
     float freq;
@@ -21,7 +20,7 @@ typedef struct  {
     int8_t lfo_wave;
     float lfo_amp;
     int8_t lfo_target;
-    operator_parameters_t ops[ALGO_OPERATORS];
+    operator_parameters_t ops[MAX_ALGO_OPS];
 } algorithms_parameters_t;
 
 #include "fm.h"
@@ -37,7 +36,7 @@ enum FmOperatorFlags {
     FB_IN = 1 << 6,
     FB_OUT = 1 << 7
 };
-struct FmAlgorithm { uint8_t ops[ALGO_OPERATORS]; };
+struct FmAlgorithm { uint8_t ops[MAX_ALGO_OPS]; };
 struct FmAlgorithm algorithms[32] = {
     // 6     5     4     3     2      1   
     { { 0xc1, 0x11, 0x11, 0x14, 0x01, 0x14 } }, // 1
@@ -105,7 +104,7 @@ void note_on_mod(uint8_t osc, uint8_t algo_osc) {
 }
 
 void algo_note_off(uint8_t osc) {
-    for(uint8_t i=0;i<ALGO_OPERATORS;i++) {
+    for(uint8_t i=0;i<MAX_ALGO_OPS;i++) {
         if(synth[osc].algo_source[i] >=0 ) {
             uint8_t o = synth[osc].algo_source[i];
             synth[o].note_on_clock = -1;
@@ -132,14 +131,14 @@ void algo_setup_patch(uint8_t osc) {
     }
     if(p.lfo_target > 0) {
         synth[osc].mod_target = p.lfo_target;
-        synth[osc+ALGO_OPERATORS+1].freq = p.lfo_freq;
-        synth[osc+ALGO_OPERATORS+1].wave = p.lfo_wave;
-        synth[osc+ALGO_OPERATORS+1].status = IS_MOD_SOURCE;
-        synth[osc+ALGO_OPERATORS+1].amp = p.lfo_amp;
-        synth[osc].mod_source = osc+ALGO_OPERATORS+1;
+        synth[osc+MAX_ALGO_OPS+1].freq = p.lfo_freq;
+        synth[osc+MAX_ALGO_OPS+1].wave = p.lfo_wave;
+        synth[osc+MAX_ALGO_OPS+1].status = IS_MOD_SOURCE;
+        synth[osc+MAX_ALGO_OPS+1].amp = p.lfo_amp;
+        synth[osc].mod_source = osc+MAX_ALGO_OPS+1;
     }
 
-    for(uint8_t i=0;i<ALGO_OPERATORS;i++) {
+    for(uint8_t i=0;i<MAX_ALGO_OPS;i++) {
         synth[osc].algo_source[i] = osc+i+1;
         operator_parameters_t op = p.ops[i];
         synth[osc+i+1].freq = op.freq;
@@ -166,7 +165,7 @@ void algo_note_on(uint8_t osc) {
     if(synth[osc].patch >= 0) { 
         algo_setup_patch(osc);
     }
-    for(uint8_t i=0;i<ALGO_OPERATORS;i++) {
+    for(uint8_t i=0;i<MAX_ALGO_OPS;i++) {
         if(synth[osc].algo_source[i] >=0 ) {
             note_on_mod(synth[osc].algo_source[i], osc);
         }
@@ -190,7 +189,7 @@ void render_algo(float * buf, uint8_t osc) {
     zero(scratch[0]);
     zero(scratch[1]);
     zero(scratch[2]);
-    for(uint8_t op=0;op<ALGO_OPERATORS;op++) {
+    for(uint8_t op=0;op<MAX_ALGO_OPS;op++) {
         if(synth[osc].algo_source[op] >=0 && synth[synth[osc].algo_source[op]].status == IS_ALGO_SOURCE) {
             float feedback_level = 0;
             in_buf = zeros; // just in case not set elsewhere
