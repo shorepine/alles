@@ -70,13 +70,13 @@ typedef int16_t i2s_sample_type;
 #define SAW 2
 #define TRIANGLE 3
 #define NOISE 4
-#define FM 5
-#define KS 6
-#define PCM 7
-#define ALGO 8
-#define PARTIAL 9
-#define PARTIALS 10
-#define OFF 11
+#define KS 5
+#define PCM 6
+#define ALGO 7
+#define PARTIAL 8
+#define PARTIALS 9
+#define OFF 10
+
 #define EMPTY 0
 #define SCHEDULED 1
 #define PLAYED 2

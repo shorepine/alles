@@ -29,25 +29,25 @@ AMY's full commandset:
 a = amplitude, float 0-1+. use after a note on is triggered with velocity to adjust amplitude without re-triggering the note
 A = breakpoint0, string, in commas, like 100,0.5,150,0.25,200,0 -- envelope generator with alternating time(ms) and ratio. last pair triggers on note off
 B = breakpoint1, set the second breakpoint generator. see breakpoint0
-b = feedback, float 0-1. use for the ALGO synthesis type, partial synthesis (for bandwidth) or for karplus-strong 
+b = feedback, float 0-1. use for the ALGO synthesis type in FM, or partial synthesis (for bandwidth) or for karplus-strong 
 C = breakpoint2, set the third breakpoint generator. see breakpoint0
 d = duty cycle, float 0.001-0.999. duty cycle for pulse wave, default 0.5
 D = debug, uint, 2-4. 2 shows queue sample, 3 shows oscillator data, 4 shows modified oscillator. will interrupt audio!
 f = frequency, float 0-44100 (and above). default 0. Sampling rate of synth is 44,100Hz but higher numbers can be used for PCM waveforms
 F = center frequency of biquad filter. default 0. 
-g = modulation target mask. Which parameter modulation/LFO controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance. Can handle any combo, add them together
+g = modulation target mask. Which parameter modulation/LFO controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance, 32=feedback. Can handle any combo, add them together
 G = filter type. 0 = none (default.) 1 = low pass, 2 = band pass, 3 = hi pass. 
-I = ratio. for ALGO types, where the base note frequency controls the modulators, or for PARTIALS, where the ratio controls the speed of the partials playback
+I = ratio. for ALGO types, where the base note frequency controls the modulators, or for the ALGO base note and PARTIALS base note, where the ratio controls the speed of the playback
 L = modulation source oscillator. 0-63. Which oscillator is used as an modulation/LFO source for this oscillator. Source oscillator will be silent. 
 l = velocity (amplitude), float 0-1+, >0 to trigger note on, 0 to trigger note off.  
 n = midinote, uint, 0-127 (this will also set f). default 0
-o = algorithm, choose which algorithm for the algorithm oscillator, uint, 0-31. mirrors DX7 algorithms
+o = algorithm, choose which algorithm for the ALGO type, uint, 0-31. mirrors DX7 algorithms (-1)
 O = algorithn source oscillators, choose which oscillators make up the algorithm oscillator, like "0,1,2,3,4,5" for algorithm 0
-p = patch, uint, 0-999, choose a preloaded PCM sample, partial patch or DX7 patch number for FM waveforms. See patches.h, pcm.h, partials.h. default 0
+p = patch, uint, choose a preloaded PCM sample, partial patch or FM patch number for FM waveforms. See fm.h, pcm.h, partials.h. default 0
 P = phase, float 0-1. where in the oscillator's cycle to start sampling from (also works on the PCM buffer). default 0
 R = q factor / "resonance" of biquad filter. float. in practice, 0 to 10.0. default 0.7.
 S = reset oscillator, uint 0-63 or for all oscillators, anything >63, which also resets speaker gain and EQ.
-T = breakpoint0 target mask. Which parameter the breakpoints controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonanc, 32=feedback. Can handle any combo, add them together. Add 64 to indicate linear ramp, otherwise exponential
+T = breakpoint0 target mask. Which parameter the breakpoints controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance, 32=feedback. Can handle any combo, add them together. Add 64 to indicate linear ramp, otherwise exponential
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can.
 u = detune, in hertz, for partials and algorithm types, to apply after the ratio 
 v = oscillator, uint, 0 to 63. default: 0
@@ -126,7 +126,7 @@ $ sudo make install
 ### FM 
 
 AMY also supports FM synthesis, modeled after the DX7 (but is not an emulator or clone.) The `ALGO` type lets you build up to 6 oscillators (also called operators) that can modulate and mix with each other to create complex tones. [You can read more about the algorithms here](https://djjondent.blogspot.com/2019/10/yamaha-dx7-algorithms.html). (Note our algorithm count starts at 0, so DX7 algorithm 1 is our algorithm 0.)
-
+```
 
 ### Breakpoints
 

@@ -88,7 +88,10 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
             //printf("past release, setting note off\n");
             synth[osc].status=OFF;
             synth[osc].note_off_clock = -1;
-            return 1; // i am pretty sure
+            // OK. partials (et al) need a frame to fade out to avoid clicks. This is in conflict with the breakpoint release, which will set it to the bp end value before the fade out, often 0
+            // so the fadeout never gets to hit. I'm not sure i love this solution, but PARTIAL is such a weird type that i guess having it called out like this is fine.
+            if(synth[osc].wave==PARTIAL) return 1;
+            return synth[osc].breakpoint_values[bp_set][bp_r];
         }
     }
 
