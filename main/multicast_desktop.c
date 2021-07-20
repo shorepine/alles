@@ -19,6 +19,7 @@ extern void deserialize_event(char * message, uint16_t length);
 
 int sock= -1;
 uint8_t ipv4_quartet;
+extern uint8_t quartet_offset;
 char udp_message[MAX_RECEIVE_LEN];
 extern char *message_start_pointer;
 extern char *local_ip;
@@ -63,6 +64,9 @@ int socket_add_ipv4_multicast_group() {
     inet_pton(AF_INET, MULTICAST_IPV4_ADDR, &(imreq.imr_multiaddr.s_addr));
 
     inet_pton(AF_INET, local_ip, &(iaddr.s_addr));
+    
+    ipv4_quartet = ((iaddr.s_addr & 0xFF000000) >> 24) + quartet_offset;
+    printf("quartet is now %d\n", ipv4_quartet);
 
     // Assign the IPv4 multicast source interface, via its IP
     // (only necessary if this socket is IPV4 only)

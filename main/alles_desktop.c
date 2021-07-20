@@ -16,6 +16,7 @@ extern uint32_t message_counter;
 uint8_t battery_mask = 0;
 
 extern uint8_t ipv4_quartet;
+uint8_t quartet_offset = 0;
 extern int get_first_ip_address(char *host);
 
 char *local_ip;
@@ -25,18 +26,17 @@ int main(int argc, char ** argv) {
     start_amy();
     reset_oscs();
     live_start();
+
     // For now, indicate ip address via commandline
     local_ip = (char*)malloc(sizeof(char)*1025);
-    local_ip[0] = 0;
-    
+    local_ip[0] = 0;    
     if(get_first_ip_address(local_ip) && argc < 2) {
-        printf("couldn't get local ip. usage: ./alles [local_ip]\n");
+        printf("couldn't get local ip. try ./alles local_ip\n");
         return 1;
     } else {
-        if (argc==2) {
-            strcpy(local_ip, argv[1]);
-        }
+        if (argc==2) strcpy(local_ip, argv[1]);
     }
+    if(argc>2) quartet_offset = atoi(argv[2]);
 
     create_multicast_ipv4_socket();
     pthread_t thread_id;
