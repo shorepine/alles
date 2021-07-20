@@ -1,5 +1,5 @@
 # alles_util.py
-import socket, time, struct, datetime, sys, re, os, amy
+import socket, time, struct, datetime, sys, re, os
 
 
 # This is your source IP -- by default your main routable network interface. 
@@ -40,12 +40,13 @@ def connect():
     try:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
     except AttributeError:
+        print("couldn't REUSEPORT")
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
     # TTL defines how many hops it can take
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 20)
-    # Loopback or not, I don't need it
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
+    # Keep loopback on if you're controlling Alles from your own desktop
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
     sock.bind(('', 3333))
     # Set the local interface for multicast receive
     sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(local_ip))

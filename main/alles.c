@@ -79,7 +79,7 @@ void esp_parse_task() {
 
 
 // init AMY from the esp. wraps some amy funcs in a task to do multicore rendering on the ESP32 
-esp_err_t esp_amy_init() {
+amy_err_t esp_amy_init() {
     start_amy();
     // We create a mutex for changing the event queue and pointers as two tasks do it at once
     xQueueSemaphore = xSemaphoreCreateMutex();
@@ -97,7 +97,7 @@ esp_err_t esp_amy_init() {
     // Grab the idle handles while we're here, we use them for CPU usage reporting
     idleTask0 = xTaskGetIdleTaskHandleForCPU(0);
     idleTask1 = xTaskGetIdleTaskHandleForCPU(1);
-    return ESP_OK;
+    return AMY_OK;
 }
 
 
@@ -152,7 +152,7 @@ void esp_show_debug(uint8_t type) {
    
 
 // Setup I2S
-esp_err_t setup_i2s(void) {
+amy_err_t setup_i2s(void) {
     //i2s configuration
     i2s_config_t i2s_config = {
          .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
@@ -176,21 +176,11 @@ esp_err_t setup_i2s(void) {
     i2s_driver_install((i2s_port_t)CONFIG_I2S_NUM, &i2s_config, 0, NULL);
     i2s_set_pin((i2s_port_t)CONFIG_I2S_NUM, &pin_config);
     i2s_set_sample_rates((i2s_port_t)CONFIG_I2S_NUM, SAMPLE_RATE);
-    return ESP_OK;
+    return AMY_OK;
 }
 
 
 
-int8_t check_init(esp_err_t (*fn)(), char *name) {
-    printf("Starting %s: ", name);
-    const esp_err_t ret = (*fn)();
-    if(ret != ESP_OK) {
-        printf("[ERROR:%i (%s)]\n", ret, esp_err_to_name(ret));
-        return -1;
-    }
-    printf("[OK]\n");
-    return 0;
-}
 
 // callback to let us know when we have wifi set up ok.
 void wifi_connected(void *pvParameter){
@@ -259,8 +249,8 @@ void toggle_midi() {
 void power_monitor() {
     power_status_t power_status;
 
-    const esp_err_t ret = power_read_status(&power_status);
-    if(ret != ESP_OK)
+    const amy_err_t ret = power_read_status(&power_status);
+    if(ret != AMY_OK)
         return;
     /*
     char buf[100];
@@ -330,6 +320,7 @@ void app_main() {
     gpio_set_level(CPU_MONITOR_1, 0); // use 1 for the rendering loop 
     gpio_set_level(CPU_MONITOR_2, 0); // use 2 for whatever you want 
 
+    check_init(&sync_init, "syc"); 
     check_init(&setup_i2s, "i2s");
     esp_amy_init();
     check_init(&buttons_init, "buttons"); // only one button for the protoboard, 4 for the blinkinlabs

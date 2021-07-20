@@ -44,6 +44,22 @@ int16_t message_length;
 int64_t computed_delta; // can be negative no prob, but usually host is larger # than client
 uint8_t computed_delta_set; // have we set a delta yet?
 
+int8_t check_init(amy_err_t (*fn)(), char *name) {
+    printf("Starting %s: ", name);
+    const amy_err_t ret = (*fn)();
+    if(ret != AMY_OK) {
+#ifdef ESP_PLATFORM
+        printf("[ERROR:%i (%s)]\n", ret, esp_err_to_name((esp_err_t)ret));
+#else
+        printf("[ERROR:%i]\n", ret);
+#endif
+        return -1;
+    }
+    printf("[OK]\n");
+    return 0;
+}
+
+
 int8_t global_init() {
     global.next_event_write = 0;
     global.event_start = NULL;
@@ -367,6 +383,7 @@ void play_event(struct delta d) {
     if(d.param == BP0_TARGET) synth[d.osc].breakpoint_target[0] = *(int8_t *)&d.data;
     if(d.param == BP1_TARGET) synth[d.osc].breakpoint_target[1] = *(int8_t *)&d.data;
     if(d.param == BP2_TARGET) synth[d.osc].breakpoint_target[1] = *(int8_t *)&d.data;
+    // TODO, i really should clean this up
     if(d.param >= BP_START && d.param < BP_END) {
         uint8_t pos = d.param - BP_START;
         uint8_t bp_set = 0;
@@ -551,7 +568,7 @@ static void underflow_callback(struct SoundIoOutStream *outstream) {
 }
 
 // start soundio
-int soundio_init() {
+amy_err_t soundio_init() {
     soundio = soundio_create();
     if (!soundio) {
         fprintf(stderr, "out of memory\n");
@@ -613,13 +630,14 @@ int soundio_init() {
         fprintf(stderr, "unable to start device: %s\n", soundio_strerror(err));
         return 1;
     }
-    return 0;
+    return AMY_OK;
 }
 
 void *soundio_run(void *vargp) {
     soundio_init();
     for(;;) {
         soundio_flush_events(soundio);
+        usleep(THREAD_USLEEP);
     }
 }
 
@@ -862,13 +880,11 @@ void parse_task() {
         }
         c++;
     }
-#ifdef ESP_PLATFORM
     if(sync_response) {
         // If this is a sync response, let's update our local map of who is booted
         update_map(client, ipv4, sync);
         length = 0; // don't need to do the rest
     }
-#endif
     // Only do this if we got some data
     if(length >0) {
         // Now adjust time in some useful way:
@@ -888,7 +904,6 @@ void parse_task() {
         }
         e.status = SCHEDULED;
 
-#ifdef ESP_PLATFORM
         // TODO -- not that it matters, but the below could probably be one or two lines long instead
         // Don't add sync messages to the event queue
         if(sync >= 0 && sync_index >= 0) {
@@ -916,9 +931,6 @@ void parse_task() {
             }
             if(for_me) add_event(e);
         }
-#else
-        add_event(e);
-#endif
     }
 }
 

@@ -13,7 +13,7 @@ void note_on(int8_t osc, int64_t time) {
 // Play a sonar ping -- searching for wifi
 void wifi_tone() {
     struct event e = default_event();
-    int64_t sysclock = esp_timer_get_time() / 1000;
+    int64_t sysclock = get_sysclock();
     e.osc = 0;
     e.time = sysclock;
     e.wave = SINE;
@@ -32,7 +32,7 @@ void wifi_tone() {
 // Play the "i'm going into midi mode" tone
 void midi_tone() {
     struct event e = default_event();
-    int64_t sysclock = esp_timer_get_time() / 1000;
+    int64_t sysclock = get_sysclock();
     e.time = sysclock;
     e.wave = SINE;
     e.freq = 440;
@@ -50,7 +50,7 @@ void midi_tone() {
 // Schedule a bleep now
 void bleep() {
     struct event e = default_event();
-    int64_t sysclock = esp_timer_get_time() / 1000;
+    int64_t sysclock = get_sysclock();
     e.time = sysclock;
     e.wave = SINE;
     e.freq = 220;
@@ -68,7 +68,7 @@ void bleep() {
 
 void debleep() {
     struct event e = default_event();
-    int64_t sysclock = esp_timer_get_time() / 1000;
+    int64_t sysclock = get_sysclock();
     e.time = sysclock;
     e.wave = SINE;
     e.freq = 440;
@@ -87,7 +87,7 @@ void debleep() {
 // Plays a short scale 
 void scale(uint8_t wave) {
     struct event e = default_event();
-    int64_t sysclock = esp_timer_get_time() / 1000;
+    int64_t sysclock = get_sysclock();
     for(uint8_t i=0;i<12;i++) {
         e.time = sysclock + (i*250);
         e.wave = wave;

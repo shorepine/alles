@@ -42,7 +42,7 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
             struct event e = default_event();
             e.time = esp_timer_get_time() / 1000; // looks like BLE timestamp rolls over within 10s
             if(program_bank[channel] > 0) {
-                e.wave = FM;
+                e.wave = ALGO;
                 //e.patch = ((program_bank[channel]-1) * 128) + program[channel];
             } else {
                 //e.wave = program[channel];

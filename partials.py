@@ -107,10 +107,6 @@ def sequence(filename, max_len_s = 10, amp_floor=-30, hop_time=0.04, max_oscs=am
     # Now add in a voice / osc # 
     osc_map = {}
     osc_q = deque(range(max_oscs)) 
-    # There's a bug,     "/Users/bwhitman/sounds/aps/samples/ADVORCH1/BA LONG FF/BA LGFF#C3.wav",
-    # has osc #s going up to 63 even though it says 
-    # 105 partials and 750 breakpoints, max oscs used at once was 8
-    # That's not a bug, just how a queue works
     for i,s in enumerate(time_ordered):
         next_idx = -1
         time_delta, amp_delta, freq_delta, bw_delta = (0,0,0,0)
@@ -167,23 +163,20 @@ def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio
             sustain_ms = sequence[-1][0] - 100
     for i,s in enumerate(sequence):
         # Make envelope strings
-        bp0 = "%d,%s,0,0" % (s[6] * time_ratio, amy.trunc(s[7]))
-        bp1 = "%d,%s,0,0" % (s[6] * time_ratio, amy.trunc(s[8]))
+        bp0 = "%d,%s,0,0" % (s[6] / time_ratio, amy.trunc(s[7]))
+        bp1 = "%d,%s,0,0" % (s[6] / time_ratio, amy.trunc(s[8]))
         if(bw_ratio > 0):
-            bp2 = "%d,%s,0,0" % (s[6] * time_ratio, amy.trunc(s[9]))
+            bp2 = "%d,%s,0,0" % (s[6] / time_ratio, amy.trunc(s[9]))
         else:
             bp2 = ""
         if(sustain_ms > 0 and sustain_offset == 0):
             if(s[0]*time_ratio > sustain_ms*time_ratio):
                 sustain_offset = sustain_len_ms*time_ratio
 
-        if(s[5]>=0): # start
-            amy.send(timestamp=s[0]*time_ratio + sustain_offset, osc=s[1]+osc_offset, wave=alles.SINE,    freq=s[2]*pitch_ratio, phase=s[5], vel=s[3]*amp_ratio, feedback=s[4]*bw_ratio, bp0=bp0, bp1=bp1, bp2=bp2, \
+        if(s[5]>-2): # start or continue
+            amy.send(timestamp=s[0]*time_ratio + sustain_offset, osc=s[1]+osc_offset, wave=alles.PARTIAL,  freq=s[2]*pitch_ratio, phase=s[5], vel=s[3]*amp_ratio, feedback=s[4]*bw_ratio, bp0=bp0, bp1=bp1, bp2=bp2, \
                 bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR, bp2_target=amy.TARGET_FEEDBACK+amy.TARGET_LINEAR)
-        if(s[5]==-1): # continue
-            amy.send(timestamp=s[0]*time_ratio + sustain_offset, osc=s[1]+osc_offset, wave=alles.PARTIAL, freq=s[2]*pitch_ratio, vel=s[3]*amp_ratio, feedback=s[4]*bw_ratio, bp0=bp0, bp1=bp1, bp2=bp2, \
-                bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR, bp2_target=amy.TARGET_FEEDBACK+amy.TARGET_LINEAR)
-        if(s[5]==-2): # end
+        else: # end
             amy.send(timestamp=s[0]*time_ratio + sustain_offset, osc=s[1]+osc_offset, vel=0, amp=s[3]*amp_ratio)
     return sequence[-1][0]*time_ratio
 

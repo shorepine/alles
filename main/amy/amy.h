@@ -8,16 +8,17 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <unistd.h>
 
 // Constants you can change if you want
 #define OSCS 64              // # of simultaneous oscs to keep track of 
 #define BLOCK_SIZE 128       // buffer block size in samples
-#ifdef ESP_PLATFORM
+#if defined(ESP_PLATFORM) || defined(DESKTOP_PLATFORM)
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #define EVENT_FIFO_LEN 3000  // number of events the queue can store
 #define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
 #else
-#define LATENCY_MS 0         // no latency for local mode
+#define LATENCY_MS 0          // no latency for local mode
 #define EVENT_FIFO_LEN 30000  // number of events the queue can store
 #define MAX_DRIFT_MS 60000
 #endif
@@ -26,7 +27,7 @@
 #define MAX_ALGO_OPS 6 // dx7
 #define MAX_BREAKPOINTS 8
 #define MAX_BREAKPOINT_SETS 3
-
+#define THREAD_USLEEP 500
 // buffering for i2s
 #define BYTES_PER_SAMPLE 2
 #define I2S_BUFFERS 4
@@ -83,6 +84,11 @@ typedef int16_t i2s_sample_type;
 #define AUDIBLE 3
 #define IS_MOD_SOURCE 4
 #define IS_ALGO_SOURCE 5
+
+
+#define AMY_OK 0
+typedef int amy_err_t;
+
 
 enum params{
     WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, DETUNE, VOLUME, FILTER_FREQ, RATIO, RESONANCE, 
@@ -175,6 +181,19 @@ void oscs_deinit() ;
 void reset_oscs() ;
 int64_t get_sysclock();
 float freq_for_midi_note(uint8_t midi_note);
+int8_t check_init(amy_err_t (*fn)(), char *name);
+
+
+// sync
+extern void update_map(uint8_t client, uint8_t ipv4, int64_t time);
+extern void handle_sync(int64_t time, int8_t index);
+extern void ping(int64_t sysclock);
+extern amy_err_t sync_init();
+
+extern uint8_t alive;
+extern int16_t client_id;
+
+
 
 // global synth state
 struct state {

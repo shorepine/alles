@@ -2,9 +2,9 @@
 
 ![picture](https://raw.githubusercontent.com/bwhitman/alles/master/pics/set.jpg)
 
-**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 64 additive oscillators and 32 filters, with modulation / LFOs and ADSRs per oscillator. They're open source, cheap and easy to make -- you can build one yourself for about US$20.
+**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 64 additive oscillators and 32 filters, with modulation / LFOs and ADSRs per oscillator. The speaker can be any combination of our custom hardware speakers or a programs running on your computers. The software is open source and the hardware is cheap and easy to make -- you can build one yourself for about US$20.
 
-The synthesizers automatically form a mesh and listen to multicast WiFi messages. You can control the mesh from a host computer using any programming language or environments like Max or Pd. You can also wire one synth up to MIDI or MIDI over Bluetooth, and use any MIDI software or controller; the directly connected synth will broadcast to the rest of the mesh for you. 
+The synthesizers automatically form a mesh and listen to multicast WiFi messages. You can control the mesh from a host computer using any programming language or environments like Max or Pd. You can also wire one hardware synth up to MIDI or MIDI over Bluetooth, and use any MIDI software or controller; the directly connected synth will broadcast to the rest of the mesh for you. 
 
 We intended their first use as distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [Atari AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 64 partials, all controlled as a group or individually. But you can just treat them as dozens of individual synthesizers and do whatever you want with them. It's pretty fun!
 
@@ -24,22 +24,38 @@ Each individual synthesizer supports:
    * karplus-strong string with adjustable feedback (can have up to 2 per synth)
    * An operator / algorithm-based frequency modulation synth, similar to a DX7
  * Up to 32 biquad low-pass, bandpass or hi-pass filters with cutoff and resonance, can be assigned to any oscillator
+ * An additive partial synthesizer with an analysis front end to play back long strings of breakpoint-based sine waves 
  * Oscillators can be specified by frequency in floating point or midi note 
- * Each oscillator has two breakpoint generators, which can modify any combination of amplitude, frequency, duty, filter cutoff or resonance
- * Each oscillator (except for those using KS or FM) can also act as an modulator to modify any combination of parameters of another oscillator, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave. 
+ * Each oscillator has 3 breakpoint generators, which can modify any combination of amplitude, frequency, duty, filter cutoff, feedback or resonance
+ * Each oscillator can also act as an modulator to modify any combination of parameters of another oscillator, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave. 
  * Control of speaker gain and 3-band parametric EQ
+ * Built in patches for PCM, FM and partials
 
 
-## Using it
+## Using it -- hardware Alles
 
-On first boot, each synth will create a captive wifi network called `alles-synth-X` where X is some ID of the synth. Join it (preferably on a mobile device), and you should get redirected to a captive wifi setup page. If not, go to `http://10.10.0.1` in your browser after joining the network. Once you tell each synth what the wifi SSID and password you want it to join are, it will reboot. You only need to do that once per synth.
+On first boot, each hardware speaker will create a captive wifi network called `alles-synth-X` where X is some ID of the synth. Join it (preferably on a mobile device), and you should get redirected to a captive wifi setup page. If not, go to `http://10.10.0.1` in your browser after joining the network. Once you tell each synth what the wifi SSID and password you want it to join are, it will reboot. You only need to do that once per synth.
+
+## Using it -- software Alles
+
+If you don't want to build or buy an Alles speaker, you can run Alles locally on your computer(s), as many as you want. As long as each copy of the software is running within the same network, they will automatically form in the mesh just like the hardware speakers. And the hardware and software speakers can be used interchangeably.
+
+To build and run `alles` on a computer, simply clone this repository and
+
+```
+$ [brew/apt] install libsoundio # needed for live audio
+$ cd alles/main
+$ make
+$ ./alles 192.168.1.3 # optional source IP address 
+```
+
+## Controlling the mesh
 
 Alles can be used two ways: 
 
  * **Direct mode**, where you directly control the entire mesh from a computer or mobile device: This is the preferred way and gives you the most functionality. You can control every synth on the mesh from a single host, using UDP over WiFi. You can address any synth in the mesh or all of them at once with one message, or use groups. You can specify synth parameters down to 32 bits of precision, far more than MIDI. This method can be used in music environments like Max or Pd, or by musicians or developers using languages like Python, or for plug-in developers who want to bridge Alles's full features to DAWs.
 
  * **MIDI mode**, using MIDI over Bluetooth or a MIDI cable: A single Alles synth can be set up as a MIDI relay, by hitting the `MIDI` (or `BOOT0 / GPIO0` on DIY Alles) button. Once in MIDI relay mode, that synth stops making its own sound and acts as a relay to the rest of the mesh. You can connect to the relay over MIDI cable (details below) or wirelessly via MIDI bluetooth, supported by most OSes. You can then control the mesh using any MIDI sequencer or DAW of your choice. You are limited to directly addressing 16 synths in this mode (vs 100s), and lose some control over fine grained parameter tuning. 
-
 
 In direct mode, Alles responds to [AMY commands](https://github.com/bwhitman/alles/tree/master/main/amy/README.md) commands via UDP. They are ASCII delimited by a character, each message terminated with a newline, like
 
@@ -82,18 +98,16 @@ Or experiment with oscillators:
 >>> alles.note_on(osc=0, note=50, vel=1.5)
 ```
 
-You can also compile [AMY](https://github.com/bwhitman/alles/tree/master/main/amy/README.md) locally and render audio within your Python terminal instead of remotely to your hardware synths. This is useful for composing and debugging (of course, just one synth engine at a time.)
+You can also compile [AMY](https://github.com/bwhitman/alles/tree/master/main/amy/README.md) locally and render audio within your Python terminal instead of over the network to your mesh synths. 
 
 ```
 $ cd alles/main/amy
 $ python3 setup.py install
-$ python3 -m pip install sounddevice numpy
 $ python3
 
 >>> import amy, alles
 >>> amy.live() # this starts a real time audio playback thread, and redirects all commands to the local AMY instance
 >>> alles.drums() # plays locally
->>> amy.pause() # shuts down the local instance
 ```
 
 
@@ -111,7 +125,7 @@ You can read the heartbeat messages on your host if you want to enumerate the sy
 
 ## Timing & latency
 
-Alles is not designed as a low latency real-time performance instrument, where your actions have an immediate effect on the sound. Changes you make on the host will take a fixed latency -- currently set at 1000ms -- to get to every synth. This fixed latency ensures that messages arrive to every synth in the mesh in time to play in perfect sync, even though Wi-Fi's transmission latency varies widely. This allows you to have millisecond-accurate timing in your performance across dozens of speakers in a large space. 
+Alles is not designed as a low latency real-time performance instrument, where your actions have an immediate effect on the sound. Changes you make on the host will take a fixed latency -- currently set at 1000ms -- to get to every synth. This fixed latency ensures that messages arrive to every synth -- both ESP32 based and those running on computers -- in the mesh in time to play in perfect sync, even though Wi-Fi's transmission latency varies widely. This allows you to have millisecond-accurate timing in your performance across dozens of speakers in a large space. 
 
 Your host should send along the `time` parameter of the relative time when you expect the sound to play. I'd suggest using the number of milliseconds since your host started, e.g. in Python:
 
@@ -148,7 +162,7 @@ multicast_group = ('232.10.11.12', 3333)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 def send(oscillator=0, freq=0, vel=1):
-    sock.sendto("v%df%fl%f" % (oscillator, freq, vel), multicast_group)
+    sock.sendto("v%df%fl%f\n" % (oscillator, freq, vel), multicast_group)
 
 def c_major(octave=2):
     send(oscillator=0,freq=220.5*octave)
@@ -231,9 +245,9 @@ Speaker connectors -> speaker
 This assumes you're using the suggested ESP32 dev board with its pin layout. If you use another one, you can probably change the GPIO assignments in `alles.h`. Fritzing file in the `pcbs` folder of this repository, and [it's here on Aisler](https://aisler.net/p/TEBMDZWQ). This is a lot more stable and easier to wire up than snipping small bits of hookup wire, especially for the GAIN connection. 
 
 
-## Firmware
+## ESP32 Firmware
 
-Alles is completely open source, and can be a fun platform to adapt beyond its current capabilities. To build your own firmware, [start by setting up `esp-idf`](http://esp-idf.readthedocs.io/en/latest/get-started/). If using macOS, you'll want to install the [CP210X drivers](https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers) if you haven't already. Once you've installed esp-idf and the serial drivers if you need them, run `. ./esp-idf/export.sh`, then connect to your board over USB, clone and cd into this repository and run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board.
+Alles is completely open source, and can be a fun platform to adapt beyond its current capabilities. To build your own ESP32 firmware, [start by setting up `esp-idf`](http://esp-idf.readthedocs.io/en/latest/get-started/). If using macOS, you'll want to install the [CP210X drivers](https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers) if you haven't already. Once you've installed esp-idf and the serial drivers if you need them, run `. ./esp-idf/export.sh`, then connect to your board over USB, clone and cd into this repository and run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board.
 
 Use `idf.py -p /dev/YOUR_SERIAL_TTY monitor` to reboot the board and see stdout/stderr. Use Ctrl-] to exit the monitor.
 
