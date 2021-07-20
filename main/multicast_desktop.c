@@ -3,35 +3,33 @@
 #include <stdio.h>
 #include <stddef.h>
 #include "alles.h"
-
-
- #include <stdlib.h>         /* strtol(), exit() */
- #include <sys/types.h>
- #include <sys/socket.h>     /* socket(), setsockopt(), bind(), recvfrom(), sendto() */
- #include <errno.h>          /* perror() */
- #include <netinet/in.h>     /* IPPROTO_IP, sockaddr_in, htons(), htonl() */
- #include <arpa/inet.h>      /* inet_addr() */
- #include <unistd.h>         /* fork(), sleep() */
- #include <sys/utsname.h>    /* uname() */
- #include <string.h>         /* memset() */
+#include <stdlib.h>         /* strtol(), exit() */
+#include <sys/types.h>
+#include <sys/socket.h>     /* socket(), setsockopt(), bind(), recvfrom(), sendto() */
+#include <errno.h>          /* perror() */
+#include <netinet/in.h>     /* IPPROTO_IP, sockaddr_in, htons(), htonl() */
+#include <arpa/inet.h>      /* inet_addr() */
+#include <unistd.h>         /* fork(), sleep() */
+#include <sys/utsname.h>    /* uname() */
+#include <string.h>         /* memset() */
 #include <ifaddrs.h>
 #include <netdb.h>
 
-int sock= -1;
-
 extern void deserialize_event(char * message, uint16_t length);
+
+int sock= -1;
 uint8_t ipv4_quartet;
 char udp_message[MAX_RECEIVE_LEN];
 extern char *message_start_pointer;
+extern char *local_ip;
 extern int16_t message_length;
 uint32_t udp_message_counter = 0;
 int64_t last_ping_time = PING_TIME_MS; // do the first ping at 10s in to wait for other synths to announce themselves
 
 
-void get_ip_address() {
+int get_first_ip_address(char *host) {
 	struct ifaddrs *ifaddr, *ifa;
-    int family, s;
-    char host[NI_MAXHOST];
+    int s;
     if (getifaddrs(&ifaddr) == -1) {
         perror("getifaddrs");
         exit(EXIT_FAILURE);
@@ -40,18 +38,20 @@ void get_ip_address() {
         if (ifa->ifa_addr == NULL)
             continue;
         s=getnameinfo(ifa->ifa_addr,sizeof(struct sockaddr_in),host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
-
         if(ifa->ifa_addr->sa_family==AF_INET) {
             if (s != 0) {
                 printf("getnameinfo() failed: %s\n", gai_strerror(s));
                 exit(EXIT_FAILURE);
             }
-            printf("\tInterface : <%s>\n",ifa->ifa_name );
-            printf("\t  Address : <%s>\n", host);
+            // Skip localhost 
+            if(strncmp(ifa->ifa_name, "lo", 2) == 0) continue;
+            // Return the first one
+            return 0;
         }
     }
 
     freeifaddrs(ifaddr);
+    return 1;
 }
 
 int socket_add_ipv4_multicast_group() {
@@ -62,14 +62,14 @@ int socket_add_ipv4_multicast_group() {
     // Configure multicast address to listen to
     inet_pton(AF_INET, MULTICAST_IPV4_ADDR, &(imreq.imr_multiaddr.s_addr));
 
-    inet_pton(AF_INET, "192.168.1.3", &(iaddr.s_addr));
+    inet_pton(AF_INET, local_ip, &(iaddr.s_addr));
 
     // Assign the IPv4 multicast source interface, via its IP
     // (only necessary if this socket is IPV4 only)
     err = setsockopt(sock, IPPROTO_IP, IP_MULTICAST_IF, &iaddr,
                      sizeof(struct in_addr));
     if (err < 0) {
-    	fprintf(stderr, "Failed to set IP_MULTICAST_IF. Error %d", errno);
+    	fprintf(stderr, "Failed to set IP_MULTICAST_IF. Error %d\n", errno);
         goto err;
     }
 
@@ -77,12 +77,13 @@ int socket_add_ipv4_multicast_group() {
     err = setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                          &imreq, sizeof(struct ip_mreq));
     if (err < 0) {
-        fprintf(stderr, "Failed to set IP_ADD_MEMBERSHIP. Error %d", errno);
+        fprintf(stderr, "Failed to set IP_ADD_MEMBERSHIP. Error %d\n", errno);
         goto err;
     }
 
  err:
     return err;
+
 
 }
 
@@ -90,10 +91,10 @@ void create_multicast_ipv4_socket(void) {
     struct sockaddr_in saddr = { 0 };
     sock = -1;
     int err = 0;
-    get_ip_address();
     sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (sock < 0) {
-        fprintf(stderr, "Failed to create socket. Error %d", errno);
+        fprintf(stderr, "Failed to create socket. Error %d\n", errno);
+        exit(1);
     }
 
     int yes = 1;
@@ -110,6 +111,7 @@ void create_multicast_ipv4_socket(void) {
     err = bind(sock, (struct sockaddr *)&saddr, sizeof(struct sockaddr_in));
     if (err < 0) {
     	fprintf(stderr, "failed to bind socket - %d\n", errno);
+        exit(EXIT_FAILURE);
     }
 
     // Assign multicast TTL (set separately from normal interface TTL)
@@ -117,6 +119,7 @@ void create_multicast_ipv4_socket(void) {
     setsockopt(sock, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(uint8_t));
     if (err < 0) {
     	fprintf(stderr, "failed to set IP_MULTICAST_TTL  %d\n", errno);
+        exit(EXIT_FAILURE);
     }
 
     uint8_t loopback_val = 1;
@@ -124,11 +127,13 @@ void create_multicast_ipv4_socket(void) {
                      &loopback_val, sizeof(uint8_t));
     if (err < 0) {
     	fprintf(stderr, "failed to set IP_MULTICAST_LOOP  %d\n", errno);
+        exit(EXIT_FAILURE);
     }
 
-    // this is also a listening socket, so add it to the multicast
-    // group for listening...
     err = socket_add_ipv4_multicast_group();
+    if(err) exit(EXIT_FAILURE);
+
+    printf("Multicast IF is %s. Listening on %s:%d\n", local_ip, MULTICAST_IPV4_ADDR, UDP_PORT);
 }
 
 
