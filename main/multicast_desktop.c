@@ -66,7 +66,6 @@ int socket_add_ipv4_multicast_group() {
     inet_pton(AF_INET, local_ip, &(iaddr.s_addr));
     
     ipv4_quartet = ((iaddr.s_addr & 0xFF000000) >> 24) + quartet_offset;
-    printf("quartet is now %d\n", ipv4_quartet);
 
     // Assign the IPv4 multicast source interface, via its IP
     // (only necessary if this socket is IPV4 only)
