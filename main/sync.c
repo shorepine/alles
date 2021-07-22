@@ -31,16 +31,17 @@ void update_map(uint8_t client, uint8_t ipv4, int64_t time) {
 
     // Now I basically see what index I would be in the list of booted synths (clocks[i] > 0)
     // And I set my client_id to that index
+    uint8_t last_alive = alive;
     uint8_t my_new_client_id = 255;
     alive = 0;
     for(uint8_t i=0;i<255;i++) {
         if(clocks[i] > 0) { 
             if(my_sysclock < (ping_times[i] + (PING_TIME_MS * 2))) { // alive
-                //printf("[%d %d] Checking my time %lld against ipv4 %d's of %lld, client_id now %d ping_time[%d] = %lld\n", 
-                //    ipv4_quartet, client_id, my_sysclock, i, clocks[i], my_new_client_id, i, ping_times[i]);
+                printf("[%d %d] Checking my time %lld against ipv4 %d's of %lld, client_id now %d ping_time[%d] = %lld\n", 
+                    ipv4_quartet, client_id, my_sysclock, i, clocks[i], my_new_client_id, i, ping_times[i]);
                 alive++;
             } else {
-                //printf("[ipv4 %d client %d] clock %d is dead, ping time was %lld time now is %lld.\n", ipv4_quartet, client_id, i, ping_times[i], my_sysclock);
+                printf("[ipv4 %d client %d] clock %d is dead, ping time was %lld time now is %lld.\n", ipv4_quartet, client_id, i, ping_times[i], my_sysclock);
                 clocks[i] = 0;
                 ping_times[i] = 0;
             }
@@ -51,7 +52,7 @@ void update_map(uint8_t client, uint8_t ipv4, int64_t time) {
         printf("[ipv4 %d client %d] Updating my client_id to %d. %d alive\n", ipv4_quartet, client_id, my_new_client_id, alive);
         client_id = my_new_client_id;
     }
-    //printf("%d devices online\n", alive);
+    if(alive != last_alive) printf("%d devices now online\n", alive);
 }
 
 void handle_sync(int64_t time, int8_t index) {

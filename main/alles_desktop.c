@@ -34,7 +34,7 @@ int main(int argc, char ** argv) {
         printf("couldn't get local ip. try ./alles local_ip\n");
         return 1;
     } else {
-        if (argc==2) strcpy(local_ip, argv[1]);
+        if (argc>1) strcpy(local_ip, argv[1]);
     }
     if(argc>2) quartet_offset = atoi(argv[2]);
 

@@ -136,7 +136,7 @@ void create_multicast_ipv4_socket(void) {
     err = socket_add_ipv4_multicast_group();
     if(err) exit(EXIT_FAILURE);
 
-    printf("Multicast IF is %s. Listening on %s:%d\n", local_ip, MULTICAST_IPV4_ADDR, UDP_PORT);
+    printf("Multicast IF is %s. Client tag (not ID) is %d. Listening on %s:%d\n", local_ip, ipv4_quartet, MULTICAST_IPV4_ADDR, UDP_PORT);
 }
 
 

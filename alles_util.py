@@ -1,6 +1,6 @@
 # alles_util.py
 import socket, time, struct, datetime, sys, re, os
-
+import amy
 
 # This is your source IP -- by default your main routable network interface. 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -84,15 +84,15 @@ def sync(count=10, delay_ms=100):
     clients = {}
     client_map = {}
     battery_map = {}
-    start_time = millis()
+    start_time = amy.millis()
     last_sent = 0
     time_sent = {}
     rtt = {}
     i = 0
     while 1:
-        tic = millis() - start_time
+        tic = amy.millis() - start_time
         if((tic - last_sent) > delay_ms):
-            time_sent[i] = millis()
+            time_sent[i] = amy.millis()
             #print ("sending %d at %d" % (i, time_sent[i]))
             output = "s%di%d" % (time_sent[i], i)
             sock.sendto(output.encode('ascii'), get_multicast_group())
@@ -113,7 +113,7 @@ def sync(count=10, delay_ms=100):
                         client_map[int(ipv4)] = int(client_id)
                         battery_map[int(ipv4)] = battery
                         rtt[int(ipv4)] = rtt.get(int(ipv4), {})
-                        rtt[int(ipv4)][int(sync_index)] = millis()-time_sent[int(sync_index)]
+                        rtt[int(ipv4)][int(sync_index)] = amy.millis()-time_sent[int(sync_index)]
         except socket.error:
             pass
 
