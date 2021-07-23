@@ -20,6 +20,7 @@ amy_err_t sync_init() {
 }
 
 
+
 void update_map(uint8_t client, uint8_t ipv4, int64_t time) {
     // I'm called when I get a sync response or a regular ping packet
     // I update a map of booted devices.
@@ -37,22 +38,26 @@ void update_map(uint8_t client, uint8_t ipv4, int64_t time) {
     for(uint8_t i=0;i<255;i++) {
         if(clocks[i] > 0) { 
             if(my_sysclock < (ping_times[i] + (PING_TIME_MS * 2))) { // alive
-                printf("[%d %d] Checking my time %lld against ipv4 %d's of %lld, client_id now %d ping_time[%d] = %lld\n", 
-                    ipv4_quartet, client_id, my_sysclock, i, clocks[i], my_new_client_id, i, ping_times[i]);
+                //printf("[%d %d] Checking my time %lld against ipv4 %d's of %lld, client_id now %d ping_time[%d] = %lld\n", 
+                //    ipv4_quartet, client_id, my_sysclock, i, clocks[i], my_new_client_id, i, ping_times[i]);
                 alive++;
             } else {
-                printf("[ipv4 %d client %d] clock %d is dead, ping time was %lld time now is %lld.\n", ipv4_quartet, client_id, i, ping_times[i], my_sysclock);
+                //printf("[ipv4 %d client %d] clock %d is dead, ping time was %lld time now is %lld.\n", ipv4_quartet, client_id, i, ping_times[i], my_sysclock);
                 clocks[i] = 0;
                 ping_times[i] = 0;
             }
+            // predicted time is what we think the alive node should be at by now
+            int64_t predicted_time = (my_sysclock - ping_times[i]) + clocks[i];
+ 	        if(my_sysclock > predicted_time) my_new_client_id--;
+        } else {
+        	// if clocks[] is 0, no need to check
+        	my_new_client_id--;
         }
-        if(my_sysclock > clocks[i]) my_new_client_id--;
     }
-    if(client_id != my_new_client_id) {
-        printf("[ipv4 %d client %d] Updating my client_id to %d. %d alive\n", ipv4_quartet, client_id, my_new_client_id, alive);
+    if(client_id != my_new_client_id || last_alive != alive) {
+        printf("[%d] my client_id is now %d. %d alive\n", ipv4_quartet, my_new_client_id, alive);
         client_id = my_new_client_id;
     }
-    if(alive != last_alive) printf("%d devices now online\n", alive);
 }
 
 void handle_sync(int64_t time, int8_t index) {
