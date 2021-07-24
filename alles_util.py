@@ -44,9 +44,9 @@ def connect():
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
     # TTL defines how many hops it can take
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 20) # 1
     # Keep loopback on if you're controlling Alles from your own desktop
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1) # 1
     sock.bind(('', 3333))
     # Set the local interface for multicast receive
     sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(local_ip))

@@ -317,6 +317,9 @@ int8_t oscs_init() {
 
 
 void show_debug(uint8_t type) { 
+#ifdef ESP_PLATFORM
+    esp_show_debug(type);
+#endif
     if(type>1) {
         struct delta * ptr = global.event_start;
         uint16_t q = global.event_qsize;
@@ -819,7 +822,7 @@ void parse_task() {
     }
     length = new_length;
 
-    //fprintf(stderr,"received message ###%s### len %d\n", message, length);
+    fprintf(stderr,"received message ###%s### len %d\n", message, length);
 
     while(c < length+1) {
         uint8_t b = message[c];
@@ -829,7 +832,9 @@ void parse_task() {
                 e.time=atol(message + start);
                 // if we haven't yet synced our times, do it now
                 if(!computed_delta_set) {
+
                     computed_delta = e.time - sysclock;
+                    printf("setting computed delta to %lld (e.time is %lld sysclock %lld) max_drift_ms %d latency %d\n", computed_delta, e.time, sysclock, MAX_DRIFT_MS, LATENCY_MS);
                     computed_delta_set = 1;
                 }
             }

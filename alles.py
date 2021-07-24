@@ -15,40 +15,43 @@ def preset(which,osc=0, **kwargs):
     # Reset the osc first
     amy.reset(osc=osc)
     if(which==0): # simple note
-        amy.send(osc=osc, wave=SINE, bp0="10,1,250,0.7,250,0", bp0_target=TARGET_AMP, **kwargs)
+        amy.send(osc=osc, wave=amy.SINE, bp0="10,1,250,0.7,250,0", bp0_target=amy.TARGET_AMP, **kwargs)
     if(which==1): # filter bass
-        amy.send(osc=osc, filter_freq=2500, resonance=5, wave=SAW, filter_type=FILTER_LPF, bp0="100,0.5,25,0", bp0_target=TARGET_AMP+TARGET_FILTER_FREQ, **kwargs)
+        amy.send(osc=osc, filter_freq=2500, resonance=5, wave=amy.SAW, filter_type=amy.FILTER_LPF, bp0="100,0.5,25,0", bp0_target=amy.TARGET_AMP+amy.TARGET_FILTER_FREQ, **kwargs)
     if(which==2): # long sine pad to test ADSR
-        amy.send(osc=osc, wave=SINE, bp0="0,0,500,1,1000,0.25,750,0", bp0_target=TARGET_AMP, **kwargs)
+        amy.send(osc=osc, wave=amy.SINE, bp0="0,0,500,1,1000,0.25,750,0", bp0_target=amy.TARGET_AMP, **kwargs)
     if(which==3): # amp LFO example
         amy.reset(osc=osc+1)
-        amy.send(osc=osc+1, wave=SINE, vel=0.50, freq=1.5, **kwargs)
-        amy.send(osc=osc, wave=PULSE, envelope="150,1,250,0.25,250,0", bp0_target=TARGET_AMP, lfo_target=TARGET_AMP, lfo_source=osc+1, **kwargs)
+        amy.send(osc=osc+1, wave=amy.SINE, vel=0.50, freq=1.5, **kwargs)
+        amy.send(osc=osc, wave=amy.PULSE, envelope="150,1,250,0.25,250,0", bp0_target=amy.TARGET_AMP, lfo_target=amy.TARGET_AMP, lfo_source=osc+1, **kwargs)
     if(which==4): # pitch LFO going up 
         amy.reset(osc=osc+1)
-        amy.send(osc=osc+1, wave=SINE, vel=0.50, freq=0.25, **kwargs)
-        amy.send(osc=osc, wave=PULSE, bp0="150,1,400,0,0,0", bp0_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=osc+1, **kwargs)
+        amy.send(osc=osc+1, wave=amy.SINE, vel=0.50, freq=0.25, **kwargs)
+        amy.send(osc=osc, wave=amy.PULSE, bp0="150,1,400,0,0,0", bp0_target=amy.TARGET_AMP, lfo_target=amy.TARGET_FREQ, lfo_source=osc+1, **kwargs)
     if(which==5): # bass drum
         # Uses a 0.25Hz sine wave at 0.5 phase (going down) to modify frequency of another sine wave
         amy.reset(osc=osc+1)
-        amy.send(osc=osc+1, wave=SINE, vel=0.50, freq=0.25, phase=0.5, **kwargs)
-        amy.send(osc=osc, wave=SINE, vel=0, bp0="500,0,0,0", bp0_target=TARGET_AMP, lfo_target=TARGET_FREQ, lfo_source=osc+1, **kwargs)
+        amy.send(osc=osc+1, wave=amy.SINE, vel=0.50, freq=0.25, phase=0.5, **kwargs)
+        amy.send(osc=osc, wave=amy.SINE, vel=0, bp0="500,0,0,0", bp0_target=amy.TARGET_AMP, lfo_target=amy.TARGET_FREQ, lfo_source=osc+1, **kwargs)
     if(which==6): # noise snare
-        amy.send(osc=osc, wave=NOISE, vel=0, bp0="250,0,0,0", bp0_target=TARGET_AMP, **kwargs)
+        amy.send(osc=osc, wave=amy.NOISE, vel=0, bp0="250,0,0,0", bp0_target=amy.TARGET_AMP, **kwargs)
     if(which==7): # closed hat
-        amy.send(osc=osc, wave=NOISE, vel=0, envelope="25,1,75,0,0,0", bp0_target=TARGET_AMP, **kwargs)
+        amy.send(osc=osc, wave=amy.NOISE, vel=0, envelope="25,1,75,0,0,0", bp0_target=amy.TARGET_AMP, **kwargs)
     if(which==8): # closed hat from PCM 
-        amy.send(osc=osc, wave=PCM, vel=0, patch=17, freq=22050, **kwargs)
+        amy.send(osc=osc, wave=amy.PCM, vel=0, patch=17, freq=22050, **kwargs)
     if(which==9): # cowbell from PCM
-        amy.send(osc=osc, wave=PCM, vel=0, patch=25, freq=22050, **kwargs)
+        amy.send(osc=osc, wave=amy.PCM, vel=0, patch=25, freq=22050, **kwargs)
     if(which==10): # high cowbell from PCM
-        amy.send(osc=osc, wave=PCM, vel=0, patch=25, freq=31000, **kwargs)
+        amy.send(osc=osc, wave=amy.PCM, vel=0, patch=25, freq=31000, **kwargs)
     if(which==11): # snare from PCM
-        amy.send(osc=osc, wave=PCM, vel=0, patch=5, freq=22050, **kwargs)
+        amy.send(osc=osc, wave=amy.PCM, vel=0, patch=5, freq=22050, **kwargs)
     if(which==12): # FM bass 
-        amy.send(osc=osc, wave=FM, vel=0, patch=15, **kwargs)
+        amy.send(osc=osc, wave=amy.ALGO, vel=0, patch=15, **kwargs)
+    if(which==13): # Pcm bass drum
+        amy.send(osc=osc, wave=amy.PCM, vel=0, patch=20, freq=22050, **kwargs)
 
-
+def reset():
+    amy.reset()
 """
     Run a scale through all the synth's sounds
 """
@@ -120,7 +123,7 @@ def sweep(speed=0.100, res=0.5, loops = -1):
     An example drum machine using osc+PCM presets
 """
 def drums(bpm=120, loops=-1, **kwargs):
-    preset(5, osc=0, **kwargs) # sine bass drum
+    preset(13, osc=0, **kwargs) # sine bass drum
     preset(8, osc=3, **kwargs) # sample hat
     preset(9, osc=4, **kwargs) # sample cow
     preset(10, osc=5, **kwargs) # sample hi cow

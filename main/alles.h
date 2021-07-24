@@ -112,6 +112,7 @@ extern void scale(uint8_t wave);
 void wifi_reconfigure();
 void toggle_midi();
 extern esp_err_t buttons_init();
+void esp_show_debug(uint8_t type);
 
 // wifi and multicast
 extern wifi_config_t* wifi_manager_config_sta ;
