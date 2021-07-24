@@ -1,17 +1,9 @@
 # AMY functions
-
 from alles_util import get_sock, get_multicast_group
 import datetime
-
 import sounddevice as sd
 import libamy
 import numpy as np
-try:
-	import scipy.io.wavfile as wav
-	import matplotlib.pyplot as plt
-except ImportError:
-	print("libAMY loaded, but no scipy or matlplotlib, can't visualize or save to WAV")
-
 
 #TODO , generate these from amy.h when compiling
 LATENCY_MS = 10
@@ -124,7 +116,7 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, fe
     if(eq_m>=0): m = m + "y" + trunc(eq_m)
     if(eq_h>=0): m = m + "z" + trunc(eq_h)
     if(filter_type>=0): m = m + "G" + trunc(filter_type)
-    #print(m)
+    print(m)
     if(buffer_size > 0):
         if(len(send_buffer + m + '\n') > buffer_size):
             transmit(send_buffer)
@@ -155,22 +147,24 @@ def spec(data):
     fig.show()	
 
 def show(data):
-	fftsize = len(data)
-	windowlength = fftsize
-	window = np.hanning(windowlength)
-	wavepart = data[:len(window)]
-	logspecmag = 20 * np.log10(np.maximum(1e-10, 
-        	       np.abs(np.fft.fft(wavepart * window)))[:(fftsize // 2 + 1)])
-	freqs = SAMPLE_RATE * np.arange(len(logspecmag)) / fftsize
-	plt.subplot(211)
-	times = np.arange(len(wavepart)) / SAMPLE_RATE
-	plt.plot(times, wavepart, '.')
-	plt.subplot(212)
-	plt.plot(freqs, logspecmag, '.-')
-	plt.ylim(np.array([-100, 0]) + np.max(logspecmag))
-	plt.show()
+    import matplotlib.pyplot as plt
+    fftsize = len(data)
+    windowlength = fftsize
+    window = np.hanning(windowlength)
+    wavepart = data[:len(window)]
+    logspecmag = 20 * np.log10(np.maximum(1e-10, 
+        np.abs(np.fft.fft(wavepart * window)))[:(fftsize // 2 + 1)])
+    freqs = SAMPLE_RATE * np.arange(len(logspecmag)) / fftsize
+    plt.subplot(211)
+    times = np.arange(len(wavepart)) / SAMPLE_RATE
+    plt.plot(times, wavepart, '.')
+    plt.subplot(212)
+    plt.plot(freqs, logspecmag, '.-')
+    plt.ylim(np.array([-100, 0]) + np.max(logspecmag))
+    plt.show()
 
 def write(data, filename):
+    import scipy.io.wavfile as wav
     """Write a waveform to a WAV file."""
     print(str(data.shape))
     wav.write(filename, int(SAMPLE_RATE), (32768.0 * data).astype(np.int16))
