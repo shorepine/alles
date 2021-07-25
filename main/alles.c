@@ -158,9 +158,9 @@ amy_err_t setup_i2s(void) {
          .bits_per_sample = I2S_SAMPLE_TYPE,
          .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
          .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_STAND_I2S),
-         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1, // high interrupt priority
-         .dma_buf_count = 32, //I2S_BUFFERS,
-         .dma_buf_len = BLOCK_SIZE,
+         .intr_alloc_flags = 0, //ESP_INTR_FLAG_LEVEL1, // high interrupt priority
+         .dma_buf_count = 4, //I2S_BUFFERS,
+         .dma_buf_len = BLOCK_SIZE * BYTES_PER_SAMPLE * 2,
         };
         
     i2s_pin_config_t pin_config = {
@@ -169,7 +169,7 @@ amy_err_t setup_i2s(void) {
         .data_out_num = CONFIG_I2S_DIN, 
         .data_in_num = -1   //Not used
     };
-    //SET_PERI_REG_BITS(I2S_TIMING_REG(0), 0x1, 1, I2S_TX_DSYNC_SW_S);
+    SET_PERI_REG_BITS(I2S_TIMING_REG(0), 0x1, 1, I2S_TX_DSYNC_SW_S);
 
     i2s_driver_install((i2s_port_t)CONFIG_I2S_NUM, &i2s_config, 0, NULL);
     i2s_set_pin((i2s_port_t)CONFIG_I2S_NUM, &pin_config);

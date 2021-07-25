@@ -279,9 +279,9 @@ int8_t oscs_init() {
     events = (struct delta*)malloc(sizeof(struct delta) * EVENT_FIFO_LEN);
     synth = (struct event*) malloc(sizeof(struct event) * OSCS);
     msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * OSCS);
-    //for(uint8_t i=0;i<I2S_BUFFERS;i++) 
-    block = (i2s_sample_type *) malloc(sizeof(i2s_sample_type) * BLOCK_SIZE);
-    //block = dbl_block[0];
+    //for(uint8_t i=0;i<I2S_BUFFERS;i++) dbl_block[i] = (i2s_sample_type *) malloc(sizeof(i2s_sample_type) * BLOCK_SIZE);
+
+    block = (i2s_sample_type *) malloc(sizeof(i2s_sample_type) * BLOCK_SIZE);//dbl_block[0];
     // Set all oscillators to their default values
     reset_oscs();
 
@@ -700,7 +700,7 @@ int16_t * fill_audio_buffer_task() {
             i = I2S_BUFFERS + 1;
         }
     }
-  */  
+    */
 
     // Global volume is supposed to max out at 10, so scale by 0.1.
     float volume_scale = 0.1 * global.volume;

@@ -52,7 +52,7 @@ void partials_note_off(uint8_t osc) {
 // freq controls pitch_ratio, amp amp_ratio, ratio controls time ratio
 // do all patches have sustain point?
 void render_partials(float *buf, uint8_t osc) {
-    partial_breakpoint_map_t patch = partial_breakpoint_map[synth[osc].patch];
+    partial_breakpoint_map_t patch = partial_breakpoint_map[synth[osc].patch % PARTIALS_PATCHES];
     // If ratio is set (not 0 or -1), use it for a time stretch
     float time_ratio = 1;
     if(synth[osc].ratio > 0) time_ratio = synth[osc].ratio;
@@ -67,9 +67,9 @@ void render_partials(float *buf, uint8_t osc) {
                 // set up this oscillator
                 uint8_t o = (pb.osc + 1 + osc) % OSCS; // just in case
     
-                #ifdef ESP_PLATFORM
-                    if(o % 2) o = o + 32; // scale
-                #endif
+//                #ifdef ESP_PLATFORM
+//                    if(o % 2) o = o + 32; // scale
+//                #endif
                 //printf("[%d %d] new pb: %d %d %f %f %f\n", total_samples, ms_since_started, pb.osc, pb.ms_offset, pb.amp, pb.freq, pb.phase);
 
                 // Find our ratio using the midi note of the analyzed partial
@@ -125,6 +125,9 @@ void render_partials(float *buf, uint8_t osc) {
     float pbuf[BLOCK_SIZE];
     for(uint8_t i=osc+1;i<osc+1+oscs;i++) {
         uint8_t o = i % OSCS;
+//        #ifdef ESP_PLATFORM
+//            if(o % 2) o = o + 32; // scale
+//        #endif
         if(synth[o].status ==IS_ALGO_SOURCE) {
             hold_and_modify(o);
             //printf("[%d %d] %d amp %f (%f) freq %f (%f) on %d off %d bp0 %d %f bp1 %d %f wave %d\n", total_samples, ms_since_started, o, synth[o].amp, msynth[o].amp, synth[o].freq, msynth[o].freq, synth[o].note_on_clock, synth[o].note_off_clock, synth[o].breakpoint_times[0][0], 

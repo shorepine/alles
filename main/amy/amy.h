@@ -31,6 +31,7 @@
 #define BYTES_PER_SAMPLE 2
 
 // This can be 32 bit, int32_t -- helpful for digital output to a i2s->USB teensy3 board
+//#define I2S_BUFFERS 8
 #define I2S_SAMPLE_TYPE I2S_BITS_PER_SAMPLE_16BIT
 typedef int16_t i2s_sample_type;
 

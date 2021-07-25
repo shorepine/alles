@@ -417,18 +417,23 @@ void sine_note_on(uint8_t osc) {
 }
 
 void render_partial(float * buf, uint8_t osc) {
-    float scratch[2][BLOCK_SIZE];
-    for(uint16_t i=0;i<BLOCK_SIZE;i++) scratch[0][i] = get_random() *  20.0;
-    dsps_biquad_gen_lpf_f32(coeffs[osc], 100.0/SAMPLE_RATE, 0.707);
-    #ifdef ESP_PLATFORM
-        dsps_biquad_f32_ae32(scratch[0], scratch[1], BLOCK_SIZE, coeffs[osc], delay[osc]);
-    #else
-        dsps_biquad_f32_ansi(scratch[0], scratch[1], BLOCK_SIZE, coeffs[osc], delay[osc]);
-    #endif
-    float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
-    synth[osc].step = render_am_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
-                 synth[osc].lut, synth[osc].lut_size, scratch[1], msynth[osc].feedback);    
-
+    if(msynth[osc].feedback > 0) {
+        float scratch[2][BLOCK_SIZE];
+        for(uint16_t i=0;i<BLOCK_SIZE;i++) scratch[0][i] = get_random() *  20.0;
+        dsps_biquad_gen_lpf_f32(coeffs[osc], 100.0/SAMPLE_RATE, 0.707);
+        #ifdef ESP_PLATFORM
+            dsps_biquad_f32_ae32(scratch[0], scratch[1], BLOCK_SIZE, coeffs[osc], delay[osc]);
+        #else
+            dsps_biquad_f32_ansi(scratch[0], scratch[1], BLOCK_SIZE, coeffs[osc], delay[osc]);
+        #endif
+        float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
+        synth[osc].step = render_am_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
+                 synth[osc].lut, synth[osc].lut_size, scratch[1], msynth[osc].feedback);
+    } else {
+        float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
+        synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
+                    synth[osc].lut, synth[osc].lut_size);
+    }
     if(synth[osc].substep==1) {
         // fade in
         synth[osc].substep = 0;
