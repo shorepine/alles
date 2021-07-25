@@ -28,6 +28,7 @@ uint32_t udp_message_counter = 0;
 int64_t last_ping_time = PING_TIME_MS; // do the first ping at 10s in to wait for other synths to announce themselves
 
 
+// Gets the first non-localhost IP address if the user did not specify one on the commandline.
 int get_first_ip_address(char *host) {
 	struct ifaddrs *ifaddr, *ifa;
     int s;
@@ -64,11 +65,11 @@ int socket_add_ipv4_multicast_group() {
     inet_pton(AF_INET, MULTICAST_IPV4_ADDR, &(imreq.imr_multiaddr.s_addr));
 
     inet_pton(AF_INET, local_ip, &(iaddr.s_addr));
-    
+
+    // Get the ipv4 "quartet" (last # of 4) and add the offset to it if one
     ipv4_quartet = ((iaddr.s_addr & 0xFF000000) >> 24) + quartet_offset;
 
     // Assign the IPv4 multicast source interface, via its IP
-    // (only necessary if this socket is IPV4 only)
     err = setsockopt(sock, IPPROTO_IP, IP_MULTICAST_IF, &iaddr,
                      sizeof(struct in_addr));
     if (err < 0) {
@@ -194,7 +195,6 @@ void *mcast_listen_task(void *vargp) {
                 break;
             }
             else if (s > 0) {
-            	//printf("got s = %d\n", s);
                 if (FD_ISSET(sock, &rfds)) {
                     // Incoming UDP packet received
                     // Turn on the CPU monitor to see how long parsing takes
@@ -221,9 +221,7 @@ void *mcast_listen_task(void *vargp) {
                         }
                     }
                 }
-            } else {
-   	            //printf("nothing yet\n");
-            }
+            } 
             // Do a ping every so often
             int64_t sysclock = get_sysclock();
             if(sysclock > (last_ping_time+PING_TIME_MS)) {

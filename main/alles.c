@@ -320,21 +320,29 @@ void app_main() {
     gpio_set_level(CPU_MONITOR_1, 0); // use 1 for the rendering loop 
     gpio_set_level(CPU_MONITOR_2, 0); // use 2 for whatever you want 
 
-    check_init(&sync_init, "syc"); 
+    check_init(&sync_init, "sync"); 
     check_init(&setup_i2s, "i2s");
     esp_amy_init();
     check_init(&buttons_init, "buttons"); // only one button for the protoboard, 4 for the blinkinlabs
 
     wifi_manager_start();
     wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &wifi_connected);
+
     // Wait for wifi to connect
-    while(!(status & WIFI_MANAGER_OK)) {
+    while((!(status & WIFI_MANAGER_OK) && (status & RUNNING) )) {
         delay_ms(1000);
         wifi_tone();
-    };
+    }
+
+    // We check for RUNNING as someone could have pressed power already
+    if(!(status & RUNNING)) {
+        // shut down
+        esp_sleep_enable_ext1_wakeup((1ULL<<BUTTON_WAKEUP),ESP_EXT1_WAKEUP_ALL_LOW);
+        esp_deep_sleep_start();
+    }
+
     delay_ms(500);
     reset_oscs();
-
 
     create_multicast_ipv4_socket();
 
