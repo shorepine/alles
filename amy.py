@@ -6,7 +6,6 @@ import libamy
 import numpy as np
 
 #TODO , generate these from amy.h when compiling
-LATENCY_MS = 10
 BLOCK_SIZE = 128
 SAMPLE_RATE = 44100.0
 OSCS = 64
@@ -116,15 +115,14 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, fe
     if(eq_m>=0): m = m + "y" + trunc(eq_m)
     if(eq_h>=0): m = m + "z" + trunc(eq_h)
     if(filter_type>=0): m = m + "G" + trunc(filter_type)
-    print(m)
     if(buffer_size > 0):
         if(len(send_buffer + m + '\n') > buffer_size):
-            transmit(send_buffer)
+            transmit(send_buffer, retries=retries)
             send_buffer = m + '\n'
         else:
             send_buffer = send_buffer + m + '\n'
     else:
-        transmit(m+'\n')
+        transmit(m+'\n',retries=retries)
 
 
 

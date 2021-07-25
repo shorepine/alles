@@ -123,7 +123,7 @@ def sweep(speed=0.100, res=0.5, loops = -1):
     An example drum machine using osc+PCM presets
 """
 def drums(bpm=120, loops=-1, **kwargs):
-    preset(13, osc=0, **kwargs) # sine bass drum
+    preset(13, osc=0, **kwargs) # sample bass drum
     preset(8, osc=3, **kwargs) # sample hat
     preset(9, osc=4, **kwargs) # sample cow
     preset(10, osc=5, **kwargs) # sample hi cow

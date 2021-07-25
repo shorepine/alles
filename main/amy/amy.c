@@ -822,7 +822,7 @@ void parse_task() {
     }
     length = new_length;
 
-    fprintf(stderr,"received message ###%s### len %d\n", message, length);
+    //fprintf(stderr,"received message ###%s### len %d\n", message, length);
 
     while(c < length+1) {
         uint8_t b = message[c];

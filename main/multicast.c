@@ -213,7 +213,6 @@ void mcast_listen_task(void *pvParameters) {
                         break;
                     }
                     udp_message[full_message_length] = 0;
-                    printf("got message %s len %d\n", udp_message, full_message_length);
                     uint16_t start = 0;
                     // Break the packet up into messages (delimited by \n.)
                     for(uint16_t i=0;i<full_message_length;i++) {
