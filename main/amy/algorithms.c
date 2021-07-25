@@ -131,7 +131,7 @@ void algo_setup_patch(uint8_t osc) {
     }
     if(p.lfo_target > 0) {
         synth[osc].mod_target = p.lfo_target;
-        synth[osc+MAX_ALGO_OPS+1].freq = p.lfo_freq;
+        synth[osc+MAX_ALGO_OPS+1].freq = p.lfo_freq * time_ratio;
         synth[osc+MAX_ALGO_OPS+1].wave = p.lfo_wave;
         synth[osc+MAX_ALGO_OPS+1].status = IS_MOD_SOURCE;
         synth[osc+MAX_ALGO_OPS+1].amp = p.lfo_amp;

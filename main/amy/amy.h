@@ -12,7 +12,7 @@
 
 // Constants you can change if you want
 #define OSCS 64              // # of simultaneous oscs to keep track of 
-#define BLOCK_SIZE 128       // buffer block size in samples
+#define BLOCK_SIZE 256       // buffer block size in samples
 #if defined(ESP_PLATFORM) || defined(DESKTOP_PLATFORM)
 #define LATENCY_MS 1000      // fixed latency in milliseconds
 #define EVENT_FIFO_LEN 3000  // number of events the queue can store
@@ -28,9 +28,7 @@
 #define MAX_BREAKPOINTS 8
 #define MAX_BREAKPOINT_SETS 3
 #define THREAD_USLEEP 500
-// buffering for i2s
 #define BYTES_PER_SAMPLE 2
-#define I2S_BUFFERS 4
 
 // This can be 32 bit, int32_t -- helpful for digital output to a i2s->USB teensy3 board
 #define I2S_SAMPLE_TYPE I2S_BITS_PER_SAMPLE_16BIT

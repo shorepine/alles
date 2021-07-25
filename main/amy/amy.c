@@ -33,7 +33,7 @@ float per_osc_fb[BLOCK_SIZE];
 // block -- what gets sent to the DAC -- -32768...32767 (wave file, int16 LE)
 i2s_sample_type * block;
 // double buffered blocks
-i2s_sample_type * dbl_block[I2S_BUFFERS];
+//i2s_sample_type * dbl_block[I2S_BUFFERS];
 int64_t total_samples;
 uint32_t event_counter ;
 uint32_t message_counter ;
@@ -279,8 +279,9 @@ int8_t oscs_init() {
     events = (struct delta*)malloc(sizeof(struct delta) * EVENT_FIFO_LEN);
     synth = (struct event*) malloc(sizeof(struct event) * OSCS);
     msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * OSCS);
-    for(uint8_t i=0;i<I2S_BUFFERS;i++) dbl_block[i] = (i2s_sample_type *) malloc(sizeof(i2s_sample_type) * BLOCK_SIZE);
-    block = dbl_block[0];
+    //for(uint8_t i=0;i<I2S_BUFFERS;i++) 
+    block = (i2s_sample_type *) malloc(sizeof(i2s_sample_type) * BLOCK_SIZE);
+    //block = dbl_block[0];
     // Set all oscillators to their default values
     reset_oscs();
 
@@ -356,7 +357,8 @@ void show_debug(uint8_t type) {
 
    
 void oscs_deinit() {
-    for(uint8_t i=0;i<I2S_BUFFERS;i++) free(dbl_block[i]); 
+    //for(uint8_t i=0;i<I2S_BUFFERS;i++) free(dbl_block[i]); 
+    free(block);
     free(fbl[0]);
     free(fbl[1]);
     free(fbl);
@@ -466,6 +468,8 @@ void play_event(struct delta d) {
             // osc note off, start release
             synth[d.osc].note_on_clock = -1;
             synth[d.osc].note_off_clock = total_samples; // esp_timer_get_time() / 1000;
+            synth[d.osc].amp = 0;
+            synth[d.osc].status = OFF;
         }
     }
 
@@ -677,7 +681,7 @@ int16_t * fill_audio_buffer_task() {
 #ifdef ESP_PLATFORM
     // Give the mutex back
     xSemaphoreGive(xQueueSemaphore);
-    gpio_set_level(CPU_MONITOR_1, 1);
+    //gpio_set_level(CPU_MONITOR_1, 1);
     // Tell the rendering threads to start rendering
     xTaskNotifyGive(renderTask[0]);
     xTaskNotifyGive(renderTask[1]);
@@ -689,15 +693,18 @@ int16_t * fill_audio_buffer_task() {
     render_task(0, OSCS, 0);        
 #endif
 
+/*
     for(uint8_t i=0;i<I2S_BUFFERS;i++) {
         if(block == dbl_block[i]) { 
             block = dbl_block[(i+1) % I2S_BUFFERS];
             i = I2S_BUFFERS + 1;
         }
     }
+  */  
 
     // Global volume is supposed to max out at 10, so scale by 0.1.
     float volume_scale = 0.1 * global.volume;
+    //uint8_t nonzero = 0;
     for(int16_t i=0; i < BLOCK_SIZE; ++i) {
         // Mix all the oscillator buffers into one
         float fsample = volume_scale * (fbl[0][i] + fbl[1][i]) * 32767.0;
@@ -727,10 +734,12 @@ int16_t * fill_audio_buffer_task() {
 #ifdef ESP_PLATFORM
         // ESP32's i2s driver has this bug
         block[i ^ 0x01] = sample;
+        //if(sample != 0) nonzero = 1;
 #else
         block[i] = sample;
 #endif
     }
+    //if(nonzero) printf("nonzero\n");
     total_samples += BLOCK_SIZE;
     return block;
 }

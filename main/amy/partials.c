@@ -66,6 +66,10 @@ void render_partials(float *buf, uint8_t osc) {
             if(ms_since_started >= pb.ms_offset ) {
                 // set up this oscillator
                 uint8_t o = (pb.osc + 1 + osc) % OSCS; // just in case
+    
+                #ifdef ESP_PLATFORM
+                    if(o % 2) o = o + 32; // scale
+                #endif
                 //printf("[%d %d] new pb: %d %d %f %f %f\n", total_samples, ms_since_started, pb.osc, pb.ms_offset, pb.amp, pb.freq, pb.phase);
 
                 // Find our ratio using the midi note of the analyzed partial

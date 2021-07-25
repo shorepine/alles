@@ -57,14 +57,14 @@ void esp_render_task() {
 void esp_fill_audio_buffer_task() {
     while(1) {
         int16_t *block = fill_audio_buffer_task();
-        gpio_set_level(CPU_MONITOR_1, 0);
-        gpio_set_level(CPU_MONITOR_2, 1);
+        //gpio_set_level(CPU_MONITOR_1, 0);
+        //gpio_set_level(CPU_MONITOR_2, 1);
         size_t written = 0;
         i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * BYTES_PER_SAMPLE, &written, portMAX_DELAY);
         if(written != BLOCK_SIZE*BYTES_PER_SAMPLE) {
             printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*BYTES_PER_SAMPLE);
         }
-        gpio_set_level(CPU_MONITOR_2, 0);
+        //gpio_set_level(CPU_MONITOR_2, 0);
     }
 }
 
@@ -145,8 +145,6 @@ void esp_show_debug(uint8_t type) {
     message_counter = 0;
     vPortFree(pxTaskStatusArray);
 
-    // Now call the AMY show debug too if asked
-    if(type>1) show_debug(type);
 }
 
    
@@ -161,8 +159,8 @@ amy_err_t setup_i2s(void) {
          .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
          .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_STAND_I2S),
          .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1, // high interrupt priority
-         .dma_buf_count = I2S_BUFFERS,
-         .dma_buf_len = BLOCK_SIZE*BYTES_PER_SAMPLE
+         .dma_buf_count = 32, //I2S_BUFFERS,
+         .dma_buf_len = BLOCK_SIZE,
         };
         
     i2s_pin_config_t pin_config = {
