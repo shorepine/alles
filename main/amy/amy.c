@@ -535,13 +535,9 @@ void render_task(uint8_t start, uint8_t end, uint8_t core) {
     }
 }
 
-// TODO -- maybe just use total_samples on both platforms 
+// On all platforms, sysclock is based on total samples played, using audio out (i2s or etc) as system clock
 int64_t get_sysclock() {
-#ifdef ESP_PLATFORM
-    return esp_timer_get_time() / 1000;
-#else
     return (total_samples / (float)SAMPLE_RATE) * 1000;
-#endif
 }
 
 
@@ -680,6 +676,7 @@ int16_t * fill_audio_buffer_task() {
 #ifdef ESP_PLATFORM
     // Give the mutex back
     xSemaphoreGive(xQueueSemaphore);
+
     //gpio_set_level(CPU_MONITOR_1, 1);
     // Tell the rendering threads to start rendering
     xTaskNotifyGive(renderTask[0]);
@@ -691,15 +688,6 @@ int16_t * fill_audio_buffer_task() {
 #else
     render_task(0, OSCS, 0);        
 #endif
-
-/*
-    for(uint8_t i=0;i<I2S_BUFFERS;i++) {
-        if(block == dbl_block[i]) { 
-            block = dbl_block[(i+1) % I2S_BUFFERS];
-            i = I2S_BUFFERS + 1;
-        }
-    }
-    */
 
     // Global volume is supposed to max out at 10, so scale by 0.1.
     float volume_scale = 0.1 * global.volume;
@@ -733,12 +721,10 @@ int16_t * fill_audio_buffer_task() {
 #ifdef ESP_PLATFORM
         // ESP32's i2s driver has this bug
         block[i ^ 0x01] = sample;
-        //if(sample != 0) nonzero = 1;
 #else
         block[i] = sample;
 #endif
     }
-    //if(nonzero) printf("nonzero\n");
     total_samples += BLOCK_SIZE;
     return block;
 }

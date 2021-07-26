@@ -27,7 +27,7 @@ void update_map(uint8_t client, uint8_t ipv4, int64_t time) {
 
     //printf("[%d %d] Got a sync response client %d ipv4 %d time %lld\n",  ipv4_quartet, client_id, client , ipv4, time);
     clocks[ipv4] = time;
-    int64_t my_sysclock = get_sysclock() + 1; // we add one here to avoid local race conditions
+    int64_t my_sysclock = get_sysclock();
     ping_times[ipv4] = my_sysclock;
 
     // Now I basically see what index I would be in the list of booted synths (clocks[i] > 0)
@@ -46,9 +46,14 @@ void update_map(uint8_t client, uint8_t ipv4, int64_t time) {
                 clocks[i] = 0;
                 ping_times[i] = 0;
             }
-            // predicted time is what we think the alive node should be at by now
-            int64_t predicted_time = (my_sysclock - ping_times[i]) + clocks[i];
- 	        if(my_sysclock > predicted_time) my_new_client_id--;
+            // If this is not me....
+            if(i != ipv4_quartet) {
+                // predicted time is what we think the alive node should be at by now
+                int64_t predicted_time = (my_sysclock - ping_times[i]) + clocks[i];
+ 	            if(my_sysclock >= predicted_time) my_new_client_id--;
+            } else {
+                my_new_client_id--;
+            }
         } else {
         	// if clocks[] is 0, no need to check
         	my_new_client_id--;

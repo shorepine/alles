@@ -117,7 +117,7 @@ void algo_note_off(uint8_t osc) {
 }
 
 void algo_setup_patch(uint8_t osc) {
-    algorithms_parameters_t p = fm_patches[synth[osc].patch];
+    algorithms_parameters_t p = fm_patches[synth[osc].patch % ALGO_PATCHES];
     synth[osc].algorithm = p.algo;
     synth[osc].feedback = p.feedback;
     synth[osc].breakpoint_target[1] = TARGET_FREQ+TARGET_LINEAR;

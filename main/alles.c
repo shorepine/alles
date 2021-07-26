@@ -38,7 +38,6 @@ extern uint32_t message_counter;
 
 
 // Wrap AMY's renderer into 2 FreeRTOS tasks, one per core
-
 void esp_render_task( void * pvParameters) {
     uint8_t which = *((uint8_t *)pvParameters);
     uint8_t start, end;
@@ -47,9 +46,7 @@ void esp_render_task( void * pvParameters) {
     } else {
         start = (OSCS/2); end = OSCS; 
     }
-    
-    //start = 0; end = OSCS;
-    printf("I'm renderer #%d and i'm handling oscs %d up until %d\n", which, start, end);
+    printf("I'm renderer #%d on core #%d and i'm handling oscs %d up until %d\n", which, xPortGetCoreID(), start, end);
     while(1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         render_task(start, end, which);
@@ -62,14 +59,11 @@ void esp_render_task( void * pvParameters) {
 void esp_fill_audio_buffer_task() {
     while(1) {
         int16_t *block = fill_audio_buffer_task();
-        //gpio_set_level(CPU_MONITOR_1, 0);
-        //gpio_set_level(CPU_MONITOR_2, 1);
         size_t written = 0;
         i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * BYTES_PER_SAMPLE, &written, portMAX_DELAY); 
         if(written != BLOCK_SIZE*BYTES_PER_SAMPLE) {
             printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*BYTES_PER_SAMPLE);
         }
-        //gpio_set_level(CPU_MONITOR_2, 0);
     }
 }
 
@@ -166,8 +160,8 @@ amy_err_t setup_i2s(void) {
          .bits_per_sample = I2S_SAMPLE_TYPE,
          .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
          .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_STAND_I2S),
-         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL3, //ESP_INTR_FLAG_LEVEL1, // high interrupt priority
-         .dma_buf_count = 8, //I2S_BUFFERS,
+         .intr_alloc_flags = 0, //ESP_INTR_FLAG_LEVEL1, // high interrupt priority
+         .dma_buf_count = 2, //I2S_BUFFERS,
          .dma_buf_len = 1024, //BLOCK_SIZE * BYTES_PER_SAMPLE,
          .tx_desc_auto_clear = true,
         };
@@ -272,6 +266,7 @@ void power_monitor() {
 
     printf(buf);
     */
+    
     battery_mask = 0;
 
     switch(power_status.charge_status) {
@@ -314,8 +309,10 @@ void app_main() {
         xTimerStart(power_monitor_timer, 0);
 
     }
-    // Setup GPIO outputs for watching CPU usage
 
+    // TODO: one of these interferes with the power monitor, not a big deal, we don't use both at once
+    // Setup GPIO outputs for watching CPU usage
+    /*
     const gpio_config_t out_conf = {
          .mode = GPIO_MODE_OUTPUT,            
          .pin_bit_mask = (1ULL<<CPU_MONITOR_0) | (1ULL<<CPU_MONITOR_1) | (1ULL<<CPU_MONITOR_2),
@@ -326,6 +323,7 @@ void app_main() {
     gpio_set_level(CPU_MONITOR_0, 0); // use 0 as ground for the scope 
     gpio_set_level(CPU_MONITOR_1, 0); // use 1 for the rendering loop 
     gpio_set_level(CPU_MONITOR_2, 0); // use 2 for whatever you want 
+    */
 
     check_init(&sync_init, "sync"); 
     check_init(&setup_i2s, "i2s");
@@ -344,6 +342,8 @@ void app_main() {
     // We check for RUNNING as someone could have pressed power already
     if(!(status & RUNNING)) {
         // shut down
+        debleep();
+        delay_ms(500);
         esp_sleep_enable_ext1_wakeup((1ULL<<BUTTON_WAKEUP),ESP_EXT1_WAKEUP_ALL_LOW);
         esp_deep_sleep_start();
     }

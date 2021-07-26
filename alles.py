@@ -136,7 +136,7 @@ def drums(bpm=120, loops=-1, **kwargs):
         loops = loops - 1
         for i,x in enumerate(pattern):
             if(x & bass): 
-                amy.note_on(osc=0, note=38, vel=2.5, **kwargs)
+                amy.note_on(osc=0, vel=4, **kwargs)
             if(x & snare):
                 amy.note_on(osc=2, vel=1.5)
             if(x & hat): 

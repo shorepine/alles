@@ -13,8 +13,12 @@
 // Constants you can change if you want
 #define OSCS 64              // # of simultaneous oscs to keep track of 
 #define BLOCK_SIZE 256       // buffer block size in samples
-#if defined(ESP_PLATFORM) || defined(DESKTOP_PLATFORM)
+#if defined(ESP_PLATFORM) 
 #define LATENCY_MS 1000      // fixed latency in milliseconds
+#define EVENT_FIFO_LEN 3000  // number of events the queue can store
+#define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
+#elif defined(DESKTOP_PLATFORM)
+#define LATENCY_MS 1000      
 #define EVENT_FIFO_LEN 3000  // number of events the queue can store
 #define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
 #else
@@ -31,7 +35,6 @@
 #define BYTES_PER_SAMPLE 2
 
 // This can be 32 bit, int32_t -- helpful for digital output to a i2s->USB teensy3 board
-//#define I2S_BUFFERS 8
 #define I2S_SAMPLE_TYPE I2S_BITS_PER_SAMPLE_16BIT
 typedef int16_t i2s_sample_type;
 
