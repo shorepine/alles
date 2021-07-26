@@ -29,7 +29,7 @@ struct event * synth;
 struct mod_event * msynth;
 
 float ** fbl;
-float per_osc_fb[BLOCK_SIZE];
+float per_osc_fb[2][BLOCK_SIZE];
 // block -- what gets sent to the DAC -- -32768...32767 (wave file, int16 LE)
 i2s_sample_type * block;
 // double buffered blocks
@@ -508,26 +508,26 @@ void hold_and_modify(uint8_t osc) {
 
 
 void render_task(uint8_t start, uint8_t end, uint8_t core) {
-    for(uint16_t i=0;i<BLOCK_SIZE;i++) { fbl[core][i] = 0; per_osc_fb[i] = 0; }
+    for(uint16_t i=0;i<BLOCK_SIZE;i++) { fbl[core][i] = 0; per_osc_fb[core][i] = 0; }
     for(uint8_t osc=start; osc<end; osc++) {
         if(synth[osc].status==AUDIBLE) { // skip oscs that are silent or mod sources from playback
-            for(uint16_t i=0;i<BLOCK_SIZE;i++) { per_osc_fb[i] = 0; }
+            for(uint16_t i=0;i<BLOCK_SIZE;i++) { per_osc_fb[core][i] = 0; }
             hold_and_modify(osc); // apply bp / mod
-            if(synth[osc].wave == NOISE) render_noise(per_osc_fb, osc);
-            if(synth[osc].wave == SAW) render_saw(per_osc_fb, osc);
-            if(synth[osc].wave == PULSE) render_pulse(per_osc_fb, osc);
-            if(synth[osc].wave == TRIANGLE) render_triangle(per_osc_fb, osc);
-            if(synth[osc].wave == SINE) render_sine(per_osc_fb, osc);
-            if(synth[osc].wave == KS) render_ks(per_osc_fb, osc);
-            if(synth[osc].wave == PCM) render_pcm(per_osc_fb, osc);
-            if(synth[osc].wave == ALGO) render_algo(per_osc_fb, osc);
-            if(synth[osc].wave == PARTIAL) render_partial(per_osc_fb, osc);
-            if(synth[osc].wave == PARTIALS) render_partials(per_osc_fb, osc);
+            if(synth[osc].wave == NOISE) render_noise(per_osc_fb[core], osc);
+            if(synth[osc].wave == SAW) render_saw(per_osc_fb[core], osc);
+            if(synth[osc].wave == PULSE) render_pulse(per_osc_fb[core], osc);
+            if(synth[osc].wave == TRIANGLE) render_triangle(per_osc_fb[core], osc);
+            if(synth[osc].wave == SINE) render_sine(per_osc_fb[core], osc);
+            if(synth[osc].wave == KS) render_ks(per_osc_fb[core], osc);
+            if(synth[osc].wave == PCM) render_pcm(per_osc_fb[core], osc);
+            if(synth[osc].wave == ALGO) render_algo(per_osc_fb[core], osc);
+            if(synth[osc].wave == PARTIAL) render_partial(per_osc_fb[core], osc);
+            if(synth[osc].wave == PARTIALS) render_partials(per_osc_fb[core], osc);
             // Check it's not off, just in case. TODO, why do i care?
             if(synth[osc].wave != OFF) {
                 // Apply filter to osc if set
-                if(synth[osc].filter_type != FILTER_NONE) filter_process(per_osc_fb, osc);
-                for(uint16_t i=0;i<BLOCK_SIZE;i++) { fbl[core][i] += per_osc_fb[i]; }
+                if(synth[osc].filter_type != FILTER_NONE) filter_process(per_osc_fb[core], osc);
+                for(uint16_t i=0;i<BLOCK_SIZE;i++) { fbl[core][i] += per_osc_fb[core][i]; }
             }
         }
         // apply the EQ filters if set
@@ -677,7 +677,6 @@ int16_t * fill_audio_buffer_task() {
         global.event_qsize--;
         global.event_start = global.event_start->next;
     }
-
 #ifdef ESP_PLATFORM
     // Give the mutex back
     xSemaphoreGive(xQueueSemaphore);

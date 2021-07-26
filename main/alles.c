@@ -38,20 +38,25 @@ extern uint32_t message_counter;
 
 
 // Wrap AMY's renderer into 2 FreeRTOS tasks, one per core
-void esp_render_task() {
+
+void esp_render_task( void * pvParameters) {
+    uint8_t which = *((uint8_t *)pvParameters);
     uint8_t start, end;
-    if(xPortGetCoreID() == 0) {
+    if(which == 0) {
         start = 0; end = (OSCS/2);
     } else {
         start = (OSCS/2); end = OSCS; 
     }
-    printf("I'm rendering on core %d and i'm handling oscs %d up until %d\n", xPortGetCoreID(), start, end);
+    
+    //start = 0; end = OSCS;
+    printf("I'm renderer #%d and i'm handling oscs %d up until %d\n", which, start, end);
     while(1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        render_task(start, end, xPortGetCoreID());
+        render_task(start, end, which);
         xTaskNotifyGive(fillbufferTask);
     }
 }
+
 
 // Make AMY's FABT run forever , as a FreeRTOS task 
 void esp_fill_audio_buffer_task() {
@@ -60,7 +65,7 @@ void esp_fill_audio_buffer_task() {
         //gpio_set_level(CPU_MONITOR_1, 0);
         //gpio_set_level(CPU_MONITOR_2, 1);
         size_t written = 0;
-        i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * BYTES_PER_SAMPLE, &written, portMAX_DELAY);
+        i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * BYTES_PER_SAMPLE, &written, portMAX_DELAY); 
         if(written != BLOCK_SIZE*BYTES_PER_SAMPLE) {
             printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*BYTES_PER_SAMPLE);
         }
@@ -85,8 +90,10 @@ amy_err_t esp_amy_init() {
     xQueueSemaphore = xSemaphoreCreateMutex();
 
     // Create rendering threads, one per core so we can deal with dan ellis float math
-    xTaskCreatePinnedToCore(&esp_render_task, "render_task0", 4096, NULL, 4, &renderTask[0], 0);
-    xTaskCreatePinnedToCore(&esp_render_task, "render_task1", 4096, NULL, 4, &renderTask[1], 1);
+    static uint8_t zero = 0;
+    static uint8_t one = 1;
+    xTaskCreatePinnedToCore(&esp_render_task, "render_task0", 4096, &zero, 4, &renderTask[0], 0);
+    xTaskCreatePinnedToCore(&esp_render_task, "render_task1", 4096, &one, 4, &renderTask[1], 1);
 
     // Wait for the render tasks to get going before starting the i2s task
     delay_ms(100);
@@ -114,6 +121,7 @@ void esp_show_debug(uint8_t type) {
     TaskStatus_t xTaskDetails;
     // We have to check for the names we want to track
     for(i=0;i<MAX_TASKS;i++) { // for each name
+        counter_since_last[i] = 0;
         for(x=0; x<uxArraySize; x++) { // for each task
             if(strcmp(pxTaskStatusArray[x].pcTaskName, tasks[i])==0) {
                 counter_since_last[i] = pxTaskStatusArray[x].ulRunTimeCounter - last_task_counters[i];
@@ -158,9 +166,10 @@ amy_err_t setup_i2s(void) {
          .bits_per_sample = I2S_SAMPLE_TYPE,
          .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
          .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_STAND_I2S),
-         .intr_alloc_flags = 0, //ESP_INTR_FLAG_LEVEL1, // high interrupt priority
-         .dma_buf_count = 4, //I2S_BUFFERS,
-         .dma_buf_len = BLOCK_SIZE * BYTES_PER_SAMPLE * 2,
+         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL3, //ESP_INTR_FLAG_LEVEL1, // high interrupt priority
+         .dma_buf_count = 8, //I2S_BUFFERS,
+         .dma_buf_len = 1024, //BLOCK_SIZE * BYTES_PER_SAMPLE,
+         .tx_desc_auto_clear = true,
         };
         
     i2s_pin_config_t pin_config = {
@@ -345,7 +354,6 @@ void app_main() {
     create_multicast_ipv4_socket();
 
     // Create the task that waits for UDP messages, parses them and puts them on the sequencer queue (core 1)
-
     xTaskCreatePinnedToCore(&esp_parse_task, "parse_task", 4096, NULL, 2, &parseTask, 0);
     // Create the task that listens fro new incoming UDP messages (core 2)
     xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 3, &mcastTask, 1);
@@ -356,6 +364,7 @@ void app_main() {
     // Spin this core until the power off button is pressed, parsing events and making sounds
     while(status & RUNNING) {
         delay_ms(10);
+
     }
 
     // If we got here, the power off button was pressed 
@@ -367,7 +376,8 @@ void app_main() {
     delay_ms(500);
 
     // Stop mulitcast listening, wifi, midi
-    vTaskDelete(mcastTask);
+    vTaskSuspend(mcastTask);
+    vTaskSuspend(parseTask);
     esp_wifi_stop();
     if(status & MIDI_MODE) midi_deinit();
 
