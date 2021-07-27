@@ -5,13 +5,20 @@
 extern struct event default_event();
 extern void mcast_send(char * message, uint16_t len);
 
+#ifdef ESP_PLATFORM
 QueueHandle_t uart_queue;
+#endif
+
+
 uint8_t midi_osc = 0;
 #define CHANNELS 16
 uint8_t program_bank[CHANNELS];
 uint8_t program[CHANNELS];
 
-
+#ifdef MAC_MIDI
+extern void* mac_midi_run(void *varargp);
+#include <pthread.h>
+#endif
 
 // take an event and make it a string and send it to everyone!
 // This is only used for MIDI relay, so we only need to send events that MIDI parses.
@@ -40,7 +47,7 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
             uint8_t data2 = remaining_message[1];
             //printf("note on channel %d note %d velocity %d\n", channel, data1, data2);
             struct event e = default_event();
-            e.time = esp_timer_get_time() / 1000; // looks like BLE timestamp rolls over within 10s
+            e.time = get_sysclock(); // looks like BLE timestamp rolls over within 10s
             if(program_bank[channel] > 0) {
                 e.wave = ALGO;
                 //e.patch = ((program_bank[channel]-1) * 128) + program[channel];
@@ -63,7 +70,7 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
             // note off
             struct event e = default_event();
             e.velocity = 0;
-            e.time = esp_timer_get_time() / 1000;
+            e.time = get_sysclock();
             e.osc = 0;
             if(channel == 0) {
                 serialize_event(e,256);
@@ -114,7 +121,7 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
 }
 
 
-
+#ifdef ESP_PLATFORM
 void read_midi_uart() {
     printf("UART MIDI running on core %d\n", xPortGetCoreID());
     const int uart_num = UART_NUM_2;
@@ -125,6 +132,7 @@ void read_midi_uart() {
         // Sleep 5ms to wait to get more MIDI data and avoid starving other threads
         // I increased RTOS clock rate from 100hz to 500hz to go down to a 5ms delay here
         // https://www.esp32.com/viewtopic.php?t=7554
+        // TODO -- there has to be a UART get with a timeout ?? 
         delay_ms(5);
         ESP_ERROR_CHECK(uart_get_buffered_data_len(uart_num, (size_t*)&length));
         if(length) {
@@ -144,14 +152,25 @@ void read_midi_uart() {
 }
 
 TaskHandle_t read_midi_uart_task = NULL;
+#endif
+
+
 
 void midi_deinit() {
+#ifdef ESP_PLATFORM
     blemidi_deinit();
     vTaskDelete(read_midi_uart_task);
+#endif
 }
 
 void midi_init() {
     // Setup UART2 and BLE to listen for MIDI messages 
+    for(uint8_t c=0;c<CHANNELS;c++) {
+        program_bank[c] = 0;
+        program[c] = 0;
+    }
+
+#ifdef ESP_PLATFORM
     const int uart_num = UART_NUM_2;
     uart_config_t uart_config = {
         .baud_rate = 31250,
@@ -162,10 +181,6 @@ void midi_init() {
         .rx_flow_ctrl_thresh = 122,
     };
 
-    for(uint8_t c=0;c<CHANNELS;c++) {
-        program_bank[c] = 0;
-        program[c] = 0;
-    }
     // Configure UART parameters
     ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));
     // TX, RX, CTS/RTS -- Only care about RX here, pin 19 for now
@@ -184,6 +199,11 @@ void midi_init() {
     } else {
       ESP_LOGI(BLEMIDI_TAG, "BLE MIDI Driver initialized successfully");
     }
+#endif
 
+#ifdef MAC_MIDI
+    pthread_t thread_id;
+    pthread_create(&thread_id, NULL, mac_midi_run, NULL);
+#endif
 }
 

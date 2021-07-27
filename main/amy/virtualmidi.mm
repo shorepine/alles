@@ -13,23 +13,21 @@
 
 
 static CGEventSourceRef eventSource;
-static std::array<unsigned char, 16*128> control;
 
 static void NotifyProc(const MIDINotification *message, void *refCon)
 {
 }
 
-int main(int argc, const char * argv[]) {
+
+extern "C" void *mac_midi_run(void *vargp){
     @autoreleasepool {
         MIDIClientRef midi_client;
         OSStatus status = MIDIClientCreate((__bridge CFStringRef)@"VirtualAlles", NotifyProc, nullptr, &midi_client);
         if (status != noErr) {
             fprintf(stderr, "Error %d while setting up handlers\n", status);
-            return 1;
         }
         printf("OK\n");
         eventSource = CGEventSourceCreate(kCGEventSourceStatePrivate);
-        control.fill(0xFF);
         ItemCount number_sources = MIDIGetNumberOfSources();
         for (int i = 0; i < number_sources; i++) {
             MIDIEndpointRef source = MIDIGetSource(i);
@@ -61,15 +59,13 @@ int main(int argc, const char * argv[]) {
             });
             if (status != noErr) {
                 fprintf(stderr, "Error %d while setting up port\n", status);
-                return 1;
             }
             status = MIDIPortConnectSource(port, source, nullptr);
             if (status != noErr) {
                 fprintf(stderr, "Error %d while connecting port to source\n", status);
-                return 1;
             }
         }
         CFRunLoopRun();
     }
-    return 0;
+    return NULL;
 }

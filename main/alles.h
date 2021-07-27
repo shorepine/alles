@@ -106,6 +106,9 @@ extern void midi_tone();
 extern void wifi_tone();
 extern void scale(uint8_t wave);
 
+#ifdef MAC_MIDI
+extern void midi_init();
+#endif
 
 #ifdef ESP_PLATFORM
 // Button handlers
