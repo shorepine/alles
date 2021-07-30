@@ -217,8 +217,10 @@ void wifi_reconfigure() {
 
 // Called when the MIDI button is hit. Toggle between MIDI on and off mode
 void toggle_midi() {
-
-    if(status & MIDI_MODE) { 
+    if(!(status & RUNNING)) {
+        // we haven't started yet, ignore
+        printf("MIDI mode pressed but not yet started\n");
+    } else if(status & MIDI_MODE) { 
         // just restart, easier that way
         esp_restart();
     } else {
@@ -266,7 +268,7 @@ void power_monitor() {
 
     printf(buf);
     */
-    
+
     battery_mask = 0;
 
     switch(power_status.charge_status) {
@@ -339,6 +341,7 @@ void app_main() {
         wifi_tone();
     }
 
+    // TOOD -- if someone presses MIDI you then can't turn it off!!
     // We check for RUNNING as someone could have pressed power already
     if(!(status & RUNNING)) {
         // shut down
