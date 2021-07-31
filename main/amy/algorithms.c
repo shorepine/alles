@@ -116,6 +116,7 @@ void algo_note_off(uint8_t osc) {
     synth[osc].note_off_clock = total_samples;          
 }
 
+// Todo patch 7 aka 7019 does not play properly in here but plays in fm.py
 void algo_setup_patch(uint8_t osc) {
     algorithms_parameters_t p = fm_patches[synth[osc].patch % ALGO_PATCHES];
     synth[osc].algorithm = p.algo;
