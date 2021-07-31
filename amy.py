@@ -1,25 +1,15 @@
 # AMY functions
 from alles_util import get_sock, get_multicast_group
 import datetime
-import sounddevice as sd
-import libamy
-import numpy as np
 
 #TODO , generate these from amy.h when compiling
-BLOCK_SIZE = 128
+BLOCK_SIZE = 256
 SAMPLE_RATE = 44100.0
 OSCS = 64
 MAX_QUEUE = 400
 [SINE, PULSE, SAW, TRIANGLE, NOISE, KS, PCM, ALGO, PARTIAL, PARTIALS, OFF] = range(11)
 TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE, TARGET_FEEDBACK, TARGET_LINEAR = (1, 2, 4, 8, 16, 32, 64)
 FILTER_NONE, FILTER_LPF, FILTER_BPF, FILTER_HPF = range(4)
-
-
-stream = None
-is_local = False
-is_immediate = False
-sd.default.samplerate = SAMPLE_RATE
-sd.default.channels = 1
 
 
 def millis():
@@ -77,12 +67,10 @@ def trunc(number):
 def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, bp0="", bp1="", bp2="", bp0_target=-1, bp1_target=-1, bp2_target=-1, lfo_target=-1, \
         debug=-1, lfo_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, detune = -1, algo_source=None):
-    global send_buffer, buffer_size, is_immediate
+    global send_buffer, buffer_size
     m = ""
-    #if(osc>0): return # debug
-    if(not immediate()):
-        if(timestamp is None): timestamp = millis()
-        m = m + "t" + trunc(timestamp)
+    if(timestamp is None): timestamp = millis()
+    m = m + "t" + trunc(timestamp)
     if(osc>=0): m = m + "v" + trunc(osc)
     if(wave>=0): m = m + "w" + trunc(wave)
     if(duty>=0): m = m + "d" + trunc(duty)
@@ -128,13 +116,6 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, fe
 
 
 
-def local():
-	global is_local
-	return is_local
-
-def immediate():
-	global is_immediate
-	return is_immediate	
 
 
 def spec(data):
@@ -146,6 +127,7 @@ def spec(data):
 
 def show(data):
     import matplotlib.pyplot as plt
+    import numpy as np
     fftsize = len(data)
     windowlength = fftsize
     window = np.hanning(windowlength)
@@ -163,14 +145,18 @@ def show(data):
 
 def write(data, filename):
     import scipy.io.wavfile as wav
+    import numpy as np
     """Write a waveform to a WAV file."""
     print(str(data.shape))
     wav.write(filename, int(SAMPLE_RATE), (32768.0 * data).astype(np.int16))
 
 def play(samples):
+    import sounddevice as sd
     sd.play(samples)
 
 def render(seconds):
+    import numpy as np
+    import libamy
     # Output a npy array of samples
     frame_count = int((seconds*SAMPLE_RATE)/BLOCK_SIZE)
     frames = []
@@ -178,31 +164,38 @@ def render(seconds):
         frames.append( np.array(libamy.render())/32767.0 )
     return np.hstack(frames)
 
-def start(immediate=True):
-    global is_local, is_immediate
-    if(is_local):
+is_local = False
+def local(what=None):
+    global is_local
+    if(what is not None):
+        is_local = what
+    return is_local
+
+# Starts AMY in local mode -- for debugging 
+def start():
+    import libamy
+    stream = None
+    if(local()):
         print("Already started AMY")
     else:
-        # Set immediate until live is started
-        is_local = True
-        is_immediate = immediate
+        local(what=True)
         libamy.start()
 
 def stop():
-    global is_local, is_immediate
-    if(not is_local):
+    import libamy
+    if(not local()):
         print("AMY not running")
     else:
         libamy.stop()
-        is_local = False
-        is_immediate = False
-
+        local(what=False)
 
 def live():
-    global stream, is_immediate
+    import libamy
     start()
     libamy.live()
 
 def pause():
+    import libamy
     libamy.pause()
     stop()
+
