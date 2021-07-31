@@ -54,7 +54,7 @@ def setup_patch(p):
         opbp = "%d,%f,%d,%f,%d,%f,%d,%f" % (
             bp_times[0], bp_rates[0], bp_times[1], bp_rates[1], bp_times[2], bp_rates[2], bp_times[3], bp_rates[3]
         )
-        #print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
+        print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
         if(freq>=0):
             amy.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR,bp0=opbp, bp1=pitchbp, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR, amp=op["opamp"], detune=op["detunehz"])
         else:
@@ -74,8 +74,8 @@ def setup_patch(p):
     if(lfo_target>0):
         amy.send(osc=7, wave=p["lfowaveform"],freq=p["lfospeed"], amp=lfo_amp)
         amy.send(osc=6,lfo_target=lfo_target, lfo_source=7)
-        #print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
-    #print("osc 6 (main)  algo %d feedback %f pitchenv %s" % ( p["algo"], p["feedback"], pitchbp))
+        print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
+    print("osc 6 (main)  algo %d feedback %f pitchenv %s" % ( p["algo"], p["feedback"], pitchbp))
     amy.send(osc=6, wave=amy.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", bp1=pitchbp, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR)
 
 # spit out all the params of a patch for a header file
@@ -361,7 +361,7 @@ def decode_patch(p):
 
 	(patch["bp_pitch_rates"], patch["bp_pitch_times"]) = eg_to_bp_pitch([x for x in p[c:c+4]], [x for x in p[c+4:c+8]])
 	c = c + 8
-	patch["algo"] = p[c]-1 # ours start at 0
+	patch["algo"] = p[c] # ours start at 0
 	c = c + 1
 	patch["feedback"] = p[c]/28.0
 	c = c + 1
