@@ -39,7 +39,15 @@ If this doesn't seem to work, try again by hitting the WiFi button (-) and the p
 ## Control Alles
 
 
-### Additive synthesis and you 
+
+### Simple examples
+
+
+### Multiple speakers
+
+
+
+### Additive synthesis 
 
 
 ### Fun with frequency modulation
@@ -67,12 +75,43 @@ Ok, we've set up the oscillators. Now, let's hear it!
 
 You should hear a bell-like tone. Nice.
 
+Another classic two operator tone is to instead modulate the higher tone with the lower one, to make a filter sweep:
+
+```
+amy.reset()
+amy.send(osc=0,ratio=0.2,amp=0.5,bp0_target=amy.TARGET_AMP,bp0="0,0,5000,1,0,0")
+amy.send(osc=1,ratio=1)
+amy.send(osc=2,algorithm=0,wave=amy.ALGO,algo_source="-1,-1,-1,-1,0,1")
+```
+
+Then play it with 
+
+```
+amy.send(osc=2,vel=2,note=50)
+```
+
+Nice. I also like modulating the frequency of the modulator a bit using a breakpoint:
+
+```
+amy.send(osc=0,ratio=0.2,amp=0.5,bp0_target=amy.TARGET_AMP,bp0="0,0,5000,1,0,0",bp1_target=amy.TARGET_FREQ,bp1="0,0,5000,1,0,0")
+```
+
+You can see there's limitless ways to make interesting evolving noises. 
 
 
+```
 ## Advanced section
+
 
 ### Alles on your computer
 
+```
+python3 -- will auto-require xcode tools download on big sur 
+homebrew: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install soundio
+make
+./alles
+```
 
 ### Updating the Alles firmware
 
