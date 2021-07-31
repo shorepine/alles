@@ -109,7 +109,7 @@ struct event default_event() {
     e.eq_m = -1;
     e.eq_h = -1;
     e.algorithm = -1;
-    for(uint8_t i=0;i<MAX_ALGO_OPS;i++) e.algo_source[i] = -1;
+    for(uint8_t i=0;i<MAX_ALGO_OPS;i++) e.algo_source[i] = -2;
     for(uint8_t i=0;i<MAX_BREAKPOINT_SETS;i++) { for(uint8_t j=0;j<MAX_BREAKPOINTS;j++) { e.breakpoint_times[i][j] = -1; e.breakpoint_values[i][j] = -1; } e.breakpoint_target[i] = -1; }
     return e;
 }
@@ -196,7 +196,7 @@ void add_event(struct event e) {
     if(e.filter_type>-1) { d.param=FILTER_TYPE; d.data = *(uint32_t *)&e.filter_type; add_delta_to_queue(d); }
     if(e.algorithm>-1) { d.param=ALGORITHM; d.data = *(uint32_t *)&e.algorithm; add_delta_to_queue(d); }
     for(uint8_t i=0;i<MAX_ALGO_OPS;i++) 
-        if(e.algo_source[i]>-1) { d.param=ALGO_SOURCE_START+i; d.data = *(uint32_t *)&e.algo_source[i]; add_delta_to_queue(d); }
+        if(e.algo_source[i]>-2) { d.param=ALGO_SOURCE_START+i; d.data = *(uint32_t *)&e.algo_source[i]; add_delta_to_queue(d); }
     for(uint8_t i=0;i<MAX_BREAKPOINTS;i++) {
         if(e.breakpoint_times[0][i]>-1) { d.param=BP_START+(i*2)+(0*MAX_BREAKPOINTS*2); d.data = *(uint32_t *)&e.breakpoint_times[0][i]; add_delta_to_queue(d); }
         if(e.breakpoint_times[1][i]>-1) { d.param=BP_START+(i*2)+(1*MAX_BREAKPOINTS*2); d.data = *(uint32_t *)&e.breakpoint_times[1][i]; add_delta_to_queue(d); }
@@ -254,7 +254,7 @@ void reset_osc(uint8_t i ) {
     synth[i].lpf_alpha = 0;
     synth[i].dc_offset = 0;
     synth[i].algorithm = 0;
-    for(uint8_t j=0;j<MAX_ALGO_OPS;j++) synth[i].algo_source[j] = -1;
+    for(uint8_t j=0;j<MAX_ALGO_OPS;j++) synth[i].algo_source[j] = -2;
     for(uint8_t j=0;j<MAX_BREAKPOINT_SETS;j++) { for(uint8_t k=0;k<MAX_BREAKPOINTS;k++) { synth[i].breakpoint_times[j][k] =-1; synth[i].breakpoint_values[j][k] = -1; } synth[i].breakpoint_target[j] = 0; }
     synth[i].last_two[0] = 0;
     synth[i].last_two[1] = 0;

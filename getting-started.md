@@ -39,6 +39,35 @@ If this doesn't seem to work, try again by hitting the WiFi button (-) and the p
 ## Control Alles
 
 
+### Additive synthesis and you 
+
+
+### Fun with frequency modulation
+
+Let's make the classic FM bell tone ourselves, without a preset. We'll just be using two operators (two sine waves), one modulating the other. 
+
+```
+>>> amy.reset()
+>>> amy.send(wave=amy.SINE,ratio=0.2,amp=0.1,osc=0,bp0_target=amy.TARGET_AMP,bp0="1000,0,0,0")
+>>> amy.send(wave=amy.SINE,ratio=1,amp=1,osc=1)
+>>> amy.send(wave=amy.ALGO,algorithm=0,algo_source="-1,-1,-1,-1,1,0",osc=2)
+```
+
+Let's unpack that last line: we're setting up a ALGO "oscillator" that controls up to 6 other oscillators. We only need two, so we set the `algo_source` to mostly -1s (not used) and have oscillator 1 modulate oscillator 0. You can have the operators work with each other in all sorts of crazy ways. For this simple example, we just use the DX7 algorithm #1 (but we count from 0, so it's algorithm 0). And we'll use only operators 2 and 1. Therefore our `algo_source` lists the oscillators involved, counting backwards from 6. We're saying only have operators 2 and 1, and have oscillator 1 modulate oscillator 0. 
+
+![DX7 Algorithms](https://raw.githubusercontent.com/bwhitman/alles/master/pics/dx7_algorithms.jpg)
+
+What's going on with `ratio`? And `amp`? Ratio, for FM synthesis operators, means the ratio of the frequency for that operator and the base note. So oscillator 0 will be played a 20% of the base note, and oscillator 1 will be the frequency of the base note. And for `amp`, that's something called "beta" in FM synthesis, which describes the strength of the modulation. Note we are having beta go down over 1,000 milliseconds using a breakpoint. That's key to the "bell ringing out" effect. 
+
+Ok, we've set up the oscillators. Now, let's hear it!
+
+```
+>>> amy.send(osc=2, note=50, vel=3)
+```
+
+You should hear a bell-like tone. Nice.
+
+
 
 ## Advanced section
 
