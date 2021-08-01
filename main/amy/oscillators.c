@@ -448,7 +448,6 @@ void render_partial(float * buf, uint8_t osc) {
 }
 
 void partial_note_on(uint8_t osc) {
-    printf("partial %d note on\n", osc);
     synth[osc].lut = sine_lutable_0; //choose_from_lutset(period_samples, sine_lutset, &synth[osc].lut_size);
     synth[osc].lut_size = 256;
     if(synth[osc].phase >= 0) {
@@ -459,7 +458,6 @@ void partial_note_on(uint8_t osc) {
 }
 
 void partial_note_off(uint8_t osc) {
-    printf("partial %d note off\n", osc);
     synth[osc].substep = 2;
     synth[osc].note_on_clock = -1;
     synth[osc].note_off_clock = total_samples;   
