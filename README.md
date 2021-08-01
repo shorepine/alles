@@ -58,10 +58,10 @@ Alles can be used two ways:
 
  * **MIDI mode**, using MIDI over Bluetooth or a MIDI cable: A single Alles hardware synth can be set up as a MIDI relay, by hitting the `MIDI` (or `BOOT0 / GPIO0` on DIY Alles) button. Once in MIDI relay mode, that synth stops making its own sound and acts as a relay to the rest of the mesh. You can connect to the relay over MIDI cable (details below) or wirelessly via MIDI bluetooth, supported by most OSes. You can then control the mesh using any MIDI sequencer or DAW of your choice. You are limited to directly addressing 16 synths in this mode (vs 100s), and lose some control over fine grained parameter tuning. 
 
-In direct mode, Alles responds to [AMY commands](https://github.com/bwhitman/alles/tree/master/main/amy/README.md) commands via UDP. They are ASCII delimited by a character, each message terminated with a newline, like
+In direct mode, Alles responds to [AMY commands](https://github.com/bwhitman/alles/tree/master/main/amy/README.md) commands via UDP. They are ASCII delimited by a character, each message terminated with a Z, like
 
 ```
-v0w4f440.0l0.9\n
+v0w4f440.0l0.9Z
 ```
 
 
@@ -163,7 +163,7 @@ multicast_group = ('232.10.11.12', 3333)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 def send(oscillator=0, freq=0, vel=1):
-    sock.sendto("v%df%fl%f\n" % (oscillator, freq, vel), multicast_group)
+    sock.sendto("v%df%fl%fZ" % (oscillator, freq, vel), multicast_group)
 
 def c_major(octave=2):
     send(oscillator=0,freq=220.5*octave)

@@ -94,7 +94,7 @@ def sync(count=10, delay_ms=100):
         if((tic - last_sent) > delay_ms):
             time_sent[i] = amy.millis()
             #print ("sending %d at %d" % (i, time_sent[i]))
-            output = "s%di%d\n" % (time_sent[i], i)
+            output = "s%di%dZ" % (time_sent[i], i)
             sock.sendto(output.encode('ascii'), get_multicast_group())
             i = i + 1
             last_sent = tic

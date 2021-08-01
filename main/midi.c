@@ -25,7 +25,7 @@ extern void* mac_midi_run(void *varargp);
 void serialize_event(struct event e, uint16_t client) {
     char message[MAX_RECEIVE_LEN];
     // TODO -- patch / wave
-    sprintf(message, "c%dl%fn%dv%dt%lld", 
+    sprintf(message, "c%dl%fn%dv%dt%lldZ", 
         client, e.velocity, e.midi_note, e.osc, e.time );
     //printf("sending %s\n", message);
     mcast_send(message, strlen(message));

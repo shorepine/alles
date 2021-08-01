@@ -104,13 +104,13 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, fe
     if(eq_h>=0): m = m + "z" + trunc(eq_h)
     if(filter_type>=0): m = m + "G" + trunc(filter_type)
     if(buffer_size > 0):
-        if(len(send_buffer + m + '\n') > buffer_size):
+        if(len(send_buffer + m + 'Z') > buffer_size):
             transmit(send_buffer, retries=retries)
-            send_buffer = m + '\n'
+            send_buffer = m + 'Z'
         else:
-            send_buffer = send_buffer + m + '\n'
+            send_buffer = send_buffer + m + 'Z'
     else:
-        transmit(m+'\n',retries=retries)
+        transmit(m+'Z',retries=retries)
 
 
 

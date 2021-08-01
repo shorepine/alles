@@ -18,8 +18,8 @@ def dx7_render(patch_number, midinote, velocity, samples, keyup_sample):
 def play(patch):
     amy.reset()
     setup_patch(decode_patch(get_patch(patch)))
-    amy.send(osc=6,vel=1,note=40)
-    time.sleep(1)
+    amy.send(osc=6,vel=1,note=40,bp0_target=amy.TARGET_AMP,bp0="0,1,500,0,500,0")
+    time.sleep(0.5)
     amy.send(osc=6,vel=0)
     time.sleep(0.5)
     amy.send(osc=6,vel=1,note=50)
@@ -28,6 +28,8 @@ def play(patch):
     time.sleep(0.5)
     amy.send(osc=6,vel=1,note=52)
     time.sleep(0.5)
+    amy.send(osc=6,vel=1,note=40,bp0_target=amy.TARGET_AMP,bp0="0,1,100,0,0,0")
+    time.sleep(0.25)
     amy.send(osc=6,vel=0)
 
 def setup_patch(p):
@@ -54,7 +56,7 @@ def setup_patch(p):
         opbp = "%d,%f,%d,%f,%d,%f,%d,%f" % (
             bp_times[0], bp_rates[0], bp_times[1], bp_rates[1], bp_times[2], bp_rates[2], bp_times[3], bp_rates[3]
         )
-        print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
+        #print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
         if(freq>=0):
             amy.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR,bp0=opbp, bp1=pitchbp, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR, amp=op["opamp"], detune=op["detunehz"])
         else:
@@ -74,7 +76,7 @@ def setup_patch(p):
     if(lfo_target>0):
         amy.send(osc=7, wave=p["lfowaveform"],freq=p["lfospeed"], amp=lfo_amp)
         amy.send(osc=6,lfo_target=lfo_target, lfo_source=7)
-        print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
+        #print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
     print("osc 6 (main)  algo %d feedback %f pitchenv %s" % ( p["algo"], p["feedback"], pitchbp))
     amy.send(osc=6, wave=amy.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", bp1=pitchbp, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR)
 
@@ -363,7 +365,7 @@ def decode_patch(p):
 	c = c + 8
 	patch["algo"] = p[c] # ours start at 0
 	c = c + 1
-	patch["feedback"] = p[c]/28.0
+	patch["feedback"] = p[c]/14.0
 	c = c + 1
 	patch["oscsync"] = p[c]
 	c = c + 1

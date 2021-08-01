@@ -9,7 +9,7 @@ def preset(which,osc=0, **kwargs):
     # Reset the osc first
     amy.reset(osc=osc)
     if(which==0): # simple note
-        amy.send(osc=osc, wave=amy.SINE, bp0="10,1,250,0.7,250,0", bp0_target=amy.TARGET_AMP, **kwargs)
+        amy.send(osc=osc, wave=amy.SINE, bp0="10,1,250,0.7,500,0", bp0_target=amy.TARGET_AMP, **kwargs)
     if(which==1): # filter bass
         amy.send(osc=osc, filter_freq=2500, resonance=5, wave=amy.SAW, filter_type=amy.FILTER_LPF, bp0="100,0.5,25,0", bp0_target=amy.TARGET_AMP+amy.TARGET_FILTER_FREQ, **kwargs)
     if(which==2): # long sine pad to test ADSR

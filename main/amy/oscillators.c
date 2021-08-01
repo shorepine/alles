@@ -384,7 +384,6 @@ float compute_mod_triangle(uint8_t osc) {
 extern int64_t total_samples;
 
 
-// TODO - if wave changes from e.g. SINE, to algo, then, this will segfault looking up the LUT? why though
 
 /* FM */
 // NB this uses new lingo for step, skip, phase etc

@@ -26,7 +26,7 @@ extern "C" void *mac_midi_run(void *vargp){
         if (status != noErr) {
             fprintf(stderr, "Error %d while setting up handlers\n", status);
         }
-        printf("OK\n");
+        printf("macOS Virtual MIDI running. You can optionally connect to IAC to control the mesh from this host.\n");
         eventSource = CGEventSourceCreate(kCGEventSourceStatePrivate);
         ItemCount number_sources = MIDIGetNumberOfSources();
         for (int i = 0; i < number_sources; i++) {

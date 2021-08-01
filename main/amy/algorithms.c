@@ -107,13 +107,8 @@ void algo_note_off(uint8_t osc) {
     for(uint8_t i=0;i<MAX_ALGO_OPS;i++) {
         if(synth[osc].algo_source[i] >=0 ) {
             uint8_t o = synth[osc].algo_source[i];
-            uint8_t bp = 0;
-            for(uint8_t j=0;j<MAX_BREAKPOINTS;j++) {
-                if(synth[o].breakpoint_target[j] == TARGET_AMP) bp = 1;
-            }
             synth[o].note_on_clock = -1;
             synth[o].note_off_clock = total_samples; 
-            if(!bp) synth[o].amp = 0;
         }
     }
     // osc note off, start release

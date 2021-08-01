@@ -72,7 +72,7 @@ void handle_sync(int64_t time, int8_t index) {
     // Before I send, i want to update the map locally
     update_map(client_id, ipv4_quartet, sysclock);
     // Send back sync message with my time and received sync index and my client id & battery status (if any)
-    sprintf(message, "_s%lldi%dc%dr%dy%d\n", sysclock, index, client_id, ipv4_quartet, battery_mask);
+    sprintf(message, "_s%lldi%dc%dr%dy%dZ", sysclock, index, client_id, ipv4_quartet, battery_mask);
     mcast_send(message, strlen(message));
     // Update computed delta (i could average these out, but I don't think that'll help too much)
     computed_delta = time - sysclock;
@@ -82,7 +82,7 @@ void handle_sync(int64_t time, int8_t index) {
 void ping(int64_t sysclock) {
     char message[100];
     //printf("[%d %d] pinging with %lld\n", ipv4_quartet, client_id, sysclock);
-    sprintf(message, "_s%lldi-1c%dr%dy%d\n", sysclock, client_id, ipv4_quartet, battery_mask);
+    sprintf(message, "_s%lldi-1c%dr%dy%dZ", sysclock, client_id, ipv4_quartet, battery_mask);
     update_map(client_id, ipv4_quartet, sysclock);
     mcast_send(message, strlen(message));
     last_ping_time = sysclock;

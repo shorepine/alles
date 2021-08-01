@@ -468,8 +468,8 @@ void play_event(struct delta d) {
             // osc note off, start release
             synth[d.osc].note_on_clock = -1;
             synth[d.osc].note_off_clock = total_samples; // esp_timer_get_time() / 1000;
-            synth[d.osc].amp = 0;
-            synth[d.osc].status = OFF;
+            //synth[d.osc].amp = 0; // NO! 
+            //synth[d.osc].status = OFF; // NO!
         }
     }
 
@@ -874,6 +874,7 @@ void parse_task() {
             if(mode=='x') e.eq_l = atof(message+start);
             if(mode=='y') e.eq_m = atof(message+start);
             if(mode=='z') e.eq_h = atof(message+start);
+            // can't use Z
             mode=b;
             start=c+1;
         }

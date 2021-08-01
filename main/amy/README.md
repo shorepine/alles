@@ -17,10 +17,10 @@
 
 AMY's wire protocol is a series of numbers delimited by ascii characters that define all possible parameters of an oscillator. This is a design decision intended to make using AMY from any sort of environment as easy as possible, with no data structure or parsing overhead on the client. It's also readable and compact, far more expressive than MIDI and can be sent over network links, UARTs, or as arguments to functions or commands. We send AMY messages over multicast UDP to power [`alles`](https://github.com/bwhitman/alles) and have generated AMY messages in C, C++, Python, Max/MSP, shell scripts, JavaScript and more. 
 
-AMY accepts commands in ASCII, each command separated with a newline (you can group multiple messages in one, to avoid network overhead if that's your transport). Like so:
+AMY accepts commands in ASCII, each command separated with a `Z` (you can group multiple messages in one, to avoid network overhead if that's your transport). Like so:
 
 ```
-v0w4f440.0l0.9\n
+v0w4f440.0l0.9Z
 ```
 
 AMY's full commandset:
@@ -69,7 +69,7 @@ You can use any environment to pass AMY commands to the synthesizer and retrieve
 
 int16_t * hello_AMY() {
 	start_amy(); // initialize the oscillators and sequencer
-	parse_message("v0f440.0w0l0.5t100\n"); // start rendering a 440Hz sine wave on oscillator 0 at 100ms
+	parse_message("v0f440.0w0l0.5t100Z"); // start rendering a 440Hz sine wave on oscillator 0 at 100ms
 	return fill_audio_buffer_task(); // render BLOCK_SIZE (128) samples of S16LE ints
 }
 ```
@@ -79,7 +79,7 @@ libAMY ships with a Python module and the [`alles`](https://github.com/bwhitman/
 ```python
 import amy
 amy.start()
-amy.send("v0f440.0w0l0.5t100\n")
+amy.send("v0f440.0w0l0.5t100Z")
 samples = amy.render(1.0) # seconds
 amy.stop()
 ```
