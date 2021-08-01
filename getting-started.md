@@ -68,6 +68,7 @@ amy.reset()
 
 
 
+
 ### Additive synthesis 
 
 ```
@@ -79,20 +80,23 @@ amy.send(osc=0,vel=1,note=50,wave=amy.PARTIALS,patch=6,ratio=0.2) # ratio slows 
 advanced, diy
 
 ```
-brew install ffmpeg
-python3 -m pip install pydub --user
+brew install ffmpeg python3 swig
+python3.9 -m pip install pydub numpy --user
 tar xvf loris-1.8.tar
 cd loris-1.8
 CPPFLAGS=`python3-config --includes` PYTHON=`which python3` ./configure --with-python
 make
 sudo make install
-
 ```
+
+Now we're set up to make partials out of any sound!
 
 ```
 import partials
+(m,s) = partials.sequence("filename.mp3")
+149 partials and 1008 breakpoints, max oscs used at once was 8
 
-
+partials.play(s)
 ```
 
 
