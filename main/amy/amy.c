@@ -374,6 +374,7 @@ void oscs_deinit() {
 
 // Play an event, now -- tell the audio loop to start making noise
 void play_event(struct delta d) {
+    uint8_t trig=0;
     // TODO: event-only side effect, remove
     if(d.param == MIDI_NOTE) { synth[d.osc].midi_note = *(uint16_t *)&d.data; synth[d.osc].freq = freq_for_midi_note(*(uint16_t *)&d.data); } 
     if(d.param == WAVE) synth[d.osc].wave = *(int16_t *)&d.data; 
@@ -385,9 +386,9 @@ void play_event(struct delta d) {
     if(d.param == AMP) synth[d.osc].amp = *(float *)&d.data; 
     if(d.param == FREQ) synth[d.osc].freq = *(float *)&d.data;
     
-    if(d.param == BP0_TARGET) synth[d.osc].breakpoint_target[0] = *(int8_t *)&d.data;
-    if(d.param == BP1_TARGET) synth[d.osc].breakpoint_target[1] = *(int8_t *)&d.data;
-    if(d.param == BP2_TARGET) synth[d.osc].breakpoint_target[1] = *(int8_t *)&d.data;
+    if(d.param == BP0_TARGET) { synth[d.osc].breakpoint_target[0] = *(int8_t *)&d.data; trig=1; }
+    if(d.param == BP1_TARGET) { synth[d.osc].breakpoint_target[1] = *(int8_t *)&d.data; trig=1; }
+    if(d.param == BP2_TARGET) { synth[d.osc].breakpoint_target[2] = *(int8_t *)&d.data; trig=1; }
     // TODO, i really should clean this up
     if(d.param >= BP_START && d.param < BP_END) {
         uint8_t pos = d.param - BP_START;
@@ -399,7 +400,9 @@ void play_event(struct delta d) {
         } else {
             synth[d.osc].breakpoint_values[bp_set][(pos-1) / 2] = *(float *)&d.data;
         }
+        trig=1;
     }
+    if(trig) synth[d.osc].note_on_clock = total_samples;
     // TODO: event-only side effect, remove
     if(d.param == MOD_SOURCE) { synth[d.osc].mod_source = *(int8_t *)&d.data; synth[*(int8_t *)&d.data].status = IS_MOD_SOURCE; }
     if(d.param == MOD_TARGET) synth[d.osc].mod_target = *(int8_t *)&d.data; 

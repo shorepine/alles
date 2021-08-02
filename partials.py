@@ -167,8 +167,13 @@ def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio
     for i,s in enumerate(sequence):
 
         # Wait for the item in the sequence to be close, so I don't overflow the synthesizers' state
-        while(my_start_time + (s[0] * time_ratio) > (amy.millis() + 100)):
+        while(my_start_time + (s[0] / time_ratio) > (amy.millis() - 500)):
             pass
+        if(i+1 < len(sequence)):
+            next_s = sequence[i+1]
+            next_time = my_start_time + (next_s[0] / time_ratio + sustain_offset)
+            my_time = my_start_time + (s[0] / time_ratio + sustain_offset)
+            print("it's %d and i'm scheduling for %d. next event is in %d, and bp lengths are %d" % (amy.millis(), my_time, next_time - my_time, s[6]/time_ratio))
 
         # Make envelope strings
         bp0 = "%d,%s,0,0" % (s[6] / time_ratio, amy.trunc(s[7]))
@@ -178,19 +183,31 @@ def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio
         else:
             bp2 = ""
         if(sustain_ms > 0 and sustain_offset == 0):
-            if(s[0]*time_ratio > sustain_ms*time_ratio):
-                sustain_offset = sustain_len_ms*time_ratio
+            if(s[0]/time_ratio > sustain_ms/time_ratio):
+                sustain_offset = sustain_len_ms/time_ratio
 
-        if(s[5]==-2): #end
-            amy.send(timestamp=my_start_time + (s[0]*time_ratio + sustain_offset), osc=s[1]+osc_offset, wave=amy.PARTIAL, vel=0, amp=s[3]*amp_ratio)
+        partial_args = {"timestamp":my_start_time + (s[0]/time_ratio + sustain_offset),
+            "osc":s[1]+osc_offset,
+            "wave":amy.PARTIAL,
+            "amp":s[3]*amp_ratio,
+            "freq":s[2]*pitch_ratio,
+            "feedback":s[4]*bw_ratio,
+            "bp0":bp0, "bp1":bp1, "bp2":bp2,
+            "bp0_target":amy.TARGET_AMP+amy.TARGET_LINEAR,
+            "bp1_target":amy.TARGET_FREQ+amy.TARGET_LINEAR,
+            "bp2_target":amy.TARGET_FEEDBACK+amy.TARGET_LINEAR}
+
+        if(s[5]==-2): #end, add note off
+            print("end %s" % (partial_args))
+            amy.send(**partial_args, vel=0)
         elif(s[5]==-1): # continue
-            amy.send(timestamp=my_start_time + (s[0]*time_ratio + sustain_offset), osc=s[1]+osc_offset, wave=amy.PARTIAL, freq=s[2]*pitch_ratio, amp=s[3]*amp_ratio, feedback=s[4]*bw_ratio, bp0=bp0, bp1=bp1, bp2=bp2, \
-                bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR, bp2_target=amy.TARGET_FEEDBACK+amy.TARGET_LINEAR)
-        else: #start
-            amy.send(timestamp=my_start_time + (s[0]*time_ratio + sustain_offset), osc=s[1]+osc_offset, wave=amy.PARTIAL, freq=s[2]*pitch_ratio, phase=s[5], vel=s[3]*amp_ratio, feedback=s[4]*bw_ratio, bp0=bp0, bp1=bp1, bp2=bp2, \
-                bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR, bp2_target=amy.TARGET_FEEDBACK+amy.TARGET_LINEAR)
+            print("con %s" % (partial_args))
+            amy.send(**partial_args)
+        else: #start, add phase and note on
+            print("sta %s" % (partial_args))
+            amy.send(**partial_args, vel=s[3]*amp_ratio, phase=s[5])
 
-    return sequence[-1][0]*time_ratio
+    return sequence[-1][0]/time_ratio
 
 #In [6]: partials.generate_partials_header(fns,amp_floor=-40,analysis_window=40,freq_drift=5,hop_time=0.04,freq_res=5)
 def generate_partials_header(filenames, **kwargs):

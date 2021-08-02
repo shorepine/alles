@@ -435,16 +435,19 @@ void render_partial(float * buf, uint8_t osc) {
     }
     if(synth[osc].substep==1) {
         // fade in
+        //printf("%d fading in partial osc %d from 0 to %f\n", total_samples, osc, msynth[osc].amp);
         synth[osc].substep = 0;
         for(uint16_t i=0;i<BLOCK_SIZE;i++) buf[i] = buf[i] * ((float)i/(float)BLOCK_SIZE);
     }
     if(synth[osc].substep==2) {
         // fade out
+        //printf("%d fading out partial osc %d from %f to 0\n", total_samples, osc, msynth[osc].amp);
         synth[osc].substep = 0;
         for(uint16_t i=0;i<BLOCK_SIZE;i++) buf[i] = buf[i] * ((float)(BLOCK_SIZE-i)/(float)BLOCK_SIZE);
-        synth[osc].status=OFF;
+        synth[osc].status=OFF; 
 
     }
+    //printf("%d rendering partial osc %d at %f %f\n", total_samples, osc, msynth[osc].amp, msynth[osc].freq);
 }
 
 void partial_note_on(uint8_t osc) {

@@ -59,7 +59,7 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
     bp_r--;
     //printf("[%d,%d] Found release BP at pos %d\n", bp_set, osc,bp_r);
     if(bp_r<0) {
-        //printf("[%d,%d] returning scale=1\n",bp_set,osc); 
+        //if(bp_set==0)printf("[%d,%d] returning scale=1\n",bp_set,osc); 
         return 1; 
     }// no breakpoints
 
@@ -72,7 +72,7 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
         // We didn't find anything, so set it to the one before bp_r
         if(found<0) {
             found = bp_r - 1; // sustain
-            //printf("[%d,%d] elapsed %d. sustain, returning %f\n", bp_set, osc, elapsed, synth[osc].breakpoint_values[bp_set][found] );
+            //if(bp_set==0)printf("[%d,%d] elapsed %d. sustain, found %d returning %f\n", bp_set, osc, elapsed, found, synth[osc].breakpoint_values[bp_set][found] );
             return synth[osc].breakpoint_values[bp_set][found];
         }
         //printf("[%d,%d] elapsed %d. found %d at time %d\n", bp_set, osc, elapsed, found, synth[osc].breakpoint_times[bp_set][found] );
@@ -86,11 +86,11 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
         //printf("elapsed %d noc %d total_samples %d found %d v0 %f bpt %d\n", elapsed, synth[osc].note_off_clock, total_samples, found, v0, synth[osc].breakpoint_times[bp_set][bp_r]);
         if(elapsed > synth[osc].breakpoint_times[bp_set][bp_r]) {
             //printf("past release, setting note off\n");
-            synth[osc].status=OFF;
-            synth[osc].note_off_clock = -1;
             // OK. partials (et al) need a frame to fade out to avoid clicks. This is in conflict with the breakpoint release, which will set it to the bp end value before the fade out, often 0
             // so the fadeout never gets to hit. I'm not sure i love this solution, but PARTIAL is such a weird type that i guess having it called out like this is fine.
             if(synth[osc].wave==PARTIAL) return 1;
+            synth[osc].status=OFF;
+            synth[osc].note_off_clock = -1;
             return synth[osc].breakpoint_values[bp_set][bp_r];
         }
     }
@@ -109,7 +109,7 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
         return scale;
     } else {
         float scale = v0 + ((v1-v0) * time_ratio);
-        //printf("[%d,%d] LIN t0 %d v0 %f t1 %d v1 %f elapsed %d tr %f scale %f\n", bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
+        //if(bp_set==0) printf("%d [%d,%d] LIN t0 %d v0 %f t1 %d v1 %f elapsed %d tr %f scale %f\n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
         return scale;
     }
 
