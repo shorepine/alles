@@ -1,6 +1,4 @@
 # AMY functions
-from alles_util import get_sock, get_multicast_group
-import datetime
 
 #TODO , generate these from amy.h when compiling
 BLOCK_SIZE = 256
@@ -11,63 +9,27 @@ MAX_QUEUE = 400
 TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE, TARGET_FEEDBACK, TARGET_LINEAR = (1, 2, 4, 8, 16, 32, 64)
 FILTER_NONE, FILTER_LPF, FILTER_BPF, FILTER_HPF = range(4)
 
-
 def millis():
+    import datetime
     # Timestamp to send over to synths for global sync
     # This is a suggestion. I use ms since today started
     d = datetime.datetime.now()
     return int((datetime.datetime.utcnow() - datetime.datetime(d.year, d.month, d.day)).total_seconds()*1000)
 
-def reset(osc=None):
-    if(osc is not None):
-        send(reset=osc)
-    else:
-        send(reset=100) # reset > ALLES_OSCS resets all oscs
-
-def volume(volume, client = -1):
-    send(0, client=client, volume=volume)
+# Send to libamy
+def send(**kwargs):
+    libamy.send(message(**kwargs))
 
 
-def note_on(vel=1, **kwargs):
-    send(vel=vel, **kwargs)
-
-def note_off(**kwargs):
-    send(vel=0, **kwargs)
-
-# Buffer messages sent to the synths if you call buffer(). 
-# Calling buffer(0) turns off the buffering
-# flush() sends whatever is in the buffer now, and is called after buffer(0) as well 
-send_buffer = ""
-buffer_size = 0
-
-def transmit(message, retries=1):
-    #print(message)
-    if(local()):
-        libamy.send(message)
-    else:
-        for x in range(retries):
-            get_sock().sendto(message.encode('ascii'), get_multicast_group())
-
-def buffer(size=508):
-    global buffer_size
-    buffer_size = size
-    if(buffer_size == 0):
-        flush()
-
-def flush(retries=1):
-    global send_buffer
-    transmit(send_buffer)
-    send_buffer = ""
-
-
-# Removes trailing 0s and x.0000s 
-def trunc(number):
-    return ('%.10f' % number).rstrip('0').rstrip('.')
-
-def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
+# Construct an AMY message
+def message(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, bp0="", bp1="", bp2="", bp0_target=-1, bp1_target=-1, bp2_target=-1, lfo_target=-1, \
         debug=-1, lfo_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, detune = -1, algo_source=None):
-    global send_buffer, buffer_size
+
+    # Removes trailing 0s and x.0000s 
+    def trunc(number):
+        return ('%.10f' % number).rstrip('0').rstrip('.')
+
     m = ""
     if(timestamp is None): timestamp = millis()
     m = m + "t" + trunc(timestamp)
@@ -103,14 +65,8 @@ def send(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, fe
     if(eq_m>=0): m = m + "y" + trunc(eq_m)
     if(eq_h>=0): m = m + "z" + trunc(eq_h)
     if(filter_type>=0): m = m + "G" + trunc(filter_type)
-    if(buffer_size > 0):
-        if(len(send_buffer + m + 'Z') > buffer_size):
-            transmit(send_buffer, retries=retries)
-            send_buffer = m + 'Z'
-        else:
-            send_buffer = send_buffer + m + 'Z'
-    else:
-        transmit(m+'Z',retries=retries)
+    return m+'Z'
+
 
 
 

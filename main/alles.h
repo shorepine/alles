@@ -71,7 +71,7 @@ typedef int16_t i2s_sample_type;
 
 
 #define UDP_PORT 3333        // port to listen on
-#define MULTICAST_TTL 1      // hops multicast packets can take
+#define MULTICAST_TTL 20     // hops multicast packets can take
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
 #define PING_TIME_MS 10000   // ms between boards pinging each other
 

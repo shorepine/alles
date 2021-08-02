@@ -403,6 +403,7 @@ void play_event(struct delta d) {
         trig=1;
     }
     if(trig) synth[d.osc].note_on_clock = total_samples;
+
     // TODO: event-only side effect, remove
     if(d.param == MOD_SOURCE) { synth[d.osc].mod_source = *(int8_t *)&d.data; synth[*(int8_t *)&d.data].status = IS_MOD_SOURCE; }
     if(d.param == MOD_TARGET) synth[d.osc].mod_target = *(int8_t *)&d.data; 
@@ -471,8 +472,6 @@ void play_event(struct delta d) {
             // osc note off, start release
             synth[d.osc].note_on_clock = -1;
             synth[d.osc].note_off_clock = total_samples; // esp_timer_get_time() / 1000;
-            //synth[d.osc].amp = 0; // NO! 
-            //synth[d.osc].status = OFF; // NO!
         }
     }
 

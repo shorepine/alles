@@ -169,11 +169,6 @@ def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio
         # Wait for the item in the sequence to be close, so I don't overflow the synthesizers' state
         while(my_start_time + (s[0] / time_ratio) > (amy.millis() - 500)):
             pass
-        if(i+1 < len(sequence)):
-            next_s = sequence[i+1]
-            next_time = my_start_time + (next_s[0] / time_ratio + sustain_offset)
-            my_time = my_start_time + (s[0] / time_ratio + sustain_offset)
-            print("it's %d and i'm scheduling for %d. next event is in %d, and bp lengths are %d" % (amy.millis(), my_time, next_time - my_time, s[6]/time_ratio))
 
         # Make envelope strings
         bp0 = "%d,%s,0,0" % (s[6] / time_ratio, amy.trunc(s[7]))
@@ -198,13 +193,10 @@ def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio
             "bp2_target":amy.TARGET_FEEDBACK+amy.TARGET_LINEAR}
 
         if(s[5]==-2): #end, add note off
-            print("end %s" % (partial_args))
             amy.send(**partial_args, vel=0)
         elif(s[5]==-1): # continue
-            print("con %s" % (partial_args))
             amy.send(**partial_args)
         else: #start, add phase and note on
-            print("sta %s" % (partial_args))
             amy.send(**partial_args, vel=s[3]*amp_ratio, phase=s[5])
 
     return sequence[-1][0]/time_ratio
