@@ -300,7 +300,7 @@ def sync(count=10, delay_ms=100):
         tic = amy.millis() - start_time
         if((tic - last_sent) > delay_ms):
             time_sent[i] = amy.millis()
-            print ("sending %d at %d" % (i, time_sent[i]))
+            #print ("sending %d at %d" % (i, time_sent[i]))
             output = "s%di%dZ" % (time_sent[i], i)
             sock.sendto(output.encode('ascii'), get_multicast_group())
             i = i + 1
@@ -308,8 +308,8 @@ def sync(count=10, delay_ms=100):
         try:
             data, address = sock.recvfrom(1024)
             data = data.decode('ascii')
-            print(str(data))
             if(data[0] == '_'):
+                data = data[:-1]
                 try:
                     [_, client_time, sync_index, client_id, ipv4, battery] = re.split(r'[sicry]',data)
                 except ValueError:
