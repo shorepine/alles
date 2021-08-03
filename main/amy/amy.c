@@ -544,20 +544,44 @@ int64_t get_sysclock() {
 
 
 #ifndef ESP_PLATFORM
+int16_t leftover_buf[BLOCK_SIZE]; 
+uint16_t leftover_samples = 0;
 static void soundio_callback(struct SoundIoOutStream *outstream, int frame_count_min, int frame_count_max) {
     struct SoundIoChannelArea *areas;
     int err;
-    // TODO: we can keep this in a buffer for the next callback instead of barfing
-    if(frame_count_max % BLOCK_SIZE !=0) fprintf(stderr, "not divisible %d v %d\n", frame_count_max, BLOCK_SIZE);
-    int frame_count = frame_count_max;
+
+
+    int frame_count = frame_count_max; // on mac they're always the same. on linux i guess it doesn't matter to choose max
     if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count))) {
         fprintf(stderr, "unrecoverable stream error: %s\n", soundio_strerror(err));
         exit(1);
     }
-    for(uint8_t i=0;i<frame_count / BLOCK_SIZE;i++) {
+
+    // Different audio devices on mac have wildly different frame_count_maxes, so we have to be ok with 
+    // an audio buffer that is not an even multiple of BLOCK_SIZE. my iMac's speakers were always 512 frames, but
+    // external headphones on a MBP is 432 or 431, and airpods were something like 1440.
+
+    // First send over the leftover samples, if any
+    memcpy(areas[0].ptr, leftover_buf, leftover_samples*2);
+    areas[0].ptr += leftover_samples * 2;
+    frame_count -= leftover_samples;
+    leftover_samples = 0;
+
+    // Now send the bulk of the frames
+    for(uint8_t i=0;i<(uint8_t)(frame_count / BLOCK_SIZE);i++) {
         int16_t *buf = fill_audio_buffer_task();
         memcpy(areas[0].ptr, buf, BLOCK_SIZE*2);
         areas[0].ptr += BLOCK_SIZE*2;
+    } 
+
+    // If any leftover, let's put those in the outgoing buf and the rest in leftover_samples
+    uint16_t still_need = frame_count % BLOCK_SIZE;
+    if(still_need != 0) {
+        int16_t * buf = fill_audio_buffer_task();
+        memcpy(areas[0].ptr, buf, still_need*2);
+        areas[0].ptr += still_need*2;
+        leftover_samples = BLOCK_SIZE - still_need;
+        memcpy(leftover_buf, buf+still_need, leftover_samples*2);
     }
     if ((err = soundio_outstream_end_write(outstream))) {
         if (err == SoundIoErrorUnderflow)

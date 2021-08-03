@@ -15,25 +15,28 @@ def preset(which,osc=0, **kwargs):
         send(osc=osc, wave=amy.SINE, bp0="10,1,250,0.7,500,0", bp0_target=amy.TARGET_AMP, **kwargs)
     if(which==1): # filter bass
         send(osc=osc, filter_freq=2500, resonance=5, wave=amy.SAW, filter_type=amy.FILTER_LPF, bp0="100,0.5,25,0", bp0_target=amy.TARGET_AMP+amy.TARGET_FILTER_FREQ, **kwargs)
+
+    # TODO -- this is a good one to test the whistle on the bps... 
     if(which==2): # long sine pad to test ADSR
         send(osc=osc, wave=amy.SINE, bp0="0,0,500,1,1000,0.25,750,0", bp0_target=amy.TARGET_AMP, **kwargs)
+
     if(which==3): # amp LFO example
         reset(osc=osc+1)
         send(osc=osc+1, wave=amy.SINE, vel=0.50, freq=1.5, **kwargs)
-        send(osc=osc, wave=amy.PULSE, envelope="150,1,250,0.25,250,0", bp0_target=amy.TARGET_AMP, lfo_target=amy.TARGET_AMP, lfo_source=osc+1, **kwargs)
+        send(osc=osc, wave=amy.PULSE, bp0="150,1,250,0.25,250,0", bp0_target=amy.TARGET_AMP, mod_target=amy.TARGET_AMP, mod_source=osc+1, **kwargs)
     if(which==4): # pitch LFO going up 
         reset(osc=osc+1)
         send(osc=osc+1, wave=amy.SINE, vel=0.50, freq=0.25, **kwargs)
-        send(osc=osc, wave=amy.PULSE, bp0="150,1,400,0,0,0", bp0_target=amy.TARGET_AMP, lfo_target=amy.TARGET_FREQ, lfo_source=osc+1, **kwargs)
+        send(osc=osc, wave=amy.PULSE, bp0="150,1,400,0,0,0", bp0_target=amy.TARGET_AMP, mod_target=amy.TARGET_FREQ, mod_source=osc+1, **kwargs)
     if(which==5): # bass drum
         # Uses a 0.25Hz sine wave at 0.5 phase (going down) to modify frequency of another sine wave
         reset(osc=osc+1)
         send(osc=osc+1, wave=amy.SINE, vel=0.50, freq=0.25, phase=0.5, **kwargs)
-        send(osc=osc, wave=amy.SINE, vel=0, bp0="500,0,0,0", bp0_target=amy.TARGET_AMP, lfo_target=amy.TARGET_FREQ, lfo_source=osc+1, **kwargs)
+        send(osc=osc, wave=amy.SINE, vel=0, bp0="500,0,0,0", bp0_target=amy.TARGET_AMP, mod_target=amy.TARGET_FREQ, mod_source=osc+1, **kwargs)
     if(which==6): # noise snare
         send(osc=osc, wave=amy.NOISE, vel=0, bp0="250,0,0,0", bp0_target=amy.TARGET_AMP, **kwargs)
     if(which==7): # closed hat
-        send(osc=osc, wave=amy.NOISE, vel=0, envelope="25,1,75,0,0,0", bp0_target=amy.TARGET_AMP, **kwargs)
+        send(osc=osc, wave=amy.NOISE, vel=0, bp0="25,1,75,0,0,0", bp0_target=amy.TARGET_AMP, **kwargs)
     if(which==8): # closed hat from PCM 
         send(osc=osc, wave=amy.PCM, vel=0, patch=17, freq=22050, **kwargs)
     if(which==9): # cowbell from PCM
@@ -43,7 +46,7 @@ def preset(which,osc=0, **kwargs):
     if(which==11): # snare from PCM
         send(osc=osc, wave=amy.PCM, vel=0, patch=5, freq=22050, **kwargs)
     if(which==12): # FM bass 
-        send(osc=osc, wave=amy.ALGO, vel=0, patch=15, **kwargs)
+        send(osc=osc, wave=amy.ALGO, vel=0, patch=21, **kwargs)
     if(which==13): # Pcm bass drum
         send(osc=osc, wave=amy.PCM, vel=0, patch=20, freq=22050, **kwargs)
 
@@ -210,23 +213,6 @@ def c_major(octave=2,wave=amy.SINE, **kwargs):
 """
 
 
-# This is your source IP -- by default your main routable network interface. 
-s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-try:
-    s.connect(('10.255.255.255', 1))
-    local_ip = s.getsockname()[0]
-except Exception:
-    print("Trouble getting routable IP address")
-    local_ip = ""
-finally:
-    s.close()
-
-# But override this if you are using multiple network interfaces, for example a dedicated router to control the synths
-# This, for example, is my dev machine's 2nd network interface IP, that I have wired to a separate wifi router
-if(os.uname().nodename=='colossus'):
-    local_ip = '192.168.1.2'
-elif(os.uname().nodename=='cedar.local'):
-    local_ip = '192.168.1.3'
 
 
 
@@ -238,9 +224,23 @@ def get_sock():
 def get_multicast_group():
     return ('232.10.11.12', 3333)
 
-def connect():
+def connect(local_ip=None):
     # Set up the socket for multicast send & receive
     global sock
+
+    # If not given, find your source IP -- by default your main routable network interface. 
+    if(local_ip is None):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(('10.255.255.255', 1))
+            local_ip = s.getsockname()[0]
+        except Exception:
+            print("Trouble getting routable IP address, using localhost. If wrong, do alles.connect(local_ip='ip.address')")
+            local_ip = "127.0.0.1"
+        finally:
+            s.close()
+
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
@@ -365,8 +365,12 @@ def battery_test():
     print("Took %d seconds to stop" %(time.time() - tic))
 
 
-
 # Setup the sock on module import
-connect()
-
+# I have some convenience hardcoded IPs for machines I work on here
+if(os.uname().nodename=='colossus'):
+    connect(local_ip="192.168.1.2")
+elif(os.uname().nodename=='cedar.local'):
+     connect(local_ip = '192.168.1.3')
+else:
+    connect(local_ip=None)
 

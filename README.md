@@ -1,6 +1,6 @@
 # Alles - the mesh synthesizer
 
-![picture](https://raw.githubusercontent.com/bwhitman/alles/master/pics/set.jpg)
+![picture](https://raw.githubusercontent.com/bwhitman/alles/main/pics/set.jpg)
 
 **Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 64 additive oscillators and 32 filters, with modulation / LFOs and ADSRs per oscillator. The speaker can be any combination of our custom hardware speakers or a programs running on your computers. The software is open source and the hardware is cheap and easy to make -- you can build one yourself for about US$20.
 
@@ -14,7 +14,7 @@ Our friends at [Blinkinlabs](https://blinkinlabs.com) are helping us produce sma
 
 Each individual synthesizer supports:
 
- * The [AMY synthesis engine](https://github.com/bwhitman/alles/tree/master/main/amy/README.md) with 64 oscillators, each with adjustable frequency and amplitude:
+ * The [AMY synthesis engine](https://github.com/bwhitman/alles/tree/main/main/amy/README.md) with 64 oscillators, each with adjustable frequency and amplitude:
    * pulse (+ adjustable duty cycle)
    * sine
    * saw
@@ -47,7 +47,7 @@ $ brew install libsoundio # mac
 $ apt install libsoundio-dev # linux
 $ cd alles/main
 $ make
-$ ./alles 192.168.1.3 # optional source IP address 
+$ ./alles 192.168.1.3 1 # optional source IP address and client offset (if running multiple on one host)
 ```
 
 ## Controlling the mesh
@@ -58,14 +58,14 @@ Alles can be used two ways:
 
  * **MIDI mode**, using MIDI over Bluetooth or a MIDI cable: A single Alles hardware synth can be set up as a MIDI relay, by hitting the `MIDI` (or `BOOT0 / GPIO0` on DIY Alles) button. Once in MIDI relay mode, that synth stops making its own sound and acts as a relay to the rest of the mesh. You can connect to the relay over MIDI cable (details below) or wirelessly via MIDI bluetooth, supported by most OSes. You can then control the mesh using any MIDI sequencer or DAW of your choice. You are limited to directly addressing 16 synths in this mode (vs 100s), and lose some control over fine grained parameter tuning. 
 
-In direct mode, Alles responds to [AMY commands](https://github.com/bwhitman/alles/tree/master/main/amy/README.md) commands via UDP. They are ASCII delimited by a character, each message terminated with a Z, like
+In direct mode, Alles responds to [AMY commands](https://github.com/bwhitman/alles/tree/main/main/amy/README.md) commands via UDP. They are ASCII delimited by a character, each message terminated with a Z, like
 
 ```
 v0w4f440.0l0.9Z
 ```
 
 
-All the [AMY commands](https://github.com/bwhitman/alles/tree/master/main/amy/README.md) are supported, with a few additions:
+All the [AMY commands](https://github.com/bwhitman/alles/tree/main/main/amy/README.md) are supported, with a few additions:
 
 ```
 c = client, uint, 0-255 indicating a single client, 256-510 indicating (client_id % (x-255) == 0) for groups, default all clients
@@ -92,23 +92,11 @@ Or experiment with oscillators:
 ```
 >>> # use a a 0.25Hz sine wave at half phase (going down) to modify frequency of another sine wave
 >>> alles.reset()
->>> alles.send(osc=1, wave=alles.SINE, vel=0.50, freq=0.25, phase=0.5) # LFO source oscillator
->>> alles.send(osc=0, wave=alles.SINE, vel=0, bp0="0,500,0,0", bp0_target=alles.TARGET_AMP, lfo_target=alles.TARGET_FREQ, lfo_source=1)
->>> alles.note_on(osc=0, note=60, vel=1.5) # Bass drum!
+>>> alles.send(osc=1, wave=alles.amy.SINE, vel=0.50, freq=0.25, phase=0.5) # LFO source oscillator
+>>> alles.send(osc=0, wave=alles.amy.SINE, vel=0, bp0="0,500,0,0", bp0_target=alles.amy.TARGET_AMP, lfo_target=alles.amy.TARGET_FREQ, lfo_source=1)
+>>> alles.send(osc=0, note=60, vel=1.5) # Bass drum!
 >>> alles.send(osc=0, filter_freq=800, resonance=1.5) # filter it
->>> alles.note_on(osc=0, note=50, vel=1.5)
-```
-
-You can also compile [AMY](https://github.com/bwhitman/alles/tree/master/main/amy/README.md) locally and render audio within your Python terminal instead of over the network to your mesh synths. 
-
-```
-$ cd alles/main/amy
-$ python3 setup.py install
-$ python3
-
->>> import amy, alles
->>> amy.live() # this starts a real time audio playback thread, and redirects all commands to the local AMY instance
->>> alles.drums() # plays locally
+>>> alles.send(osc=0, note=50, vel=1.5) # note on
 ```
 
 
@@ -172,11 +160,11 @@ def c_major(octave=2):
 
 ```
 
-See [`alles.py`](https://github.com/bwhitman/alles/blob/master/alles.py) for a better example. Any language that supports sockets and multicast can work, I encourage pull requests with new clients!
+See [`alles.py`](https://github.com/bwhitman/alles/blob/main/alles.py) for a better example. Any language that supports sockets and multicast can work, I encourage pull requests with new clients!
 
 You can also easily use it in Max or Pd:
 
-![Max](https://raw.githubusercontent.com/bwhitman/alles/master/pics/max.png)
+![Max](https://raw.githubusercontent.com/bwhitman/alles/main/pics/max.png)
 
 ## MIDI mode
 
@@ -186,12 +174,12 @@ Use the MIDI toggle button on the Alles V1 PCB to enter MIDI mode. If using a de
 
 To use BLE MIDI: On a Mac, open Audio MIDI Setup, then show MIDI Studio, then the Bluetooth button, and connect to "Alles MIDI." The Alles MIDI port will then show up in all your MIDI capable software.
 
-![BLE MIDI on Alles](https://raw.githubusercontent.com/bwhitman/alles/master/pics/alles_midi_setup.png)
+![BLE MIDI on Alles](https://raw.githubusercontent.com/bwhitman/alles/main/pics/alles_midi_setup.png)
 
 
 To use hardwired MIDI: I recommend using a pre-built MIDI breakout with the support hardware -- like this one from [Sparkfun](https://www.sparkfun.com/products/12898) or [Adafruit](https://www.adafruit.com/product/4740) to make it easier to wire up. Connect 3.3V, GND and MIDI to either the devboard (GPIO 19) or the Alles V1 PCB (MIDI header.)
 
-![MIDI on Alles](https://raw.githubusercontent.com/bwhitman/alles/master/pics/alles_midi.png)
+![MIDI on Alles](https://raw.githubusercontent.com/bwhitman/alles/main/pics/alles_midi.png)
 
 `CHANNEL: 1-16`: sets which synth ID in the mesh you want to send the message to. `1` sends the message to all synths, and `2-16`sends the message to only that ID, minus 1. So to send a message to only the first booted synth, use the second channel.
 
@@ -204,9 +192,9 @@ Currently supported are program / bank changes and note on / offs. Will be addin
 
 ## Building your own DIY Alles 
 
-We are currently testing [rev2 of a all-in-one design for Alles](https://github.com/bwhitman/alles/blob/master/pcbs/2021-03-22_Alles_RevB.pdf). The self-contained version has its own rechargable battery, 4ohm speaker, case and buttons for configuration & setup. We're hoping to be able to sell these in packs for anyone to use. More details soon. 
+We are currently testing [rev2 of a all-in-one design for Alles](https://github.com/bwhitman/alles/blob/main/pcbs/2021-03-22_Alles_RevB.pdf). The self-contained version has its own rechargable battery, 4ohm speaker, case and buttons for configuration & setup. We're hoping to be able to sell these in packs for anyone to use. More details soon. 
 
-![blinkinlabs PCB](https://raw.githubusercontent.com/bwhitman/alles/master/pics/alles_reva.png)
+![blinkinlabs PCB](https://raw.githubusercontent.com/bwhitman/alles/main/pics/alles_reva.png)
 
 But it's still very simple to make one yourself with parts you can get from electronics distributors like Sparkfun, Adafruit or Amazon. 
 
@@ -233,15 +221,15 @@ Speaker connectors -> speaker
 ```
 
 
-![DIY Alles 1](https://raw.githubusercontent.com/bwhitman/alles/master/pics/diy_alles_1.png)
-![DIY Alles 2](https://raw.githubusercontent.com/bwhitman/alles/master/pics/diy_alles_2.png)
+![DIY Alles 1](https://raw.githubusercontent.com/bwhitman/alles/main/pics/diy_alles_1.png)
+![DIY Alles 2](https://raw.githubusercontent.com/bwhitman/alles/main/pics/diy_alles_2.png)
 
 
 ### DIY bridge PCB
 
 *You don't need this PCB made to build a DIY Alles!* -- it will work with just hookup wire. But if you're making a lot of DIY Alleses want more stability, I had a tiny little board made to join the boards together, like so:
 
-![closeup](https://raw.githubusercontent.com/bwhitman/alles/master/pics/adapter.jpg)
+![closeup](https://raw.githubusercontent.com/bwhitman/alles/main/pics/adapter.jpg)
 
 This assumes you're using the suggested ESP32 dev board with its pin layout. If you use another one, you can probably change the GPIO assignments in `alles.h`. Fritzing file in the `pcbs` folder of this repository, and [it's here on Aisler](https://aisler.net/p/TEBMDZWQ). This is a lot more stable and easier to wire up than snipping small bits of hookup wire, especially for the GAIN connection. 
 
@@ -254,7 +242,7 @@ Use `idf.py -p /dev/YOUR_SERIAL_TTY monitor` to reboot the board and see stdout/
 
 ## Generating new FM patches or changing the PCM bank
 
-Alles comes prebaked with 1,000 DX7 patches from the [learnFM](https://github.com/bwhitman/learnfm) project. It also comes prebaked with a long buffer of PCM samples, mostly ones that are more complex to synthesize using additive oscillators, for example, closed hi-hats or cymbals. If you build your own firmware, you're free to change both. In [`alles_util.py`](https://github.com/bwhitman/alles/blob/master/alles_util.py) you'll see functions that can regenerate `pcm.h` and `patches.h` for you, by giving it other FM patches, PCM buffers or even SoundFonts. 
+Alles comes prebaked with some converted DX7 patches from the [learnFM](https://github.com/bwhitman/learnfm) project. It also comes prebaked with a long buffer of PCM samples, mostly ones that are more complex to synthesize using additive oscillators, for example, closed hi-hats or cymbals. If you build your own firmware, you're free to change both. In [`amy_headers.py`](https://github.com/bwhitman/alles/blob/main/amy_headers.py), [`partials.py`](https://github.com/bwhitman/alles/blob/main/partials.py) and [`fm.py`](https://github.com/bwhitman/alles/blob/main/fm.py) you'll see functions that can regenerate `pcm.h`, `fm.h`, `partials.h` for you, by giving it other FM patches, PCM buffers or even SoundFonts. 
 
 
 ## THANK YOU TO

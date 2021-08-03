@@ -1,17 +1,16 @@
 // multicast_desktop.c
-
+#include "alles.h"
 #include <stdio.h>
 #include <stddef.h>
-#include "alles.h"
-#include <stdlib.h>         /* strtol(), exit() */
+#include <stdlib.h>
 #include <sys/types.h>
-#include <sys/socket.h>     /* socket(), setsockopt(), bind(), recvfrom(), sendto() */
-#include <errno.h>          /* perror() */
-#include <netinet/in.h>     /* IPPROTO_IP, sockaddr_in, htons(), htonl() */
-#include <arpa/inet.h>      /* inet_addr() */
-#include <unistd.h>         /* fork(), sleep() */
-#include <sys/utsname.h>    /* uname() */
-#include <string.h>         /* memset() */
+#include <sys/socket.h>
+#include <errno.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <sys/utsname.h>
+#include <string.h>
 #include <ifaddrs.h>
 #include <netdb.h>
 
@@ -57,13 +56,12 @@ int get_first_ip_address(char *host) {
 }
 
 int socket_add_ipv4_multicast_group() {
-	struct ip_mreq imreq = { 0 };
-    struct in_addr iaddr = { 0 };
+	struct ip_mreq imreq;
+    struct in_addr iaddr;
     int err = 0;
 
     // Configure multicast address to listen to
     inet_pton(AF_INET, MULTICAST_IPV4_ADDR, &(imreq.imr_multiaddr.s_addr));
-
     inet_pton(AF_INET, local_ip, &(iaddr.s_addr));
 
     // Get the ipv4 "quartet" (last # of 4) and add the offset to it if one

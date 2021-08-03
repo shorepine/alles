@@ -15,7 +15,7 @@ OBJECTS = $(patsubst %.c, %.o, sync.c midi.c multicast_desktop.c alles_desktop.c
 HEADERS = alles.h $(wildcard amy/*.h)
 
 UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Darwin)
+ifeq ($(UNAME_S),Darwina)
 	LIBS += -framework CoreMIDI -framework Cocoa -lstdc++ 
 	CFLAGS += -DMAC_MIDI
 	OBJECTS += amy/virtualmidi.o

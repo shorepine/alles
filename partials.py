@@ -154,18 +154,22 @@ def sequence(filename, max_len_s = 10, amp_floor=-30, hop_time=0.04, max_oscs=am
     return (metadata, sequence)
 
 
-def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio = 1, pitch_ratio = 1, amp_ratio = 1, bw_ratio = 1):
+def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio = 1, pitch_ratio = 1, amp_ratio = 1, bw_ratio = 1, round_robin=True):
     # i take a sequence and play it to AMY, just like native AMY will do from a .h file
-
     my_start_time = amy.millis()
 
+    if(round_robin):
+        next_client = 0
+        osc_to_client_map = {}
+        clients = len(alles.sync())
+    
     sustain_offset = 0
     if(sustain_ms > 0):
         if(sustain_ms > sequence[-1][0]):
             print("Moving sustain_ms from %d to %d" % (sustain_ms, sequence[-1][0]-100))
             sustain_ms = sequence[-1][0] - 100
-    for i,s in enumerate(sequence):
 
+    for i,s in enumerate(sequence):
         # Wait for the item in the sequence to be close, so I don't overflow the synthesizers' state
         while(my_start_time + (s[0] / time_ratio) > (amy.millis() - 500)):
             pass
@@ -181,7 +185,17 @@ def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio
             if(s[0]/time_ratio > sustain_ms/time_ratio):
                 sustain_offset = sustain_len_ms/time_ratio
 
-        partial_args = {"timestamp":my_start_time + (s[0]/time_ratio + sustain_offset),
+        osc = s[1]+osc_offset
+
+        partial_args = {}
+
+        if(round_robin):
+            if(osc_to_client_map.get(osc,None) is None):
+                osc_to_client_map[osc] = (next_client % clients)
+                next_client += 1
+            partial_args["client"] = osc_to_client_map[osc]
+
+        partial_args.update({"timestamp":my_start_time + (s[0]/time_ratio + sustain_offset),
             "osc":s[1]+osc_offset,
             "wave":amy.PARTIAL,
             "amp":s[3]*amp_ratio,
@@ -190,7 +204,7 @@ def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio
             "bp0":bp0, "bp1":bp1, "bp2":bp2,
             "bp0_target":amy.TARGET_AMP+amy.TARGET_LINEAR,
             "bp1_target":amy.TARGET_FREQ+amy.TARGET_LINEAR,
-            "bp2_target":amy.TARGET_FEEDBACK+amy.TARGET_LINEAR}
+            "bp2_target":amy.TARGET_FEEDBACK+amy.TARGET_LINEAR})
 
         if(s[5]==-2): #end, add note off
             amy.send(**partial_args, vel=0)

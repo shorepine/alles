@@ -40,12 +40,8 @@ extern uint32_t message_counter;
 // Wrap AMY's renderer into 2 FreeRTOS tasks, one per core
 void esp_render_task( void * pvParameters) {
     uint8_t which = *((uint8_t *)pvParameters);
-    uint8_t start, end;
-    if(which == 0) {
-        start = 0; end = (OSCS/2);
-    } else {
-        start = (OSCS/2); end = OSCS; 
-    }
+    uint8_t start = (OSCS/2); uint8_t end = OSCS;
+    if(which == 0) start = 0; end = (OSCS/2);
     printf("I'm renderer #%d on core #%d and i'm handling oscs %d up until %d\n", which, xPortGetCoreID(), start, end);
     while(1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -217,17 +213,13 @@ void wifi_reconfigure() {
 
 // Called when the MIDI button is hit. Toggle between MIDI on and off mode
 void toggle_midi() {
-    if(!(status & RUNNING)) {
-        // we haven't started yet, ignore
-        printf("MIDI mode pressed but not yet started\n");
+    if(!(status & WIFI_MANAGER_OK)) {
+        // we haven't connected yet, ignore
+        printf("MIDI mode pressed but not yet connected\n");
     } else if(status & MIDI_MODE) { 
         // just restart, easier that way
         esp_restart();
     } else {
-        // If button pushed before wifi connects, wait for wifi to connect.
-        while(!(status & WIFI_MANAGER_OK)) {
-            delay_ms(100);
-        }
         // turn on midi
         status = MIDI_MODE | RUNNING;
         // Play a MIDI sound before shutting down oscs
@@ -255,6 +247,8 @@ void power_monitor() {
     const amy_err_t ret = power_read_status(&power_status);
     if(ret != AMY_OK)
         return;
+
+    // print a debugging power status every few seconds to the monitor 
     /*
     char buf[100];
     snprintf(buf, sizeof(buf),
@@ -290,6 +284,13 @@ void power_monitor() {
     if(voltage > 3.30) battery_mask = battery_mask | BATTERY_VOLTAGE_1;
 }
 
+void esp_shutdown() {
+    // TODO: Where did these come from? JTAG?
+    gpio_pullup_dis(14);
+    gpio_pullup_dis(15);
+    esp_sleep_enable_ext1_wakeup((1ULL<<BUTTON_WAKEUP),ESP_EXT1_WAKEUP_ALL_LOW);
+    esp_deep_sleep_start();
+}
 
 void app_main() {
     for(uint8_t i=0;i<MAX_TASKS;i++) last_task_counters[i] = 0;
@@ -313,7 +314,7 @@ void app_main() {
     }
 
     // TODO: one of these interferes with the power monitor, not a big deal, we don't use both at once
-    // Setup GPIO outputs for watching CPU usage
+    // Setup GPIO outputs for watching CPU usage on an oscilloscope 
     /*
     const gpio_config_t out_conf = {
          .mode = GPIO_MODE_OUTPUT,            
@@ -335,25 +336,35 @@ void app_main() {
     wifi_manager_start();
     wifi_manager_set_callback(WM_EVENT_STA_GOT_IP, &wifi_connected);
 
-    // Wait for wifi to connect
+
+    // A funny story: in the early development of Alles, I had four prototype speakers with me as I flew a little
+    // prop plane from YBL to YVR. The bag with the speakers went into the cargo hold of the prop plane and when we
+    // landed everyone could hear this weird chiming noise -- it turns out all four speakers got turned on during the 
+    // flight and at the time there was a bug where if it couldn't connect to the stored wifi, the power button
+    // wouldn't be active either and all four speakers were stuck making the wifi chime. Quite a fun noise to hear in an
+    // airplane! I didn't have any programming cables or a screwdriver with me so I had to put them all in a hotel 
+    // safe covered with a pillow to get their batteries to die. 
+
+    //So now they shut off after MAX_WIFI_WAIT_S if they can't connect.
+    int64_t start_time = get_sysclock();
     while((!(status & WIFI_MANAGER_OK) && (status & RUNNING) )) {
-        delay_ms(1000);
+        delay_ms(2500);
         wifi_tone();
+        if(get_sysclock() - start_time > (MAX_WIFI_WAIT_S*1000)) esp_shutdown();
     }
 
-    // TOOD -- if someone presses MIDI you then can't turn it off!!
     // We check for RUNNING as someone could have pressed power already
     if(!(status & RUNNING)) {
         // shut down
         debleep();
         delay_ms(500);
-        esp_sleep_enable_ext1_wakeup((1ULL<<BUTTON_WAKEUP),ESP_EXT1_WAKEUP_ALL_LOW);
-        esp_deep_sleep_start();
+        esp_shutdown();
     }
 
     delay_ms(500);
     reset_oscs();
 
+    // Setup the socket
     create_multicast_ipv4_socket();
 
     // Create the task that waits for UDP messages, parses them and puts them on the sequencer queue (core 1)
@@ -367,29 +378,12 @@ void app_main() {
     // Spin this core until the power off button is pressed, parsing events and making sounds
     while(status & RUNNING) {
         delay_ms(10);
-
     }
 
     // If we got here, the power off button was pressed 
-    // The idea here is we go into a low power deep sleep mode waiting for a GPIO pin to turn us back on
-    // The battery can still charge during this, but let's turn off audio, wifi, multicast, midi 
-
     // Play a "turning off" sound
     debleep();
     delay_ms(500);
-
-    // Stop mulitcast listening, wifi, midi
-    vTaskSuspend(mcastTask);
-    vTaskSuspend(parseTask);
-    esp_wifi_stop();
-    if(status & MIDI_MODE) midi_deinit();
-
-
-    // TODO: Where did these come from? JTAG?
-    gpio_pullup_dis(14);
-    gpio_pullup_dis(15);
-
-    esp_sleep_enable_ext1_wakeup((1ULL<<BUTTON_WAKEUP),ESP_EXT1_WAKEUP_ALL_LOW);
-    esp_deep_sleep_start();
+    esp_shutdown();
 }
 

@@ -14,6 +14,7 @@ extern "C" {
 #ifdef ESP_PLATFORM
 #define configUSE_TASK_NOTIFICATIONS 1
 #define configTASK_NOTIFICATION_ARRAY_ENTRIES 2
+#define MAX_WIFI_WAIT_S 60
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -61,7 +62,6 @@ typedef int16_t i2s_sample_type;
 #define CPU_MONITOR_0 13
 #define CPU_MONITOR_1 12
 #define CPU_MONITOR_2 15
-
 
 #endif // ESP_PLATFORM
 
