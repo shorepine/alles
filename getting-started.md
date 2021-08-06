@@ -61,11 +61,12 @@ Let's set a simple sine wave first
 alles.send(osc=0, wave=alles.amy.SINE, freq=220, amp=1)
 ```
 
-Make sure to try `alles.reset()` to stop everything too.
 
 What we're doing here should be pretty straightforward. I'm telling oscillator 0 to be a sine wave at 220Hz and amplitude 1. The `alles.amy.SINE` bit is that we are using the constants from AMY, the synthesis engine we built for Alles. You can also try `alles.amy.PULSE`, or `alles.amy.SAW`, etc. 
 
 Why can't you hear anything yet? It's because you haven't triggered the note on for this oscillator. We accept a parameter called `vel` (velocity) that can turn a note on or off (`vel=0`.) So now that we've set up the oscillator, we just turn it on by `alles.send(osc=0, vel=1)`. Note the oscillator remembers all its state and setup. To turn off the note, just do `alles.send(osc=0, vel=0)`. 
+
+Make sure to try `alles.reset()` to stop everything too.
 
 Now let's make a lot of sine waves! 
 
@@ -87,11 +88,9 @@ alles.send(osc=0, vel=1, note=40)
 Sounds nice. But we want that filter freq to go down over time, to make that classic filter sweep tone. Let's use a breakpoint! A breakpoint is a simple list of (time, value) - you can have up to 8 of those pairs, and up to 3 different sets to control different things. They're just like ADSRs, but more powerful. You can control amplitude, frequency, duty cycle, feedback, filter frequence, or resonance with a breakpoint. It gets triggered when the note does. So let's make a breakpoint that turns the filter frequency down from its start at 2500 to 1250 after 100 milliseconds. And when the note goes off, taper the frequency to 0 after 25 millseconds. 
 
 ```python
+alles.send(osc=0,wave=alles.amy.SAW,filter_freq=2500, resonance=5, filter_type=alles.amy.FILTER_LPF)
 alles.send(osc=0, bp0="100,0.5,25,0", bp0_target=alles.amy.TARGET_FILTER_FREQ)
 alles.send(osc=0, vel=1, note=40)
-alles.send(osc=0, vel=1, note=41)
-alles.send(osc=0, vel=1, note=42)
-alles.send(osc=0, vel=0)
 ```
 
 Great. You can add multiple targets together, for example, if you want a breakpoint to control both filter frequency and resonance, use `bp0_target=alles.amy.TARGET_FILTER_FREQ+alles.amy.TARGET_RESONANCE`. Give it a go!

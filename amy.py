@@ -21,14 +21,13 @@ def send(**kwargs):
     libamy.send(message(**kwargs))
 
 
-# Construct an AMY message
+# Removes trailing 0s and x.0000s 
+def trunc(number):
+    return ('%.10f' % number).rstrip('0').rstrip('.')# Construct an AMY message
+
 def message(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, bp0="", bp1="", bp2="", bp0_target=-1, bp1_target=-1, bp2_target=-1, mod_target=-1, \
         debug=-1, mod_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, detune = -1, algo_source=None):
-
-    # Removes trailing 0s and x.0000s 
-    def trunc(number):
-        return ('%.10f' % number).rstrip('0').rstrip('.')
 
     m = ""
     if(timestamp is None): timestamp = millis()

@@ -3,6 +3,9 @@
 // brian@variogr.am
 #include "alles.h"
 
+uint8_t board_level;
+uint8_t status;
+
 
 // For CPU usage
 unsigned long last_task_counters[MAX_TASKS];
@@ -40,8 +43,9 @@ extern uint32_t message_counter;
 // Wrap AMY's renderer into 2 FreeRTOS tasks, one per core
 void esp_render_task( void * pvParameters) {
     uint8_t which = *((uint8_t *)pvParameters);
-    uint8_t start = (OSCS/2); uint8_t end = OSCS;
-    if(which == 0) start = 0; end = (OSCS/2);
+    uint8_t start = (OSCS/2); 
+    uint8_t end = OSCS;
+    if(which == 0) { start = 0; end = (OSCS/2); } 
     printf("I'm renderer #%d on core #%d and i'm handling oscs %d up until %d\n", which, xPortGetCoreID(), start, end);
     while(1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);

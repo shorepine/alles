@@ -3,7 +3,7 @@
 #include "alles.h"
 
 extern uint8_t battery_mask;
-uint8_t ipv4_quartet;
+extern uint8_t ipv4_quartet;
 int16_t client_id;
 int64_t clocks[255];
 int64_t ping_times[255];

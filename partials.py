@@ -207,11 +207,11 @@ def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio
             "bp2_target":amy.TARGET_FEEDBACK+amy.TARGET_LINEAR})
 
         if(s[5]==-2): #end, add note off
-            amy.send(**partial_args, vel=0)
+            alles.send(**partial_args, vel=0)
         elif(s[5]==-1): # continue
-            amy.send(**partial_args)
+            alles.send(**partial_args)
         else: #start, add phase and note on
-            amy.send(**partial_args, vel=s[3]*amp_ratio, phase=s[5])
+            alles.send(**partial_args, vel=s[3]*amp_ratio, phase=s[5])
 
     return sequence[-1][0]/time_ratio
 

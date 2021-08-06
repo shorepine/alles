@@ -96,8 +96,6 @@ void delay_ms(uint32_t ms);
 #define WIFI_MANAGER_OK 2
 #define MIDI_MODE 4
 
-uint8_t board_level;
-uint8_t status;
 
 // Sounds
 extern void bleep();
