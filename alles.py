@@ -254,6 +254,7 @@ def connect(local_ip=None):
     # Keep loopback on if you're controlling Alles from your own desktop
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1) # 1
     sock.bind(('', 3333))
+    print("Using %s as local IP for multicast IF" % (local_ip))
     # Set the local interface for multicast receive
     sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(local_ip))
     # And the networks to be a member of (destination and host)
@@ -370,7 +371,9 @@ def battery_test():
 if(os.uname().nodename=='colossus'):
     connect(local_ip="192.168.1.2")
 elif(os.uname().nodename=='cedar.local'):
-     connect(local_ip = '192.168.1.3')
+    connect(local_ip = '192.168.1.3')
+elif(os.uname().nodename=='contain.lan'):
+    connect(local_ip = '192.168.1.3')
 else:
     connect(local_ip=None)
 

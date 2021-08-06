@@ -1,5 +1,7 @@
 # Alles Speaker RevB getting started notes
 
+![picture](https://raw.githubusercontent.com/bwhitman/alles/main/pics/alles-revb-moss.png)
+
 Hello! You're the lucky owner of at least one Alles speaker. This guide will help you get started.
 
 ## The Speaker

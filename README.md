@@ -1,6 +1,6 @@
 # Alles - the mesh synthesizer
 
-![picture](https://raw.githubusercontent.com/bwhitman/alles/main/pics/set.jpg)
+![picture](https://raw.githubusercontent.com/bwhitman/alles/main/pics/alles-revB-group.png)
 
 **Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 64 additive oscillators and 32 filters, with modulation / LFOs and ADSRs per oscillator. The speaker can be any combination of our custom hardware speakers or a programs running on your computers. The software is open source and the hardware is cheap and easy to make -- you can build one yourself for about US$20.
 
