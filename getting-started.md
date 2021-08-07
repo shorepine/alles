@@ -113,8 +113,16 @@ alles.send(osc=0, wave=alles.amy.PULSE, duty=0.5, freq=110, mod_source=1, mod_ta
 alles.send(osc=0, vel=0.5)
 ```
 
+There's a lot more parameters and things to play with. Check out the [AMY documentation](https://github.com/bwhitman/alles/blob/main/main/amy/README.md) for the full list, or look at alles.amy.message in Python:
 
-`alles.py` has some helpful presets for things like this, if you want to use them, or add to them. To make that filter bass, just do `alles.preset(1, osc=0)` and then `alles.send(osc=0, vel=1, note=40)` to hear it. Here's another one:
+```python
+# alles.amy.message():
+(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
+        client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, bp0="", bp1="", bp2="", bp0_target=-1, bp1_target=-1, bp2_target=-1, mod_target=-1, \
+        debug=-1, mod_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, detune = -1, algo_source=None)
+```
+
+`alles.py` has some helpful presets, if you want to use them, or add to them. To make that filter bass, just do `alles.preset(1, osc=0)` and then `alles.send(osc=0, vel=1, note=40)` to hear it. Here's another one:
 
 ```python
 alles.preset(0, osc=2) # will set a simple sine wave tone on oscillator 2
@@ -155,9 +163,13 @@ There's some other helpful tricks in `client`. If you give `client` a number gre
 
 ### Additive synthesis 
 
-Those deep into synth lore already know why Alles is called that: we initially built it to be a multi-channel version of the "Alles Machine", a Bell Labs synth from the 70s/80s invented by Hal Alles. It was built as a bank of oscillators and envelopes with filters, just like ours. Except we can program oscillators to go anywhere in space and have a lot more of them. 
+Those deep into synth lore already know why Alles is called that: we initially built it to be a multi-channel version of the "[Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer)", a Bell Labs synth from the 70s/80s invented by Hal Alles. It was built as a bank of oscillators and envelopes with filters, just like ours. Except we can program oscillators to go anywhere in space and have a lot more of them. 
 
-Additive synthesis is simply adding together oscillators to make more complex tones. You can modulate the breakpoints of these oscillators over time, for example, changing their pitch or time without artifacts, as the synthesis is simply playing sine waves back at certain amplitudes and frequencies (and phases.) It's well suited to certain types of instruments. We have analyzed the partials of a group of instruments and stored them as presets baked into the speaker. Each of these patches are comprised of multiple sine wave oscillators, changing over time. The `PARTIALS` type has the presets:
+Additive synthesis is simply adding together oscillators to make more complex tones. You can modulate the breakpoints of these oscillators over time, for example, changing their pitch or time without artifacts, as the synthesis is simply playing sine waves back at certain amplitudes and frequencies (and phases.) It's well suited to certain types of instruments. 
+
+![Partials](https://raw.githubusercontent.com/bwhitman/alles/main/pics/partials.png)
+
+We have analyzed the partials of a group of instruments and stored them as presets baked into the speaker. Each of these patches are comprised of multiple sine wave oscillators, changing over time. The `PARTIALS` type has the presets:
 
 ```python
 alles.send(osc=0,vel=1,note=50,wave=alles.amy.PARTIALS,patch=5) # a nice organ tone
@@ -184,7 +196,7 @@ alles.send(wave=alles.amy.ALGO,osc=0,patch=0,note=50,vel=1)
 alles.send(wave=alles.amy.ALGO,osc=0,patch=1,note=50,vel=1)
 ```
 
-The `patch` lets you set which preset. Another fun parameter is `ratio`, which for ALGO types indicates how slow / fast to play the patch's envelopes. Really cool to slow them down!
+The `patch` lets you set which preset. Another fun parameter is `ratio`, which for ALGO patch types indicates how slow / fast to play the patch's envelopes. Really cool to slow them down!
 
 ```python
 alles.send(wave=alles.amy.ALGO,osc=0,note=40,vel=1,ratio=0.5,patch=8) # half speed
@@ -222,7 +234,7 @@ alles.send(osc=1,ratio=1)
 alles.send(osc=2,algorithm=0,wave=alles.amy.ALGO,algo_source="-1,-1,-1,-1,0,1")
 ```
 
-Then play it with 
+Just a refresher on breakpoints; here we are saying to set the beta parameter (amplitude of the modulating tone) to 0.5 but have it start at 0 at time 0, then be at 1.0x of 0.5 (so, 0.5) at time 5000ms. At the release of the note, set beta immediately to 0. We can play it with
 
 ```python
 alles.send(osc=2,vel=2,note=50)
