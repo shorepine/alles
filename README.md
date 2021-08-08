@@ -42,7 +42,7 @@ If you don't want to build or buy an Alles speaker, you can run Alles locally on
 
 To build and run `alles` on a computer, simply clone this repository and
 
-```
+```bash
 $ brew install libsoundio # mac
 $ apt install libsoundio-dev # linux
 $ cd alles/main
@@ -80,7 +80,7 @@ For higher throughput, it's recommended to batch many messages into one UDP mess
 
 Alles comes with its own full-featured client, written in Python. Feel free to adapt it or use it in your own clients. It can be seen as documentation, an API as well as a testing suite. You simply `import alles` and can control the entire mesh.
 
-```
+```bash
 $ python3
 >>> import alles
 >>> alles.drums() # plays a drum pattern on all synths
@@ -89,14 +89,14 @@ $ python3
 
 Or experiment with oscillators:
 
-```
->>> # use a a 0.25Hz sine wave at half phase (going down) to modify frequency of another sine wave
->>> alles.reset()
->>> alles.send(osc=1, wave=alles.amy.SINE, vel=0.50, freq=0.25, phase=0.5) # LFO source oscillator
->>> alles.send(osc=0, wave=alles.amy.SINE, vel=0, bp0="0,500,0,0", bp0_target=alles.amy.TARGET_AMP, lfo_target=alles.amy.TARGET_FREQ, lfo_source=1)
->>> alles.send(osc=0, note=60, vel=1.5) # Bass drum!
->>> alles.send(osc=0, filter_freq=800, resonance=1.5) # filter it
->>> alles.send(osc=0, note=50, vel=1.5) # note on
+```python
+# use a a 0.25Hz sine wave at half phase (going down) to modify frequency of another sine wave
+alles.reset()
+alles.send(osc=1, wave=alles.amy.SINE, vel=0.50, freq=0.25, phase=0.5) # LFO source oscillator
+alles.send(osc=0, wave=alles.amy.SINE, vel=0, bp0="0,500,0,0", bp0_target=alles.amy.TARGET_AMP, lfo_target=alles.amy.TARGET_FREQ, lfo_source=1)
+alles.send(osc=0, note=60, vel=1.5) # Bass drum!
+alles.send(osc=0, filter_freq=800, resonance=1.5) # filter it
+alles.send(osc=0, note=50, vel=1.5) # note on
 ```
 
 
@@ -118,7 +118,7 @@ Alles is not designed as a low latency real-time performance instrument, where y
 
 Your host should send along the `time` parameter of the relative time when you expect the sound to play. I'd suggest using the number of milliseconds since your host started, e.g. in Python:
 
-```
+```python
 def millis():
     d = datetime.datetime.now()
     return int((datetime.datetime.utcnow() - datetime.datetime(d.year, d.month, d.day)).total_seconds()*1000)
@@ -145,7 +145,7 @@ If you're in a place where you can't control your network, you can mitigate reli
 
 Minimal Python example:
 
-```
+```python
 import socket
 multicast_group = ('232.10.11.12', 3333)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
