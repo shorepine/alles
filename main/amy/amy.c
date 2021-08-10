@@ -546,7 +546,29 @@ int64_t get_sysclock() {
 #ifndef ESP_PLATFORM
 int16_t leftover_buf[BLOCK_SIZE]; 
 uint16_t leftover_samples = 0;
+int16_t channel = -1;
+int16_t device_id = -1;
+    
+
+void print_devices() {
+    struct SoundIo *soundio2 = soundio_create();
+    int err = soundio_connect(soundio2);
+    soundio_flush_events(soundio2);
+
+    int output_count = soundio_output_device_count(soundio2);
+    int default_output = soundio_default_output_device_index(soundio2);
+    for (int i = 0; i < output_count; i += 1) {
+        struct SoundIoDevice *device = soundio_get_output_device(soundio2, i);
+        const char *default_str = (i==default_output) ? " (default)" : "";
+        const char *raw_str = device->is_raw ? " (raw)" : "";
+        int chans = device->layouts[0].channel_count;
+        printf("[%d]\t%s%s%s\t%d output channels\n", i, device->name, default_str, raw_str, chans);
+        soundio_device_unref(device);
+    }
+}
+
 static void soundio_callback(struct SoundIoOutStream *outstream, int frame_count_min, int frame_count_max) {
+    const struct SoundIoChannelLayout *layout = &outstream->layout;
     struct SoundIoChannelArea *areas;
     int err;
 
@@ -562,26 +584,50 @@ static void soundio_callback(struct SoundIoOutStream *outstream, int frame_count
     // external headphones on a MBP is 432 or 431, and airpods were something like 1440.
 
     // First send over the leftover samples, if any
-    memcpy(areas[0].ptr, leftover_buf, leftover_samples*2);
-    areas[0].ptr += leftover_samples * 2;
+    for(uint16_t frame=0;frame<leftover_samples;frame++) {
+        for(uint8_t c=0;c<layout->channel_count;c++) {
+            if(c==channel || channel<0) {
+                *((int16_t*)areas[c].ptr) = leftover_buf[frame];
+            } else {
+                *((int16_t*)areas[c].ptr) = 0;
+            }
+            areas[c].ptr += areas[c].step;
+        }
+    }
     frame_count -= leftover_samples;
     leftover_samples = 0;
 
     // Now send the bulk of the frames
     for(uint8_t i=0;i<(uint8_t)(frame_count / BLOCK_SIZE);i++) {
         int16_t *buf = fill_audio_buffer_task();
-        memcpy(areas[0].ptr, buf, BLOCK_SIZE*2);
-        areas[0].ptr += BLOCK_SIZE*2;
+        for(uint16_t frame=0;frame<BLOCK_SIZE;frame++) {
+            for(uint8_t c=0;c<layout->channel_count;c++) {
+                if(c==channel || channel < 0) {
+                    *((int16_t*)areas[c].ptr) = buf[frame];
+                } else {
+                    *((int16_t*)areas[c].ptr) = 0;
+                }
+                areas[c].ptr += areas[c].step;
+            }
+        }
     } 
 
     // If any leftover, let's put those in the outgoing buf and the rest in leftover_samples
     uint16_t still_need = frame_count % BLOCK_SIZE;
     if(still_need != 0) {
         int16_t * buf = fill_audio_buffer_task();
-        memcpy(areas[0].ptr, buf, still_need*2);
-        areas[0].ptr += still_need*2;
+        for(uint16_t frame=0;frame<still_need;frame++) {
+            for(uint8_t c=0;c<layout->channel_count;c++) {
+                if(c==channel || channel < 0) {
+                    *((int16_t*)areas[c].ptr) = buf[frame];
+                } else {
+                    *((int16_t*)areas[c].ptr) = 0;
+                }
+                areas[c].ptr += areas[c].step;
+            }
+        }
+        memcpy(leftover_buf, buf+still_need, (BLOCK_SIZE - still_need)*2);
         leftover_samples = BLOCK_SIZE - still_need;
-        memcpy(leftover_buf, buf+still_need, leftover_samples*2);
     }
     if ((err = soundio_outstream_end_write(outstream))) {
         if (err == SoundIoErrorUnderflow)
@@ -610,7 +656,13 @@ amy_err_t soundio_init() {
     }
 
     soundio_flush_events(soundio);
-    int selected_device_index = soundio_default_output_device_index(soundio);
+    int selected_device_index;
+    if(device_id < 0)  {
+        selected_device_index = soundio_default_output_device_index(soundio);
+    } else {
+        selected_device_index = device_id;
+    }
+
 
     if (selected_device_index < 0) {
         fprintf(stderr, "Output device not found\n");
@@ -618,9 +670,16 @@ amy_err_t soundio_init() {
     }
 
     struct SoundIoDevice *device = soundio_get_output_device(soundio, selected_device_index);
+    if(channel > device->layouts[0].channel_count-1) {
+        printf("Requested channel number more than available, setting to -1\n");
+        channel = -1;
+    }
     if (!device) {
         fprintf(stderr, "out of memory\n");
         return 1;
+    } else {
+        const char *all_str = (channel<0) ? " (all)" : "";
+        printf("Using device ID %d, device %s, channel %d %s\n", selected_device_index, device->name, channel, all_str);
     }
 
     if (device->probe_error) {
@@ -639,7 +698,6 @@ amy_err_t soundio_init() {
     outstream->name = NULL;
     outstream->software_latency = 0.0;
     outstream->sample_rate = SAMPLE_RATE;
-    outstream->layout = *soundio_channel_layout_get_default(1);
 
     if (soundio_device_supports_format(device, SoundIoFormatS16NE)) {
         outstream->format = SoundIoFormatS16NE;
