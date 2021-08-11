@@ -552,7 +552,7 @@ int16_t device_id = -1;
 
 void print_devices() {
     struct SoundIo *soundio2 = soundio_create();
-    int err = soundio_connect(soundio2);
+    soundio_connect(soundio2);
     soundio_flush_events(soundio2);
 
     int output_count = soundio_output_device_count(soundio2);
