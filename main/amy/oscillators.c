@@ -2,7 +2,6 @@
 #include "sine_lutset.h"
 #include "impulse_lutset.h"
 #include "triangle_lutset.h"
-#include "pcm.h"
 
 // We only allow a couple of KS oscs as they're RAM hogs 
 #define MAX_KS_BUFFER_LEN 802 // 44100/55  -- 55Hz (A1) lowest we can go for KS
@@ -152,78 +151,6 @@ void lpf_buf(float *buf, float decay, float *state) {
 
 
 
-
-/* PCM */
-// todo -- fix this up so that lut_size works 
-/*
-void pcm_note_on(uint8_t osc) {
-    // If no freq given, we set it to default PCM SR. e.g. freq=11025 plays PCM at half speed, freq=44100 double speed 
-    if(synth[osc].freq <= 0) synth[osc].freq = PCM_SAMPLE_RATE;
-    // If patch is given, set step directly from patch's offset
-    if(synth[osc].patch>=0) {
-        synth[osc].step = offset_map[synth[osc].patch*2]; // start sample
-        // Use substep here as "end sample" so we don't have to add another field to the struct
-        synth[osc].substep = synth[osc].step + offset_map[synth[osc].patch*2 + 1]; // end sample
-    } else { // no patch # given? use phase as index into PCM buffer
-        synth[osc].step = PCM_LENGTH * synth[osc].phase; // start at phase offset
-        synth[osc].substep = PCM_LENGTH; // play until end of buffer and stop 
-    }
-
-    float period_samples = (float)SAMPLE_RATE / synth[osc].freq;
-    synth[osc].lut = pcm; 
-}
-
-void render_pcm(float * buf, uint8_t osc, float *mod) { 
-    float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
-    synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
-                 synth[osc].lut, synth[osc].lut_size, mod);
-}
-*/
-
-void pcm_note_on(uint8_t osc) {
-    // If no freq given, we set it to default PCM SR. e.g. freq=11025 plays PCM at half speed, freq=44100 double speed 
-    if(synth[osc].freq <= 0) synth[osc].freq = PCM_SAMPLE_RATE;
-    // If patch is given, set step directly from patch's offset
-    if(synth[osc].patch>=0) {
-        synth[osc].step = offset_map[synth[osc].patch*2]; // start sample
-        // Use substep here as "end sample" so we don't have to add another field to the struct
-        synth[osc].substep = synth[osc].step + offset_map[synth[osc].patch*2 + 1]; // end sample
-    } else { // no patch # given? use phase as index into PCM buffer
-        synth[osc].step = PCM_LENGTH * synth[osc].phase; // start at phase offset
-        synth[osc].substep = PCM_LENGTH; // play until end of buffer and stop 
-    }
-}
-void pcm_mod_trigger(uint8_t osc) {
-    pcm_note_on(osc);
-}
-
-// TODO -- this just does one shot, no looping (will need extra loop parameter? what about sample metadata looping?) 
-// TODO -- this should just be like render_LUT(float * buf, uint8_t osc, int16_t **LUT) as it's the same for sine & PCM?
-void render_pcm(float * buf, uint8_t osc) {
-    float skip = msynth[osc].freq / (float)SAMPLE_RATE;
-    for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        float sample = pcm[(int)(synth[osc].step)]/(float)SAMPLE_MAX; // makes it -1 to 1
-        synth[osc].step = (synth[osc].step + skip);
-        if(synth[osc].step >= synth[osc].substep ) { // end
-            synth[osc].status=OFF;
-            sample = 0;
-        }
-        buf[i] = (sample * msynth[osc].amp);
-    }
-}
-
-float compute_mod_pcm(uint8_t osc) {
-    float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
-    float skip = msynth[osc].freq / mod_sr;
-    float sample = pcm[(int)(synth[osc].step)];
-    synth[osc].step = (synth[osc].step + skip);
-    if(synth[osc].step >= synth[osc].substep ) { // end
-        synth[osc].status=OFF;
-        sample = 0;
-    }
-    return (sample * msynth[osc].amp) / SAMPLE_MAX; // -1 .. 1
-    
-}
 
 /* Pulse wave */
 

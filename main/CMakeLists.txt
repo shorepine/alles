@@ -9,6 +9,7 @@ idf_component_register(SRCS alles.c
 							amy/amy.c
 							amy/algorithms.c
 							amy/oscillators.c
+							amy/pcm.c
 							amy/filters.c
 							amy/envelope.c
 							amy/partials.c

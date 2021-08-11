@@ -11,7 +11,8 @@ CFLAGS = -g -Wall -Wno-strict-aliasing -DDESKTOP_PLATFORM
 default: $(TARGET)
 all: default
 
-OBJECTS = $(patsubst %.c, %.o, sync.c midi.c multicast_desktop.c alles_desktop.c sounds.c amy/algorithms.c amy/amy.c amy/envelope.c amy/filters.c amy/oscillators.c amy/partials.c)
+OBJECTS = $(patsubst %.c, %.o, sync.c midi.c multicast_desktop.c alles_desktop.c sounds.c amy/algorithms.c \
+	amy/amy.c amy/envelope.c amy/filters.c amy/oscillators.c amy/pcm.c amy/partials.c)
 HEADERS = alles.h $(wildcard amy/*.h)
 
 UNAME_S := $(shell uname -s)

@@ -30,20 +30,23 @@ def generate_alles_pcm_header(pcm_sample_rate=22050):
             s["name"] = sample.name
             floaty =(np.frombuffer(bytes(sample.raw_sample_data),dtype='int16'))/32768.0
             resampled = resampy.resample(floaty, sample.sample_rate, pcm_sample_rate)
-            samples = np.int16(resampled*32768)
-            int16s.append(samples)
+            samples_int16 = np.int16(resampled*32768)
+            int16s.append(samples_int16)
             s["offset"] = offset 
-            s["length"] = samples.shape[0]
-            offset = offset + samples.shape[0]
+            s["length"] = samples_int16.shape[0]
+            s["loopstart"] = int(float(sample.start_loop) / float(sample.sample_rate / pcm_sample_rate))
+            s["loopend"] = int(float(sample.end_loop) / float(sample.sample_rate / pcm_sample_rate))
+            s["midinote"] = sample.original_pitch
+            offset = offset + samples_int16.shape[0]
             offsets.append(s)
         except AttributeError:
             print("skipping %s" % (sample.name))
     
     all_samples = np.hstack(int16s)
     p.write("#define PCM_SAMPLES %d\n#define PCM_LENGTH %d\n#define PCM_SAMPLE_RATE %d\n" % (len(offsets), all_samples.shape[0], pcm_sample_rate))
-    p.write("const uint32_t offset_map[%d] = {\n" % (len(offsets)*2))
+    p.write("const pcm_map_t pcm_map[%d] = {\n" % (len(offsets)))
     for o in offsets:
-        p.write("    %d, %d, /* %s */\n" %(o["offset"], o["length"], o["name"]))
+        p.write("    {%d, %d, %d, %d, %d}, /* %s */\n" %(o["offset"], o["length"], o["loopstart"], o["loopend"], o["midinote"], o["name"]))
     p.write("};\n")
 
     p.write("const int16_t pcm[%d] = {\n" % (all_samples.shape[0]))
