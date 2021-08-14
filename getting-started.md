@@ -292,17 +292,17 @@ cd ..
 
 ### Make your own partial playback synthesizer
 
-As part of that setup you installed Loris, which is one of the better sine wave decomposition tools. (There's some others, if you get into this I recommend the great `simpl` project to A/B test Loris against MQ or SMS.) Loris analyzes PCM audio into sets of partials (think of it as a sine wave over time in a spectrogram), each with a series of breakpoints, each specifying time, frequency, amplitude, bandwidth and phase. The PARTIALS presets you played with above are based on Loris analysis of instrument samples. But you can make your own analyses and control Alles using them. 
+As part of that setup you installed Loris, which is one of the better sine wave decomposition tools. (There's some others, if you get into this I recommend the great [`simpl`](https://github.com/johnglover/simpl) project to A/B test Loris against MQ or SMS.) Loris analyzes PCM audio into sets of partials (think of it as a sine wave over time in a spectrogram), each with a series of breakpoints, each specifying time, frequency, amplitude, bandwidth and phase. The PARTIALS presets you played with above are based on Loris analysis of instrument samples. But you can make your own analyses and control Alles using them. 
 
 ```python
 import partials
-(m,s) = partials.sequence("filename.mp3")
-149 partials and 1008 breakpoints, max oscs used at once was 8
+(m,s) = partials.sequence("Roygbiv.m4a")
+109 partials and 1029 breakpoints, max oscs used at once was 8
 
-partials.play(s)
+partials.play(s, amp_ratio=2, bw_ratio=0)
 ```
 
-You can see, given any audio file, you can hear a sine wave decomposition version of it across Alles. This particular sound emitted 149 partials, with a total of 1008 breakpoints among them to play back to the mesh. Of those 149 partials, only 8 get active at once. `partials.sequence()` performs voice stealing to ensure we use as few oscillators as necessary to play back a set. 
+You can see, given any audio file, you can hear a sine wave decomposition version of it across Alles. This particular sound emitted 109 partials, with a total of 1029 breakpoints among them to play back to the mesh. Of those 109 partials, only 8 are active at once. `partials.sequence()` performs voice stealing to ensure we use as few oscillators as necessary to play back a set. 
 
 There's a lot of parameters you can (and should!) play with in Loris. `partials.sequence`  and `partials.play`takes the following with their defaults:
 
@@ -312,7 +312,7 @@ def sequence(filename, # any audio filename
 				amp_floor=-30, # only accept partials at this amplitude in dB, lower #s == more partials
 				hop_time=0.04, # time between analysis windows, impacts distance between breakpoints
 				max_oscs=amy.OSCS, # max Alles oscs to take up, can be > 64 if using multiple speakers
-				freq_res = 10, # freq resolution of analyzer 
+				freq_res = 10, # freq resolution of analyzer, higher # -- less partials & breakpoints 
 				freq_drift=20, # max difference in Hz within a single partial
 				analysis_window = 100 # analysis window size 
 				) # returns (metadata, sequence)

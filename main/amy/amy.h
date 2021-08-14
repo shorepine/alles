@@ -155,6 +155,8 @@ struct event {
     float dc_offset;
     // Decay alpha of LPF filter (e.g. 0.99 or 0.999).
     float lpf_alpha;
+    // amplitude smoother
+    float last_amp;
     // Selected lookup table and size.
     const float *lut;
     int16_t lut_size;

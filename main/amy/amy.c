@@ -252,6 +252,7 @@ void reset_osc(uint8_t i ) {
     synth[i].filter_type = FILTER_NONE;
     synth[i].lpf_state = 0;
     synth[i].lpf_alpha = 0;
+    synth[i].last_amp = 0;
     synth[i].dc_offset = 0;
     synth[i].algorithm = 0;
     for(uint8_t j=0;j<MAX_ALGO_OPS;j++) synth[i].algo_source[j] = -2;
@@ -549,7 +550,9 @@ int16_t leftover_buf[BLOCK_SIZE];
 uint16_t leftover_samples = 0;
 int16_t channel = -1;
 int16_t device_id = -1;
-    
+uint8_t file_write = 0;
+FILE * raw = NULL;
+extern char * raw_file;
 
 void print_devices() {
     struct SoundIo *soundio2 = soundio_create();
@@ -589,6 +592,7 @@ static void soundio_callback(struct SoundIoOutStream *outstream, int frame_count
         for(uint8_t c=0;c<layout->channel_count;c++) {
             if(c==channel || channel<0) {
                 *((int16_t*)areas[c].ptr) = leftover_buf[frame];
+                if(file_write) fwrite(&leftover_buf[frame], 2, 1, raw);
             } else {
                 *((int16_t*)areas[c].ptr) = 0;
             }
@@ -605,6 +609,7 @@ static void soundio_callback(struct SoundIoOutStream *outstream, int frame_count
             for(uint8_t c=0;c<layout->channel_count;c++) {
                 if(c==channel || channel < 0) {
                     *((int16_t*)areas[c].ptr) = buf[frame];
+                    if(file_write) fwrite(&buf[frame], 2, 1, raw);
                 } else {
                     *((int16_t*)areas[c].ptr) = 0;
                 }
@@ -621,6 +626,7 @@ static void soundio_callback(struct SoundIoOutStream *outstream, int frame_count
             for(uint8_t c=0;c<layout->channel_count;c++) {
                 if(c==channel || channel < 0) {
                     *((int16_t*)areas[c].ptr) = buf[frame];
+                    if(file_write) fwrite(&buf[frame], 2, 1, raw);
                 } else {
                     *((int16_t*)areas[c].ptr) = 0;
                 }
@@ -731,9 +737,14 @@ void *soundio_run(void *vargp) {
 
 void live_start() {
     // kick off a thread running soundio_run
+    if(strlen(raw_file) > 0) {
+        file_write = 1;
+        raw = fopen(raw_file, "wb");
+    }
     pthread_t thread_id;
     pthread_create(&thread_id, NULL, soundio_run, NULL);
 }
+
 
 void live_stop() {
     soundio_destroy(soundio);

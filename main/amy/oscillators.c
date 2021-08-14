@@ -89,7 +89,7 @@ float render_lut_fm_osc(float * buf, float phase, float step, float amp, const f
 
 // TODO -- move this render_LUT to use the "New terminology" that render_lut_fm_osc uses
 // pass in unscaled phase, use step instead of skip, etc
-float render_lut(float * buf, float step, float skip, float amp, const float* lut, int32_t lut_size) { 
+float render_lut(float * buf, float step, float skip, float incoming_amp, float ending_amp, const float* lut, int32_t lut_size) { 
     // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
     int lut_mask = lut_size - 1;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
@@ -115,7 +115,8 @@ float render_lut(float * buf, float step, float skip, float amp, const float* lu
         float cminusb = c - b;
         float sample = b + frac * (cminusb - 0.1666667f * (1.-frac) * ((d - a - 3.0f * cminusb) * frac + (d + 2.0f*a - 3.0f*b)));
 #endif /* LINEAR_INTERP */
-        buf[i] += sample * amp;
+        float scaled_amp = incoming_amp + (ending_amp - incoming_amp)*((float)i/(float)BLOCK_SIZE);
+        buf[i] += sample * scaled_amp;
 
         step += skip;
         if(step >= lut_size) step -= lut_size;
@@ -176,9 +177,10 @@ void render_pulse(float * buf, uint8_t osc) {
     float amp = msynth[osc].amp * skip * 4.0 / synth[osc].lut_size;
     float pwm_step = synth[osc].step + duty * synth[osc].lut_size;
     if (pwm_step >= synth[osc].lut_size)  pwm_step -= synth[osc].lut_size;
-    synth[osc].step = render_lut(buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size);
-    render_lut(buf, pwm_step, skip, -amp, synth[osc].lut, synth[osc].lut_size);
+    synth[osc].step = render_lut(buf, synth[osc].step, skip, synth[osc].last_amp, amp, synth[osc].lut, synth[osc].lut_size);
+    render_lut(buf, pwm_step, skip, -synth[osc].last_amp, -amp, synth[osc].lut, synth[osc].lut_size);
     lpf_buf(buf, synth[osc].lpf_alpha, &synth[osc].lpf_state);
+    synth[osc].last_amp = amp;
 }
 
 void pulse_mod_trigger(uint8_t osc) {
@@ -235,13 +237,14 @@ void render_saw(float * buf, uint8_t osc) {
     // Scale the impulse proportional to the skip so its integral remains ~constant.
     float amp = msynth[osc].amp * skip * 4.0 / synth[osc].lut_size;
     synth[osc].step = render_lut(
-          buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size);
+          buf, synth[osc].step, skip, synth[osc].last_amp, amp, synth[osc].lut, synth[osc].lut_size);
     // Give the impulse train a negative bias so that it integrates to zero mean.
     float offset = amp * synth[osc].dc_offset;
     for (int i = 0; i < BLOCK_SIZE; ++i) {
         buf[i] += offset;
     }
     lpf_buf(buf, synth[osc].lpf_alpha, &synth[osc].lpf_state);
+    synth[osc].last_amp = amp;
 }
 
 
@@ -279,7 +282,8 @@ void render_triangle(float * buf, uint8_t osc) {
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     float skip = synth[osc].lut_size / period_samples;
     float amp = msynth[osc].amp;
-    synth[osc].step = render_lut(buf, synth[osc].step, skip, amp, synth[osc].lut, synth[osc].lut_size);
+    synth[osc].step = render_lut(buf, synth[osc].step, skip, synth[osc].last_amp, amp, synth[osc].lut, synth[osc].lut_size);
+    synth[osc].last_amp = amp;
 }
 
 
@@ -357,9 +361,10 @@ void render_partial(float * buf, uint8_t osc) {
                  synth[osc].lut, synth[osc].lut_size, scratch[1], msynth[osc].feedback);
     } else {
         float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
-        synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
+        synth[osc].step = render_lut(buf, synth[osc].step, skip, synth[osc].last_amp, msynth[osc].amp, 
                     synth[osc].lut, synth[osc].lut_size);
     }
+    synth[osc].last_amp = msynth[osc].amp;
     if(synth[osc].substep==1) {
         // fade in
         //printf("%d fading in partial osc %d from 0 to %f\n", total_samples, osc, msynth[osc].amp);
@@ -396,8 +401,10 @@ void partial_note_off(uint8_t osc) {
 void render_sine(float * buf, uint8_t osc) { 
 
     float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
-    synth[osc].step = render_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
+    synth[osc].step = render_lut(buf, synth[osc].step, skip, synth[osc].last_amp, msynth[osc].amp, 
 				 synth[osc].lut, synth[osc].lut_size);
+    synth[osc].last_amp = msynth[osc].amp;
+    //printf("sysclock %d amp %f\n", get_sysclock(), msynth[osc].amp);
 }
 
 

@@ -21,7 +21,7 @@ extern uint8_t ipv4_quartet;
 uint8_t quartet_offset = 0;
 extern int get_first_ip_address(char *host);
 extern void print_devices();
-char *local_ip;
+char *local_ip, *raw_file;
 
 int main(int argc, char ** argv) {
     sync_init();
@@ -31,16 +31,21 @@ int main(int argc, char ** argv) {
     // For now, indicate ip address via commandline
     local_ip = (char*)malloc(sizeof(char)*1025);
     local_ip[0] = 0;    
+    raw_file = (char*)malloc(sizeof(char)*1025);
+    raw_file[0] = 0;
     get_first_ip_address(local_ip);
 
     int opt;
-    while((opt = getopt(argc, argv, ":i:d:c:o:lh")) != -1) 
+    while((opt = getopt(argc, argv, ":i:d:c:r:o:lh")) != -1) 
     { 
         switch(opt) 
         { 
             case 'i':
                 strcpy(local_ip, optarg);
                 break;
+            case 'r': 
+                strcpy(raw_file, optarg);
+                break; 
             case 'd': 
                 device_id = atoi(optarg);
                 break;
@@ -60,6 +65,7 @@ int main(int argc, char ** argv) {
                 printf("\t[-c sound channel, default -1 for all channels on device]\n");
                 printf("\t[-o offset for client ID, use for multiple copies of this program on the same host, default is 0]\n");
                 printf("\t[-l list all sound devices and exit]\n");
+                printf("\t[-r output audio to specified raw file (1-channel 16-bit signed int, 44100Hz)\n");
                 printf("\t[-h show this help and exit]\n");
                 return 0;
                 break;
