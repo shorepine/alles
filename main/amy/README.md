@@ -29,7 +29,7 @@ AMY's full commandset:
 a = amplitude, float 0-1+. use after a note on is triggered with velocity to adjust amplitude without re-triggering the note
 A = breakpoint0, string, in commas, like 100,0.5,150,0.25,200,0 -- envelope generator with alternating time(ms) and ratio. last pair triggers on note off
 B = breakpoint1, set the second breakpoint generator. see breakpoint0
-b = feedback, float 0-1. use for the ALGO synthesis type in FM, or partial synthesis (for bandwidth) or for karplus-strong 
+b = feedback, float 0-1. use for the ALGO synthesis type in FM, or partial synthesis (for bandwidth) or for karplus-strong, or to indicate PCM looping (0 off, >0, on)
 C = breakpoint2, set the third breakpoint generator. see breakpoint0
 d = duty cycle, float 0.001-0.999. duty cycle for pulse wave, default 0.5
 D = debug, uint, 2-4. 2 shows queue sample, 3 shows oscillator data, 4 shows modified oscillator. will interrupt audio!

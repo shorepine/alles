@@ -13,35 +13,64 @@ typedef struct {
 #include "pcm.h"
 
 void pcm_note_on(uint8_t osc) {
-    // If no freq given, we set it to default PCM SR. e.g. freq=11025 plays PCM at half speed, freq=44100 double speed 
-    if(synth[osc].freq <= 0) synth[osc].freq = PCM_SAMPLE_RATE;
-    // If patch is given, set step directly from patch's offset
-    if(synth[osc].patch>=0) {
-        synth[osc].step = pcm_map[synth[osc].patch].offset; // start sample
-        // Use substep here as "end sample" so we don't have to add another field to the struct
-        synth[osc].substep = synth[osc].step + pcm_map[synth[osc].patch].length; // end sample
-    } else { // no patch # given? use phase as index into PCM buffer
-        synth[osc].step = PCM_LENGTH * synth[osc].phase; // start at phase offset
-        synth[osc].substep = PCM_LENGTH; // play until end of buffer and stop 
-    }
+	// if no freq given, just play it at midinote
+	if(synth[osc].patch<0) synth[osc].patch = 0;
+	pcm_map_t patch = pcm_map[synth[osc].patch];
+    if(synth[osc].freq <= 0) synth[osc].freq = PCM_SAMPLE_RATE; // / freq_for_midi_note(patch.midinote);
+    synth[osc].step = (patch.offset/(float)PCM_SAMPLES); // normalized start sample
+    // Use substep here as "end sample" so we don't have to add another field to the struct
+    // and lpf_state for loopstart, and lpf_alpha for loopend.
+    synth[osc].sample = patch.offset; // offset into table, needed as float32s don't have enough precision to index into big table
+    synth[osc].step = 0; // start at the beginning of the sample
+    synth[osc].substep = patch.length; // end sample
+    synth[osc].lpf_state = patch.loopstart;
+    synth[osc].lpf_alpha = patch.loopend;
 }
+
 void pcm_mod_trigger(uint8_t osc) {
     pcm_note_on(osc);
 }
 
-// TODO -- this just does one shot, no looping (will need extra loop parameter? what about sample metadata looping?) 
-// TODO -- this should just be like render_LUT(float * buf, uint8_t osc, int16_t **LUT) as it's the same for sine & PCM?
+void pcm_note_off(uint8_t osc) {
+    // if looping set, set loopend to the end of the sample, so it'll play through and die out
+    if(msynth[osc].feedback > 0) {
+        synth[osc].lpf_alpha = synth[osc].substep;
+    } else {
+        // just set step to the end
+        synth[osc].step = synth[osc].substep;
+    }
+}
+
 void render_pcm(float * buf, uint8_t osc) {
-    float skip = msynth[osc].freq / (float)SAMPLE_RATE;
+    pcm_map_t patch = pcm_map[synth[osc].patch];
+    float playback_freq = PCM_SAMPLE_RATE;
+    if(msynth[osc].freq < PCM_SAMPLE_RATE) { // user adjusted freq 
+        float base_freq = freq_for_midi_note(patch.midinote); 
+        playback_freq = (msynth[osc].freq / base_freq) * PCM_SAMPLE_RATE;
+    }
+    float skip = playback_freq / (float)SAMPLE_RATE;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        float sample = pcm[(int)(synth[osc].step)]/(float)SAMPLE_MAX; // makes it -1 to 1
+        float float_index = synth[osc].step;
+        uint32_t base_index = (uint32_t) float_index;
+        float frac = float_index - (float)base_index;
+        float b = (float)(pcm[base_index + (uint32_t)synth[osc].sample])/(float)SAMPLE_MAX;
+        float c = b;
+        if((base_index+1) < PCM_LENGTH) c = (float)(pcm[(base_index + 1) + (uint32_t)synth[osc].sample])/(float)SAMPLE_MAX;
+        float sample = b + ((c - b) * frac);
         synth[osc].step = (synth[osc].step + skip);
         if(synth[osc].step >= synth[osc].substep ) { // end
-            synth[osc].status=OFF;
+            synth[osc].status=OFF;// is this right? 
             sample = 0;
+        } else {
+            if(msynth[osc].feedback > 0) { // loop       
+                if(synth[osc].step > synth[osc].lpf_alpha) { // loopend
+                    synth[osc].step = synth[osc].lpf_state; // back to loopstart
+                }
+            }
         }
         buf[i] = (sample * msynth[osc].amp);
     }
+
 }
 
 float compute_mod_pcm(uint8_t osc) {

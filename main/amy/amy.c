@@ -468,6 +468,7 @@ void play_event(struct delta d) {
         else if(synth[d.osc].wave==ALGO) { algo_note_off(d.osc); } 
         else if(synth[d.osc].wave==PARTIAL) { partial_note_off(d.osc); }
         else if(synth[d.osc].wave==PARTIALS) { partials_note_off(d.osc); }
+        else if(synth[d.osc].wave==PCM) { pcm_note_off(d.osc); }
         else {
             // osc note off, start release
             synth[d.osc].note_on_clock = -1;

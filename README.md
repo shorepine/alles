@@ -31,7 +31,6 @@ Each individual synthesizer supports:
  * Control of speaker gain and 3-band parametric EQ
  * Built in patches for PCM, FM and partials
 
-
 ## Using it -- hardware Alles
 
 On first boot, each hardware speaker will create a captive wifi network called `alles-synth-X` where X is some ID of the synth. Join it (preferably on a mobile device), and you should get redirected to a captive wifi setup page. If not, go to `http://10.10.0.1` in your browser after joining the network. Once you tell each synth what the wifi SSID and password you want it to join are, it will reboot. You only need to do that once per synth.
@@ -47,10 +46,12 @@ $ brew install libsoundio # mac
 $ apt install libsoundio-dev # linux
 $ cd alles/main
 $ make
-$ ./alles 192.168.1.3 1 # optional source IP address and client offset (if running multiple on one host)
+$ ./alles -i 192.168.1.3 -o 1 # optional source IP address and client offset (if running multiple on one host)
 ```
 
 ## Controlling the mesh
+
+**Do you want to just make music? Check out our brand new [Getting Started](https://github.com/bwhitman/alles/tree/main/getting-started.md) page for a tutorial!**
 
 Alles can be used two ways: 
 

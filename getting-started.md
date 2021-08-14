@@ -63,12 +63,17 @@ Let's set a simple sine wave first
 alles.send(osc=0, wave=alles.amy.SINE, freq=220, amp=1)
 ```
 
-
 What we're doing here should be pretty straightforward. I'm telling oscillator 0 to be a sine wave at 220Hz and amplitude 1. The `alles.amy.SINE` bit is that we are using the constants from AMY, the synthesis engine we built for Alles. You can also try `alles.amy.PULSE`, or `alles.amy.SAW`, etc. 
 
-Why can't you hear anything yet? It's because you haven't triggered the note on for this oscillator. We accept a parameter called `vel` (velocity) that can turn a note on or off (`vel=0`.) So now that we've set up the oscillator, we just turn it on by `alles.send(osc=0, vel=1)`. Note the oscillator remembers all its state and setup. To turn off the note, just do `alles.send(osc=0, vel=0)`. 
+**Why can't you hear anything yet?** It's because you haven't triggered the note on for this oscillator. We accept a parameter called `vel` (velocity) that can turn a note on or off (`vel=0`.) So now that we've set up the oscillator, we just turn it on by `alles.send(osc=0, vel=1)`. Note the oscillator remembers all its state and setup. To turn off the note, just do `alles.send(osc=0, vel=0)`. 
 
 Make sure to try `alles.reset()` to stop everything too.
+
+You can also always use `note`, (MIDI note value) instead of `freq`.
+
+```python
+alles.send(osc=0, wave=alles.amy.SINE, note=57, vel=1)
+```
 
 Now let's make a lot of sine waves! 
 
@@ -244,13 +249,21 @@ Nice. You can see there's limitless ways to make interesting evolving noises.
 
 ### PCM Samples
 
-Alles comes with a set of mostly drum-like PCM samples to use as well, as they are normally hard to render with additive or FM synthesis. You can use the type `PCM` and patch numbers to explore them. They natively play at 22050Hz, so keep that in mind when setting the frequency:
+Alles comes with a set of drum-like and instrument PCM samples to use as well, as they are normally hard to render with additive or FM synthesis. You can use the type `PCM` and patch numbers to explore them. Their native pitch is used if you don't give a frequency or note parameter, but you can change that.
 
 ```python
-alles.send(osc=0, wave=alles.amy.PCM, vel=1, patch=25, freq=22050) # cowbell
-alles.send(osc=0, wave=alles.amy.PCM, vel=1, patch=25, freq=31000) # higher cowbell! 
+alles.send(osc=0, wave=alles.amy.PCM, vel=1, patch=10) # cowbell
+alles.send(osc=0, wave=alles.amy.PCM, vel=1, patch=10, note=70) # higher cowbell! 
 ```
 
+You can turn on sample looping, helpful for instruments, using `feedback`:
+
+```python
+alles.send(wave=alles.amy.PCM,vel=1,patch=21,feedback=0) # clean guitar string, no looping
+alles.send(wave=alles.amy.PCM,vel=1,patch=21,feedback=1) # loops forever until note off
+alles.send(vel=0) # note off
+alles.send(wave=alles.amy.PCM,vel=1,patch=35,feedback=1) # nice violin
+```
 
 ## Advanced section
 
@@ -330,19 +343,37 @@ cd main
 make
 ./alles
 Multicast IF is 192.168.1.85. Client tag (not ID) is 1. Listening on 232.10.11.12:3333
+Using device ID 2, device Studio 1824c, channel -1  (all)
 ```
 
-Now any message sent to the mesh will also play out your default audio output. If you want to run multiple Alleses on one machine, you can set the IP address and "client offset" like so:
+Now any message sent to the mesh will also play out your default audio output. 
+
+Alles on the desktop has some optional startup parameters to help you run them on different networks and set the output to different sound cards. For example, I can have one Alles speaker running on each output of my 18-output USB audio interface! 
 
 ```bash
-./alles 192.168.1.85 0
-# in a new tab in Terminal.app
-./alles 192.168.1.85 1
-# another tab
-./alles 192.168.1.85 2
+./alles -h
+usage: alles
+    [-i multicast interface ip address, default, autodetect]
+    [-d sound device id, use -l to list, default, autodetect]
+    [-c sound channel, default -1 for all channels on device]
+    [-o offset for client ID, use for multiple copies of this program on the same host, default is 0]
+    [-l list all sound devices and exit]
+    [-h show this help and exit]
 ```
 
-Now you have 3 speakers booted on your computer! We'll make a way to set the audio output so you can route through multichannel audio cards soon. 
+If you want to run multiple Alleses on one machine, you can set the IP address and "client offset" like so:
+
+```bash
+./alles -i 192.168.1.85 -o 100 -c 0
+# in a new tab in Terminal.app
+./alles -i 192.168.1.85 -o 101 -c 1
+# ... and so on
+```
+
+You'll want to set client offset to a number that won't conflict with other devices on your network; here, my assumed client offset is 85 (the last # of the IP address), but I'm adding 100 to it for the first speaker, and 101 to it for the second, and so on. That ensures that another device on my network won't steal it. In practice you'll have a private network (use the -i parameter to set the source IP for it) so this is less of a concern, but something to keep in mind when composing at home.
+
+
+
 
 
 

@@ -89,13 +89,13 @@ float render_lut_fm_osc(float * buf, float phase, float step, float amp, const f
 
 // TODO -- move this render_LUT to use the "New terminology" that render_lut_fm_osc uses
 // pass in unscaled phase, use step instead of skip, etc
-float render_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size) { 
+float render_lut(float * buf, float step, float skip, float amp, const float* lut, int32_t lut_size) { 
     // We assume lut_size == 2^R for some R, so (lut_size - 1) consists of R '1's in binary.
     int lut_mask = lut_size - 1;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         // Floor is very slow on the esp32, so we just cast. Dan told me to add this comment. -- baw
         //uint16_t base_index = (uint16_t)floor(step);
-        uint16_t base_index = (uint16_t)step;
+        uint32_t base_index = (uint32_t)step;
         float frac = step - (float)base_index;
         float b = lut[(base_index + 0) & lut_mask];
         float c = lut[(base_index + 1) & lut_mask];

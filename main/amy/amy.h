@@ -264,6 +264,7 @@ extern void saw_note_on(uint8_t osc);
 extern void triangle_note_on(uint8_t osc); 
 extern void pulse_note_on(uint8_t osc); 
 extern void pcm_note_on(uint8_t osc);
+extern void pcm_note_off(uint8_t osc);
 extern void partial_note_on(uint8_t osc);
 extern void partial_note_off(uint8_t osc);
 extern void algo_note_on(uint8_t osc);

@@ -34,7 +34,7 @@ int main(int argc, char ** argv) {
     get_first_ip_address(local_ip);
 
     int opt;
-    while((opt = getopt(argc, argv, ":i:d:c:o:l")) != -1) 
+    while((opt = getopt(argc, argv, ":i:d:c:o:lh")) != -1) 
     { 
         switch(opt) 
         { 
@@ -52,6 +52,15 @@ int main(int argc, char ** argv) {
                 break; 
             case 'l':
                 print_devices();
+                return 0;
+                break;
+            case 'h':
+                printf("usage: alles\n\t[-i multicast interface ip address, default, autodetect]\n");
+                printf("\t[-d sound device id, use -l to list, default, autodetect]\n");
+                printf("\t[-c sound channel, default -1 for all channels on device]\n");
+                printf("\t[-o offset for client ID, use for multiple copies of this program on the same host, default is 0]\n");
+                printf("\t[-l list all sound devices and exit]\n");
+                printf("\t[-h show this help and exit]\n");
                 return 0;
                 break;
             case ':': 
