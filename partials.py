@@ -154,7 +154,7 @@ def sequence(filename, max_len_s = 10, amp_floor=-30, hop_time=0.04, max_oscs=am
     return (metadata, sequence)
 
 
-def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio = 1, pitch_ratio = 1, amp_ratio = 1, bw_ratio = 1, round_robin=True):
+def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio = 1, pitch_ratio = 1, amp_ratio = 1, bw_ratio = 1, round_robin=False):
     # i take a sequence and play it to AMY, just like native AMY will do from a .h file
     my_start_time = amy.millis()
 

@@ -38,17 +38,17 @@ def preset(which,osc=0, **kwargs):
     if(which==7): # closed hat
         send(osc=osc, wave=amy.NOISE, vel=0, bp0="25,1,75,0,0,0", bp0_target=amy.TARGET_AMP, **kwargs)
     if(which==8): # closed hat from PCM 
-        send(osc=osc, wave=amy.PCM, vel=0, patch=17, freq=22050, **kwargs)
+        send(osc=osc, wave=amy.PCM, vel=0, patch=0, freq=0, **kwargs)
     if(which==9): # cowbell from PCM
-        send(osc=osc, wave=amy.PCM, vel=0, patch=25, freq=22050, **kwargs)
+        send(osc=osc, wave=amy.PCM, vel=0, patch=10, freq=0, **kwargs)
     if(which==10): # high cowbell from PCM
-        send(osc=osc, wave=amy.PCM, vel=0, patch=25, freq=31000, **kwargs)
+        send(osc=osc, wave=amy.PCM, vel=0, patch=10, note=70, **kwargs)
     if(which==11): # snare from PCM
-        send(osc=osc, wave=amy.PCM, vel=0, patch=5, freq=22050, **kwargs)
+        send(osc=osc, wave=amy.PCM, vel=0, patch=5, freq=0, **kwargs)
     if(which==12): # FM bass 
         send(osc=osc, wave=amy.ALGO, vel=0, patch=21, **kwargs)
     if(which==13): # Pcm bass drum
-        send(osc=osc, wave=amy.PCM, vel=0, patch=20, freq=22050, **kwargs)
+        send(osc=osc, wave=amy.PCM, vel=0, patch=1, freq=0, **kwargs)
 
 # Buffer messages sent to the synths if you call buffer(). 
 # Calling buffer(0) turns off the buffering
