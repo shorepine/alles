@@ -196,7 +196,7 @@ extern amy_err_t sync_init();
 
 extern uint8_t alive;
 extern int16_t client_id;
-
+extern uint8_t DEBUG;
 
 
 // global synth state

@@ -161,7 +161,11 @@ def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio
     if(round_robin):
         next_client = 0
         osc_to_client_map = {}
+        print("Syncing mesh....")
         clients = len(alles.sync())
+        # After a sync, we don't want to immediately spam the mesh, so let's wait 2000ms
+        time.sleep(2)
+        print("Ready to play among %d speakers" % (clients))
     
     sustain_offset = 0
     if(sustain_ms > 0):
@@ -172,7 +176,7 @@ def play(sequence, osc_offset=0, sustain_ms = -1, sustain_len_ms = 0, time_ratio
     for i,s in enumerate(sequence):
         # Wait for the item in the sequence to be close, so I don't overflow the synthesizers' state
         while(my_start_time + (s[0] / time_ratio) > (amy.millis() - 500)):
-            pass
+            time.sleep(0.01)
 
         # Make envelope strings
         bp0 = "%d,%s,0,0" % (s[6] / time_ratio, amy.trunc(s[7]))

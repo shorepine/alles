@@ -18,6 +18,7 @@ extern TaskHandle_t renderTask[2]; // one per core
 struct SoundIo *soundio;
 #endif
 
+uint8_t DEBUG = 0;
 
 // Global state 
 struct state global;
@@ -912,7 +913,7 @@ void parse_task() {
     }
     length = new_length;
 
-    //fprintf(stderr,"received message ###%s### len %d\n", message, length);
+    if(DEBUG)printf("received message ###%s### len %d\n", message, length);
 
     while(c < length+1) {
         uint8_t b = message[c];
@@ -922,7 +923,6 @@ void parse_task() {
                 e.time=atol(message + start);
                 // if we haven't yet synced our times, do it now
                 if(!computed_delta_set) {
-
                     computed_delta = e.time - sysclock;
                     printf("setting computed delta to %lld (e.time is %lld sysclock %lld) max_drift_ms %d latency %d\n", computed_delta, e.time, sysclock, MAX_DRIFT_MS, LATENCY_MS);
                     computed_delta_set = 1;

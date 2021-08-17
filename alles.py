@@ -49,6 +49,8 @@ def preset(which,osc=0, **kwargs):
         send(osc=osc, wave=amy.ALGO, vel=0, patch=21, **kwargs)
     if(which==13): # Pcm bass drum
         send(osc=osc, wave=amy.PCM, vel=0, patch=1, freq=0, **kwargs)
+    if(which==14): # filtered algo 
+        send(wave=amy.ALGO, vel=0, patch=62,filter_freq=2000,resonance=2.5,filter_type=amy.FILTER_LPF, bp0_target=amy.TARGET_FILTER_FREQ,bp0="1,1,500,0,0,0")
 
 # Buffer messages sent to the synths if you call buffer(). 
 # Calling buffer(0) turns off the buffering
