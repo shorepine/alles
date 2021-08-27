@@ -302,6 +302,9 @@ import partials
 partials.play(s, amp_ratio=2, bw_ratio=0)
 ```
 
+[![Listen](https://i.imgur.com/vKb2F1B.png)](https://github.com/bwhitman/alles/blob/main/sounds/sleepwalk.mp4)
+
+
 You can see, given any audio file, you can hear a sine wave decomposition version of it across Alles. This particular sound emitted 109 partials, with a total of 1029 breakpoints among them to play back to the mesh. Of those 109 partials, only 8 are active at once. `partials.sequence()` performs voice stealing to ensure we use as few oscillators as necessary to play back a set. 
 
 There's a lot of parameters you can (and should!) play with in Loris. `partials.sequence`  and `partials.play`takes the following with their defaults:
