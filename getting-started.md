@@ -305,7 +305,7 @@ import partials
 partials.play(s, amp_ratio=2, bw_ratio=0)
 ```
 
-![Listen](https://user-images.githubusercontent.com/76612/131150119-6fa69e3c-3244-476b-a209-1bd5760bc979.mp4)
+https://user-images.githubusercontent.com/76612/131150119-6fa69e3c-3244-476b-a209-1bd5760bc979.mp4
 
 
 You can see, given any audio file, you can hear a sine wave decomposition version of it across Alles. This particular sound emitted 109 partials, with a total of 1029 breakpoints among them to play back to the mesh. Of those 109 partials, only 8 are active at once. `partials.sequence()` performs voice stealing to ensure we use as few oscillators as necessary to play back a set. 
