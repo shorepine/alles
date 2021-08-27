@@ -64,7 +64,7 @@ const float *choose_from_lutset(float period, lut_entry *lutset, int16_t *plut_s
 // step == scaled_phase
 // skip == step (scaled_step)
 
-float render_lut_fm_osc(float * buf, float phase, float step, float amp, const float* lut, int16_t lut_size, float * mod, float feedback_level, float * last_two) { 
+float render_lut_fm_osc(float * buf, float phase, float step, float incoming_amp, float ending_amp, const float* lut, int16_t lut_size, float * mod, float feedback_level, float * last_two) { 
     int lut_mask = lut_size - 1;
     float past0 = last_two[0];
     float past1 = last_two[1];
@@ -75,8 +75,8 @@ float render_lut_fm_osc(float * buf, float phase, float step, float amp, const f
         float b = lut[base_index & lut_mask];
         float c = lut[(base_index+1) & lut_mask];
         float sample = b + ((c - b) * frac);
-        // The other render_LUT is cumulative. should this one be? probably
-        buf[i] += sample * amp;
+        float scaled_amp = incoming_amp + (ending_amp - incoming_amp)*((float)i/(float)BLOCK_SIZE);
+        buf[i] += sample * scaled_amp;
         phase += step;
         phase -= (int)phase;
         past1 = past0;
@@ -124,7 +124,7 @@ float render_lut(float * buf, float step, float skip, float incoming_amp, float 
     return step;
 }
 
-float render_am_lut(float * buf, float step, float skip, float amp, const float* lut, int16_t lut_size, float *mod, float bandwidth) { 
+float render_am_lut(float * buf, float step, float skip, float incoming_amp, float ending_amp, const float* lut, int16_t lut_size, float *mod, float bandwidth) { 
     int lut_mask = lut_size - 1;
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         uint16_t base_index = (uint16_t)step;
@@ -134,7 +134,8 @@ float render_am_lut(float * buf, float step, float skip, float amp, const float*
         float sample = b + ((c - b) * frac);
         float mod_sample = mod[i]; // * (1.0 / bandwidth);
         float am = dsps_sqrtf_f32_ansi(1.0-bandwidth) + (mod_sample * dsps_sqrtf_f32_ansi(2.0*bandwidth));
-        buf[i] += sample * amp * am ;
+        float scaled_amp = incoming_amp + (ending_amp - incoming_amp)*((float)i/(float)BLOCK_SIZE);
+        buf[i] += sample * scaled_amp * am ;
         step += skip;
         if(step >= lut_size) step -= lut_size;
     }
@@ -332,8 +333,10 @@ void render_fm_sine(float *buf, uint8_t osc, float *mod, float feedback_level, u
     }
     msynth[osc].freq += synth[osc].detune - 7.0;    
     float step = msynth[osc].freq / (float)SAMPLE_RATE;
-    synth[osc].phase = render_lut_fm_osc(buf, synth[osc].phase, step, msynth[osc].amp, 
+    float amp = msynth[osc].amp;
+    synth[osc].phase = render_lut_fm_osc(buf, synth[osc].phase, step, synth[osc].last_amp, amp, 
                  synth[osc].lut, synth[osc].lut_size, mod, feedback_level, synth[osc].last_two);
+    synth[osc].last_amp = amp;
 }
 
 /* sine */
@@ -357,11 +360,13 @@ void render_partial(float * buf, uint8_t osc) {
             dsps_biquad_f32_ansi(scratch[0], scratch[1], BLOCK_SIZE, coeffs[osc], delay[osc]);
         #endif
         float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
-        synth[osc].step = render_am_lut(buf, synth[osc].step, skip, msynth[osc].amp, 
+        float amp = msynth[osc].amp;
+        synth[osc].step = render_am_lut(buf, synth[osc].step, skip, synth[osc].last_amp, amp, 
                  synth[osc].lut, synth[osc].lut_size, scratch[1], msynth[osc].feedback);
     } else {
         float skip = msynth[osc].freq / (float)SAMPLE_RATE * synth[osc].lut_size;
-        synth[osc].step = render_lut(buf, synth[osc].step, skip, synth[osc].last_amp, msynth[osc].amp, 
+        float amp = msynth[osc].amp;
+        synth[osc].step = render_lut(buf, synth[osc].step, skip, synth[osc].last_amp, amp, 
                     synth[osc].lut, synth[osc].lut_size);
     }
     synth[osc].last_amp = msynth[osc].amp;
