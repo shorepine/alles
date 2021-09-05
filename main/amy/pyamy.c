@@ -1,6 +1,7 @@
 #include <Python.h>
 #include <math.h>
 #include "amy.h"
+char * raw_file;
 
 // Python module wrapper for AMY commands
 
@@ -88,6 +89,8 @@ static struct PyModuleDef libamyDef =
 PyMODINIT_FUNC PyInit_libamy(void)
 {
     started=0;
+    raw_file = (char*)malloc(sizeof(char)*1025);
+    raw_file[0] = 0;
     return PyModule_Create(&libamyDef);
 
 }
