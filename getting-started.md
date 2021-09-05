@@ -54,7 +54,7 @@ There are two main ways to control your speakers. We call them *direct mode* and
 
 Direct mode is sending the mesh explicit messages that define the state of oscillators. You can control anything you can imagine, with high precision and millisecond accuracy. You can control up to 64 oscillators on each of any number of speakers in a mesh. You do this from either a programming language like Python (what we use) or an environment like Max/MSP (or Max for Ableton Live). Python is built-in on Macs and pretty easy to use once you get the hang of it. And then you can write small programs to make interesting sounds! For this tutorial, we'll use Python. But there's also a Max patch you can download that shows you how to access all the same parameters as we're changing in Python. So it's up to you!
 
-There's also MIDI mode. If you want to just treat the mesh as a synthesizer using your existing setup, MIDI mode is for you. You have less control over all the things you can change, but you'll still be able to control up to 15 speakers in a mesh and play with preset tones and change some parameters using MIDI CCs. You can start MIDI mode by pushing the MIDI button and then connecting your computer or mobile device to one speaker using Bluetooth MIDI. That single speaker will stop playing audio and will become a controller for the rest of the mesh. Any MIDI messages it receives will be re-broadcasted out to the mesh. 
+There's also MIDI mode. If you want to just treat the mesh as a synthesizer using your existing setup, MIDI mode is for you. You have less control over all the things you can change, but you'll still be able to control up to 15 speakers in a mesh and play with preset tones and change some parameters using MIDI CCs. You can start MIDI mode by pushing the MIDI button and then connecting your computer or mobile device to one speaker using Bluetooth MIDI. That single speaker will stop playing audio and will become a controller for the rest of the mesh. Any MIDI messages it receives will be re-broadcasted out to the mesh. **MIDI mode is not currently working on the RevB Alleses. It will soon. For now use Direct mode.**
 
 So let's start python. First, [download this repository](https://github.com/bwhitman/alles/archive/refs/heads/main.zip) if you haven't already. Unzip it if it hasn't done so automatically. Open your terminal, on a Mac, that's Terminal.app, on Windows I suggest using WSL, and on Linux whatever you've installed. Make sure you are in the directory containing the repository, e.g. `cd Downloads/alles-main`. And type `python3`. If on Mac, if you've never done this sort of thing before, you may have to accept a small download of tools from Apple the first time you run Python. Let that finish. Then you'll see a prompt like `>>>`. 
 
@@ -259,6 +259,15 @@ alles.send(osc=2,vel=2,note=50)
 
 Nice. You can see there's limitless ways to make interesting evolving noises. 
 
+### Karplus-Strong
+
+Karplus-strong (KS) is a simple technique for synthesizing string instruments. You can play one at a time per speaker. You just need to remember to set the `feedback` parameter to something useful.
+
+```python
+alles.reset()
+alles.send(osc=0,wave=alles.KS,note=60,vel=1,feedback=0.996)
+```
+
 ### PCM Samples
 
 Alles comes with a set of 67 drum-like and instrument PCM samples to use as well, as they are normally hard to render with additive or FM synthesis. You can use the type `PCM` and patch numbers 0-66 to explore them. Their native pitch is used if you don't give a frequency or note parameter, but you can change that.
@@ -308,7 +317,7 @@ As part of that setup you installed Loris, which is one of the better sine wave 
 
 ```python
 import partials
-(m,s) = partials.sequence("Roygbiv.m4a")
+(m,s) = partials.sequence("sleepwalk.mp3")
 109 partials and 1029 breakpoints, max oscs used at once was 8
 
 partials.play(s, amp_ratio=2, bw_ratio=0)

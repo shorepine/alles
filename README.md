@@ -150,6 +150,7 @@ alles.send(osc=0, filter_freq=800, resonance=1.5) # filter it
 alles.send(osc=0, note=50, vel=1.5) # note on
 ```
 
+To see more examples, check out our brand new [Getting Started](https://github.com/bwhitman/alles/tree/main/getting-started.md) page.
 
 ## Addressing individual synthesizers
 
