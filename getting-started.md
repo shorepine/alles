@@ -12,7 +12,7 @@ Hello! You're the lucky owner of at least one Alles speaker. This guide will hel
 
 ### Wait, I don't have a speaker yet
 
-That's ok! You can run a software speaker too. Skip down to the section "Alles on your computer" to run a software version of the speaker. You can then keep following this guide no problem.
+That's ok! You can run a software speaker too. Skip down to the section [Setup](#setup) and then do [Alles on your computer](#alles-on-your-computer) to run a software version of the speaker. You can then keep following this guide no problem.
 
 ### Back to the hardware speaker 
 
@@ -192,6 +192,8 @@ alles.send(osc=0,vel=1,note=55,wave=alles.PARTIALS,patch=5) # change the frequen
 alles.send(osc=0,vel=1,note=50,wave=alles.PARTIALS,patch=6,ratio=0.2) # ratio slows down the partial playback
 ```
 
+There are 17 presets stored in each speaker, so `patch` can be between 0 and 16. 
+
 Our partial breakpoint analyzer also emits "noise-excited bandwidth enhancement", which means it tries to emulate tones that are hard to generate with sine waves alone by modulating the amplitude of a sine wave with a filtered noise signal. You can try that out on the patches by adding `feedback`, like so:
 
 ```python
@@ -204,14 +206,14 @@ Below, in the advanced section, you'll learn how to analyze your own audio and p
 
 ### Fun with frequency modulation
 
-As well as doing partial additive synthesis, Alles is also great at doing frequency modulation of sine waves. We call it `ALGO`. This is a type of synthesis you've heard quite a bit of, and is fun to play with. You can experiment most easily by trying one of the presets we've baked into Alles. Give it a go like
+As well as doing partial additive synthesis, Alles is also great at doing frequency modulation of sine waves. We call it `ALGO`. This is a type of synthesis you've heard quite a bit of, and is fun to play with. You can experiment most easily by trying one of the 201 presets we've baked into Alles. Give it a go like
 
 ```python
 alles.send(wave=alles.ALGO,osc=0,patch=0,note=50,vel=1)
 alles.send(wave=alles.ALGO,osc=0,patch=1,note=50,vel=1)
 ```
 
-The `patch` lets you set which preset. Another fun parameter is `ratio`, which for ALGO patch types indicates how slow / fast to play the patch's envelopes. Really cool to slow them down!
+The `patch` lets you set which preset. It can be from 0 to 200. Another fun parameter is `ratio`, which for ALGO patch types indicates how slow / fast to play the patch's envelopes. Really cool to slow them down!
 
 ```python
 alles.send(wave=alles.ALGO,osc=0,note=40,vel=1,ratio=0.5,patch=8) # half speed
@@ -259,7 +261,7 @@ Nice. You can see there's limitless ways to make interesting evolving noises.
 
 ### PCM Samples
 
-Alles comes with a set of drum-like and instrument PCM samples to use as well, as they are normally hard to render with additive or FM synthesis. You can use the type `PCM` and patch numbers to explore them. Their native pitch is used if you don't give a frequency or note parameter, but you can change that.
+Alles comes with a set of 67 drum-like and instrument PCM samples to use as well, as they are normally hard to render with additive or FM synthesis. You can use the type `PCM` and patch numbers 0-66 to explore them. Their native pitch is used if you don't give a frequency or note parameter, but you can change that.
 
 ```python
 alles.send(osc=0, wave=alles.PCM, vel=1, patch=10) # cowbell

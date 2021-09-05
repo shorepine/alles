@@ -14,7 +14,7 @@ extern "C" {
 #ifdef ESP_PLATFORM
 #define configUSE_TASK_NOTIFICATIONS 1
 #define configTASK_NOTIFICATION_ARRAY_ENTRIES 2
-#define MAX_WIFI_WAIT_S 60
+#define MAX_WIFI_WAIT_S 120
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
