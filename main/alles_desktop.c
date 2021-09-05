@@ -92,7 +92,8 @@ int main(int argc, char ** argv) {
 #endif
     // make a bleep
     bleep();
-
+    usleep(1000*1000);
+    reset_oscs();
     while(status & RUNNING) {
         usleep(THREAD_USLEEP);
     }

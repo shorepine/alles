@@ -7,7 +7,14 @@
 
 Hello! You're the lucky owner of at least one Alles speaker. This guide will help you get started.
 
+
 ## The Speaker
+
+### Wait, I don't have a speaker yet
+
+That's ok! You can run a software speaker too. Skip down to the section "Alles on your computer" to run a software version of the speaker. You can then keep following this guide no problem.
+
+### Back to the hardware speaker 
 
 Each Alles speaker has four buttons up top and a USB micro receptacle on back. 
 

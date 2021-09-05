@@ -51,7 +51,7 @@ $ ./alles -i 192.168.1.3 -o 1 # optional source IP address and client offset (if
 
 ## Controlling the mesh
 
-**Do you want to just make music? Check out our brand new [Getting Started](https://github.com/bwhitman/alles/tree/main/getting-started.md) page for a tutorial!**
+**Check out our brand new [Getting Started](https://github.com/bwhitman/alles/tree/main/getting-started.md) page for a tutorial!**
 
 Alles can be used two ways: 
 
