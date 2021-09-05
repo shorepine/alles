@@ -4,7 +4,7 @@
 # AMY is not a dx7 emulator, so it's not going to be perfect or even close, especially for some of the weirder modes of the dx7
 # but fun to play with!
 # Get the dx7 module from https://github.com/bwhitman/learnfm
-import amy, dx7
+import alles, dx7
 import numpy as np
 import time
 
@@ -16,28 +16,28 @@ def dx7_render(patch_number, midinote, velocity, samples, keyup_sample):
 	return np.array(s)/32767.0
 
 def play(patch):
-    amy.reset()
+    alles.reset()
     setup_patch(decode_patch(get_patch(patch)))
-    amy.send(osc=6,vel=1,note=40,bp0_target=amy.TARGET_AMP,bp0="0,1,500,0,500,0")
+    alles.send(osc=6,vel=1,note=40,bp0_target=alles.TARGET_AMP,bp0="0,1,500,0,500,0")
     time.sleep(0.5)
-    amy.send(osc=6,vel=0)
+    alles.send(osc=6,vel=0)
     time.sleep(0.5)
-    amy.send(osc=6,vel=1,note=50)
+    alles.send(osc=6,vel=1,note=50)
     time.sleep(0.5)
-    amy.send(osc=6,vel=1,note=51)
+    alles.send(osc=6,vel=1,note=51)
     time.sleep(0.5)
-    amy.send(osc=6,vel=1,note=52)
+    alles.send(osc=6,vel=1,note=52)
     time.sleep(0.5)
-    amy.send(osc=6,vel=1,note=40,bp0_target=amy.TARGET_AMP,bp0="0,1,100,0,0,0")
+    alles.send(osc=6,vel=1,note=40,bp0_target=alles.TARGET_AMP,bp0="0,1,100,0,0,0")
     time.sleep(0.25)
-    amy.send(osc=6,vel=0)
+    alles.send(osc=6,vel=0)
 
 def setup_patch(p):
-	# Take a FM patch and output AMY commands to set up the patch. Send amy.send(vel=0,osc=6,note=50) after
+	# Take a FM patch and output AMY commands to set up the patch. Send alles.send(vel=0,osc=6,note=50) after
     # Problem here, pitch values are such that 0 = -n octave, 99 = + n octave 
     # pitch level = 50 means no change (or 1 for us)
     # can our breakpoints handle negative numbers? 
-    amy.reset()
+    alles.reset()
     print(p["name"])
     pitch_rates, pitch_times = p["bp_pitch_rates"], p["bp_pitch_times"]
     pitchbp = "%d,%f,%d,%f,%d,%f,%d,%f" % (
@@ -58,27 +58,27 @@ def setup_patch(p):
         )
         #print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
         if(freq>=0):
-            amy.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR,bp0=opbp, bp1=pitchbp, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR, amp=op["opamp"], detune=op["detunehz"])
+            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_LINEAR,bp0=opbp, bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR, amp=op["opamp"], detune=op["detunehz"])
         else:
-            amy.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=amy.TARGET_AMP+amy.TARGET_LINEAR,bp0=opbp, amp=op["opamp"], detune=op["detunehz"])
+            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_LINEAR,bp0=opbp, amp=op["opamp"], detune=op["detunehz"])
 
     # Set up the main carrier note
     lfo_target = 0
     # Choose the bigger one
     if(p.get("lfoampmoddepth",0) + p.get("lfopitchmoddepth",0) > 0):
         if(p.get("lfoampmoddepth",0) >= p.get("lfopitchmoddepth",0)):
-            lfo_target=amy.TARGET_AMP
+            lfo_target=alles.TARGET_AMP
             lfo_amp = output_level_to_amp(p.get("lfoampmoddepth",0))
         else:
-            lfo_target=amy.TARGET_FREQ
+            lfo_target=alles.TARGET_FREQ
             lfo_amp = output_level_to_amp(p.get("lfopitchmoddepth",0))
 
     if(lfo_target>0):
-        amy.send(osc=7, wave=p["lfowaveform"],freq=p["lfospeed"], amp=lfo_amp)
-        amy.send(osc=6,lfo_target=lfo_target, lfo_source=7)
+        alles.send(osc=7, wave=p["lfowaveform"],freq=p["lfospeed"], amp=lfo_amp)
+        alles.send(osc=6,lfo_target=lfo_target, lfo_source=7)
         #print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
     print("osc 6 (main)  algo %d feedback %f pitchenv %s" % ( p["algo"], p["feedback"], pitchbp))
-    amy.send(osc=6, wave=amy.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", bp1=pitchbp, bp1_target=amy.TARGET_FREQ+amy.TARGET_LINEAR)
+    alles.send(osc=6, wave=alles.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR)
 
 # spit out all the params of a patch for a header file
 def header_patch(p):
@@ -98,10 +98,10 @@ def header_patch(p):
         lfo_freq = p["lfospeed"]
         lfo_wave = p["lfowaveform"]
         if(p.get("lfoampmoddepth",0) >= p.get("lfopitchmoddepth",0)):
-            lfo_target=amy.TARGET_AMP
+            lfo_target=alles.TARGET_AMP
             lfo_amp = output_level_to_amp(p.get("lfoampmoddepth",0))
         else:
-            lfo_target=amy.TARGET_FREQ
+            lfo_target=alles.TARGET_FREQ
             lfo_amp = output_level_to_amp(p.get("lfopitchmoddepth",0))
     return (p["name"], p["algo"], p["feedback"], p["bp_pitch_rates"], p["bp_pitch_times"], lfo_freq, lfo_wave, lfo_amp, lfo_target, os)
 
@@ -131,8 +131,8 @@ def generate_fm_header(patches, **kwargs):
 def plot(us, them):
 	import matplotlib.pyplot as plt
 	fig, (s0,s1) = plt.subplots(2,1)
-	s0.specgram(us_samples, NFFT=512, Fs=amy.SAMPLE_RATE)
-	s1.specgram(them_samples, NFFT=512, Fs=amy.SAMPLE_RATE)
+	s0.specgram(us_samples, NFFT=512, Fs=alles.SAMPLE_RATE)
+	s1.specgram(them_samples, NFFT=512, Fs=alles.SAMPLE_RATE)
 	fig.show()
 
 # Play our version vs the MSFA version to A/B test
@@ -142,25 +142,25 @@ def play_patch(patch_number, midinote=50, length_s = 2, keyup_s = 1):
 	print(str(p["name"]))
 	setup_patch(p,midinote)
 
-	amy.note_on(osc=6,vel=4)
-	us_samples0 = amy.render(keyup_s)
-	amy.note_off(osc=6)
-	us_samples1 = amy.render(length_s - keyup_s)
+	alles.note_on(osc=6,vel=4)
+	us_samples0 = alles.render(keyup_s)
+	alles.note_off(osc=6)
+	us_samples1 = alles.render(length_s - keyup_s)
 	us_samples = np.hstack((us_samples0, us_samples1))
 
-	them_samples = dx7_render(patch_number, midinote, 90, int(length_s*amy.SAMPLE_RATE),int(keyup_s*amy.SAMPLE_RATE))
+	them_samples = dx7_render(patch_number, midinote, 90, int(length_s*alles.SAMPLE_RATE),int(keyup_s*alles.SAMPLE_RATE))
 
 	# Uncomment this to show a spectra
 	#plot(us_samples, them_samples)
 
 	print("AMY:")
-	amy.play(us_samples)
+	alles.play(us_samples)
 	time.sleep(length_s)
 
 	# A/B against MSFA 
 	time.sleep(0.25)
 	print("MSFA:")
-	amy.play(them_samples)
+	alles.play(them_samples)
 	time.sleep(length_s)
 	return p
 
@@ -281,12 +281,12 @@ def decode_patch(p):
 
 
 	def lfo_wave(byte):
-		if(byte == 0): return amy.TRIANGLE
-		if(byte == 1): return amy.TRIANGLE # saw down TODO
-		if(byte == 2): return amy.TRIANGLE # up, TODO 
-		if(byte == 3): return amy.PULSE 
-		if(byte == 4): return amy.SINE
-		if(byte == 5): return amy.NOISE
+		if(byte == 0): return alles.TRIANGLE
+		if(byte == 1): return alles.TRIANGLE # saw down TODO
+		if(byte == 2): return alles.TRIANGLE # up, TODO 
+		if(byte == 3): return alles.PULSE 
+		if(byte == 4): return alles.SINE
+		if(byte == 5): return alles.NOISE
 		return None
 
 	def curve(byte):

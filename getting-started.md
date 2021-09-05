@@ -63,10 +63,10 @@ When you want the speakers to be quiet, or if things are acting funny, use `alle
 Let's set a simple sine wave first
 
 ```python
-alles.send(osc=0, wave=alles.amy.SINE, freq=220, amp=1)
+alles.send(osc=0, wave=alles.SINE, freq=220, amp=1)
 ```
 
-What we're doing here should be pretty straightforward. I'm telling oscillator 0 to be a sine wave at 220Hz and amplitude 1. The `alles.amy.SINE` bit is that we are using the constants from AMY, the synthesis engine we built for Alles. You can also try `alles.amy.PULSE`, or `alles.amy.SAW`, etc. 
+What we're doing here should be pretty straightforward. I'm telling oscillator 0 to be a sine wave at 220Hz and amplitude 1. The `alles.SINE`. You can also try `alles.PULSE`, or `alles.SAW`, etc. 
 
 **Why can't you hear anything yet?** It's because you haven't triggered the note on for this oscillator. We accept a parameter called `vel` (velocity) that can turn a note on or off (`vel=0`.) So now that we've set up the oscillator, we just turn it on by `alles.send(osc=0, vel=1)`. Note the oscillator remembers all its state and setup. To turn off the note, just do `alles.send(osc=0, vel=0)`. 
 
@@ -75,7 +75,7 @@ Make sure to try `alles.reset()` to stop everything too.
 You can also always use `note`, (MIDI note value) instead of `freq`.
 
 ```python
-alles.send(osc=0, wave=alles.amy.SINE, note=57, vel=1)
+alles.send(osc=0, wave=alles.SINE, note=57, vel=1)
 ```
 
 Now let's make a lot of sine waves! 
@@ -84,47 +84,47 @@ Now let's make a lot of sine waves!
 import time
 alles.reset()
 for i in range(16):
-    alles.send(osc=i, wave=alles.amy.SINE, freq=110+(i*80), vel=((16-i)/32.0))
+    alles.send(osc=i, wave=alles.SINE, freq=110+(i*80), vel=((16-i)/32.0))
     time.sleep(0.5) # Sleep for 0.5 seconds
 ```
 
 Neat! You can see how simple / powerful it is to have control over lots of oscillators. You have up to 64. Let's make it more interesting. A classic analog tone is the filtered saw wave. Let's make one.
 
 ```python
-alles.send(osc=0,wave=alles.amy.SAW,filter_freq=2500, resonance=5, filter_type=alles.amy.FILTER_LPF)
+alles.send(osc=0,wave=alles.SAW,filter_freq=2500, resonance=5, filter_type=alles.FILTER_LPF)
 alles.send(osc=0, vel=1, note=40)
 ```
 
 Sounds nice. But we want that filter freq to go down over time, to make that classic filter sweep tone. Let's use a breakpoint! A breakpoint is a simple list of (time, value) - you can have up to 8 of those pairs, and up to 3 different sets to control different things. They're just like ADSRs, but more powerful. You can control amplitude, frequency, duty cycle, feedback, filter frequence, or resonance with a breakpoint. It gets triggered when the note does. So let's make a breakpoint that turns the filter frequency down from its start at 2500 to 1250 after 100 milliseconds. And when the note goes off, taper the frequency to 0 after 25 millseconds. 
 
 ```python
-alles.send(osc=0,wave=alles.amy.SAW,filter_freq=2500, resonance=5, filter_type=alles.amy.FILTER_LPF)
-alles.send(osc=0, bp0="100,0.5,25,0", bp0_target=alles.amy.TARGET_FILTER_FREQ)
+alles.send(osc=0,wave=alles.SAW,filter_freq=2500, resonance=5, filter_type=alles.FILTER_LPF)
+alles.send(osc=0, bp0="100,0.5,25,0", bp0_target=alles.TARGET_FILTER_FREQ)
 alles.send(osc=0, vel=1, note=40)
 ```
 
-Great. You can add multiple targets together, for example, if you want a breakpoint to control both filter frequency and resonance, use `bp0_target=alles.amy.TARGET_FILTER_FREQ+alles.amy.TARGET_RESONANCE`. Give it a go!
+Great. You can add multiple targets together, for example, if you want a breakpoint to control both filter frequency and resonance, use `bp0_target=alles.TARGET_FILTER_FREQ+alles.TARGET_RESONANCE`. Give it a go!
 
 We also have LFOs, which are implemented as one oscillator modulating another. You set the lower-frequency oscillator up, then have it control a parameter of another audible oscillator. Let's make the classic 8-bit duty cycle pulse wave modulation, a favorite: 
 
 ```python
-alles.send(osc=1, wave=alles.amy.SAW, freq=0.5, amp=0.75)
-alles.send(osc=0, wave=alles.amy.PULSE, duty=0.5, freq=220, mod_source=1, mod_target=alles.amy.TARGET_DUTY)
+alles.send(osc=1, wave=alles.SAW, freq=0.5, amp=0.75)
+alles.send(osc=0, wave=alles.PULSE, duty=0.5, freq=220, mod_source=1, mod_target=alles.TARGET_DUTY)
 alles.send(osc=0, vel=0.5)
 ```
 
 You see we first set up the modulation oscillator (a saw wave at 0.5Hz, with amplitude 0.75-- this indicates the "depth" of the LFO). Then we set up the oscillator to be modulated, a pulse wave with mod source of oscillator 1 and mod target of duty cycle. The initial duty cycle will start at 0.5 and be multiplied by the state of oscillator 1 every tick, to make that classic thick saw line from the C64 et al. The modulation will re-trigger every note on. Just like breakpoints, you can modulate duty cycle, amplitude, frequency, filter frequency, resonance or feedback! And if you want to modulate more than one thing, like frequency and duty, just add them together:
 
 ```python
-alles.send(osc=1, wave=alles.amy.TRIANGLE, freq=5, amp=0.25)
-alles.send(osc=0, wave=alles.amy.PULSE, duty=0.5, freq=110, mod_source=1, mod_target=alles.amy.TARGET_DUTY+alles.amy.TARGET_FREQ)
+alles.send(osc=1, wave=alles.TRIANGLE, freq=5, amp=0.25)
+alles.send(osc=0, wave=alles.PULSE, duty=0.5, freq=110, mod_source=1, mod_target=alles.TARGET_DUTY+alles.TARGET_FREQ)
 alles.send(osc=0, vel=0.5)
 ```
 
-There's a lot more parameters and things to play with. Check out the [AMY documentation](https://github.com/bwhitman/alles/blob/main/main/amy/README.md) for the full list, or look at alles.amy.message in Python:
+There's a lot more parameters and things to play with. Check out the [Alles README](https://github.com/bwhitman/alles/blob/main/README.md) for the full list, or look at alles.message in Python:
 
 ```python
-# alles.amy.message():
+# alles.message():
 (osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, bp0="", bp1="", bp2="", bp0_target=-1, bp1_target=-1, bp2_target=-1, mod_target=-1, \
         debug=-1, mod_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, detune = -1, algo_source=None)
@@ -161,7 +161,7 @@ import time
 alles.reset()
 speakers = len(alles.sync())
 for i in range(16):
-    alles.send(osc=i, wave=alles.amy.SINE, freq=110+(i*80), vel=((16-i)/32.0), client=i % speakers)
+    alles.send(osc=i, wave=alles.SINE, freq=110+(i*80), vel=((16-i)/32.0), client=i % speakers)
     time.sleep(0.5) # Sleep for 0.5 seconds
 ```
 
@@ -180,16 +180,16 @@ Additive synthesis is simply adding together oscillators to make more complex to
 We have analyzed the partials of a group of instruments and stored them as presets baked into the speaker. Each of these patches are comprised of multiple sine wave oscillators, changing over time. The `PARTIALS` type has the presets:
 
 ```python
-alles.send(osc=0,vel=1,note=50,wave=alles.amy.PARTIALS,patch=5) # a nice organ tone
-alles.send(osc=0,vel=1,note=55,wave=alles.amy.PARTIALS,patch=5) # change the frequency
-alles.send(osc=0,vel=1,note=50,wave=alles.amy.PARTIALS,patch=6,ratio=0.2) # ratio slows down the partial playback
+alles.send(osc=0,vel=1,note=50,wave=alles.PARTIALS,patch=5) # a nice organ tone
+alles.send(osc=0,vel=1,note=55,wave=alles.PARTIALS,patch=5) # change the frequency
+alles.send(osc=0,vel=1,note=50,wave=alles.PARTIALS,patch=6,ratio=0.2) # ratio slows down the partial playback
 ```
 
 Our partial breakpoint analyzer also emits "noise-excited bandwidth enhancement", which means it tries to emulate tones that are hard to generate with sine waves alone by modulating the amplitude of a sine wave with a filtered noise signal. You can try that out on the patches by adding `feedback`, like so:
 
 ```python
-alles.send(osc=0,vel=1,note=50,wave=alles.amy.PARTIALS,patch=6,feedback=0) # no bandwidth
-alles.send(osc=0,vel=1,note=50,wave=alles.amy.PARTIALS,patch=6,feedback=0.5) # more bandwidth
+alles.send(osc=0,vel=1,note=50,wave=alles.PARTIALS,patch=6,feedback=0) # no bandwidth
+alles.send(osc=0,vel=1,note=50,wave=alles.PARTIALS,patch=6,feedback=0.5) # more bandwidth
 ```
 
 Below, in the advanced section, you'll learn how to analyze your own audio and play partials back from your host, to multiple speakers. Endless possibilities!
@@ -200,25 +200,25 @@ Below, in the advanced section, you'll learn how to analyze your own audio and p
 As well as doing partial additive synthesis, Alles is also great at doing frequency modulation of sine waves. We call it `ALGO`. This is a type of synthesis you've heard quite a bit of, and is fun to play with. You can experiment most easily by trying one of the presets we've baked into Alles. Give it a go like
 
 ```python
-alles.send(wave=alles.amy.ALGO,osc=0,patch=0,note=50,vel=1)
-alles.send(wave=alles.amy.ALGO,osc=0,patch=1,note=50,vel=1)
+alles.send(wave=alles.ALGO,osc=0,patch=0,note=50,vel=1)
+alles.send(wave=alles.ALGO,osc=0,patch=1,note=50,vel=1)
 ```
 
 The `patch` lets you set which preset. Another fun parameter is `ratio`, which for ALGO patch types indicates how slow / fast to play the patch's envelopes. Really cool to slow them down!
 
 ```python
-alles.send(wave=alles.amy.ALGO,osc=0,note=40,vel=1,ratio=0.5,patch=8) # half speed
-alles.send(wave=alles.amy.ALGO,osc=0,note=40,vel=1,ratio=0.05,patch=8)  # reaaall sloooow
-alles.send(wave=alles.amy.ALGO,osc=0,note=30,vel=1,ratio=0.1,patch=19) # love this one
+alles.send(wave=alles.ALGO,osc=0,note=40,vel=1,ratio=0.5,patch=8) # half speed
+alles.send(wave=alles.ALGO,osc=0,note=40,vel=1,ratio=0.05,patch=8)  # reaaall sloooow
+alles.send(wave=alles.ALGO,osc=0,note=30,vel=1,ratio=0.1,patch=19) # love this one
 ```
 
 Let's make the classic FM bell tone ourselves, without a preset. We'll just be using two operators (two sine waves), one modulating the other. 
 
 ```python
 alles.reset()
-alles.send(wave=alles.amy.SINE,ratio=0.2,amp=0.1,osc=0,bp0_target=alles.amy.TARGET_AMP,bp0="1000,0,0,0")
-alles.send(wave=alles.amy.SINE,ratio=1,amp=1,osc=1)
-alles.send(wave=alles.amy.ALGO,algorithm=0,algo_source="-1,-1,-1,-1,1,0",osc=2)
+alles.send(wave=alles.SINE,ratio=0.2,amp=0.1,osc=0,bp0_target=alles.TARGET_AMP,bp0="1000,0,0,0")
+alles.send(wave=alles.SINE,ratio=1,amp=1,osc=1)
+alles.send(wave=alles.ALGO,algorithm=0,algo_source="-1,-1,-1,-1,1,0",osc=2)
 ```
 
 Let's unpack that last line: we're setting up a ALGO "oscillator" that controls up to 6 other oscillators. We only need two, so we set the `algo_source` to mostly -1s (not used) and have oscillator 1 modulate oscillator 0. You can have the operators work with each other in all sorts of crazy ways. For this simple example, we just use the DX7 algorithm #1 (but we count from 0, so it's algorithm 0). And we'll use only operators 2 and 1. Therefore our `algo_source` lists the oscillators involved, counting backwards from 6. We're saying only have operators 2 and 1, and have oscillator 1 modulate oscillator 0. 
@@ -237,9 +237,9 @@ You should hear a bell-like tone. Nice. Another classic two operator tone is to 
 
 ```python
 alles.reset()
-alles.send(osc=0,ratio=0.2,amp=0.5,bp0_target=alles.amy.TARGET_AMP,bp0="0,0,5000,1,0,0")
+alles.send(osc=0,ratio=0.2,amp=0.5,bp0_target=alles.TARGET_AMP,bp0="0,0,5000,1,0,0")
 alles.send(osc=1,ratio=1)
-alles.send(osc=2,algorithm=0,wave=alles.amy.ALGO,algo_source="-1,-1,-1,-1,0,1")
+alles.send(osc=2,algorithm=0,wave=alles.ALGO,algo_source="-1,-1,-1,-1,0,1")
 ```
 
 Just a refresher on breakpoints; here we are saying to set the beta parameter (amplitude of the modulating tone) to 0.5 but have it start at 0 at time 0, then be at 1.0x of 0.5 (so, 0.5) at time 5000ms. At the release of the note, set beta immediately to 0. We can play it with
@@ -255,17 +255,17 @@ Nice. You can see there's limitless ways to make interesting evolving noises.
 Alles comes with a set of drum-like and instrument PCM samples to use as well, as they are normally hard to render with additive or FM synthesis. You can use the type `PCM` and patch numbers to explore them. Their native pitch is used if you don't give a frequency or note parameter, but you can change that.
 
 ```python
-alles.send(osc=0, wave=alles.amy.PCM, vel=1, patch=10) # cowbell
-alles.send(osc=0, wave=alles.amy.PCM, vel=1, patch=10, note=70) # higher cowbell! 
+alles.send(osc=0, wave=alles.PCM, vel=1, patch=10) # cowbell
+alles.send(osc=0, wave=alles.PCM, vel=1, patch=10, note=70) # higher cowbell! 
 ```
 
 You can turn on sample looping, helpful for instruments, using `feedback`:
 
 ```python
-alles.send(wave=alles.amy.PCM,vel=1,patch=21,feedback=0) # clean guitar string, no looping
-alles.send(wave=alles.amy.PCM,vel=1,patch=21,feedback=1) # loops forever until note off
+alles.send(wave=alles.PCM,vel=1,patch=21,feedback=0) # clean guitar string, no looping
+alles.send(wave=alles.PCM,vel=1,patch=21,feedback=1) # loops forever until note off
 alles.send(vel=0) # note off
-alles.send(wave=alles.amy.PCM,vel=1,patch=35,feedback=1) # nice violin
+alles.send(wave=alles.PCM,vel=1,patch=35,feedback=1) # nice violin
 ```
 
 ## Advanced section
@@ -317,7 +317,7 @@ def sequence(filename, # any audio filename
 				max_len_s = 10, # analyze first N seconds
 				amp_floor=-30, # only accept partials at this amplitude in dB, lower #s == more partials
 				hop_time=0.04, # time between analysis windows, impacts distance between breakpoints
-				max_oscs=amy.OSCS, # max Alles oscs to take up, can be > 64 if using multiple speakers
+				max_oscs=alles.OSCS, # max Alles oscs to take up, can be > 64 if using multiple speakers
 				freq_res = 10, # freq resolution of analyzer, higher # -- less partials & breakpoints 
 				freq_drift=20, # max difference in Hz within a single partial
 				analysis_window = 100 # analysis window size 
