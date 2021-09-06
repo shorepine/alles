@@ -67,6 +67,8 @@ Start by importing the Python module needed to control the mesh: `import alles`
 
 `alles.drums()` should play a test pattern out of all the currently turned-on speakers. They should all be in sync and playing the same thing.
 
+Try to set the volume of the speaker with `alles.volume(2)` -- that can be up to 10 or so.  The default is 1.
+
 When you want the speakers to be quiet, or if things are acting funny, use `alles.reset()`. That resets all speakers to defaults. Sometimes lots of experiments will get your oscillators in a weird state and `alles.reset()` is your escape hatch. You can also do `alles.reset(osc=5)` to do just one oscillator for example.
 
 Let's set a simple sine wave first
@@ -78,6 +80,8 @@ alles.send(osc=0, wave=alles.SINE, freq=220, amp=1)
 What we're doing here should be pretty straightforward. I'm telling oscillator 0 to be a sine wave at 220Hz and amplitude 1. The `alles.SINE`. You can also try `alles.PULSE`, or `alles.SAW`, etc. 
 
 **Why can't you hear anything yet?** It's because you haven't triggered the note on for this oscillator. We accept a parameter called `vel` (velocity) that can turn a note on or off (`vel=0`.) So now that we've set up the oscillator, we just turn it on by `alles.send(osc=0, vel=1)`. Note the oscillator remembers all its state and setup. To turn off the note, just do `alles.send(osc=0, vel=0)`. 
+
+You can also make oscillators louder with `amp` or `vel` over 1. 
 
 Make sure to try `alles.reset()` to stop everything too.
 
@@ -233,8 +237,6 @@ alles.send(wave=alles.ALGO,algorithm=0,algo_source="-1,-1,-1,-1,1,0",osc=2)
 ```
 
 Let's unpack that last line: we're setting up a ALGO "oscillator" that controls up to 6 other oscillators. We only need two, so we set the `algo_source` to mostly -1s (not used) and have oscillator 1 modulate oscillator 0. You can have the operators work with each other in all sorts of crazy ways. For this simple example, we just use the DX7 algorithm #1 (but we count from 0, so it's algorithm 0). And we'll use only operators 2 and 1. Therefore our `algo_source` lists the oscillators involved, counting backwards from 6. We're saying only have operators 2 and 1, and have oscillator 1 modulate oscillator 0. 
-
-![DX7 Algorithms](https://raw.githubusercontent.com/bwhitman/alles/main/pics/dx7_algorithms.jpg)
 
 What's going on with `ratio`? And `amp`? Ratio, for FM synthesis operators, means the ratio of the frequency for that operator and the base note. So oscillator 0 will be played a 20% of the base note, and oscillator 1 will be the frequency of the base note. And for `amp`, that's something called "beta" in FM synthesis, which describes the strength of the modulation. Note we are having beta go down over 1,000 milliseconds using a breakpoint. That's key to the "bell ringing out" effect. 
 

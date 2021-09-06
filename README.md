@@ -98,7 +98,7 @@ t = time, int64: ms since some fixed start point on your host. you should always
 u = detune, in hertz, for partials and algorithm types, to apply after the ratio 
 v = oscillator, uint, 0 to 63. default: 0
 V = volume, float 0 to about 10 in practice. volume knob for the entire synth / speaker. default 1.0
-w = waveform, uint: [0=SINE, SQUARE, SAW, TRIANGLE, NOISE, FM, KS, PCM, ALGO, PARTIAL, OFF]. default: 0/SINE
+w = waveform, uint: [0=SINE, PULSE, SAW, TRIANGLE, NOISE, KS, PCM, ALGO, PARTIAL, PARTIALS, OFF]. default: 0/SINE
 W = breakpoint1 target mask. 
 x = "low" EQ amount for the entire synth (Fc=800Hz). float, in dB, -15 to 15. 0 is off. default: 0
 X = breakpoint2 target mask. 
@@ -108,22 +108,6 @@ z = "high" EQ amount for the entire synth (Fc=7500Hz). float, in dB, -15 to 15. 
 ```
 
 For higher throughput, it's recommended to batch many messages into one UDP message, up to 508 bytes per message. (`alles.py` does this for you, optionally.)
-
-
-## Synthesizer Details
-
-
-### Breakpoints
-
-Alles allows you to set 3 "breakpoint generators" per oscillator. You can see these as ADSR / envelopes (and they can perform the same task), but they are slightly more capable. Breakpoints are defined as pairs (up to 8 per breakpoint) of time (specified in milliseconds) and ratio. You can specify any amount of pairs, but the last pair you specify will always be seen as the "release" pair, which doesn't trigger until note off. All other pairs previously have time in the aggregate from note on, e.g. 10ms, then 100ms is 90ms later, then 250ms is 150ms after the last one. The last "release" pair counts from ms from the note-off. 
-
-For example, to define a common ADSR curve where a sound sweeps up in volume from note on over 50ms, then has a 100ms decay stage to 50% of the volume, then is held until note off at which point it takes 250ms to trail off to 0, you'd set time to be 50ms at ratio to be 1.0, then 150ms with ratio .5, then a 250ms release with ratio 0. You then set the target of this breakpoint to be amplitude. At every synthesizer tick, the given amplitude (default of 1.0) will be multiplied by the breakpoint modifier. In Alles string parlance, this would look like "`v0f220w0A50,1.0,150,0.5,250,0T1`" to specify a sine wave at 220Hz with this envelope. 
-
-Every note on (specified by setting velocity / `l` to anything > 0) will trigger this envelope, and setting `l` to 0 will trigger the note off / release section. 
-
-Adding 64 to the target mask `T` will set the breakpoints to compute in linear, while the default is an exponential curve. 
-
-You can set a completely separate breakpoints using the second and third breakpoint operator and target mask, for example, to change pitch and amplitude at different rates.
 
 
 
@@ -148,6 +132,15 @@ alles.send(osc=0, wave=alles.SINE, vel=0, bp0="0,500,0,0", bp0_target=alles.TARG
 alles.send(osc=0, note=60, vel=1.5) # Bass drum!
 alles.send(osc=0, filter_freq=800, resonance=1.5) # filter it
 alles.send(osc=0, note=50, vel=1.5) # note on
+```
+
+`alles.py`'s `message` command has all the parameters you can set:
+
+```python
+# alles.message():
+(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
+        client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, bp0="", bp1="", bp2="", bp0_target=-1, bp1_target=-1, bp2_target=-1, mod_target=-1, \
+        debug=-1, mod_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, detune = -1, algo_source=None)
 ```
 
 To see more examples, check out our brand new [Getting Started](https://github.com/bwhitman/alles/tree/main/getting-started.md) page.
@@ -239,6 +232,64 @@ To use hardwired MIDI: I recommend using a pre-built MIDI breakout with the supp
 
 Currently supported are program / bank changes and note on / offs. Will be adding more CCs soon.
 
+
+
+# Synthesizer Details
+
+## Core oscillators
+We support bandlimited saw, pulse/square and triangle waves, alongside sine and noise. Use the wave parameter: 0=SINE, 1=PULSE, 2=SAW, 3=TRIANGLE, 4=NOISE. Each oscillator can have a frequency (or set by midi note), amplitude and phase (set in 0-1.). You can also set `duty` for the pulse type. We also have a karplus-strong type (KS=5). You can only use one KS oscillator per speaker. 
+
+## LFOs & modulators
+
+Any oscillator can modulate any other oscillator. For example, a LFO can be specified by setting oscillator 0 to 0.25Hz sine, with oscillator 1 being a 440Hz sine. Using `mod_target`, you can have oscillator 0 modulate frequency, amplitude, filter frequency, resonance, duty or feedback of oscillator 1. You can also add targets together, for example amplitude+frequency. Set the `mod_target` and `mod_source` on the audible oscillator (in this case, oscillator 1.) The source mod oscillator will not be audible once it is referred to as a `mod_source` by another oscillator. The amplitude of the modulating oscillator indicates how strong the modulation is (aka "LFO depth.")
+
+## Filters
+
+We support lowpass, bandpass and hipass filters in Alles. Up to 32 filters can run at once on one speaker. You can set `resonance` and `filter_freq` per oscillator. 
+
+## EQ & Volume
+
+You can set a speaker-wide volume, or set the EQ of the entire speaker's output. 
+
+## Breakpoints
+
+Alles allows you to set 3 "breakpoint generators" per oscillator. You can see these as ADSR / envelopes (and they can perform the same task), but they are slightly more capable. Breakpoints are defined as pairs (up to 8 per breakpoint) of time (specified in milliseconds) and ratio. You can specify any amount of pairs, but the last pair you specify will always be seen as the "release" pair, which doesn't trigger until note off. All other pairs previously have time in the aggregate from note on, e.g. 10ms, then 100ms is 90ms later, then 250ms is 150ms after the last one. The last "release" pair counts from ms from the note-off. 
+
+For example, to define a common ADSR curve where a sound sweeps up in volume from note on over 50ms, then has a 100ms decay stage to 50% of the volume, then is held until note off at which point it takes 250ms to trail off to 0, you'd set time to be 50ms at ratio to be 1.0, then 150ms with ratio .5, then a 250ms release with ratio 0. You then set the target of this breakpoint to be amplitude. At every synthesizer tick, the given amplitude (default of 1.0) will be multiplied by the breakpoint modifier. In Alles string parlance, this would look like "`v0f220w0A50,1.0,150,0.5,250,0T1`" to specify a sine wave at 220Hz with this envelope. 
+
+When using `alles.py`, use the string form of the breakpoint: `bp0="50,1.0,150,0.5,250,0"`. 
+
+Every note on (specified by setting velocity / `l` to anything > 0) will trigger this envelope, and setting `l` to 0 will trigger the note off / release section. 
+
+Adding 64 to the target mask `T` will set the breakpoints to compute in linear, while the default is an exponential curve. 
+
+You can set a completely separate breakpoints using the second and third breakpoint operator and target mask, for example, to change pitch and amplitude at different rates.
+
+
+## FM & ALGO type
+
+Alles has a DX7-like algorithm generator that can have oscillator frequency modulate other oscillators, including feedback. Use wave type `ALGO`. You can use one of our 201 presets with the `patch` parameter, or build your own combination of oscillators. For example:
+
+```python
+alles.reset()
+alles.send(osc=0,ratio=0.2,amp=0.5,bp0_target=alles.TARGET_AMP,bp0="0,0,5000,1,0,0")
+alles.send(osc=1,ratio=1)
+alles.send(osc=2,algorithm=0,wave=alles.ALGO,algo_source="-1,-1,-1,-1,0,1")
+```
+
+![DX7 Algorithms](https://raw.githubusercontent.com/bwhitman/alles/main/pics/dx7_algorithms.jpg)
+
+When building your own algorithm sets, assign a separate oscillator as wave=`ALGO`, but the source oscillators as `SINE`. The algorithm #s are borrowed from the DX7, but 0-indexed (so #1 here is our #0.) You don't have to use all 6 operators, any operators specified as `-1` will be ignored. Note that the `algo_source` parameter counts backwards from operator 6. When building operators, they can have their frequencies specified directly with `freq` or as a ratio of the root `ALGO` oscillator via `ratio`. Each operator can have a `detune` parameter if using frequency ratios. 
+
+## Partials
+
+We have analyzed the partials of a group of instruments and stored them as presets baked into the speaker. Each of these patches are comprised of multiple sine wave oscillators, changing over time. The `PARTIALS` type has the presets.
+
+You can generate your own partial synthesis using the wave `PARTIAL` -- see [`partials.py`]((https://github.com/bwhitman/alles/blob/main/partials.py) for an example of analyzing PCM audio to generate sequences of partials. The PARTIAL type supports amplitude modulated bandwidth replacement, modeled after the Loris algorithm.
+
+## PCM
+
+Alles comes with a set of 67 drum-like and instrument PCM samples to use as well, as they are normally hard to render with additive or FM synthesis. You can use the type `PCM` and patch numbers 0-66 to explore them. Their native pitch is used if you don't give a frequency or note parameter. You can update the PCM sample bank in the firmware. 
 
 # Developer & DIY Zone
 
