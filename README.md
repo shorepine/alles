@@ -10,6 +10,9 @@ We intended their first use as distributed / spatial version of an [Alles Machin
 
 Our friends at [Blinkinlabs](https://blinkinlabs.com) are helping us produce small self-contained battery powered speakers with Alles built in. But in the meantime, or if you want to DIY, you can easily build your own! They're cheap to make ($7 for the microcontroller, $6 for the amplifier, speakers from $0.50 up depending on quality). And very easy to put together with hookup wire or only a few soldering points. 
 
+Want to try it today? [Build a speaker](#building-your-own-diy-alles) yourself, or [install the software version](#using-it----software-alles
+), and then read our [getting started tutorial!](https://github.com/bwhitman/alles/tree/main/getting-started.md)
+
 ## Synthesizer specs
 
 Each individual synthesizer supports:
@@ -42,11 +45,12 @@ If you don't want to build or buy an Alles speaker, you can run Alles locally on
 To build and run `alles` on a computer, simply clone this repository and
 
 ```bash
-$ brew install libsoundio # mac
-$ apt install libsoundio-dev # linux
+$ brew install libsoundio # if on mac
+$ apt install libsoundio-dev # if on linux
 $ cd alles/main
 $ make
-$ ./alles -i 192.168.1.3 -o 1 # optional source IP address and client offset (if running multiple on one host)
+$ ./alles
+$ ./alles -h # shows all the useful commandline parameters, like changing which channel/sound card, or source IP address
 ```
 
 ## Controlling the mesh
