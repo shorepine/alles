@@ -290,6 +290,11 @@ alles.send(vel=0) # note off
 alles.send(wave=alles.PCM,vel=1,patch=35,feedback=1) # nice violin
 ```
 
+### What's next
+
+Make sure you read the main [Alles README](https://github.com/bwhitman/alles/blob/main/README.md) for more details!!
+
+
 ## Advanced section
 
 There's some real neat tricks Alles can do if you are adventurous. They require some computer setup, but it's not that complicated. We've tested this on recent Mac computers and Linux. Once you've completed the setup, you can build your own software Alles speaker and also generate your own partials from any audio and play them acros the mesh. Very fun!

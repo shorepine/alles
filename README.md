@@ -285,7 +285,7 @@ When building your own algorithm sets, assign a separate oscillator as wave=`ALG
 
 We have analyzed the partials of a group of instruments and stored them as presets baked into the speaker. Each of these patches are comprised of multiple sine wave oscillators, changing over time. The `PARTIALS` type has the presets.
 
-You can generate your own partial synthesis using the wave `PARTIAL` -- see [`partials.py`]((https://github.com/bwhitman/alles/blob/main/partials.py) for an example of analyzing PCM audio to generate sequences of partials. The PARTIAL type supports amplitude modulated bandwidth replacement, modeled after the Loris algorithm.
+You can generate your own partial synthesis using the wave `PARTIAL` -- see [`partials.py`](https://github.com/bwhitman/alles/blob/main/partials.py) for an example of analyzing PCM audio to generate sequences of partials. The PARTIAL type supports amplitude modulated bandwidth replacement, modeled after the Loris algorithm.
 
 ## PCM
 
