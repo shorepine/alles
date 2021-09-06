@@ -18,7 +18,7 @@ That's ok! You can run a software speaker too. Skip down to the section [Setup](
 
 Each Alles speaker has four buttons up top and a USB micro receptacle on back. 
 
-Before getting going, let's make sure the speaker is charged or charging. Simply plug a USB cable between the speaker and any USB charge point, like a phone charger or a port on a computer. (The speaker will show up as a USB device for debugging and upgrades, but you don't have to worry about that for now -- all control happens wirelessly.) The battery will last "a few hours" making constant music and longer with sparse or silence. It shouldn't take more than an hour or so to charge. If the power button does not make any noise, it's probably a dead battery.
+Before getting going, let's make sure the speaker is charged or charging. Simply plug the included USB cable between the speaker and any USB charge point, like a phone charger. (If you hook it into a computer, the speaker will show up as a USB device for debugging and upgrades, but you don't have to worry about that for now -- all control happens wirelessly.) The battery will last "a few hours" making constant music and longer with sparse or silence. It shouldn't take more than an hour or so to charge. If the power button does not make any noise, it's probably a dead battery.
 
 The row of buttons up top, facing the speaker, are power, MIDI (+), WiFi (-) and restart (Play/Pause).
 
@@ -37,13 +37,15 @@ The restart (Play/Pause) button simply restarts the speaker.
 
 If this is your first time using the speaker, you'll need to tell it which WiFi network to join. You can easily change this later, but once you set it, you don't need to set it again. 
 
-Press the power button. You'll start to hear a "chime noise" repeating. This is the "searching for WiFi" sound, and will play until it finds a WiFi point (or 60 seconds goes by, at which point it'll shut off again.) If you've already set a WiFi network, after about a few seconds the chime noise will end and you'll hear a "bleep" tone and then silence. That means the WiFi network has been joined and everything is ready to go.
+Press the power button. You'll start to hear a "chime noise" repeating. This is the "searching for WiFi" sound, and will play until it finds a WiFi point, or the power button is hit again, or if two minutes goes by, at which point it'll shut off again. 
+
+If you've already set a WiFi network, after about a few seconds the chime noise will end and you'll hear a "bleep" tone and then silence. That means the WiFi network has been joined and everything is ready to go.
 
 If you haven't set WiFi yet, now open your nearest mobile phone or any WiFi device with a browser. Go to join a new WiFi network on your device and you'll see a network listed called `alles-synth-XXXXXX` where `XXXXXX` is a unique string per speaker (useful when you have many speakers!). Join that network. On most devices (iPhones, Androids especially) after a few seconds, a browser window will appear with a login page. This is like when you join a hotel's network or other captive portal. If the page never appears, try going to `http://10.10.0.1` in your browser after joiining the network.
 
 ![Alles WiFi settings](https://raw.githubusercontent.com/bwhitman/alles/main/pics/alles-wifi.png)
 
-Wait a few seconds for the login page to populate with all the nearby WiFi stations it finds. After you see the one you want the speaker to join, tap it and carefully enter its password. After a few moments, the speaker should stop chiming, indicating it has succesfully joined the network and saved the details to its internal storage. 
+Wait a few seconds for the login page to populate with all the nearby WiFi stations it finds. After you see the one you want the speaker to join, tap it and carefully enter its password. This should be the same network as the computer you're going to control Alles from. After a few moments, the speaker should stop chiming, indicating it has succesfully joined the network and saved the details to its internal storage. 
 
 If this doesn't seem to work, try again by hitting the WiFi button (-) and the process will repeat again. 
 
@@ -54,7 +56,7 @@ There are two main ways to control your speakers. We call them *direct mode* and
 
 Direct mode is sending the mesh explicit messages that define the state of oscillators. You can control anything you can imagine, with high precision and millisecond accuracy. You can control up to 64 oscillators on each of any number of speakers in a mesh. You do this from either a programming language like Python (what we use) or an environment like Max/MSP (or Max for Ableton Live). Python is built-in on Macs and pretty easy to use once you get the hang of it. And then you can write small programs to make interesting sounds! For this tutorial, we'll use Python. But there's also a Max patch you can download that shows you how to access all the same parameters as we're changing in Python. So it's up to you!
 
-There's also MIDI mode. If you want to just treat the mesh as a synthesizer using your existing setup, MIDI mode is for you. You have less control over all the things you can change, but you'll still be able to control up to 15 speakers in a mesh and play with preset tones and change some parameters using MIDI CCs. You can start MIDI mode by pushing the MIDI button and then connecting your computer or mobile device to one speaker using Bluetooth MIDI. That single speaker will stop playing audio and will become a controller for the rest of the mesh. Any MIDI messages it receives will be re-broadcasted out to the mesh. **MIDI mode is not currently working on the RevB Alleses. It will soon. For now use Direct mode.**
+There's also MIDI mode. If you want to just treat the mesh as a synthesizer using your existing setup, MIDI mode is for you. You have less control over all the things you can change, but you'll still be able to control up to 15 speakers in a mesh and play with preset tones and change some parameters using MIDI CCs. You can start MIDI mode by pushing the MIDI button and then connecting your computer or mobile device to one speaker using Bluetooth MIDI. That single speaker will stop playing audio and will become a controller for the rest of the mesh. Any MIDI messages it receives will be re-broadcasted out to the mesh. **MIDI mode is not currently working fully on the RevB Alleses. It will soon. For now use Direct mode.**
 
 So let's start python. First, [download this repository](https://github.com/bwhitman/alles/archive/refs/heads/main.zip) if you haven't already. Unzip it if it hasn't done so automatically. Open your terminal, on a Mac, that's Terminal.app, on Windows I suggest using WSL, and on Linux whatever you've installed. Make sure you are in the directory containing the repository, e.g. `cd Downloads/alles-main`. And type `python3`. If on Mac, if you've never done this sort of thing before, you may have to accept a small download of tools from Apple the first time you run Python. Let that finish. Then you'll see a prompt like `>>>`. 
 
