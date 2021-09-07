@@ -77,7 +77,7 @@ Let's set a simple sine wave first
 alles.send(osc=0, wave=alles.SINE, freq=220, amp=1)
 ```
 
-What we're doing here should be pretty straightforward. I'm telling oscillator 0 to be a sine wave at 220Hz and amplitude 1. The `alles.SINE`. You can also try `alles.PULSE`, or `alles.SAW`, etc. 
+What we're doing here should be pretty straightforward. I'm telling oscillator 0 to be a sine wave at 220Hz and amplitude 1. You can also try `alles.PULSE`, or `alles.SAW`, etc. 
 
 **Why can't you hear anything yet?** It's because you haven't triggered the note on for this oscillator. We accept a parameter called `vel` (velocity) that can turn a note on or off (`vel=0`.) So now that we've set up the oscillator, we just turn it on by `alles.send(osc=0, vel=1)`. Note the oscillator remembers all its state and setup. To turn off the note, just do `alles.send(osc=0, vel=0)`. 
 
