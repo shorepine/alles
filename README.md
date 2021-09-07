@@ -241,7 +241,10 @@ Currently supported are program / bank changes and note on / offs. Will be addin
 # Synthesizer Details
 
 ## Core oscillators
+
 We support bandlimited saw, pulse/square and triangle waves, alongside sine and noise. Use the wave parameter: 0=SINE, 1=PULSE, 2=SAW, 3=TRIANGLE, 4=NOISE. Each oscillator can have a frequency (or set by midi note), amplitude and phase (set in 0-1.). You can also set `duty` for the pulse type. We also have a karplus-strong type (KS=5). You can only use one KS oscillator per speaker. 
+
+Oscillators will not become audible until a `velocity` over 0 is set for the oscillator. This is a "note on" and will trigger any modulators or breakpoints / ADSRs set for that oscillator. Setting `velocity` to 0 sets a note off, which will stop modulators and also finish the breakpoint at its release pair. `velocity` also internally sets `amplitude`, but you can manually set `amplitude` after `velocity` starts a note on.
 
 ## LFOs & modulators
 
