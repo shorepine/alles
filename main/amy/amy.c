@@ -29,12 +29,12 @@ struct event * synth;
 // envelope-modified per-osc state
 struct mod_event * msynth;
 
+// Two float mixing blocks, one per core of rendering
 float ** fbl;
 float per_osc_fb[2][BLOCK_SIZE];
+
 // block -- what gets sent to the DAC -- -32768...32767 (wave file, int16 LE)
 i2s_sample_type * block;
-// double buffered blocks
-//i2s_sample_type * dbl_block[I2S_BUFFERS];
 int64_t total_samples;
 uint32_t event_counter ;
 uint32_t message_counter ;
@@ -94,7 +94,7 @@ struct event default_event() {
     e.feedback = -1;
     e.velocity = -1;
     e.midi_note = -1;
-    e.amp = -1; // this was set to 1 and it was wrong, i am hoping i haven't messed up other things, but i don't think so 
+    e.amp = -1; 
     e.freq = -1;
     e.detune = -1;
     e.volume = -1;
@@ -475,6 +475,8 @@ void play_event(struct delta d) {
             // osc note off, start release
             synth[d.osc].note_on_clock = -1;
             synth[d.osc].note_off_clock = total_samples; // esp_timer_get_time() / 1000;
+            // TODO, if not breakpoint, the oscillator will keep going ?
+            
         }
     }
 
