@@ -474,9 +474,7 @@ void play_event(struct delta d) {
         else {
             // osc note off, start release
             synth[d.osc].note_on_clock = -1;
-            synth[d.osc].note_off_clock = total_samples; // esp_timer_get_time() / 1000;
-            // TODO, if not breakpoint, the oscillator will keep going ?
-            
+            synth[d.osc].note_off_clock = total_samples; // esp_timer_get_time() / 1000;    
         }
     }
 
