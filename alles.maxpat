@@ -4,13 +4,13 @@
 		"appversion" : 		{
 			"major" : 8,
 			"minor" : 1,
-			"revision" : 3,
+			"revision" : 11,
 			"architecture" : "x64",
 			"modernui" : 1
 		}
 ,
 		"classnamespace" : "box",
-		"rect" : [ 156.0, 269.0, 676.0, 540.0 ],
+		"rect" : [ 1075.0, 270.0, 676.0, 540.0 ],
 		"bglocked" : 0,
 		"openinpresentation" : 0,
 		"default_fontsize" : 12.0,
@@ -37,6 +37,7 @@
 		"tags" : "",
 		"style" : "",
 		"subpatcher_template" : "",
+		"assistshowspatchername" : 0,
 		"boxes" : [ 			{
 				"box" : 				{
 					"id" : "obj-20",
@@ -45,8 +46,7 @@
 					"numinlets" : 1,
 					"numoutlets" : 0,
 					"patching_rect" : [ 348.5, 315.0, 167.0, 47.0 ],
-					"presentation_linecount" : 2,
-					"text" : "w6, which means, use the karplus-strong oscillators. easy to change and play with!"
+					"text" : "w5, which means, use the karplus-strong oscillators. easy to change and play with!"
 				}
 
 			}
@@ -58,7 +58,6 @@
 					"numinlets" : 1,
 					"numoutlets" : 0,
 					"patching_rect" : [ 23.0, 467.0, 265.0, 47.0 ],
-					"presentation_linecount" : 6,
 					"text" : "This patch plays a midi file to all booted synths, playing each note sequentially to the next synth in a row. Instant surround sound!"
 				}
 
@@ -71,7 +70,6 @@
 					"numinlets" : 1,
 					"numoutlets" : 0,
 					"patching_rect" : [ 378.5, 273.0, 137.0, 33.0 ],
-					"presentation_linecount" : 2,
 					"text" : "cpuclock is the host time base"
 				}
 
@@ -84,7 +82,6 @@
 					"numinlets" : 1,
 					"numoutlets" : 0,
 					"patching_rect" : [ 23.0, 226.0, 137.0, 74.0 ],
-					"presentation_linecount" : 4,
 					"text" : "% 6 means play each note on 6 synths in a row.. if you have less than 6 it will wrap around"
 				}
 
@@ -96,8 +93,7 @@
 					"maxclass" : "comment",
 					"numinlets" : 1,
 					"numoutlets" : 0,
-					"patching_rect" : [ 378.5, 70.0, 153.0, 33.0 ],
-					"presentation_linecount" : 2,
+					"patching_rect" : [ 378.5, 70.0, 155.0, 33.0 ],
 					"text" : "Replace this with whatever midi file you want to play"
 				}
 
@@ -109,8 +105,7 @@
 					"maxclass" : "comment",
 					"numinlets" : 1,
 					"numoutlets" : 0,
-					"patching_rect" : [ 198.5, 30.0, 150.0, 33.0 ],
-					"presentation_linecount" : 2,
+					"patching_rect" : [ 198.5, 30.0, 153.0, 33.0 ],
 					"text" : "Start 1024 plays a midi file at normal speed"
 				}
 
@@ -263,8 +258,8 @@
 					"numinlets" : 4,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 156.333333333333314, 311.0, 149.0, 22.0 ],
-					"text" : "sprintf c%dn%dw6a%ft%d"
+					"patching_rect" : [ 156.333333333333314, 311.0, 189.0, 22.0 ],
+					"text" : "sprintf c%dn%dw5l%ft%db0.997Z"
 				}
 
 			}
@@ -335,13 +330,27 @@
 					"numinlets" : 1,
 					"numoutlets" : 2,
 					"outlettype" : [ "int", "bang" ],
-					"patching_rect" : [ 202.0, 114.0, 269.0, 22.0 ],
-					"text" : "seq /Users/bwhitman/Downloads/deb_menu.midi"
+					"patching_rect" : [ 198.5, 109.0, 111.0, 22.0 ],
+					"text" : "seq deb_menu.mid"
 				}
 
 			}
  ],
 		"lines" : [ 			{
+				"patchline" : 				{
+					"destination" : [ "obj-10", 0 ],
+					"source" : [ "obj-12", 0 ]
+				}
+
+			}
+, 			{
+				"patchline" : 				{
+					"destination" : [ "obj-14", 0 ],
+					"source" : [ "obj-13", 0 ]
+				}
+
+			}
+, 			{
 				"patchline" : 				{
 					"destination" : [ "obj-23", 0 ],
 					"source" : [ "obj-18", 0 ]
@@ -440,13 +449,6 @@
 			}
 , 			{
 				"patchline" : 				{
-					"destination" : [ "obj-18", 0 ],
-					"source" : [ "obj-44", 0 ]
-				}
-
-			}
-, 			{
-				"patchline" : 				{
 					"destination" : [ "", -1 ],
 					"source" : [ "obj-24", 1 ]
 				}
@@ -461,15 +463,8 @@
 			}
 , 			{
 				"patchline" : 				{
-					"destination" : [ "obj-10", 0 ],
-					"source" : [ "obj-12", 0 ]
-				}
-
-			}
-, 			{
-				"patchline" : 				{
-					"destination" : [ "obj-14", 0 ],
-					"source" : [ "obj-13", 0 ]
+					"destination" : [ "obj-18", 0 ],
+					"source" : [ "obj-44", 0 ]
 				}
 
 			}
