@@ -1,6 +1,5 @@
 idf_component_register(SRCS alles.c
 							multicast.c
-							blemidi.c
 							midi.c
 							buttons.c
 							sounds.c

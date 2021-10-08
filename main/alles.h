@@ -35,7 +35,6 @@ extern "C" {
 #include "lwip/netdb.h"
 #include "wifi_manager.h"
 #include "http_app.h"
-#include "blemidi.h"
 #include "power.h"
 // This can be 32 bit, int32_t -- helpful for digital output to a i2s->USB teensy3 board
 #define I2S_SAMPLE_TYPE I2S_BITS_PER_SAMPLE_16BIT

@@ -491,6 +491,7 @@ void hold_and_modify(uint8_t osc) {
     msynth[osc].resonance = synth[osc].resonance;
 
     // Modify the synth params by scale -- bp scale is (original * scale)
+    float all_set_scale = 0;
     for(uint8_t i=0;i<MAX_BREAKPOINT_SETS;i++) {
         float scale = compute_breakpoint_scale(osc, i);
         if(synth[osc].breakpoint_target[i] & TARGET_AMP) msynth[osc].amp = msynth[osc].amp * scale;
@@ -499,6 +500,11 @@ void hold_and_modify(uint8_t osc) {
         if(synth[osc].breakpoint_target[i] & TARGET_FEEDBACK) msynth[osc].feedback = msynth[osc].feedback * scale;
         if(synth[osc].breakpoint_target[i] & TARGET_FILTER_FREQ) msynth[osc].filter_freq = msynth[osc].filter_freq * scale;
         if(synth[osc].breakpoint_target[i] & TARGET_RESONANCE) msynth[osc].resonance = msynth[osc].resonance * scale;
+        all_set_scale = all_set_scale + scale;
+    }
+    if(all_set_scale == 0) { // all BP sets were 0, which means we are in a note off and nobody is active anymore. time to stop the note.
+        synth[osc].status=OFF;
+        synth[osc].note_off_clock = -1;
     }
 
     // And the mod -- mod scale is (original + (original * scale))

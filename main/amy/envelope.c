@@ -60,12 +60,7 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
     //printf("[%d,%d] Found release BP at pos %d\n", bp_set, osc,bp_r);
     if(bp_r<0) {
         //if(bp_set==0)printf("[%d,%d] returning scale=1\n",bp_set,osc); 
-        // If no breakpoints, we still need to turn an oscillator off if note_off_clock is set from a note off.
-        if(synth[osc].note_off_clock >= 0) {
-            synth[osc].status=OFF;
-            synth[osc].note_off_clock = -1;
-            return 0;
-        }
+        if(synth[osc].note_off_clock >= 0) return 0;
         return 1; 
     }// no breakpoints
 

@@ -1,5 +1,5 @@
 #include "alles.h"
-// Handle MIDI events from UART or BLE
+// Handle MIDI events from UART 
 
 
 extern struct event default_event();
@@ -35,7 +35,7 @@ void serialize_event(struct event e, uint16_t client) {
 // TODO don't schedule notes to me, or ignore them 
 // TODO this synth should not get a client ID  ????
 void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t midi_status, uint8_t *remaining_message, size_t len) {
-    // source is 1 if this came in through uart, 0 if ble
+    // source is 1 if this came in through uart... (0 if local?)
     //printf("got midi message source %d: status %02x -- ", source, midi_status);
     //for(int i=0;i<len;i++) printf("%02x ", remaining_message[i]);
     //printf("\n");
@@ -47,7 +47,7 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
             uint8_t data2 = remaining_message[1];
             //printf("note on channel %d note %d velocity %d\n", channel, data1, data2);
             struct event e = default_event();
-            e.time = get_sysclock(); // looks like BLE timestamp rolls over within 10s
+            e.time = get_sysclock();
             if(program_bank[channel] > 0) {
                 e.wave = ALGO;
                 //e.patch = ((program_bank[channel]-1) * 128) + program[channel];
@@ -138,14 +138,16 @@ void read_midi_uart() {
         if(length) {
             length = uart_read_bytes(uart_num, data, length, 100);
             if(length) {
+                // No.. write your own parser here instead (or copy the BLEMIDI)
+
                 // Even though we got this over UART, re-use the BLEMIDI parser -- it works and no need to have two
                 // Probably will cause problems if you use two at once, but just don't do that
                 // Add the expected 0 timestamp header
                 data2[0] = 0xC0;
                 data2[1] = 0x80;
                 for(int i=0;i<length;i++) data2[2+i] = data[i];
-                int32_t err = blemidi_receive_packet(1, data2, length+2, callback_midi_message_received);
-                if(err) printf("UART midi parse err %d\n", err);
+                //int32_t err = blemidi_receive_packet(1, data2, length+2, callback_midi_message_received);
+                //if(err) printf("UART midi parse err %d\n", err);
             }
         }  // end was there any bytes at all 
     } // end loop forever
@@ -158,13 +160,12 @@ TaskHandle_t read_midi_uart_task = NULL;
 
 void midi_deinit() {
 #ifdef ESP_PLATFORM
-    blemidi_deinit();
     vTaskDelete(read_midi_uart_task);
 #endif
 }
 
 void midi_init() {
-    // Setup UART2 and BLE to listen for MIDI messages 
+    // Setup UART2 and/or local MIDI to listen for MIDI messages 
     for(uint8_t c=0;c<CHANNELS;c++) {
         program_bank[c] = 0;
         program[c] = 0;
@@ -192,13 +193,6 @@ void midi_init() {
                                           uart_buffer_size, 10, &uart_queue, 0));
 
     xTaskCreatePinnedToCore(&read_midi_uart, "read_midi_task", 4096, NULL, 1, &read_midi_uart_task, 1);
-
-    int status = blemidi_init(callback_midi_message_received);
-    if( status < 0 ) {
-      ESP_LOGE(BLEMIDI_TAG, "BLE MIDI Driver returned status=%d", status);
-    } else {
-      ESP_LOGI(BLEMIDI_TAG, "BLE MIDI Driver initialized successfully");
-    }
 #endif
 
 #ifdef MAC_MIDI
