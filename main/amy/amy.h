@@ -42,6 +42,7 @@ typedef int16_t i2s_sample_type;
 // So D=0.1 means output is linear for -0.9..0.9, then starts clipping.
 #define CLIP_D 0.1
 #define MAX_RECEIVE_LEN 512  // max length of each message
+#define MAX_VOLUME 11.0
 
 
 #define LINEAR_INTERP        // use linear interp for oscs

@@ -759,6 +759,16 @@ void live_stop() {
 
 #endif // ifndef ESP_PLATFORM
 
+void increase_volume() {
+    global.volume += 0.5;
+    if(global.volume > MAX_VOLUME) global.volume = MAX_VOLUME;    
+}
+
+void decrease_volume() {
+    global.volume -= 0.5;
+    if(global.volume < 0) global.volume = 0;    
+}
+
 // This takes scheduled events and plays them at the right time
 int16_t * fill_audio_buffer_task() {
     // Check to see which sounds to play 

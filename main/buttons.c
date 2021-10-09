@@ -39,18 +39,18 @@ static void gpio_task(void* arg) {
                 printf("power pushed\n");
                 status = 0;
                 break;
-            case BUTTON_EXTRA: 
-                printf("extra pushed\n");
-                esp_restart();
+            case BUTTON_MINUS: 
+                printf("minus pushed\n");
+                decrease_volume();
                 break;
             case BUTTON_WIFI: 
                 // WIFI config mode
                 printf("wifi pushed\n");
                 wifi_reconfigure();
                 break;
-            case BUTTON_MIDI: 
-                printf("midi pushed\n");
-                toggle_midi();
+            case BUTTON_PLUS: 
+                printf("plus pushed\n");
+                increase_volume();
                 break;
             }
 
@@ -70,9 +70,9 @@ esp_err_t buttons_init() {
         .intr_type = GPIO_INTR_POSEDGE,     //enable interrupt on positive edge
         .mode = GPIO_MODE_INPUT,            //set as input mode
         .pin_bit_mask = (1ULL << BUTTON_WAKEUP)
-                        | (1ULL<<BUTTON_EXTRA)
+                        | (1ULL<<BUTTON_MINUS)
                         | (1ULL<<BUTTON_WIFI)
-                        | (1ULL<<BUTTON_MIDI),  //bit mask of the pins that you want to set,e.g.GPIO18/19
+                        | (1ULL<<BUTTON_PLUS),  //bit mask of the pins that you want to set,e.g.GPIO18/19
         .pull_down_en = 0,                  //disable pull-down mode
         .pull_up_en = 1,                    //enable pull-up mode
     };
@@ -101,7 +101,11 @@ esp_err_t buttons_init() {
         if(ret != ESP_OK)
             return ret;
 
-        ret = gpio_isr_handler_add(BUTTON_EXTRA, gpio_isr_handler, (void*) BUTTON_EXTRA);
+        ret = gpio_isr_handler_add(BUTTON_MINUS, gpio_isr_handler, (void*) BUTTON_MINUS);
+        if(ret != ESP_OK)
+            return ret;
+
+        ret = gpio_isr_handler_add(BUTTON_PLUS, gpio_isr_handler, (void*) BUTTON_PLUS);
         if(ret != ESP_OK)
             return ret;
 
@@ -110,8 +114,5 @@ esp_err_t buttons_init() {
             return ret;
     }
 
-    ret = gpio_isr_handler_add(BUTTON_MIDI, gpio_isr_handler, (void*) BUTTON_MIDI);
-    if(ret != ESP_OK)
-        return ret;
     return ESP_OK;
 }

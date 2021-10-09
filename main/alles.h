@@ -44,9 +44,9 @@ typedef int16_t i2s_sample_type;
 
 // Pins & buttons
 #define BUTTON_WAKEUP 34
-#define BUTTON_WIFI 17
-#define BUTTON_EXTRA 16
-#define BUTTON_MIDI 0
+#define BUTTON_MINUS 17
+#define BUTTON_WIFI 16
+#define BUTTON_PLUS 0
 #define ESP_INTR_FLAG_DEFAULT 0
 #define CONFIG_I2S_LRCLK 25
 #define CONFIG_I2S_BCLK 26
@@ -113,6 +113,8 @@ void wifi_reconfigure();
 void toggle_midi();
 extern esp_err_t buttons_init();
 void esp_show_debug(uint8_t type);
+void increase_volume();
+void decrease_volume();
 
 // wifi and multicast
 extern wifi_config_t* wifi_manager_config_sta ;

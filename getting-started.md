@@ -20,17 +20,13 @@ Each Alles speaker has four buttons up top and a USB micro receptacle on back.
 
 Before getting going, let's make sure the speaker is charged or charging. Simply plug the included USB cable between the speaker and any USB charge point, like a phone charger. (If you hook it into a computer, the speaker will show up as a USB device for debugging and upgrades, but you don't have to worry about that for now -- all control happens wirelessly.) The battery will last "a few hours" making constant music and longer with sparse or silence. It shouldn't take more than an hour or so to charge. If the power button does not make any noise, it's probably a dead battery.
 
-The row of buttons up top, facing the speaker, are power, MIDI (+), WiFi (-) and restart (Play/Pause).
+The row of buttons up top, facing the speaker, are power, volume + and -, and WiFi setup (the play/pause). Volume can be set with those buttons or using `alles.volume()` from your compositions. Using `alles.volume()` will override whatever you set with the buttons.
 
 ![Picture of speaker](https://raw.githubusercontent.com/bwhitman/alles/main/pics/revb-top.png)
 
 The power button turns the speaker off and on. When you turn it on, it will re-join the network and mesh. 
 
-The MIDI button (+) will put the speaker into MIDI mode. In this mode, Bluetooth MIDI is activated and the speaker will stay silent and act as a MIDI relay to the rest of the mesh. So you will need at least two Alleses to use MIDI mode and hear audio. Press MIDI again to restart into normal mode.
-
-The WiFi button (-) will forget the WiFi details, if any were stored, and put the device into WiFi setup mode. This is the default if no WiFi has yet been set. 
-
-The restart (Play/Pause) button simply restarts the speaker. 
+The WiFi button will forget the WiFi details, if any were stored, and put the device into WiFi setup mode. This is the default if no WiFi has yet been set. 
 
 
 ## Join a WiFi network
@@ -47,16 +43,12 @@ If you haven't set WiFi yet, now open your nearest mobile phone or any WiFi devi
 
 Wait a few seconds for the login page to populate with all the nearby WiFi stations it finds. After you see the one you want the speaker to join, tap it and carefully enter its password. This should be the same network as the computer you're going to control Alles from. After a few moments, the speaker should stop chiming, indicating it has succesfully joined the network and saved the details to its internal storage. 
 
-If this doesn't seem to work, try again by hitting the WiFi button (-) and the process will repeat again. 
+If this doesn't seem to work, try again by hitting the WiFi button (play/pause) and the process will repeat again. 
 
 
 ## Control Alles
 
-There are two main ways to control your speakers. We call them *direct mode* and *MIDI mode*. 
-
-Direct mode is sending the mesh explicit messages that define the state of oscillators. You can control anything you can imagine, with high precision and millisecond accuracy. You can control up to 64 oscillators on each of any number of speakers in a mesh. You do this from either a programming language like Python (what we use) or an environment like Max/MSP (or Max for Ableton Live). Python is built-in on Macs and pretty easy to use once you get the hang of it. And then you can write small programs to make interesting sounds! For this tutorial, we'll use Python. But there's also a Max patch you can download that shows you how to access all the same parameters as we're changing in Python. So it's up to you!
-
-There's also MIDI mode. If you want to just treat the mesh as a synthesizer using your existing setup, MIDI mode is for you. You have less control over all the things you can change, but you'll still be able to control up to 15 speakers in a mesh and play with preset tones and change some parameters using MIDI CCs. You can start MIDI mode by pushing the MIDI button and then connecting your computer or mobile device to one speaker using Bluetooth MIDI. That single speaker will stop playing audio and will become a controller for the rest of the mesh. Any MIDI messages it receives will be re-broadcasted out to the mesh. **MIDI mode is not currently working fully on the RevB Alleses. It will soon. For now use Direct mode.**
+You send the mesh (group of speakers) explicit messages that define the state of oscillators. You can control anything you can imagine, with high precision and millisecond accuracy. You can control up to 64 oscillators on each of any number of speakers in a mesh. You do this from either a programming language like Python (what we use) or an environment like Max/MSP (or Max for Ableton Live). Python is built-in on Macs and pretty easy to use once you get the hang of it. And then you can write small programs to make interesting sounds! For this tutorial, we'll use Python. But there's also a Max patch you can download that shows you how to access all the same parameters as we're changing in Python. So it's up to you!
 
 So let's start python. First, [download this repository](https://github.com/bwhitman/alles/archive/refs/heads/main.zip) if you haven't already. Unzip it if it hasn't done so automatically. Open your terminal, on a Mac, that's Terminal.app, on Windows I suggest using WSL, and on Linux whatever you've installed. Make sure you are in the directory containing the repository, e.g. `cd Downloads/alles-main`. And type `python3`. If on Mac, if you've never done this sort of thing before, you may have to accept a small download of tools from Apple the first time you run Python. Let that finish. Then you'll see a prompt like `>>>`. 
 
@@ -67,7 +59,7 @@ Start by importing the Python module needed to control the mesh: `import alles`
 
 `alles.drums()` should play a test pattern out of all the currently turned-on speakers. They should all be in sync and playing the same thing.
 
-Try to set the volume of the speaker with `alles.volume(2)` -- that can be up to 10 or so.  The default is 1.
+Try to set the volume of the speaker with `alles.volume(2)` -- that can be up to 10 or so.  The default is 1. You can also use the + and - buttons on the speaker, but anything you set with `alles.volume()` will override the buttons. 
 
 When you want the speakers to be quiet, or if things are acting funny, use `alles.reset()`. That resets all speakers to defaults. Sometimes lots of experiments will get your oscillators in a weird state and `alles.reset()` is your escape hatch. You can also do `alles.reset(osc=5)` to do just one oscillator for example.
 

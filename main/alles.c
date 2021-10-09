@@ -351,9 +351,18 @@ void app_main() {
 
     //So now they shut off after MAX_WIFI_WAIT_S if they can't connect.
     int64_t start_time = get_sysclock();
+    delay_ms(250);
     while((!(status & WIFI_MANAGER_OK) && (status & RUNNING) )) {
-        delay_ms(2500);
         wifi_tone();
+        for(uint8_t i=0;i<250;i++) { 
+            if(!(status & RUNNING)) {
+                debleep();
+                delay_ms(500);
+                esp_shutdown();
+            }
+            delay_ms(10);
+        }
+        //delay_ms(2500);
         if(get_sysclock() - start_time > (MAX_WIFI_WAIT_S*1000)) esp_shutdown();
     }
 
