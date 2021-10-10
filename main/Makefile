@@ -18,7 +18,7 @@ HEADERS = alles.h $(wildcard amy/*.h)
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
 	LIBS += -L/opt/homebrew/lib -framework CoreMIDI -framework Cocoa -lstdc++ 
-	CFLAGS += -I/opt/homebrew/include -DMAC_MIDI
+	CFLAGS += -I/opt/homebrew/include -DVIRTUAL_MIDI
 	OBJECTS += amy/virtualmidi.o
 endif
 

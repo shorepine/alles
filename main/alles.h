@@ -52,7 +52,6 @@ typedef int16_t i2s_sample_type;
 #define CONFIG_I2S_BCLK 26
 #define CONFIG_I2S_DIN 27
 #define CONFIG_I2S_NUM 0 
-#define MIDI_IN 19
 #define BAT_SENSE_EN 32
 #define CHARGE_STAT 33
 #define POWER_5V_EN 21
@@ -103,14 +102,13 @@ extern void midi_tone();
 extern void wifi_tone();
 extern void scale(uint8_t wave);
 
-#ifdef MAC_MIDI
+#ifdef VIRTUAL_MIDI
 extern void midi_init();
 #endif
 
 #ifdef ESP_PLATFORM
 // Button handlers
 void wifi_reconfigure();
-void toggle_midi();
 extern esp_err_t buttons_init();
 void esp_show_debug(uint8_t type);
 void increase_volume();

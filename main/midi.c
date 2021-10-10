@@ -1,13 +1,10 @@
 #include "alles.h"
-// Handle MIDI events from UART 
+#ifdef VIRTUAL_MIDI
+// Handle MIDI events from virtual MIDI  
 
 
 extern struct event default_event();
 extern void mcast_send(char * message, uint16_t len);
-
-#ifdef ESP_PLATFORM
-QueueHandle_t uart_queue;
-#endif
 
 
 uint8_t midi_osc = 0;
@@ -15,10 +12,8 @@ uint8_t midi_osc = 0;
 uint8_t program_bank[CHANNELS];
 uint8_t program[CHANNELS];
 
-#ifdef MAC_MIDI
 extern void* mac_midi_run(void *varargp);
 #include <pthread.h>
-#endif
 
 // take an event and make it a string and send it to everyone!
 // This is only used for MIDI relay, so we only need to send events that MIDI parses.
@@ -33,7 +28,7 @@ void serialize_event(struct event e, uint16_t client) {
 
 
 // TODO don't schedule notes to me, or ignore them 
-// TODO this synth should not get a client ID  ????
+// TODO this "synth" should not get a client ID  ????
 void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t midi_status, uint8_t *remaining_message, size_t len) {
     // source is 1 if this came in through uart... (0 if local?)
     //printf("got midi message source %d: status %02x -- ", source, midi_status);
@@ -121,83 +116,21 @@ void callback_midi_message_received(uint8_t source, uint16_t timestamp, uint8_t 
 }
 
 
-#ifdef ESP_PLATFORM
-void read_midi_uart() {
-    printf("UART MIDI running on core %d\n", xPortGetCoreID());
-    const int uart_num = UART_NUM_2;
-    uint8_t data[128];
-    uint8_t data2[128];
-    size_t length = 0;
-    while(1) {
-        // Sleep 5ms to wait to get more MIDI data and avoid starving other threads
-        // I increased RTOS clock rate from 100hz to 500hz to go down to a 5ms delay here
-        // https://www.esp32.com/viewtopic.php?t=7554
-        // TODO -- there has to be a UART get with a timeout ?? 
-        delay_ms(5);
-        ESP_ERROR_CHECK(uart_get_buffered_data_len(uart_num, (size_t*)&length));
-        if(length) {
-            length = uart_read_bytes(uart_num, data, length, 100);
-            if(length) {
-                // No.. write your own parser here instead (or copy the BLEMIDI)
-
-                // Even though we got this over UART, re-use the BLEMIDI parser -- it works and no need to have two
-                // Probably will cause problems if you use two at once, but just don't do that
-                // Add the expected 0 timestamp header
-                data2[0] = 0xC0;
-                data2[1] = 0x80;
-                for(int i=0;i<length;i++) data2[2+i] = data[i];
-                //int32_t err = blemidi_receive_packet(1, data2, length+2, callback_midi_message_received);
-                //if(err) printf("UART midi parse err %d\n", err);
-            }
-        }  // end was there any bytes at all 
-    } // end loop forever
-}
-
-TaskHandle_t read_midi_uart_task = NULL;
-#endif
 
 
 
 void midi_deinit() {
-#ifdef ESP_PLATFORM
-    vTaskDelete(read_midi_uart_task);
-#endif
+    // kill the thread
 }
 
 void midi_init() {
-    // Setup UART2 and/or local MIDI to listen for MIDI messages 
     for(uint8_t c=0;c<CHANNELS;c++) {
         program_bank[c] = 0;
         program[c] = 0;
     }
-
-#ifdef ESP_PLATFORM
-    const int uart_num = UART_NUM_2;
-    uart_config_t uart_config = {
-        .baud_rate = 31250,
-        .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .rx_flow_ctrl_thresh = 122,
-    };
-
-    // Configure UART parameters
-    ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));
-    // TX, RX, CTS/RTS -- Only care about RX here, pin 19 for now
-    ESP_ERROR_CHECK(uart_set_pin(UART_NUM_2, 18, 19, 21, 5));
-
-    const int uart_buffer_size = (1024 * 2);
-    // Install UART driver using an event queue here
-    ESP_ERROR_CHECK(uart_driver_install(UART_NUM_2, uart_buffer_size, \
-                                          uart_buffer_size, 10, &uart_queue, 0));
-
-    xTaskCreatePinnedToCore(&read_midi_uart, "read_midi_task", 4096, NULL, 1, &read_midi_uart_task, 1);
-#endif
-
-#ifdef MAC_MIDI
     pthread_t thread_id;
     pthread_create(&thread_id, NULL, mac_midi_run, NULL);
-#endif
 }
+
+#endif // ifdef VIRTUAL_MIDI
 
