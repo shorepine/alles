@@ -92,7 +92,6 @@ void delay_ms(uint32_t ms);
 // Status mask 
 #define RUNNING 1
 #define WIFI_MANAGER_OK 2
-#define MIDI_MODE 4
 
 
 // Sounds

@@ -29,24 +29,6 @@ void wifi_tone() {
     note_on(1, e.time+1);
 }
 
-// Play the "i'm going into midi mode" tone
-void midi_tone() {
-    struct event e = default_event();
-    int64_t sysclock = get_sysclock();
-    e.time = sysclock;
-    e.wave = SINE;
-    e.freq = 440;
-    add_event(e);
-    e.velocity = 1;
-    add_event(e);
-    e.time = sysclock + 150;
-    e.freq = 660;
-    add_event(e);
-    e.time = sysclock + 300;
-    e.velocity = 0;
-    e.freq = 0;
-    add_event(e);
-}
 // Schedule a bleep now
 void bleep() {
     struct event e = default_event();

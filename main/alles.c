@@ -215,36 +215,6 @@ void wifi_reconfigure() {
 
 
 
-// Called when the MIDI button is hit. Toggle between MIDI on and off mode
-void toggle_midi() {
-    if(!(status & WIFI_MANAGER_OK)) {
-        // we haven't connected yet, ignore
-        printf("MIDI mode pressed but not yet connected\n");
-    } else if(status & MIDI_MODE) { 
-        // just restart, easier that way
-        esp_restart();
-    } else {
-        // turn on midi
-        status = MIDI_MODE | RUNNING;
-        // Play a MIDI sound before shutting down oscs
-        midi_tone();
-        delay_ms(500);
-
-        // stop rendering
-        vTaskDelete(fillbufferTask);
-        // stop parsing
-        vTaskDelete(parseTask);
-        // stop receiving
-        vTaskDelete(mcastTask);
-
-        // have to free RAM to start the BLE stack
-        oscs_deinit();
-
-        // start midi
-        midi_init();
-    }
-}
-
 void power_monitor() {
     power_status_t power_status;
 
