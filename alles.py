@@ -205,7 +205,7 @@ def polyphony(max_voices=OSCS,**kwargs):
         note =(note + 1) % 64
 
 def eq_test():
-    eset()
+    reset()
     eqs = [ [0,0,0], [15,0,0], [0,0,15], [0,15,0],[-15,-15,15],[-15,-15,30],[-15,30,-15], [30,-15,-15] ]
     for eq in eqs:
         print("eq_l = %ddB eq_m = %ddB eq_h = %ddB" % (eq[0], eq[1], eq[2]))
@@ -434,11 +434,11 @@ def battery_test():
 # Setup the sock on module import
 # I have some convenience hardcoded IPs for machines I work on here
 try:
-    if(os.uname().nodename=='colossus'):
+    if(os.uname().nodename.startswith('colossus')):
         connect(local_ip="192.168.1.2")
-    elif(os.uname().nodename=='cedar.local'):
-        connect(local_ip = '192.168.1.3')
-    elif(os.uname().nodename=='contain.lan'):
+    elif(os.uname().nodename.startswith('convolve')):
+        connect(local_ip = '192.168.1.12')
+    elif(os.uname().nodename.startswith('cedar')):
         connect(local_ip = '192.168.1.3')
     else:
         connect(local_ip=None)

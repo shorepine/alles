@@ -123,6 +123,7 @@ void esp_show_debug(uint8_t type) {
                 ulTotalRunTime = ulTotalRunTime + counter_since_last[i];
             }
         }
+        
         // Have to get these specially as the task manager calls them both "IDLE" and swaps their orderings around
         if(strcmp("idle0", tasks[i])==0) { 
             vTaskGetInfo(idleTask0, &xTaskDetails, pdFALSE, eRunning);
@@ -136,6 +137,7 @@ void esp_show_debug(uint8_t type) {
             last_task_counters[i] = xTaskDetails.ulRunTimeCounter;
             ulTotalRunTime = ulTotalRunTime + counter_since_last[i];
         }
+        
 
     }
     printf("------ CPU usage since last call to debug()\n");
