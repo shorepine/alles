@@ -541,9 +541,9 @@ void render_task(uint8_t start, uint8_t end, uint8_t core) {
                 for(uint16_t i=0;i<BLOCK_SIZE;i++) { fbl[core][i] += per_osc_fb[core][i]; }
             }
         }
-        // apply the EQ filters if set
-        if(global.eq[0] != 0 || global.eq[1] != 0 || global.eq[2] != 0) parametric_eq_process(fbl[core]);
     }
+    // apply the EQ filters if set
+    if(global.eq[0] != 0 || global.eq[1] != 0 || global.eq[2] != 0) parametric_eq_process(fbl[core]);
 }
 
 // On all platforms, sysclock is based on total samples played, using audio out (i2s or etc) as system clock

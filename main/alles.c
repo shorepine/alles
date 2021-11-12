@@ -253,7 +253,7 @@ void power_monitor() {
             break;        
     }
 
-    float voltage = power_status.wall_voltage/1000.0;
+    float voltage = power_status.battery_voltage/1000.0;
     if(voltage > 3.95) battery_mask = battery_mask | BATTERY_VOLTAGE_4; else 
     if(voltage > 3.80) battery_mask = battery_mask | BATTERY_VOLTAGE_3; else 
     if(voltage > 3.60) battery_mask = battery_mask | BATTERY_VOLTAGE_2; else 

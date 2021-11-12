@@ -37,23 +37,24 @@ extern "C" void *mac_midi_run(void *vargp){
                 for (int i = 0; i < evtlist->numPackets; i++) {
                     if(packet->wordCount == 1){
                         const unsigned char *bytes = reinterpret_cast<const unsigned char *>(&packet->words[0]);
-                        assert(bytes[3] == 0x20);
-                        printf("Event: %02X %02X %02X\n", bytes[2], bytes[1], bytes[0]);
-                        switch ((bytes[2] & 0xF0) >> 4) {
-                            case 0x9: // Note-On
-                                assert(bytes[1] <= 0x7F);
-                                printf("note on %d %d\n", (bytes[2] & 0x0F) * 128 + bytes[1], bytes[0]);
-                                break;
-                            case 0x8: // Note-Off
-                                assert(bytes[1] <= 0x7F);
-                                printf("note off %d %d\n", (bytes[2] & 0x0F) * 128 + bytes[1], bytes[0]);
-                                break;
-                            case 0xB: // Control Change
-                                assert(bytes[1] <= 0x7F);
-                                printf("CC %d %d\n", (bytes[2] & 0x0F), bytes[0] );
-                                break;
+                        if(bytes[3] == 0x20) {
+                            printf("Event: %02X %02X %02X\n", bytes[2], bytes[1], bytes[0]);
+                            switch ((bytes[2] & 0xF0) >> 4) {
+                                case 0x9: // Note-On
+                                    assert(bytes[1] <= 0x7F);
+                                    printf("note on %d %d\n", (bytes[2] & 0x0F) * 128 + bytes[1], bytes[0]);
+                                    break;
+                                case 0x8: // Note-Off
+                                    assert(bytes[1] <= 0x7F);
+                                    printf("note off %d %d\n", (bytes[2] & 0x0F) * 128 + bytes[1], bytes[0]);
+                                    break;
+                                case 0xB: // Control Change
+                                    assert(bytes[1] <= 0x7F);
+                                    printf("CC %d %d\n", (bytes[2] & 0x0F), bytes[0] );
+                                    break;
+                            }
+                            packet = MIDIEventPacketNext(packet);
                         }
-                        packet = MIDIEventPacketNext(packet);
                     }
                 }
             });
