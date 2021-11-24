@@ -335,13 +335,13 @@ This assumes you're using the suggested ESP32 dev board with its pin layout. If 
 
 Alles is completely open source, and can be a fun platform to adapt beyond its current capabilities. To build your own ESP32 firmware, [start by setting up `esp-idf`](http://esp-idf.readthedocs.io/en/latest/get-started/). If using macOS, you'll want to install the [CP210X drivers](https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers) if you haven't already. Once you've installed esp-idf and the serial drivers if you need them, run `. ./esp-idf/export.sh`, then connect to your board over USB, clone and cd into this repository and run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board.
 
-You need to also flash the `luts` partition, where we store PCM presets. Do that with:
+Once only, you need to also flash the `luts` partition, where we store PCM presets. Do that with:
 
 ```
 parttool.py write_partition --input main/amy/pcm.bin --partition-name luts
 ```
 
-After flashing the firmware. This will take a while but you only need to do it once, updating the firmware can ignore the baked-in LUT.
+After flashing the firmware. This will take a while but you only need to do it once, updating the firmware later on can ignore the baked-in LUT.
 
 Use `idf.py -p /dev/YOUR_SERIAL_TTY monitor` to reboot the board and see stdout/stderr. Use Ctrl-] to exit the monitor.
 

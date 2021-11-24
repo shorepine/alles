@@ -215,6 +215,20 @@ void wifi_reconfigure() {
     esp_restart();
 }
 
+void firmware_upgrade() {
+    esp_http_client_config_t config = {
+        .url = CONFIG_FIRMWARE_UPGRADE_URL,
+        .cert_pem = (char *)server_cert_pem_start,
+    };
+    esp_err_t ret = esp_https_ota(&config);
+    if (ret == ESP_OK) {
+        esp_restart();
+    } else {
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+
 
 
 void power_monitor() {
