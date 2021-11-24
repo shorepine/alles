@@ -1,7 +1,12 @@
 // pcm.c
 
 #include "amy.h"
-
+#ifndef ESP_PLATFORM
+#include "pcm_desktop.h"
+#else
+#include "esp_spi_flash.h"
+#include "esp_partition.h"
+#endif
 typedef struct {
     uint32_t offset;
     uint32_t length;
@@ -11,6 +16,20 @@ typedef struct {
 } pcm_map_t;
 
 #include "pcm.h"
+const int16_t * pcm;
+
+void pcm_init() {
+#ifdef ESP_PLATFORM
+    spi_flash_mmap_handle_t mmap_handle;
+    const esp_partition_t * pcm_part  = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_NVS, "luts");
+    esp_err_t err = esp_partition_mmap(pcm_part, 0, PCM_LENGTH*2, SPI_FLASH_MMAP_DATA, (const void**)&pcm, &mmap_handle);
+    if(err != ESP_OK) {
+        printf("err doing pcm mmap: %d %s\n", err, esp_err_to_name(err));
+    }
+#else
+    pcm = pcm_desktop;
+#endif
+}
 
 void pcm_note_on(uint8_t osc) {
 	// if no freq given, just play it at midinote

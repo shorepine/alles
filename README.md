@@ -32,7 +32,7 @@ Each individual synthesizer supports:
  * Each oscillator has 3 breakpoint generators, which can modify any combination of amplitude, frequency, duty, filter cutoff, feedback or resonance
  * Each oscillator can also act as an modulator to modify any combination of parameters of another oscillator, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave. 
  * Control of speaker gain and 3-band parametric EQ
- * Built in patches for PCM, FM and partials
+ * Built in patches for PCM and FM
 
 ## Using it -- hardware Alles
 
@@ -86,23 +86,23 @@ f = frequency, float 0-44100 (and above). default 0. Sampling rate of synth is 4
 F = center frequency of biquad filter. default 0. 
 g = modulation target mask. Which parameter modulation/LFO controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance, 32=feedback. Can handle any combo, add them together
 G = filter type. 0 = none (default.) 1 = low pass, 2 = band pass, 3 = hi pass. 
-I = ratio. for ALGO types, where the base note frequency controls the modulators, or for the ALGO base note and PARTIALS base note, where the ratio controls the speed of the playback
+I = ratio. for ALGO types, where the base note frequency controls the modulators, or for the ALGO base note where the ratio controls the speed of the playback
 L = modulation source oscillator. 0-63. Which oscillator is used as an modulation/LFO source for this oscillator. Source oscillator will be silent. 
 l = velocity (amplitude), float 0-1+, >0 to trigger note on, 0 to trigger note off.  
 n = midinote, uint, 0-127 (this will also set f). default 0
 o = algorithm, choose which algorithm for the ALGO type, uint, 0-31. mirrors DX7 algorithms (-1)
 O = algorithn source oscillators, choose which oscillators make up the algorithm oscillator, like "0,1,2,3,4,5" for algorithm 0
-p = patch, uint, choose a preloaded PCM sample, partial patch or FM patch number for FM waveforms. See fm.h, pcm.h, partials.h. default 0
+p = patch, uint, choose a preloaded PCM sample, or FM patch number for FM waveforms. See fm.h, pcm.h. default 0
 P = phase, float 0-1. where in the oscillator's cycle to start sampling from (also works on the PCM buffer). default 0
 R = q factor / "resonance" of biquad filter. float. in practice, 0 to 10.0. default 0.7.
 s = sync, int64, same as time but used alone to do an enumeration / sync, see alles.py
 S = reset oscillator, uint 0-63 or for all oscillators, anything >63, which also resets speaker gain and EQ.
 T = breakpoint0 target mask. Which parameter the breakpoints controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance, 32=feedback. Can handle any combo, add them together. Add 64 to indicate linear ramp, otherwise exponential
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can.
-u = detune, in hertz, for partials and algorithm types, to apply after the ratio 
+u = detune, in hertz, for algorithm types, to apply after the ratio 
 v = oscillator, uint, 0 to 63. default: 0
 V = volume, float 0 to about 10 in practice. volume knob for the entire synth / speaker. default 1.0
-w = waveform, uint: [0=SINE, PULSE, SAW, TRIANGLE, NOISE, KS, PCM, ALGO, PARTIAL, PARTIALS, OFF]. default: 0/SINE
+w = waveform, uint: [0=SINE, PULSE, SAW, TRIANGLE, NOISE, KS, PCM, ALGO, PARTIAL, OFF]. default: 0/SINE
 W = breakpoint1 target mask. 
 x = "low" EQ amount for the entire synth (Fc=800Hz). float, in dB, -15 to 15. 0 is off. default: 0
 X = breakpoint2 target mask. 
@@ -279,8 +279,6 @@ When building your own algorithm sets, assign a separate oscillator as wave=`ALG
 
 ## Partials
 
-We have analyzed the partials of a group of instruments and stored them as presets baked into the speaker. Each of these patches are comprised of multiple sine wave oscillators, changing over time. The `PARTIALS` type has the presets.
-
 You can generate your own partial synthesis using the wave `PARTIAL` -- see [`partials.py`](https://github.com/bwhitman/alles/blob/main/partials.py) for an example of analyzing PCM audio to generate sequences of partials. The PARTIAL type supports amplitude modulated bandwidth replacement, modeled after the Loris algorithm.
 
 ## PCM
@@ -341,7 +339,7 @@ Use `idf.py -p /dev/YOUR_SERIAL_TTY monitor` to reboot the board and see stdout/
 
 ## Generating new FM patches or changing the PCM bank
 
-Alles comes prebaked with some converted DX7 patches from the [learnFM](https://github.com/bwhitman/learnfm) project. It also comes prebaked with a long buffer of PCM samples, mostly ones that are more complex to synthesize using additive oscillators, for example, closed hi-hats or cymbals. If you build your own firmware, you're free to change both. In [`amy_headers.py`](https://github.com/bwhitman/alles/blob/main/amy_headers.py), [`partials.py`](https://github.com/bwhitman/alles/blob/main/partials.py) and [`fm.py`](https://github.com/bwhitman/alles/blob/main/fm.py) you'll see functions that can regenerate `pcm.h`, `fm.h`, `partials.h` for you, by giving it other FM patches, PCM buffers or even SoundFonts. 
+Alles comes prebaked with some converted DX7 patches from the [learnFM](https://github.com/bwhitman/learnfm) project. It also comes prebaked with a long buffer of PCM samples, mostly ones that are more complex to synthesize using additive oscillators, for example, closed hi-hats or cymbals. If you build your own firmware, you're free to change both. In [`amy_headers.py`](https://github.com/bwhitman/alles/blob/main/amy_headers.py), [`partials.py`](https://github.com/bwhitman/alles/blob/main/partials.py) and [`fm.py`](https://github.com/bwhitman/alles/blob/main/fm.py) you'll see functions that can regenerate `pcm.h`, `fm.h` for you, by giving it other FM patches, PCM buffers or even SoundFonts. 
 
 
 ## THANK YOU TO

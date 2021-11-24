@@ -374,6 +374,7 @@ def sync(count=10, delay_ms=100):
         try:
             data, address = sock.recvfrom(1024)
             data = data.decode('ascii')
+            #print("received %s from %s" % (data, address))
             if(data[0] == '_'):
                 data = data[:-1]
                 try:
@@ -437,7 +438,7 @@ try:
     if(os.uname().nodename.startswith('colossus')):
         connect(local_ip="192.168.1.2")
     elif(os.uname().nodename.startswith('convolve')):
-        connect(local_ip = '192.168.1.12')
+        connect(local_ip = '192.168.1.6')
     elif(os.uname().nodename.startswith('cedar')):
         connect(local_ip = '192.168.1.3')
     else:

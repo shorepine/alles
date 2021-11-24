@@ -182,23 +182,6 @@ Additive synthesis is simply adding together oscillators to make more complex to
 
 ![Partials](https://raw.githubusercontent.com/bwhitman/alles/main/pics/partials.png)
 
-We have analyzed the partials of a group of instruments and stored them as presets baked into the speaker. Each of these patches are comprised of multiple sine wave oscillators, changing over time. The `PARTIALS` type has the presets:
-
-```python
-alles.send(osc=0,vel=1,note=50,wave=alles.PARTIALS,patch=5) # a nice organ tone
-alles.send(osc=0,vel=1,note=55,wave=alles.PARTIALS,patch=5) # change the frequency
-alles.send(osc=0,vel=1,note=50,wave=alles.PARTIALS,patch=6,ratio=0.2) # ratio slows down the partial playback
-```
-
-There are 17 presets stored in each speaker, so `patch` can be between 0 and 16. 
-
-Our partial breakpoint analyzer also emits "noise-excited bandwidth enhancement", which means it tries to emulate tones that are hard to generate with sine waves alone by modulating the amplitude of a sine wave with a filtered noise signal. You can try that out on the patches by adding `feedback`, like so:
-
-```python
-alles.send(osc=0,vel=1,note=50,wave=alles.PARTIALS,patch=6,feedback=0) # no bandwidth
-alles.send(osc=0,vel=1,note=50,wave=alles.PARTIALS,patch=6,feedback=0.5) # more bandwidth
-```
-
 Below, in the advanced section, you'll learn how to analyze your own audio and play partials back from your host, to multiple speakers. Endless possibilities!
 
 
@@ -314,7 +297,7 @@ cd ..
 
 ### Make your own partial playback synthesizer
 
-As part of that setup you installed Loris, which is one of the better sine wave decomposition tools. (There's some others, if you get into this I recommend the great [`simpl`](https://github.com/johnglover/simpl) project to A/B test Loris against MQ or SMS.) Loris analyzes PCM audio into sets of partials (think of it as a sine wave over time in a spectrogram), each with a series of breakpoints, each specifying time, frequency, amplitude, bandwidth and phase. The PARTIALS presets you played with above are based on Loris analysis of instrument samples. But you can make your own analyses and control Alles using them. 
+As part of that setup you installed Loris, which is one of the better sine wave decomposition tools. (There's some others, if you get into this I recommend the great [`simpl`](https://github.com/johnglover/simpl) project to A/B test Loris against MQ or SMS.) Loris analyzes PCM audio into sets of partials (think of it as a sine wave over time in a spectrogram), each with a series of breakpoints, each specifying time, frequency, amplitude, bandwidth and phase. You can make your own analyses and control Alles using them. 
 
 ```python
 import partials

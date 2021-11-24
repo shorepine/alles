@@ -238,6 +238,7 @@ extern float render_am_lut(float * buf, float step, float skip, float incoming_a
 extern void ks_init();
 extern void ks_deinit();
 extern void algo_init();
+extern void pcm_init();
 extern void render_ks(float * buf, uint8_t osc); 
 extern void render_sine(float * buf, uint8_t osc); 
 extern void render_fm_sine(float *buf, uint8_t osc, float *mod, float feedback_level, uint8_t algo_osc);

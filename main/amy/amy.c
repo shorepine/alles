@@ -278,6 +278,7 @@ int8_t oscs_init() {
     ks_init();
     filters_init();
     algo_init();
+    pcm_init();
     events = (struct delta*)malloc(sizeof(struct delta) * EVENT_FIFO_LEN);
     synth = (struct event*) malloc(sizeof(struct event) * OSCS);
     msynth = (struct mod_event*) malloc(sizeof(struct mod_event) * OSCS);
@@ -453,7 +454,7 @@ void play_event(struct delta d) {
             if(synth[d.osc].wave==PCM) pcm_note_on(d.osc);
             if(synth[d.osc].wave==ALGO) algo_note_on(d.osc);
             if(synth[d.osc].wave==PARTIAL) partial_note_on(d.osc);
-            if(synth[d.osc].wave==PARTIALS) partials_note_on(d.osc);
+            //if(synth[d.osc].wave==PARTIALS) partials_note_on(d.osc);
             // Trigger the MOD source, if we have one
             if(synth[d.osc].mod_source >= 0) {
                 if(synth[synth[d.osc].mod_source].wave==SINE) sine_mod_trigger(synth[d.osc].mod_source);
@@ -469,7 +470,7 @@ void play_event(struct delta d) {
         if(synth[d.osc].wave==KS) { ks_note_off(d.osc); }
         else if(synth[d.osc].wave==ALGO) { algo_note_off(d.osc); } 
         else if(synth[d.osc].wave==PARTIAL) { partial_note_off(d.osc); }
-        else if(synth[d.osc].wave==PARTIALS) { partials_note_off(d.osc); }
+        //else if(synth[d.osc].wave==PARTIALS) { partials_note_off(d.osc); }
         else if(synth[d.osc].wave==PCM) { pcm_note_off(d.osc); }
         else {
             // osc note off, start release
@@ -533,7 +534,7 @@ void render_task(uint8_t start, uint8_t end, uint8_t core) {
             if(synth[osc].wave == PCM) render_pcm(per_osc_fb[core], osc);
             if(synth[osc].wave == ALGO) render_algo(per_osc_fb[core], osc);
             if(synth[osc].wave == PARTIAL) render_partial(per_osc_fb[core], osc);
-            if(synth[osc].wave == PARTIALS) render_partials(per_osc_fb[core], osc);
+            //if(synth[osc].wave == PARTIALS) render_partials(per_osc_fb[core], osc);
             // Check it's not off, just in case. TODO, why do i care?
             if(synth[osc].wave != OFF) {
                 // Apply filter to osc if set

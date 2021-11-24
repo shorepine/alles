@@ -260,7 +260,9 @@ void power_monitor() {
     if(voltage > 3.30) battery_mask = battery_mask | BATTERY_VOLTAGE_1;
 }
 
-void esp_shutdown() {
+void turn_off() {
+    debleep();
+    delay_ms(500);
     // TODO: Where did these come from? JTAG?
     gpio_pullup_dis(14);
     gpio_pullup_dis(15);
@@ -327,24 +329,14 @@ void app_main() {
     while((!(status & WIFI_MANAGER_OK) && (status & RUNNING) )) {
         wifi_tone();
         for(uint8_t i=0;i<250;i++) { 
-            if(!(status & RUNNING)) {
-                debleep();
-                delay_ms(500);
-                esp_shutdown();
-            }
+            if(!(status & RUNNING)) turn_off();
             delay_ms(10);
         }
-        //delay_ms(2500);
-        if(get_sysclock() - start_time > (MAX_WIFI_WAIT_S*1000)) esp_shutdown();
+        if(get_sysclock() - start_time > (MAX_WIFI_WAIT_S*1000)) turn_off();
     }
 
     // We check for RUNNING as someone could have pressed power already
-    if(!(status & RUNNING)) {
-        // shut down
-        debleep();
-        delay_ms(500);
-        esp_shutdown();
-    }
+    if(!(status & RUNNING)) turn_off();
 
     delay_ms(500);
     reset_oscs();
@@ -366,9 +358,6 @@ void app_main() {
     }
 
     // If we got here, the power off button was pressed 
-    // Play a "turning off" sound
-    debleep();
-    delay_ms(500);
-    esp_shutdown();
+    turn_off();
 }
 

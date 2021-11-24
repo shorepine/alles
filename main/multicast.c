@@ -158,7 +158,7 @@ void mcast_send(char * message, uint16_t len) {
     ((struct sockaddr_in *)res->ai_addr)->sin_port = htons(UDP_PORT);
     inet_ntoa_r(((struct sockaddr_in *)res->ai_addr)->sin_addr, addrbuf, sizeof(addrbuf)-1);
     //ESP_LOGI(TAG, "Sending to IPV4 multicast address %s:%d...",  addrbuf, UDP_PORT);
-    printf("sending message %s\n", message);
+    //printf("sending message %s\n", message);
     err = sendto(sock, message, len, 0, res->ai_addr, res->ai_addrlen);
     freeaddrinfo(res);
     if (err < 0) {

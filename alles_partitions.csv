@@ -1,7 +1,15 @@
 # Name,   Type, SubType, Offset,  Size, Flags
 # Note: if you have increased the bootloader size, make sure to update the offsets to avoid overlap
-nvs,      data, nvs,     ,        0x6000,
-phy_init, data, phy,     ,        0x1000,
-factory,  app,  factory, ,        0x3d9000,
-#factory,  app,  factory, , 0x2fc800,
-
+#nvs,      data, nvs,     ,        0x6000,
+#phy_init, data, phy,     ,        0x1000,
+#factory,  app,  factory, ,        0x3d9000,
+#
+#
+# start nvs for wifi data (24KB)
+nvs,data,nvs, , 0x6000, 
+# phy init data (4KB)
+phy_init,data,phy, , 0x1000,
+# pcm etc data, currently 2352072 bytes , adding to make multiple of 4K 2355200
+luts,data,nvs, , 0x23f000,
+# main app, currently at 843840 bytes 
+factory,app,factory, , 0xcf000,
