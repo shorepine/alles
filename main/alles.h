@@ -23,6 +23,7 @@ extern "C" {
 #include "esp_wifi.h"
 #include "esp_system.h"
 #include "esp_spi_flash.h"
+#include "esp_https_ota.h"
 #include "esp_intr_alloc.h"
 #include "esp_attr.h"
 #include "esp_event.h"
@@ -92,12 +93,13 @@ void delay_ms(uint32_t ms);
 // Status mask 
 #define RUNNING 1
 #define WIFI_MANAGER_OK 2
+#define UPDATE 4
 
 
 // Sounds
 extern void bleep();
 extern void debleep();
-extern void midi_tone();
+extern void upgrade_tone();
 extern void wifi_tone();
 extern void scale(uint8_t wave);
 

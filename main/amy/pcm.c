@@ -19,6 +19,7 @@ typedef struct {
 const int16_t * pcm;
 
 void pcm_init() {
+    // For ESP, we mmap the PCM blob on the luts partition 
 #ifdef ESP_PLATFORM
     spi_flash_mmap_handle_t mmap_handle;
     const esp_partition_t * pcm_part  = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_NVS, "luts");

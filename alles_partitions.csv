@@ -12,4 +12,9 @@ phy_init,data,phy, , 0x1000,
 # pcm etc data, currently 2352072 bytes , adding to make multiple of 4K 2355200
 luts,data,nvs, , 0x23f000,
 # main app, currently at 843840 bytes 
-factory,app,factory, , 0xcf000,
+#factory,app,factory, , 0xcf000,
+otadata,  data, ota, , 0x2000,
+#ota_0,    0,    ota_0, , 0xcf000,
+#ota_1,    0,    ota_1, ,  0xcf000,
+ota_0,    0,    ota_0, , 0xe7000,
+ota_1,    0,    ota_1, , 0xe7000,

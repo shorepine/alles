@@ -26,6 +26,7 @@ extern xQueueHandle gpio_evt_queue;
 // Task handles for the renderers, multicast listener and main
 TaskHandle_t mcastTask = NULL;
 TaskHandle_t parseTask = NULL;
+TaskHandle_t upgradeTask = NULL;
 TaskHandle_t renderTask[2]; // one per core
 static TaskHandle_t fillbufferTask = NULL;
 static TaskHandle_t idleTask0 = NULL;
@@ -215,18 +216,22 @@ void wifi_reconfigure() {
     esp_restart();
 }
 
-void firmware_upgrade() {
+void firmware_upgrade( void * pvParameters) {
     esp_http_client_config_t config = {
-        .url = CONFIG_FIRMWARE_UPGRADE_URL,
-        .cert_pem = (char *)server_cert_pem_start,
+        .url = "https://github.com/bwhitman/alles/raw/main/ota/alles.bin",
+        .cert_pem = NULL,
+        .transport_type = HTTP_TRANSPORT_OVER_SSL,
+        .skip_cert_common_name_check = true,
     };
     esp_err_t ret = esp_https_ota(&config);
     if (ret == ESP_OK) {
+        printf("upgrade ok!\n");
         esp_restart();
     } else {
-        return ESP_FAIL;
+        printf("Problem with upgrade %i %s\n", ret, esp_err_to_name(ret));
     }
-    return ESP_OK;
+    esp_restart();
+
 }
 
 
@@ -283,8 +288,10 @@ void turn_off() {
     esp_sleep_enable_ext1_wakeup((1ULL<<BUTTON_WAKEUP),ESP_EXT1_WAKEUP_ALL_LOW);
     esp_deep_sleep_start();
 }
-
+#include "esp_ota_ops.h"
 void app_main() {
+    const esp_app_desc_t * app_desc = esp_ota_get_app_description();
+    printf("Welcome to %s -- version %s\n", app_desc->project_name, app_desc->version);
     for(uint8_t i=0;i<MAX_TASKS;i++) last_task_counters[i] = 0;
     check_init(&esp_event_loop_create_default, "Event");
     // TODO -- this does not properly detect DEVBOARD anymore, not a big deal for now, doesn't impact anything
@@ -294,7 +301,7 @@ void app_main() {
         board_level = DEVBOARD; 
     }
     if(board_level == ALLES_BOARD_V2) {
-        printf("Detected revB Alles\n");
+        printf("Detected revB+ Alles\n");
         TimerHandle_t power_monitor_timer = xTimerCreate(
             "power_monitor",
             pdMS_TO_TICKS(5000),
@@ -351,6 +358,16 @@ void app_main() {
 
     // We check for RUNNING as someone could have pressed power already
     if(!(status & RUNNING)) turn_off();
+
+    // was + held down right now? if so check for updates
+    if(status & UPDATE) {
+        xTaskCreatePinnedToCore(&firmware_upgrade, "upgrade", 16384, NULL, 0, &upgradeTask, 0);
+        while(1) {
+            upgrade_tone();
+            delay_ms(2000);
+        }
+    }
+
 
     delay_ms(500);
     reset_oscs();

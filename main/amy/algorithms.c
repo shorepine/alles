@@ -11,6 +11,7 @@ typedef struct {
     float detune;
 } operator_parameters_t;
 
+
 typedef struct  {
     uint8_t algo;
     float feedback;

@@ -50,7 +50,11 @@ static void gpio_task(void* arg) {
                 break;
             case BUTTON_PLUS: 
                 printf("plus pushed\n");
-                increase_volume();
+                if(!(status & WIFI_MANAGER_OK)) { 
+                    status |= UPDATE;
+                } else {
+                    increase_volume();
+                }
                 break;
             }
 
