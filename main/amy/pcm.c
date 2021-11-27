@@ -1,12 +1,8 @@
 // pcm.c
 
 #include "amy.h"
-#ifndef ESP_PLATFORM
 #include "pcm_desktop.h"
-#else
-#include "esp_spi_flash.h"
-#include "esp_partition.h"
-#endif
+
 typedef struct {
     uint32_t offset;
     uint32_t length;
@@ -16,9 +12,10 @@ typedef struct {
 } pcm_map_t;
 
 #include "pcm.h"
-const int16_t * pcm;
+const int16_t * pcm; 
 
 void pcm_init() {
+/*
     // For ESP, we mmap the PCM blob on the luts partition 
 #ifdef ESP_PLATFORM
     spi_flash_mmap_handle_t mmap_handle;
@@ -28,8 +25,9 @@ void pcm_init() {
         printf("err doing pcm mmap: %d %s\n", err, esp_err_to_name(err));
     }
 #else
+*/
     pcm = pcm_desktop;
-#endif
+//#endif
 }
 
 void pcm_note_on(uint8_t osc) {

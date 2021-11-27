@@ -4,11 +4,6 @@
 #include "amy.h"
 
 
-// We're going to disable this functionality for now -- not being used and takes up a lot of flash
-// If you want to play partials, use the live PARTIAL type from your host. more expressive there anyway
-
-
-#if 0
 typedef struct {
     uint32_t bp_offset;
     uint32_t bp_length;
@@ -145,5 +140,4 @@ void render_partials(float *buf, uint8_t osc) {
         }
     }
 }
-#endif
 
