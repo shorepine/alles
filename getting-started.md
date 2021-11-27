@@ -45,6 +45,9 @@ Wait a few seconds for the login page to populate with all the nearby WiFi stati
 
 If this doesn't seem to work, try again by hitting the WiFi button (play/pause) and the process will repeat again. 
 
+## Upgrade the firmware
+
+It's helpful to make sure your Alles speaker has the latest firmware. After you first set up wifi (and make sure your wifi can connect to the internet,) if you press the + button while the "joining wifi" tones are playing (before it plays the turn-on bleep), the speaker will connect to the internet and download the latest Alles speaker firmware right to the device, then reboot. It takes about a minute, and you'll hear a different repeating tone while it works. 
 
 ## Control Alles
 

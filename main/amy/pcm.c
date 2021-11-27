@@ -1,7 +1,7 @@
 // pcm.c
 
 #include "amy.h"
-#include "pcm_desktop.h"
+#include "pcm_samples.h"
 
 typedef struct {
     uint32_t offset;
@@ -12,7 +12,6 @@ typedef struct {
 } pcm_map_t;
 
 #include "pcm.h"
-const int16_t * pcm; 
 
 void pcm_init() {
 /*
@@ -25,9 +24,9 @@ void pcm_init() {
         printf("err doing pcm mmap: %d %s\n", err, esp_err_to_name(err));
     }
 #else
-*/
     pcm = pcm_desktop;
-//#endif
+#endif
+*/
 }
 
 void pcm_note_on(uint8_t osc) {
