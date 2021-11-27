@@ -110,7 +110,6 @@ esp_err_t power_read_status(power_status_t *power_status) {
 };
 
 esp_err_t power_5v_output_set(bool enable) {
-    printf("setting 5v to %d\n", enable);
     return gpio_set_level(POWER_5V_EN, (enable ? 1 : 0));
 }
 
