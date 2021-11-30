@@ -8,6 +8,7 @@ MAX_QUEUE = 400
 TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE, TARGET_FEEDBACK, TARGET_LINEAR = (1, 2, 4, 8, 16, 32, 64)
 FILTER_NONE, FILTER_LPF, FILTER_BPF, FILTER_HPF = range(4)
 ALLES_LATENCY_MS = 1000
+UDP_PORT = 9294
 
 sock = 0
 
@@ -78,8 +79,9 @@ def millis():
 
 # Removes trailing 0s and x.0000s 
 def trunc(number):
-    return ('%.10f' % number).rstrip('0').rstrip('.')# Construct an AMY message
+    return ('%.10f' % number).rstrip('0').rstrip('.')
 
+# Construct an AMY message
 def message(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, bp0="", bp1="", bp2="", bp0_target=-1, bp1_target=-1, bp2_target=-1, mod_target=-1, \
         debug=-1, mod_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, detune = -1, algo_source=None):
@@ -159,7 +161,7 @@ def reset(osc=None):
         send(reset=100) # reset > ALLES_OSCS resets all oscs
 
 def volume(volume, client = -1):
-    send(0, client=client, volume=volume)
+    send(client=client, volume=volume)
 
 
 """
@@ -287,7 +289,7 @@ def get_sock():
     return sock
 
 def get_multicast_group():
-    return ('232.10.11.12', 3333)
+    return ('232.10.11.12', UDP_PORT)
 
 def connect(local_ip=None):
     # Set up the socket for multicast send & receive
@@ -310,16 +312,16 @@ def connect(local_ip=None):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     except AttributeError:
         print("couldn't REUSEPORT")
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
     # TTL defines how many hops it can take
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 20) # 1
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 255) # 1
     # Keep loopback on if you're controlling Alles from your own desktop
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1) # 1
-    sock.bind(('', 3333))
-    print("Using %s as local IP for multicast IF" % (local_ip))
+    sock.bind(('', UDP_PORT))
     # Set the local interface for multicast receive
     sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(local_ip))
     # And the networks to be a member of (destination and host)
@@ -327,6 +329,7 @@ def connect(local_ip=None):
     sock.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, mreq)
     # Don't block to receive -- not necessary and we sometimes drop packets we're waiting for
     sock.setblocking(0)
+    print("Connected to %s as local IP for multicast IF" % (local_ip))
 
 def disconnect():
     global sock
@@ -438,11 +441,14 @@ try:
     if(os.uname().nodename.startswith('colossus')):
         connect(local_ip="192.168.1.2")
     elif(os.uname().nodename.startswith('convolve')):
-        connect(local_ip = '192.168.1.6')
+        connect(local_ip = '192.168.1.3')
     elif(os.uname().nodename.startswith('cedar')):
         connect(local_ip = '192.168.1.3')
     else:
         connect(local_ip=None)
 except OSError:
-    print("Couldn't connect. Try manually with alles.connect('local_ip_address')")
+    try:
+        connect(local_ip=None)
+    except OSError:
+        print("Couldn't connect. Try manually with alles.connect('local_ip_address')")
 

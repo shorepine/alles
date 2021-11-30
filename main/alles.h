@@ -24,6 +24,7 @@ extern "C" {
 #include "esp_system.h"
 #include "esp_spi_flash.h"
 #include "esp_https_ota.h"
+#include "esp_ota_ops.h"
 #include "esp_intr_alloc.h"
 #include "esp_attr.h"
 #include "esp_event.h"
@@ -66,11 +67,8 @@ typedef int16_t i2s_sample_type;
 
 #include "amy/amy.h"
 
-
-
-
-#define UDP_PORT 3333        // port to listen on
-#define MULTICAST_TTL 20     // hops multicast packets can take
+#define UDP_PORT 9294        // port to listen on
+#define MULTICAST_TTL 255     // hops multicast packets can take
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
 #define PING_TIME_MS 10000   // ms between boards pinging each other
 

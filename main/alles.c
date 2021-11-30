@@ -20,6 +20,8 @@ void delay_ms(uint32_t ms) {
 uint8_t board_level = ALLES_BOARD_V2;
 uint8_t status = RUNNING;
 
+char githash[8];
+
 // Button event
 extern xQueueHandle gpio_evt_queue;
 
@@ -289,13 +291,13 @@ void turn_off() {
     esp_sleep_enable_ext1_wakeup((1ULL<<BUTTON_WAKEUP),ESP_EXT1_WAKEUP_ALL_LOW);
     esp_deep_sleep_start();
 }
-#include "esp_ota_ops.h"
 void app_main() {
     const esp_app_desc_t * app_desc = esp_ota_get_app_description();
     // version comes back as version "v0.1-alpha-259-g371d500-dirty"
     // the v0.1-alpha seems hardcoded, setting cmake PROJECT_VER replaces the more useful git describe line
     // so we'll have to parse the commit ID out
-    char githash[8];
+    // or maybe just get date time as YYYYMMDDHHMMSS? 
+
     if(strlen(app_desc->version) > 20) {
         if(app_desc->version[strlen(app_desc->version)-1] == 'y') {
             strncpy(githash, app_desc->version + strlen(app_desc->version)-13, 7);
@@ -304,7 +306,7 @@ void app_main() {
         }
         githash[7] = 0;
     }
-    printf("Welcome to %s -- version %s [%s]\n", app_desc->project_name, app_desc->version, githash);
+    printf("Welcome to %s -- date %s time %s version %s [%s]\n", app_desc->project_name, app_desc->date, app_desc->time, app_desc->version, githash);
 
     for(uint8_t i=0;i<MAX_TASKS;i++) last_task_counters[i] = 0;
     check_init(&esp_event_loop_create_default, "Event");

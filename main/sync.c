@@ -4,6 +4,7 @@
 
 extern uint8_t battery_mask;
 extern uint8_t ipv4_quartet;
+extern char githash[8];
 int16_t client_id;
 int64_t clocks[255];
 int64_t ping_times[255];
@@ -75,8 +76,10 @@ void handle_sync(int64_t time, int8_t index) {
     sprintf(message, "_s%lldi%dc%dr%dy%dZ", sysclock, index, client_id, ipv4_quartet, battery_mask);
     mcast_send(message, strlen(message));
     // Update computed delta (i could average these out, but I don't think that'll help too much)
+    //int64_t old_cd = computed_delta;
     computed_delta = time - sysclock;
     computed_delta_set = 1;
+    //if(old_cd != computed_delta) printf("Changed computed_delta from %lld to %lld on sync\n", old_cd, computed_delta);
 }
 
 void ping(int64_t sysclock) {

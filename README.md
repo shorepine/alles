@@ -196,7 +196,7 @@ Minimal Python example:
 
 ```python
 import socket
-multicast_group = ('232.10.11.12', 3333)
+multicast_group = ('232.10.11.12', 9294)
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 def send(oscillator=0, freq=0, vel=1):

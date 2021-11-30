@@ -81,7 +81,6 @@ int main(int argc, char ** argv) {
                 break; 
         } 
     }
-   
     live_start();
     create_multicast_ipv4_socket();
     pthread_t thread_id;

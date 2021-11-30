@@ -891,23 +891,6 @@ void parse_breakpoint(struct event * e, char* message, uint8_t which_bpset) {
     }
 }
 
-void parse_message(char * message) {
-    // take in a message and do the message splitting stuff, and call parse_task N times
-    uint16_t full_message_length = strlen(message);
-    uint16_t start = 0;
-    // Break the packet up into messages (delimited by \n.)
-    for(uint16_t i=0;i<full_message_length;i++) {
-        if(message[i] == '\n') {
-            message[i] = 0;
-            message_counter++;
-            message_start_pointer = message + start;
-            message_length = i - start;
-            parse_task();
-            start = i+1;
-        }
-    }
-}
-
 void parse_task() {
     uint8_t mode = 0;
     int16_t client = -1;
@@ -981,7 +964,7 @@ void parse_task() {
             if(mode=='u') e.detune=atof(message + start);
             if(mode=='W') e.breakpoint_target[1] = atoi(message + start); 
             if(mode=='v') e.osc=(atoi(message + start) % OSCS); // allow osc wraparound
-            if(mode=='V') { e.volume = atof(message + start); }
+            if(mode=='V') {  e.volume = atof(message + start); }
             if(mode=='X') e.breakpoint_target[2] = atoi(message + start);
             if(mode=='w') e.wave=atoi(message + start);
             if(mode=='x') e.eq_l = atof(message+start);

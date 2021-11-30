@@ -370,7 +370,7 @@ All you have to do is compile the program called `alles` and run it locally. It'
 cd main
 make
 ./alles
-Multicast IF is 192.168.1.85. Client tag (not ID) is 1. Listening on 232.10.11.12:3333
+Multicast IF is 192.168.1.85. Client tag (not ID) is 1. Listening on 232.10.11.12:9294
 Using device ID 2, device Studio 1824c, channel -1  (all)
 ```
 
