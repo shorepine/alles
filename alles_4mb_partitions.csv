@@ -1,0 +1,6 @@
+# Name,   Type, SubType, Offset,  Size, Flags
+# start nvs for wifi data (24KB)
+nvs,data,nvs, , 0x6000, 
+# phy init data (4KB)
+phy_init,data,phy, , 0x1000,
+factory,app,factory, , 0x3ee000,
