@@ -338,10 +338,9 @@ If you are using your own dev board and it has less than 8MB of flash (4MB is co
 
 ## ESP32 Firmware
 
-Alles is completely open source, and can be a fun platform to adapt beyond its current capabilities. To build your own firmware, [start by setting up `esp-idf`](http://esp-idf.readthedocs.io/en/latest/get-started/). If using macOS, you'll want to install the [CP210X drivers](https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers) if you haven't already. Once you've installed esp-idf and the serial drivers if you need them, run `. ./esp-idf/export.sh`, then connect to your speaker or board over USB, clone and cd into this repository and run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board.
+Alles is completely open source, and can be a fun platform to adapt beyond its current capabilities. 
 
-Use `idf.py -p /dev/YOUR_SERIAL_TTY monitor` to reboot the board and see stdout/stderr. Use Ctrl-] to exit the monitor.
-
+You can upgrade the firmware or write your own using the USB connection. [See the guide on flashing a hardware Alles speaker](https://github.com/bwhitman/alles/tree/main/alles-flashing.md) (either DIY or one of ours). 
 
 ## Generating new FM patches or changing the PCM bank
 

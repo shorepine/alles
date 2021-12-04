@@ -47,7 +47,7 @@ If this doesn't seem to work, try again by hitting the WiFi button (play/pause) 
 
 ## Upgrade the firmware
 
-It's helpful to make sure your Alles speaker has the latest firmware. After you first set up wifi (and make sure your wifi can connect to the internet,) if you turn off then on the speaker, then press the + button while the "joining wifi" tones are playing (before it plays the turn-on bleep), the speaker will connect to the internet and download the latest Alles speaker firmware right to the device, then reboot. It takes about a minute, and you'll hear a different repeating tone while it works. 
+It's helpful to make sure your Alles speaker has the latest firmware. If you have a recent speaker, you can do this wirelesly. If you have an older one, it's slightly more complicated but only takes a few minutes of setup (and you can do it wirelessly going forward.) [See the guide on upgrading a hardware Alles speaker](https://github.com/bwhitman/alles/tree/main/alles-flashing.md)
 
 ## Control Alles
 
@@ -399,7 +399,6 @@ If you want to run multiple Alleses on one machine, you can set the IP address a
 ```
 
 You'll want to set client offset to a number that won't conflict with other devices on your network; here, my assumed client offset is 85 (the last # of the IP address), but I'm adding 100 to it for the first speaker, and 101 to it for the second, and so on. That ensures that another device on my network won't steal it. In practice you'll have a private network (use the -i parameter to set the source IP for it) so this is less of a concern, but something to keep in mind when composing at home.
-
 
 
 
