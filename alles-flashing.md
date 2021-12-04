@@ -35,7 +35,11 @@ The cable you may have received from us for the hardware speaker is charge only.
 
 ### Flash
 
-Then, in the `esp` folder you created during installing the ESP-IDF aboe, run `. ./esp-idf/export.sh`. Now cd into the alles repository folder and run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board.
+Then, in the `esp` folder you created during installing the ESP-IDF aboe, run `. ./esp-idf/export.sh`. Now cd into the alles repository folder and run `idf.py -p /dev/YOUR_SERIAL_TTY flash` to build and flash to the board. It will take a couple of minutes and show you progress. The board will reboot into the latest firmware. 
 
-Use `idf.py -p /dev/YOUR_SERIAL_TTY monitor` to reboot the board and see stdout/stderr. Use Ctrl-] to exit the monitor.
+### Monitor
+
+If you want to see debugging messages, use `idf.py -p /dev/YOUR_SERIAL_TTY monitor` to reboot the board and see stdout/stderr. Use Ctrl-] to exit the monitor.
+
+
 
