@@ -20,7 +20,26 @@ To do this, you need to set up the following things:
 
 ESP-IDF is the set of open source tools and libraries that work on the CPU powering Alles, the ESP32. You should first install ESP-IDF on your system if you haven't already. We tend to use the master branch of the IDF as we use some newer features.
 
-You should follow [the instructions to download and set up `esp-idf`](http://esp-idf.readthedocs.io/en/latest/get-started/). 
+On a Mac, it's usually pretty simple (enter all these in Terminal.app)
+
+```
+# install homebrew first, skip this if you already have it...
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# then restart your terminal... 
+
+# and install esp-idf's requirements
+brew install cmake ninja dfu-util
+
+# and install ESP-IDF
+mkdir -p ~/esp
+cd ~/esp
+git clone --recursive https://github.com/espressif/esp-idf.git
+cd ~/esp/esp-idf
+./install.sh esp32
+```
+
+If you have trouble, for more info, or for other platforms, you should follow [the detailed instructions to download and set up `esp-idf`](http://esp-idf.readthedocs.io/en/latest/get-started/). 
 
 ### Get the UART drivers
 
@@ -36,7 +55,7 @@ The cable you may have received from us for the hardware speaker is charge only.
 
 ### Flash
 
-Then, in the `esp` folder you created during installing the ESP-IDF above, run `. ./esp-idf/export.sh`. Now cd into the alles repository folder and run `idf.py flash` to build and flash to the board. It will take a couple of minutes and show you progress. The board will reboot into the latest firmware. 
+Then, in the `esp` folder you created during installing the ESP-IDF above (e.g. `cd ~/esp`), run `. ./esp-idf/export.sh`. Now cd into the alles repository folder you downloaded and run `idf.py flash` to build and flash to the board. It will take a couple of minutes and show you progress. The board will reboot into the latest firmware. 
 
 (If the flashing process doesn't work, it's likely not finding your UART location. Type `ls /dev/*usb*` to find something like `/dev/tty.usbserial.XXXXX` or `/dev/cu.usbserialXXXX`.  You'll want to find the tty that appears when you connect the speaker to computer. Copy this location and try flashing again with `idf.py -p /dev/YOUR_SERIAL_TTY flash`.)
 

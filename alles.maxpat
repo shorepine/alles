@@ -10,7 +10,7 @@
 		}
 ,
 		"classnamespace" : "box",
-		"rect" : [ 48.0, 122.0, 799.0, 682.0 ],
+		"rect" : [ 48.0, 122.0, 1269.0, 682.0 ],
 		"bglocked" : 0,
 		"openinpresentation" : 0,
 		"default_fontsize" : 12.0,
@@ -209,7 +209,7 @@
 					"numinlets" : 1,
 					"numoutlets" : 0,
 					"patching_rect" : [ 560.5, 389.0, 168.0, 33.0 ],
-					"text" : "Any inlet you're not using, make a -1 "
+					"text" : "Any inlet you're not using, make less than 0  "
 				}
 
 			}
