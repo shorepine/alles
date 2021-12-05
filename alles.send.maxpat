@@ -10,7 +10,7 @@
 		}
 ,
 		"classnamespace" : "box",
-		"rect" : [ 761.0, 556.0, 989.0, 761.0 ],
+		"rect" : [ 717.0, 445.0, 989.0, 761.0 ],
 		"bglocked" : 0,
 		"openinpresentation" : 0,
 		"default_fontsize" : 12.0,
@@ -42,7 +42,7 @@
 				"box" : 				{
 					"comment" : "duty",
 					"id" : "obj-52",
-					"index" : 0,
+					"index" : 10,
 					"maxclass" : "inlet",
 					"numinlets" : 0,
 					"numoutlets" : 1,
@@ -55,7 +55,7 @@
 				"box" : 				{
 					"comment" : "patch",
 					"id" : "obj-51",
-					"index" : 0,
+					"index" : 9,
 					"maxclass" : "inlet",
 					"numinlets" : 0,
 					"numoutlets" : 1,
@@ -68,7 +68,7 @@
 				"box" : 				{
 					"comment" : "feedback",
 					"id" : "obj-49",
-					"index" : 0,
+					"index" : 8,
 					"maxclass" : "inlet",
 					"numinlets" : 0,
 					"numoutlets" : 1,
@@ -81,11 +81,11 @@
 				"box" : 				{
 					"comment" : "velocity",
 					"id" : "obj-48",
-					"index" : 0,
+					"index" : 7,
 					"maxclass" : "inlet",
 					"numinlets" : 0,
 					"numoutlets" : 1,
-					"outlettype" : [ "" ],
+					"outlettype" : [ "float" ],
 					"patching_rect" : [ 299.333333333333258, 31.0, 30.0, 30.0 ]
 				}
 
@@ -94,11 +94,11 @@
 				"box" : 				{
 					"comment" : "client",
 					"id" : "obj-47",
-					"index" : 0,
+					"index" : 6,
 					"maxclass" : "inlet",
 					"numinlets" : 0,
 					"numoutlets" : 1,
-					"outlettype" : [ "" ],
+					"outlettype" : [ "int" ],
 					"patching_rect" : [ 258.333333333333258, 31.0, 30.0, 30.0 ]
 				}
 
@@ -107,11 +107,11 @@
 				"box" : 				{
 					"comment" : "note",
 					"id" : "obj-44",
-					"index" : 0,
+					"index" : 5,
 					"maxclass" : "inlet",
 					"numinlets" : 0,
 					"numoutlets" : 1,
-					"outlettype" : [ "" ],
+					"outlettype" : [ "int" ],
 					"patching_rect" : [ 215.333333333333314, 31.0, 30.0, 30.0 ]
 				}
 
@@ -120,7 +120,7 @@
 				"box" : 				{
 					"comment" : "freq",
 					"id" : "obj-40",
-					"index" : 0,
+					"index" : 4,
 					"maxclass" : "inlet",
 					"numinlets" : 0,
 					"numoutlets" : 1,
@@ -133,7 +133,7 @@
 				"box" : 				{
 					"comment" : "wave",
 					"id" : "obj-37",
-					"index" : 0,
+					"index" : 3,
 					"maxclass" : "inlet",
 					"numinlets" : 0,
 					"numoutlets" : 1,
@@ -162,7 +162,6 @@
 					"numinlets" : 1,
 					"numoutlets" : 0,
 					"patching_rect" : [ 803.5, 56.0, 150.0, 47.0 ],
-					"presentation_linecount" : 3,
 					"text" : "Push this to force a sync on the synths (change time base, re-count)"
 				}
 
@@ -240,7 +239,7 @@
 				"box" : 				{
 					"comment" : "send message bang",
 					"id" : "obj-10",
-					"index" : 0,
+					"index" : 1,
 					"maxclass" : "inlet",
 					"numinlets" : 0,
 					"numoutlets" : 1,
@@ -265,7 +264,7 @@
 				"box" : 				{
 					"comment" : "osc",
 					"id" : "obj-2",
-					"index" : 0,
+					"index" : 2,
 					"maxclass" : "inlet",
 					"numinlets" : 0,
 					"numoutlets" : 1,
@@ -389,9 +388,7 @@
 				}
 
 			}
- ],
-		"dependency_cache" : [  ],
-		"autosave" : 0
+ ]
 	}
 
 }
