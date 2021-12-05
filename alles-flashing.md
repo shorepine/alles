@@ -11,6 +11,8 @@ After you first set up wifi (and make sure your speaker is on an wifi that can c
 
 ## Upgrading firmware over USB
 
+If you want to write your own Alles firmware, or have a speaker before December 2021 and need to get it to support wireless upgrading, follow these directions:
+
 The back of the hardware speaker has a micro-USB plug you use for charging. It also can be used to upgrade the firmware. Once you upgrade an Alles speaker to a recent version, you can use the OTA flashing method going forward. 
 
 To do this, you need to set up the following things:
