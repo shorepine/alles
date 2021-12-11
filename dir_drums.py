@@ -1,7 +1,11 @@
 import time
 import random
+
 import alles
 
+
+# more refined and listenable version of bwhitman drums() demo in alles.py
+# v0.2
 
 def dir_drums(bpm=120, loops=-1, **kwargs):
     alles.preset(13, osc=0, **kwargs) # sample bass drum
@@ -12,8 +16,8 @@ def dir_drums(bpm=120, loops=-1, **kwargs):
     alles.preset(1, osc=7, **kwargs) # filter bass
     [bass, snare, hat, cow, hicow, silent] = [1, 2, 4, 8, 16, 32]
     pattern = [bass+hat, hat+hicow, bass+hat+snare, hat+cow, hat, hat+bass, snare+hat, hat]
-    basslines = [[60, 0, 0, 0, 60, 62, 61, 0],[66, 0, 0, 0, 66, 68, 67, 0],[67, 0, 0, 0, 67, 69, 68, 0],
-        [60, 60, 60, 60, 60, 60, 0, 60], [68, 68, 68, 68, 68, 68, 0, 68]]
+    basslines = [[50, 0, 0, 0, 50, 52, 51, 0],[56, 0, 0, 0, 56, 58, 57, 0],[57, 0, 0, 0, 57, 59, 58, 0],
+        [50, 50, 50, 50, 50, 50, 0, 50], [58, 58, 58, 58, 58, 58, 0, 58]]
 
     next_sleepytime_in = 4
 
