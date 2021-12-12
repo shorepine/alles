@@ -55,7 +55,7 @@ The cable you may have received from us for the hardware speaker is charge only.
 
 ### Flash
 
-Then, in the `esp` folder you created during installing the ESP-IDF above (e.g. `cd ~/esp`), run `. ./esp-idf/export.sh`. Now cd into the alles repository folder you downloaded and run `idf.py flash` to build and flash to the board. It will take a couple of minutes and show you progress. The board will reboot into the latest firmware. 
+Then, in the `esp` folder you created during installing the ESP-IDF above (e.g. `cd ~/esp`), run `. ./esp-idf/export.sh`. Now, in the same terminal window (export.sh sets some environment variables), cd back into the alles repository folder you downloaded and run `idf.py flash` to build and flash to the board. It will take a couple of minutes and show you progress. The board will reboot into the latest firmware. 
 
 (If the flashing process doesn't work, it's likely not finding your UART location. Type `ls /dev/*usb*` to find something like `/dev/tty.usbserial.XXXXX` or `/dev/cu.usbserialXXXX`.  You'll want to find the tty that appears when you connect the speaker to computer. Copy this location and try flashing again with `idf.py -p /dev/YOUR_SERIAL_TTY flash`.)
 
