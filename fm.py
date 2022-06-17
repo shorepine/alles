@@ -8,6 +8,24 @@ import alles, dx7
 import numpy as np
 import time
 
+""" Howto
+
+# git clone git@github.com:bwhitman/alles.git
+# git clone git@github.com:bwhitman/learnfm.git
+# cd learnfm/dx7core
+# [edit line 129 of learnfm/dx7core/pydx7.cc to point to the folder you cloned learnfm into for compact.bin]
+# make
+# python setup.py install
+# cd ../../alles/main
+# make
+# ./alles -i 127.0.0.1 [you should hear the alles bleep, if not, change your speaker settings]
+# [open a new terminal]
+# python
+>>> import fm
+>>> fm.alles.connect(local_ip='127.0.0.1')
+>>> decoded_patch_data = fm.play_patch(234) # any number up to 30000
+# You should hear Alles play it, then Ralph L play it
+"""
 
 
 # Use learnfm's dx7 to render a dx7 note from MSFA
@@ -56,7 +74,7 @@ def setup_patch(p):
         opbp = "%d,%f,%d,%f,%d,%f,%d,%f" % (
             bp_times[0], bp_rates[0], bp_times[1], bp_rates[1], bp_times[2], bp_rates[2], bp_times[3], bp_rates[3]
         )
-        #print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
+        print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
         if(freq>=0):
             alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_LINEAR,bp0=opbp, bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR, amp=op["opamp"], detune=op["detunehz"])
         else:
@@ -75,7 +93,7 @@ def setup_patch(p):
 
     if(lfo_target>0):
         alles.send(osc=7, wave=p["lfowaveform"],freq=p["lfospeed"], amp=lfo_amp)
-        alles.send(osc=6,lfo_target=lfo_target, lfo_source=7)
+        alles.send(osc=6,mod_target=lfo_target, mod_source=7)
         #print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
     print("osc 6 (main)  algo %d feedback %f pitchenv %s" % ( p["algo"], p["feedback"], pitchbp))
     alles.send(osc=6, wave=alles.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR)
@@ -135,33 +153,43 @@ def plot(us, them):
 	s1.specgram(them_samples, NFFT=512, Fs=alles.SAMPLE_RATE)
 	fig.show()
 
+def play_np_array(np_array, samplerate=alles.SAMPLE_RATE):
+	import wave, tempfile , os, struct
+	tf = tempfile.NamedTemporaryFile()
+	obj = wave.open(tf,'wb')
+	obj.setnchannels(1) # mono
+	obj.setsampwidth(2)
+	obj.setframerate(samplerate)
+	for i in range(np_array.shape[0]):
+		value = int(np_array[i] * 32767.0)
+		data = struct.pack('<h', value)
+		obj.writeframesraw( data )
+	obj.close()
+	os.system("afplay " + tf.name)
+	tf.close()
+
+
 # Play our version vs the MSFA version to A/B test
 def play_patch(patch_number, midinote=50, length_s = 2, keyup_s = 1):
 	dx7_patch = dx7.unpack(patch_number)
 	p = decode_patch(dx7_patch)
 	print(str(p["name"]))
-	setup_patch(p,midinote)
-
-	alles.note_on(osc=6,vel=4)
-	us_samples0 = alles.render(keyup_s)
-	alles.note_off(osc=6)
-	us_samples1 = alles.render(length_s - keyup_s)
-	us_samples = np.hstack((us_samples0, us_samples1))
-
-	them_samples = dx7_render(patch_number, midinote, 90, int(length_s*alles.SAMPLE_RATE),int(keyup_s*alles.SAMPLE_RATE))
-
-	# Uncomment this to show a spectra
-	#plot(us_samples, them_samples)
+	setup_patch(p)
 
 	print("AMY:")
-	alles.play(us_samples)
+	alles.send(osc=6,vel=4,note=midinote)
 	time.sleep(length_s)
+	# Send key up
+	alles.send(osc=6,vel=0)
+	time.sleep(keyup_s)
+	# Catch up to latency
+	time.sleep(alles.ALLES_LATENCY_MS/1000)
 
-	# A/B against MSFA 
+	# Render Ralph
+	them_samples = dx7_render(patch_number, midinote, 90, int(length_s*alles.SAMPLE_RATE),int(keyup_s*alles.SAMPLE_RATE))
 	time.sleep(0.25)
 	print("MSFA:")
-	alles.play(them_samples)
-	time.sleep(length_s)
+	play_np_array(them_samples)
 	return p
 
 def output_level_to_amp(byte):

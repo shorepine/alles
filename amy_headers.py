@@ -3,7 +3,7 @@
 
 
 
-def generate_alles_pcm_header(pcm_sample_rate=22050):
+def generate_alles_pcm_header(pcm_sample_rate=22050, max=100):
     from sf2utils.sf2parse import Sf2File
     import resampy
     import numpy as np
@@ -15,6 +15,7 @@ def generate_alles_pcm_header(pcm_sample_rate=22050):
     fns = ( ("sounds/HS-TR-808-Drums.sf2", False), ('sounds/MuseScore_General.sf2', True))
     good = [0, 3, 8, 11, 14, 16, 17, 18, 20, 23, 25, 26, 29, 30, 31, 32, 37, 39, 40, 42, 47, 49, 50, 52, 58, 63, 69, 74, 76, 80, 83, 85, 86, 95, 96, 99, 100, 101, 107, 108, 109, 112, 116, 117, 118, 120, 127, \
              130, 134, 136, 145, 149, 155, 161, 165, 166, 170, 171, 175, 177, 178, 183, 192, 197, 198, 200, 204]
+    good = good[:max]
     offsets = []
     offset = 0
     int16s = []
