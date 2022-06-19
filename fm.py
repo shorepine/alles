@@ -16,7 +16,16 @@ import time
 # [edit line 129 of learnfm/dx7core/pydx7.cc to point to the folder you cloned learnfm into for compact.bin]
 # make
 # python setup.py install
+
+	[ If you get an error and are on an older macOS, try:
+	ARCHFLAGS="-arch x86_64" python setup.py install  ]
+
 # cd ../../alles/main
+
+	[ install homebrew if you haven't yet:
+  	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" ] 
+
+# brew install libsoundio
 # make
 # ./alles -i 127.0.0.1 [you should hear the alles bleep, if not, change your speaker settings]
 # [open a new terminal]
