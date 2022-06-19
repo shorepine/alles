@@ -10,8 +10,8 @@ import time
 
 """ Howto
 
-# git clone git@github.com:bwhitman/alles.git
-# git clone git@github.com:bwhitman/learnfm.git
+# git clone https://github.com/bwhitman/alles.git
+# git clone https://github.com/bwhitman/learnfm.git
 # cd learnfm/dx7core
 # [edit line 129 of learnfm/dx7core/pydx7.cc to point to the folder you cloned learnfm into for compact.bin]
 # make
