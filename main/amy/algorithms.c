@@ -225,11 +225,6 @@ void render_algo(float * buf, uint8_t osc) {
                 printf("\n");
             }
             float feedback_level = 0;
-            in_buf = zeros; // just in case not set elsewhere
-            //if(debug_on)printf("op %d in_buf = zero\n", 6-op);
-            //if(debug_on)printf("op %d out_buf = s0\n", 6-op);
-            out_buf = scratch[0]; // same
-
             if(algo.ops[op] & FB_IN) { 
                 feedback_level = synth[osc].feedback; 
                 if(debug_on)printf("op %d fb is %f\n", 6-op, feedback_level);
@@ -269,12 +264,12 @@ void render_algo(float * buf, uint8_t osc) {
 
             if(!(algo.ops[op] & OUT_BUS_ADD)) {
                 if((algo.ops[op] & OUT_BUS_ONE) ) {
-                    if(debug_on)printf("op %d . copy s0 = out_buf\n", 6-op);
+                    if(debug_on)printf("op %d copy out_buf into s0\n", 6-op);
                     copy(out_buf, scratch[0]);
                 }
 
                 if((algo.ops[op] & OUT_BUS_TWO) ) {
-                    if(debug_on)printf("op %d . copy s1 = out_buf\n", 6-op);
+                    if(debug_on)printf("op %d copy out_buf into s1\n", 6-op);
                     copy(out_buf, scratch[1]);
                 }
             } else {
@@ -286,7 +281,7 @@ void render_algo(float * buf, uint8_t osc) {
                     if(debug_on)printf("op %d s1 = s4 + s1\n", 6-op) ;
                 } else {
                     add(scratch[4], buf);
-                    if(debug_on)printf("op %d buf = s4 + buf\n", 6-op) ;
+                    if(debug_on)printf("op %d audio_buf = s4 + audio_buf\n", 6-op) ;
                 }
 
 
