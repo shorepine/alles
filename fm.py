@@ -49,8 +49,8 @@ def setup_patch(p):
     # can our breakpoints handle negative numbers? 
     alles.reset()
     pitch_rates, pitch_times = p["bp_pitch_rates"], p["bp_pitch_times"]
-    pitchbp = "%d,%f,%d,%f,%d,%f,%d,%f" % (
-        pitch_times[0], pitch_rates[0], pitch_times[1], pitch_rates[1], pitch_times[2], pitch_rates[2], pitch_times[3], pitch_rates[3]
+    pitchbp = "%d,%f,%d,%f,%d,%f,%d,%f,%d,%f" % (
+        pitch_times[0], pitch_rates[0], pitch_times[1], pitch_rates[1], pitch_times[2], pitch_rates[2], pitch_times[3], pitch_rates[3], pitch_times[4], pitch_rates[4]
     )
     # Set up each operator
     for i,op in enumerate(p["ops"]):
