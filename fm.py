@@ -62,8 +62,8 @@ def setup_patch(p):
         else:
             freq_ratio = op["ratio"]
         bp_rates, bp_times = op["bp_opamp_rates"], op["bp_opamp_times"]
-        opbp = "%d,%f,%d,%f,%d,%f,%d,%f" % (
-            bp_times[0], bp_rates[0], bp_times[1], bp_rates[1], bp_times[2], bp_rates[2], bp_times[3], bp_rates[3]
+        opbp = "%d,%f,%d,%f,%d,%f,%d,%f,%d,%f" % (
+            bp_times[0], bp_rates[0], bp_times[1], bp_rates[1], bp_times[2], bp_rates[2], bp_times[3], bp_rates[3],bp_times[4], bp_rates[4]
         )
         print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
         if(freq>=0):
@@ -149,8 +149,10 @@ def decode_patch(p):
         # rate seems to be "speed", so higher rate == less time
         # level is probably exp, but so is our ADSR? 
         #print ("Input rate %s level %s" %(egrate, eglevel))
-        times = [0,0,0,0]
-        rates = [0,0,0,0]
+
+        # We're adding a (0,0) at the start - this will become level 4
+        times = [0,0,0,0,0]
+        rates = [0,0,0,0,0]
 
         total_ms = 0
         last_L = eglevel[-1]
@@ -160,12 +162,14 @@ def decode_patch(p):
             l = EGlevel_to_level(eglevel[i])
             if(i!=3):
                 total_ms = total_ms + ms
-                times[i] = total_ms
-                rates[i] = l
+                times[i+1] = total_ms
+                rates[i+1] = l
             else:
                 # Release ms counter happens separately, so don't add
-                times[i] = 1000 * EG_seg_time(eglevel[0], eglevel[i], egrate[i])
-                rates[i] = l
+                times[i+1] = 1000 * EG_seg_time(eglevel[0], eglevel[i], egrate[i])
+                rates[i+1] = l
+        # per dx7 spec, level[0] == level[3]
+        rates[0] = rates[4]
         return (rates, times)
 
     def eg_to_bp_pitch(egrate, eglevel):

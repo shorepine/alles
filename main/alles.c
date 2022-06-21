@@ -6,7 +6,6 @@
 uint8_t board_level;
 uint8_t status;
 
-
 // For CPU usage
 unsigned long last_task_counters[MAX_TASKS];
 

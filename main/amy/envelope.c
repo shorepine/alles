@@ -39,7 +39,7 @@ float compute_mod_scale(uint8_t osc) {
     }
     return 0; // 0 is no change, unlike bp scale
 }
-
+extern uint8_t debug_on;
 float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
     // given a breakpoint list, compute the scale
     // we first see how many BPs are defined, and where we are in them?
@@ -110,7 +110,7 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
         return scale;
     } else {
         float scale = v0 + ((v1-v0) * time_ratio);
-        //if(bp_set==0) printf("%d [%d,%d] LIN t0 %d v0 %f t1 %d v1 %f elapsed %d tr %f scale %f\n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
+        if(debug_on) if(bp_set==0) printf("%d [%d,%d] LIN t0 %d v0 %f t1 %d v1 %f elapsed %d tr %f scale %f\n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
         return scale;
     }
 

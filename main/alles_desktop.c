@@ -7,6 +7,7 @@
 
 uint8_t board_level = ALLES_DESKTOP;
 uint8_t status = RUNNING;
+uint8_t debug_on = 0;
 
 // AMY synth states
 extern struct state global;

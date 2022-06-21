@@ -25,7 +25,7 @@ typedef struct  {
 } algorithms_parameters_t;
 
 #include "fm.h"
-
+extern uint8_t debug_on;
 // Thank you MFSA for the DX7 op structure , borrowed here \/ \/ \/ 
 enum FmOperatorFlags {
     OUT_BUS_ONE = 1 << 0,
@@ -94,6 +94,13 @@ void add(float *a, float*b) {
 }
 
 void render_mod(float *in, float*out, uint8_t osc, float feedback_level, uint8_t algo_osc) {
+/*
+    if(osc == 0) {
+        debug_on = 1;
+    } else {
+        debug_on = 0;
+    }
+*/
     hold_and_modify(osc);
     if(synth[osc].wave == SINE) render_fm_sine(out, osc, in, feedback_level, algo_osc);
 }
