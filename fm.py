@@ -87,6 +87,7 @@ def setup_patch(p):
         alles.send(osc=6,mod_target=lfo_target, mod_source=7)
         #print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
     print("osc 6 (main)  algo %d feedback %f pitchenv %s" % ( p["algo"], p["feedback"], pitchbp))
+    print("transpose is %d" % (p["transpose"]))
     alles.send(osc=6, wave=alles.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR)
 
 
@@ -346,6 +347,7 @@ def play_patch(patch, midinote=50, length_s = 2, keyup_s = 1):
 
     print("AMY:")
     setup_patch(p)
+    # TODO, transpose !? 
     alles.send(osc=6,vel=4,note=midinote)
     time.sleep(length_s)
     # Send key up
