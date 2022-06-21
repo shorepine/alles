@@ -131,23 +131,17 @@ def get_patch(patch_number):
 
 # Given a patch byte stream, return a json object that describes it
 def decode_patch(p):
-    # This is likely incorrect, but an ok start
-    def rate_to_ms(rate):
-        """
-            "It may take over half a minute to reach level 1, depending on the setting of RATE 1 (R1)."
-        """
-        # From MSFA. This is likely in samples to advance per sample?
-        ratetab = [
-            1, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12,
-            12, 13, 13, 14, 14, 15, 16, 16, 17, 18, 18, 19, 20, 21, 22, 23, 24,
-            25, 26, 27, 28, 30, 31, 33, 34, 36, 37, 38, 39, 41, 42, 44, 46, 47,
-            49, 51, 53, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 79, 82,
-            85, 88, 91, 94, 98, 102, 106, 110, 115, 120, 125, 130, 135, 141, 147,
-            153, 159, 165, 171, 178, 185, 193, 202, 211, 232, 243, 254, 255]
-        # This must be exp scaled so that 0 is 30 seconds, 1 is 10 seconds, 2 is 1 second, etc .. 
-        # I don't know what i'm doing here, need help with this bit 
-        return  180000. / (ratetab[rate]**2)
-        #return 180000. / (ratetab[rate]*64.0)
+    def EGlevel_to_level(eglevel):
+        """DX7 EG levels are 8 steps/doubling; 99=1.0."""
+        return 2 ** ((eglevel - 99) / 8)
+
+    def EG_seg_time(L0, L1, R):
+        """How long will it take to get from L0 to L1 at rate R (all 0..99)?"""
+        # L is 8 steps per doubling
+        # R is 6 steps per doubling of time, with 24 = 1 sec per doubling of amplitude
+        doublings = np.abs((L0 & -2) - (L1 & -2)) / 8  # LSB of levels is ignored
+        doublings_per_sec = 2 ** ((R - 24) / 6)
+        return doublings / doublings_per_sec
 
     def eg_to_bp(egrate, eglevel):
         # http://www.audiocentralmagazine.com/wp-content/uploads/2012/04/dx7-envelope.png
@@ -159,40 +153,25 @@ def decode_patch(p):
         rates = [0,0,0,0]
 
         total_ms = 0
+        last_L = eglevel[-1]
         for i in range(4):
-            ms = rate_to_ms(egrate[i])
-            l = eglevel[i] / 99.0
+            ms = 1000 * EG_seg_time(last_L, eglevel[i], egrate[i])
+            last_L = eglevel[i]
+            l = EGlevel_to_level(eglevel[i])
             if(i!=3):
                 total_ms = total_ms + ms
                 times[i] = total_ms
                 rates[i] = l
             else:
                 # Release ms counter happens separately, so don't add
-                times[i] = ms
+                times[i] = 1000 * EG_seg_time(eglevel[0], eglevel[i], egrate[i])
                 rates[i] = l
         return (rates, times)
 
     def eg_to_bp_pitch(egrate, eglevel):
-
-        # http://www.audiocentralmagazine.com/wp-content/uploads/2012/04/dx7-envelope.png
-        # or https://yamahasynth.com/images/RefaceSynthBasics/EG_RatesLevels.png
-        # rate seems to be "speed", so higher rate == less time
-        # level is probably exp, but so is our ADSR? 
-        #print ("pitch Input rate %s level %s" %(egrate, eglevel))
-        times = [0,0,0,0]
-        rates = [1,0,0,0]
-        total_ms = 0
-        for i in range(4):
-            ms = rate_to_ms(egrate[i])
-            l = eglevel[i] / 50.0
-            if(i!=3):
-                total_ms = total_ms + ms
-                times[i] = total_ms
-                rates[i] = l
-            else:
-                # Release ms counter happens separately, so don't add
-                times[i] = ms
-                rates[i] = l
+        rates, times = eg_to_bp(egrate, eglevel)
+        for i in range(len(rates)):
+          rates[i] /= 0.014328
         return (rates, times)
 
     def lfo_speed_to_hz(byte):
@@ -295,7 +274,8 @@ def decode_patch(p):
     c = c + 8
     patch["algo"] = p[c] # ours start at 0
     c = c + 1
-    patch["feedback"] = p[c]/14.0
+    # Empirically matched by ear.
+    patch["feedback"] = 0.00125 * (2**p[c])
     c = c + 1
     patch["oscsync"] = p[c]
     c = c + 1

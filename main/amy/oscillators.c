@@ -69,7 +69,8 @@ float render_lut_fm_osc(float * buf, float phase, float step, float incoming_amp
     float past0 = last_two[0];
     float past1 = last_two[1];
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        float scaled_phase = lut_size * (phase + mod[i] + feedback_level * ((past1 + past0) / 2.0));
+        float scaled_phase = lut_size *
+	  (phase + mod[i] + feedback_level * ((past1 + past0) / 2.0));
         int base_index = (int)scaled_phase;
         float frac = scaled_phase - base_index;
         float b = lut[base_index & lut_mask];
@@ -331,7 +332,9 @@ void render_fm_sine(float *buf, uint8_t osc, float *mod, float feedback_level, u
     if(synth[osc].ratio >= 0) {
         msynth[osc].freq = msynth[algo_osc].freq * synth[osc].ratio;
     }
-    msynth[osc].freq += synth[osc].detune - 7.0;    
+    // from https://github.com/google/music-synthesizer-for-android/blob/f67d41d313b7dc85f6fb99e79e515cc9d208cfff/app/src/main/jni/dx7note.cc#L54
+    // "This was measured at 7.213Hz per count at 9600Hz"
+    msynth[osc].freq *= (1 + 0.00075 * (synth[osc].detune - 7.0));
     float step = msynth[osc].freq / (float)SAMPLE_RATE;
     float amp = msynth[osc].amp;
     synth[osc].phase = render_lut_fm_osc(buf, synth[osc].phase, step, synth[osc].last_amp, amp, 
@@ -501,8 +504,3 @@ void ks_deinit(void) {
     for(int i=0;i<KS_OSCS;i++) free(ks_buffer[i]);
     free(ks_buffer);
 }
-
-
-
-
-
