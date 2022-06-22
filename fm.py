@@ -212,26 +212,17 @@ def decode_patch(p):
     def coarse_fine_fixed_hz(coarse, fine):
         # so many are > 3 (7500 out of 38K.) msfa cuts it like this, not sure whats' up here. maybe the knob loops over? 
         #print("fixed coarse %d fine %d" % (coarse, fine))
+
         coarse = coarse & 3 
-        if(coarse==0):
-            return 1 + ((fine / 10.0) )
-        if(coarse==1):
-            return 10 + (fine  )
-        if(coarse==2):
-            return 100 + ((fine * 10) )
-        if(coarse==3):
-            return 1000 + ((fine * 100.0) )
-        #print("fixed coarse > 3, is %d" % (coarse))
-        return 0
+        return (10 ** (coarse + fine/100))
+
 
     def coarse_fine_ratio(coarse,fine):
-        #print("ratio coarse %d fine %d" % (coarse, fine))
-
+        coarse = coarse & 31
         if(coarse==0):
-            return 0.5 + ((fine/200.0) )
-        coarse = coarse & 31 # see above
-        return coarse + (fine/100.0)
-        
+            coarse = 0.5
+        return coarse * (1 + fine/100.0)
+    
 
     patch = {}
     # If bytearray, make bytes again
@@ -347,9 +338,9 @@ def play_patch(patch, midinote=50, length_s = 2, keyup_s = 1):
 
     print("AMY:")
     setup_patch(p)
-    # TODO, transpose !? 
+
     alles.send(osc=6,vel=4,note=midinote)
-    time.sleep(length_s)
+    time.sleep(length_s-keyup_s)
     # Send key up
     alles.send(osc=6,vel=0)
     time.sleep(keyup_s)
