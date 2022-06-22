@@ -82,11 +82,23 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
         elapsed = (total_samples - synth[osc].note_off_clock) + 1; 
         // Get the last t/v pair , for release
         found = bp_r;
+        int8_t bp_rx = 0;
         t0 = 0; // start the elapsed clock again
         if(found > 0) v0 = synth[osc].breakpoint_values[bp_set][found-1];
-        //printf("elapsed %d noc %d total_samples %d found %d v0 %f bpt %d\n", elapsed, synth[osc].note_off_clock, total_samples, found, v0, synth[osc].breakpoint_times[bp_set][bp_r]);
+        if(debug_on)printf("elapsed %d noc %d total_samples %d found %d v0 %f bpt %d\n", elapsed, synth[osc].note_off_clock, total_samples, found, v0, synth[osc].breakpoint_times[bp_set][bp_r]);
         if(elapsed > synth[osc].breakpoint_times[bp_set][bp_r]) {
-            //printf("past release, setting note off\n");
+
+            // are there multiple bp_sets? only turn off the note if it's the last one
+            int32_t my_bt = synth[osc].breakpoint_times[bp_set][bp_r];
+            // This is a mess but works, we could fix 
+            for(uint8_t test_bp_set=0;test_bp_set<MAX_BREAKPOINT_SETS;test_bp_set++) {
+                if(test_bp_set != bp_set) {
+                    // Find the last bp in this bp set
+                    bp_rx = 0; while(synth[osc].breakpoint_times[test_bp_set][bp_rx] >= 0 && bp_rx < MAX_BREAKPOINTS) bp_rx++; bp_rx--;
+                    // If my breakpoint time is less than another breakpoint time from a different set, return 1.0 and don't end the note
+                    if(my_bt < synth[osc].breakpoint_times[test_bp_set][bp_rx]) return 1;
+                }
+            }
             // OK. partials (et al) need a frame to fade out to avoid clicks. This is in conflict with the breakpoint release, which will set it to the bp end value before the fade out, often 0
             // so the fadeout never gets to hit. I'm not sure i love this solution, but PARTIAL is such a weird type that i guess having it called out like this is fine.
             if(synth[osc].wave==PARTIAL) return 1;
@@ -106,11 +118,11 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
     float time_ratio = 1.0 - ((float)(t1 - elapsed) / (float)(t1-t0));
     if(exp) {
         float scale = v0 + ((v1-v0) * (1.0 - expf(-curve*time_ratio)));
-        //printf("[%d,%d] EXP t0 %d v0 %f t1 %d v1 %f elapsed %d tr %f scale %f\n", bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
+        if(debug_on)printf("[%d,%d] EXP t0 %d v0 %f t1 %d v1 %f elapsed %d tr %f scale %f\n", bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
         return scale;
     } else {
         float scale = v0 + ((v1-v0) * time_ratio);
-        //if(debug_on) if(bp_set==0) printf("%d [%d,%d] LIN t0 %d v0 %f t1 %d v1 %f elapsed %d tr %f scale %f\n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
+        if(debug_on)printf("%d [%d,%d] LIN t0 %d v0 %f t1 %d v1 %f elapsed %d tr %f scale %f\n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
         return scale;
     }
 

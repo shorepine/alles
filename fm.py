@@ -53,6 +53,7 @@ def setup_patch(p):
         pitch_times[0], pitch_rates[0], pitch_times[1], pitch_rates[1], pitch_times[2], pitch_rates[2], pitch_times[3], pitch_rates[3], pitch_times[4], pitch_rates[4]
     )
     # Set up each operator
+    last_release_time = 0
     for i,op in enumerate(p["ops"]):
         freq_ratio = -1
         freq = -1
@@ -65,6 +66,9 @@ def setup_patch(p):
         opbp = "%d,%f,%d,%f,%d,%f,%d,%f,%d,%f" % (
             bp_times[0], bp_rates[0], bp_times[1], bp_rates[1], bp_times[2], bp_rates[2], bp_times[3], bp_rates[3],bp_times[4], bp_rates[4]
         )
+        if(bp_times[4] > last_release_time):
+            last_release_time = bp_times[4]
+
         print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
         if(freq>=0):
             alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_LINEAR,bp0=opbp, bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR, amp=op["opamp"], detune=op["detunehz"])
@@ -86,9 +90,12 @@ def setup_patch(p):
         alles.send(osc=7, wave=p["lfowaveform"],freq=p["lfospeed"], amp=lfo_amp)
         alles.send(osc=6,mod_target=lfo_target, mod_source=7)
         print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
-    print("osc 6 (main)  algo %d feedback %f pitchenv %s" % ( p["algo"], p["feedback"], pitchbp))
+    ampbp = "0,1,%d,1" % (last_release_time)
+    print("osc 6 (main)  algo %d feedback %f pitchenv %s ampenv %s" % ( p["algo"], p["feedback"], pitchbp, ampbp))
     print("transpose is %d" % (p["transpose"]))
-    alles.send(osc=6, wave=alles.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR)
+    alles.send(osc=6, wave=alles.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", \
+        bp0=ampbp, bp0_target=alles.TARGET_AMP+alles.TARGET_LINEAR, \
+        bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR)
 
 
 
