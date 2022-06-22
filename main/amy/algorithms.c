@@ -199,18 +199,19 @@ void algo_init() {
 
 
 void render_algo(float * buf, uint8_t osc) { 
-    float scratch[6][BLOCK_SIZE];
+    float scratch[5][BLOCK_SIZE];
 
     struct FmAlgorithm algo = algorithms[synth[osc].algorithm];
 
     // starts at op 6
     float *in_buf, *out_buf;
+
+    // TODO, i think i need at most 2 of these buffers, maybe 3?? 
     zero(scratch[0]);
     zero(scratch[1]);
     zero(scratch[2]);
     zero(scratch[3]);
     zero(scratch[4]);
-    zero(scratch[5]);
     for(uint8_t op=0;op<MAX_ALGO_OPS;op++) {
         if(synth[osc].algo_source[op] >=0 && synth[synth[osc].algo_source[op]].status == IS_ALGO_SOURCE) {
             if(debug_on) {

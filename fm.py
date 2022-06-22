@@ -339,14 +339,10 @@ def play_patch(patch, midinote=50, length_s = 2, keyup_s = 1):
     print("AMY:")
     setup_patch(p)
 
-    alles.send(osc=6,vel=4,note=midinote)
-    time.sleep(length_s-keyup_s)
-    # Send key up
-    alles.send(osc=6,vel=0)
-    time.sleep(keyup_s)
-
+    alles.send(osc=6,vel=4,note=midinote,timestamp=alles.millis())
+    alles.send(osc=6,vel=0,timestamp=alles.millis() + (length_s-keyup_s)*1000)
     # Catch up to latency
-    time.sleep(alles.ALLES_LATENCY_MS/1000)
+    time.sleep(length_s + alles.ALLES_LATENCY_MS/1000)
 
     # Render Ralph
     print("MSFA:")
