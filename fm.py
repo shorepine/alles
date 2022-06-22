@@ -85,7 +85,7 @@ def setup_patch(p):
     if(lfo_target>0):
         alles.send(osc=7, wave=p["lfowaveform"],freq=p["lfospeed"], amp=lfo_amp)
         alles.send(osc=6,mod_target=lfo_target, mod_source=7)
-        #print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
+        print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
     print("osc 6 (main)  algo %d feedback %f pitchenv %s" % ( p["algo"], p["feedback"], pitchbp))
     print("transpose is %d" % (p["transpose"]))
     alles.send(osc=6, wave=alles.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR)
@@ -180,7 +180,8 @@ def decode_patch(p):
         return (rates, times)
 
     def lfo_speed_to_hz(byte):
-        # https://www.yamahasynth.com/ask-a-question/generating-specific-lfo-frequencies-on-dx
+        #   https://web.archive.org/web/20200920050532/https://www.yamahasynth.com/ask-a-question/generating-specific-lfo-frequencies-on-dx
+        # but this is weird, he gives 127 values, and we only get in 99
         return [0.026, 0.042, 0.084, 0.126, 0.168, 0.210, 0.252, 0.294, 0.336, 0.372, 0.412, 0.456, 0.505, 0.542,
          0.583, 0.626, 0.673, 0.711, 0.752, 0.795, 0.841, 0.880, 0.921, 0.964, 1.009, 1.049, 1.090, 1.133,
          1.178, 1.218, 1.259, 1.301, 1.345, 1.386, 1.427, 1.470, 1.514, 1.554, 1.596, 1.638, 1.681, 1.722,
