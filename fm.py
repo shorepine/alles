@@ -53,6 +53,7 @@ def setup_patch(p):
         pitch_times[0], pitch_rates[0], pitch_times[1], pitch_rates[1], pitch_times[2], pitch_rates[2], pitch_times[3], pitch_rates[3], pitch_times[4], pitch_rates[4]
     )
     # Set up each operator
+    last_release_time = 0
     for i,op in enumerate(p["ops"]):
         freq_ratio = -1
         freq = -1
@@ -65,6 +66,9 @@ def setup_patch(p):
         opbp = "%d,%f,%d,%f,%d,%f,%d,%f,%d,%f" % (
             bp_times[0], bp_rates[0], bp_times[1], bp_rates[1], bp_times[2], bp_rates[2], bp_times[3], bp_rates[3],bp_times[4], bp_rates[4]
         )
+        if(bp_times[4] > last_release_time):
+            last_release_time = bp_times[4]
+
         print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
         if(freq>=0):
             alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_LINEAR,bp0=opbp, bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR, amp=op["opamp"], detune=op["detunehz"])
@@ -85,8 +89,11 @@ def setup_patch(p):
     if(lfo_target>0):
         alles.send(osc=7, wave=p["lfowaveform"],freq=p["lfospeed"], amp=lfo_amp)
         alles.send(osc=6,mod_target=lfo_target, mod_source=7)
-        #print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
-    print("osc 6 (main)  algo %d feedback %f pitchenv %s" % ( p["algo"], p["feedback"], pitchbp))
+        print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
+        bp0=ampbp, bp0_target=alles.TARGET_AMP+alles.TARGET_LINEAR, \
+        bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR)
+    ampbp = "0,1,%d,1" % (last_release_time)
+    print("osc 6 (main)  algo %d feedback %f pitchenv %s ampenv %s" % ( p["algo"], p["feedback"], pitchbp, ampbp))       
     print("transpose is %d" % (p["transpose"]))
     alles.send(osc=6, wave=alles.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR)
 
@@ -264,7 +271,8 @@ def decode_patch(p):
         return (rates, times)
 
     def lfo_speed_to_hz(byte):
-        # https://www.yamahasynth.com/ask-a-question/generating-specific-lfo-frequencies-on-dx
+        #   https://web.archive.org/web/20200920050532/https://www.yamahasynth.com/ask-a-question/generating-specific-lfo-frequencies-on-dx
+        # but this is weird, he gives 127 values, and we only get in 99
         return [0.026, 0.042, 0.084, 0.126, 0.168, 0.210, 0.252, 0.294, 0.336, 0.372, 0.412, 0.456, 0.505, 0.542,
          0.583, 0.626, 0.673, 0.711, 0.752, 0.795, 0.841, 0.880, 0.921, 0.964, 1.009, 1.049, 1.090, 1.133,
          1.178, 1.218, 1.259, 1.301, 1.345, 1.386, 1.427, 1.470, 1.514, 1.554, 1.596, 1.638, 1.681, 1.722,
@@ -391,19 +399,15 @@ def play_patch(patch, midinote=50, length_s = 2, keyup_s = 1):
 
     print("AMY:")
     setup_patch(p)
-    # TODO, transpose !? 
-    alles.send(osc=6,vel=4,note=midinote)
-    time.sleep(length_s)
-    # Send key up
-    alles.send(osc=6,vel=0)
-    time.sleep(keyup_s)
-    # Catch up to latency
-    time.sleep(alles.ALLES_LATENCY_MS/1000)
 
+    alles.send(osc=6,vel=4,note=midinote,timestamp=alles.millis())
+    alles.send(osc=6,vel=0,timestamp=alles.millis() + (length_s-keyup_s)*1000)
+    # Catch up to latency
+    time.sleep(length_s + alles.ALLES_LATENCY_MS/1000)
+    
     # Render Ralph
     print("MSFA:")
     them_samples = dx7_render(dx7_patch, midinote, 90, int(length_s*alles.SAMPLE_RATE),int(keyup_s*alles.SAMPLE_RATE))
-    time.sleep(0.25)
     play_np_array(them_samples)
 
 
