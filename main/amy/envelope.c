@@ -95,8 +95,10 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
                 if(test_bp_set != bp_set) {
                     // Find the last bp in this bp set
                     bp_rx = 0; while(synth[osc].breakpoint_times[test_bp_set][bp_rx] >= 0 && bp_rx < MAX_BREAKPOINTS) bp_rx++; bp_rx--;
-                    // If my breakpoint time is less than another breakpoint time from a different set, return 1.0 and don't end the note
-                    if(my_bt < synth[osc].breakpoint_times[test_bp_set][bp_rx]) return 1;
+                    if(bp_rx >= 0) {
+                        // If my breakpoint time is less than another breakpoint time from a different set, return 1.0 and don't end the note
+                        if(my_bt < synth[osc].breakpoint_times[test_bp_set][bp_rx]) return 1;
+                    }
                 }
             }
             // OK. partials (et al) need a frame to fade out to avoid clicks. This is in conflict with the breakpoint release, which will set it to the bp end value before the fade out, often 0
