@@ -137,6 +137,90 @@ def get_patch(patch_number):
     #name = ''.join([i if (ord(i) < 128 and ord(i) > 31) else ' ' for i in str(patch_data[145:155])])
     return bytearray(patch_data)
 
+def unpack_patch(bytestream):
+    """Simply reformat the bytestream into parameters."""
+    bytestream = bytes(bytestream)
+    byteno = 0
+
+    def nextbyte(count=1):
+        nonlocal byteno
+        if count > 1:
+            # Return a list.
+            return [nextbyte() for _ in range(count)]
+        b = bytestream[byteno]
+        byteno += 1
+        # Return a bare byte.
+        return b
+
+    ops = []
+    # Starts at op 6
+    for i in range(6, 0, -1):
+        op = {"opnum": i}
+        op["rate"] = nextbyte(4)
+        op["level"] = nextbyte(4)
+        op["breakpoint"] = nextbyte()
+        op["bp_depths"] = nextbyte(2)
+        op["bp_curves"] = nextbyte(2)
+        op["kbdratescaling"] = nextbyte()
+        op["ampmodsens"] = nextbyte()
+        op["keyvelsens"] = nextbyte()
+        op["opamp"] = nextbyte()
+        op["tuning"] = "fixed" if nextbyte() == 1 else "ratio"
+        op["coarse"] = nextbyte()
+        op["fine"] = nextbyte()
+        op["detune"] = nextbyte()
+        ops.append(op)
+    patch = {"ops": ops}
+    patch["pitch_rate"] = nextbyte(4)
+    patch["pitch_level"] = nextbyte(4)
+    patch["algo"] = 1 + nextbyte()
+    patch["feedback"] = nextbyte()
+    patch["oscsync"] = nextbyte()
+    patch["lfospeed"] = nextbyte()
+    patch["lfodelay"] = nextbyte()
+    patch["lfopitchmoddepth"] = nextbyte()
+    patch["lfoampmoddepth"] = nextbyte()
+    patch["lfosync"] = nextbyte()
+    patch["lfowaveform"] = nextbyte()
+    patch["pitchmodsens"] = nextbyte()
+    patch["transpose"] = nextbyte()
+    patch["name"] =  ''.join(chr(i) for i in nextbyte(10))
+    return patch
+
+def repack_patch(patch):
+    """Convert a decoded patch dict back to a bytestream."""
+    bytestream = []
+    for op in patch["ops"]:
+        # Assume ordering is right in ops list.
+        bytestream.extend(op["rate"])
+        bytestream.extend(op["level"])
+        bytestream.append(op["breakpoint"])
+        bytestream.extend(op["bp_depths"])
+        bytestream.extend(op["bp_curves"])
+        bytestream.append(op["kbdratescaling"])
+        bytestream.append(op["ampmodsens"])
+        bytestream.append(op["keyvelsens"])
+        bytestream.append(op["opamp"])
+        bytestream.append(1 if op["tuning"] == "fixed" else 0)
+        bytestream.append(op["coarse"])
+        bytestream.append(op["fine"])
+        bytestream.append(op["detune"])
+    bytestream.extend(patch["pitch_rate"])
+    bytestream.extend(patch["pitch_level"])
+    bytestream.append(patch["algo"] - 1)
+    bytestream.append(patch["feedback"])
+    bytestream.append(patch["oscsync"])
+    bytestream.append(patch["lfospeed"])
+    bytestream.append(patch["lfodelay"])
+    bytestream.append(patch["lfopitchmoddepth"])
+    bytestream.append(patch["lfoampmoddepth"])
+    bytestream.append(patch["lfosync"])
+    bytestream.append(patch["lfowaveform"])
+    bytestream.append(patch["pitchmodsens"])
+    bytestream.append(patch["transpose"])
+    bytestream.extend(ord(c) for c in patch["name"])
+    return bytes(bytestream)
+
 # Given a patch byte stream, return a json object that describes it
 def decode_patch(p):
     def EGlevel_to_level(eglevel):
@@ -218,89 +302,58 @@ def decode_patch(p):
         return "unknown"
 
     def coarse_fine_fixed_hz(coarse, fine):
-        # so many are > 3 (7500 out of 38K.) msfa cuts it like this, not sure whats' up here. maybe the knob loops over? 
-        #print("fixed coarse %d fine %d" % (coarse, fine))
-
-        coarse = coarse & 3 
-        return (10 ** (coarse + fine/100))
-
-
+        coarse = coarse & 3
+        return 10 ** (coarse + fine / 100)
+    
     def coarse_fine_ratio(coarse,fine):
         coarse = coarse & 31
-        if(coarse==0):
+        if(coarse == 0):
             coarse = 0.5
-        return coarse * (1 + fine/100.0)
-    
+        return coarse * (1 + fine / 100)
 
     patch = {}
-    # If bytearray, make bytes again
-    p = bytes(p)
+    patchstruct = unpack_patch(bytes(p))
     ops = []
     # Starts at op 6
     c = 0
     for i in range(6):
+        opstruct = patchstruct["ops"][i]
         op = {}
-        op["rate"] = [x for x in p[c:c+4]]
-        op["level"] =  [x for x in p[c+4:c+8]]
         # TODO, this should be computed after scaling 
-        (op["bp_opamp_rates"], op["bp_opamp_times"]) = eg_to_bp([x for x in p[c:c+4]], [x for x in p[c+4:c+8]])
-        c = c + 8
-        op["breakpoint"] = p[c]
-        c = c + 1
+        (op["bp_opamp_rates"], op["bp_opamp_times"]) = (
+            eg_to_bp(opstruct["rate"], opstruct["level"]))
+        op["breakpoint"] = opstruct["breakpoint"]
         # left depth, right depth -- this + the curve scales the op rates left and right of note # specified in breakpoint
-        op["bp_depths"] = [p[c], p[c+1]]
-        c = c + 2
+        op["bp_depths"] = opstruct["bp_depths"]
         # curve type (l , r)
-        op["bp_curves"] = [curve(p[c]), curve(p[c+1])]
-        c = c + 2
-        op["kbdratescaling"] = p[c]
-        c = c + 1
-        op["ampmodsens"] = p[c]
-        c = c + 1
-        op["keyvelsens"] = p[c]
-        c = c + 1
-        op["opamp"] = output_level_to_amp(p[c])
-        c = c + 1
-        if(p[c] == 1): # fixed
-            op["fixedhz"] = coarse_fine_fixed_hz(p[c+1], p[c+2])
+        op["bp_curves"] = opstruct["bp_curves"]
+        op["kbdratescaling"] = opstruct["kbdratescaling"]
+        op["ampmodsens"] = opstruct["ampmodsens"]
+        op["keyvelsens"] = opstruct["keyvelsens"]
+        op["opamp"] = output_level_to_amp(opstruct["opamp"])
+        if(opstruct["tuning"] == "fixed"):
+            op["fixedhz"] = coarse_fine_fixed_hz(opstruct["coarse"], opstruct["fine"])
         else:
-            op["ratio"] = coarse_fine_ratio(p[c+1], p[c+2])
-        op["coarse"] = p[c+1]
-        op["fine"] = p[c+2]
-        c = c + 3
-        op["detunehz"] = p[c]
-        c = c + 1
+            op["ratio"] = coarse_fine_ratio(opstruct["coarse"], opstruct["fine"])
+        op["detunehz"] = opstruct["detune"]
         ops.append(op)
-
     patch["ops"] = ops
 
-    (patch["bp_pitch_rates"], patch["bp_pitch_times"]) = eg_to_bp_pitch([x for x in p[c:c+4]], [x for x in p[c+4:c+8]])
-    c = c + 8
-    patch["algo"] = p[c] # ours start at 0
-    c = c + 1
+    (patch["bp_pitch_rates"], patch["bp_pitch_times"]) = (
+        eg_to_bp_pitch(patchstruct["pitch_rate"], patchstruct["pitch_level"]))
+    patch["algo"] = patchstruct["algo"] - 1
     # Empirically matched by ear.
-    patch["feedback"] = 0.00125 * (2**p[c])
-    c = c + 1
-    patch["oscsync"] = p[c]
-    c = c + 1
-    patch["lfospeed"] = lfo_speed_to_hz(p[c])
-    c = c + 1
-    patch["lfodelay"] = p[c]
-    c = c + 1
-    patch["lfopitchmoddepth"] = p[c]
-    c = c + 1
-    patch["lfoampmoddepth"] = p[c]
-    c = c + 1
-    patch["lfosync"] = p[c]
-    c = c + 1
-    patch["lfowaveform"] = lfo_wave(p[c])
-    c = c + 1
-    patch["pitchmodsens"] = p[c]
-    c = c + 1
-    patch["transpose"] = p[c]
-    c = c + 1
-    patch["name"] =  ''.join(chr(i) for i in p[c:c+10])
-    c = c + 10
+    patch["feedback"] = 0.00125 * (2 ** patchstruct["feedback"])
+    patch["oscsync"] = patchstruct["oscsync"]
+    patch["lfospeed"] = lfo_speed_to_hz(patchstruct["lfospeed"])
+    patch["lfodelay"] = patchstruct["lfodelay"]
+    patch["lfopitchmoddepth"] = patchstruct["lfopitchmoddepth"]
+    patch["lfoampmoddepth"] = patchstruct["lfoampmoddepth"]
+    patch["lfosync"] = patchstruct["lfosync"]
+    patch["lfowaveform"] = lfo_wave(patchstruct["lfowaveform"])
+    patch["pitchmodsens"] = patchstruct["pitchmodsens"]
+    patch["transpose"] = patchstruct["transpose"]
+    patch["name"] = patchstruct["name"]
     return patch
 
 
