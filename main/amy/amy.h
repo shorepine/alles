@@ -64,6 +64,7 @@ typedef int16_t i2s_sample_type;
 #define TARGET_RESONANCE 16
 #define TARGET_FEEDBACK 32
 #define TARGET_LINEAR 64 // default exp, linear as an option
+#define TARGET_TRUE_EXPONENTIAL 128 // default exp, "true exp" for FM as an option
 
 #define FILTER_LPF 1
 #define FILTER_BPF 2
