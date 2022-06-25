@@ -44,17 +44,19 @@ import time
 
 def setup_patch(p):
     # Take a FM patch and output AMY commands to set up the patch. Send alles.send(vel=0,osc=6,note=50) after
-    # Problem here, pitch values are such that 0 = -n octave, 99 = + n octave 
-    # pitch level = 50 means no change (or 1 for us)
-    # can our breakpoints handle negative numbers? 
+    
     alles.reset()
     pitch_rates, pitch_times = p["bp_pitch_rates"], p["bp_pitch_times"]
     pitchbp = "%d,%f,%d,%f,%d,%f,%d,%f,%d,%f" % (
-        pitch_times[0], pitch_rates[0], pitch_times[1], pitch_rates[1], pitch_times[2], pitch_rates[2], pitch_times[3], pitch_rates[3], pitch_times[4], pitch_rates[4]
+        pitch_times[0], pitch_rates[0], pitch_times[1], pitch_rates[1], pitch_times[2], pitch_rates[2], \
+        pitch_times[3], pitch_rates[3], pitch_times[4], pitch_rates[4]
     )
+    
     # Set up each operator
+    
     last_release_time = 0
     last_release_value = 0
+
     for i,op in enumerate(p["ops"]):
         freq_ratio = -1
         freq = -1
@@ -69,47 +71,49 @@ def setup_patch(p):
             bp_times[0], bp_rates[0], bp_times[1], bp_rates[1], bp_times[2], bp_rates[2], bp_times[3], bp_rates[3],bp_times[4], bp_rates[4])
         opbpfmt = "%d,%.3f/%d,%.3f/%d,%.3f/%d,%.3f/%d,%.3f" % (
             bp_times[0], bp_rates[0], bp_times[1], bp_rates[1], bp_times[2], bp_rates[2], bp_times[3], bp_rates[3],bp_times[4], bp_rates[4])
+
         if(bp_times[4] > last_release_time):
             last_release_time = bp_times[4]
             last_release_value = bp_rates[4]
 
-        #print("osc %d (op %d) freq %.1f ratio %.3f beta-bp %s pitch-bp %s beta %.3f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
-        print("osc %d (op %d) freq %.1f ratio %.3f beta-bp %s amp %.3f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbpfmt, op["opamp"], op["detunehz"]))
-        print("not used: amp mod sens %d " % (  op["ampmodsens"] ))
+        print("osc %d (op %d) freq %.1f ratio %.3f beta-bp %s amp %.3f detune %d amp_mod %d" % \
+            (i, (i-6)*-1, freq, freq_ratio, opbpfmt, op["opamp"], op["detunehz"], op["ampmodsens"]))
+
+        args = {"osc":i, "freq":freq, "ratio": freq_ratio, "bp0_target":alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL, "bp0":opbp, \
+            "amp":op["opamp"],"detune":op["detunehz"]}
+
+        if(op["ampmodsens"] > 0):
+            # TODO: we ignore intensity of amp mod sens, just on/off
+            args.update({"mod_source":7, "mod_target":alles.TARGET_AMP})
 
         if(freq>=0):
-            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL,\
-                bp0=opbp, bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_TRUE_EXPONENTIAL, amp=op["opamp"], detune=op["detunehz"])
-        else:
-            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL,\
-                bp0=opbp, amp=op["opamp"], detune=op["detunehz"])
+            args.update({"bp1":pitchbp, "bp1_target":alles.TARGET_FREQ+alles.TARGET_TRUE_EXPONENTIAL})
 
-    # Set up the main carrier note
-    lfo_target = 0
-    # Choose the bigger one
-    if(p.get("lfoampmoddepth",0) + p.get("lfopitchmoddepth",0) > 0):
-        if(p.get("lfoampmoddepth",0) >= p.get("lfopitchmoddepth",0)):
-            lfo_target=alles.TARGET_AMP
-            lfo_amp = output_level_to_amp(p.get("lfoampmoddepth",0))
-            if(p.get("lfopitchmoddepth",0)>0):
-                print("not used: lfo pitch mod depth %d" % (p["lfopitchmoddepth"]))
-        else:
-            lfo_target=alles.TARGET_FREQ
-            lfo_amp = output_level_to_amp((p.get("pitchmodsens", 0) / 7) * p.get("lfopitchmoddepth",0))
-            if(p.get("lfoampmoddepth",0)>0):
-                print("not used: lfo amp mod depth %d" % (p["lfoampmoddepth"]))
+        alles.send(**args)
 
-    if(lfo_target>0):
-        alles.send(osc=7, wave=p["lfowaveform"],freq=p["lfospeed"], amp=lfo_amp)
-        alles.send(osc=6,mod_target=lfo_target, mod_source=7)
-        print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
-        print("not used: lfo sync %d lfo delay %d lfo pitch mod depth %d" % (p["lfosync"], p["lfodelay"], p["lfopitchmoddepth"]))
+
+    # This is applied to the operators if their amp mod sense > 0 
+    amp_lfo_amp = output_level_to_amp(p.get("lfoampmoddepth",0))
+
+    # There's a lot of assumptions made here ! We're  multiplying an 0-7 / 7.0 sens with the 0-99 depth #, then converting to amp??? 
+    pitch_lfo_amp = output_level_to_amp( (float(p.get("pitchmodsens", 0)) / 7.0) * p.get("lfopitchmoddepth",0))
+
+    # Set up the amp LFO 
+    print("osc 7 amp lfo wave %d freq %f amp %f" % (p["lfowaveform"],p["lfospeed"], amp_lfo_amp))
+    alles.send(osc=7, wave=p["lfowaveform"],freq=p["lfospeed"], amp=amp_lfo_amp)
+
+    # and the pitch one
+    print("osc 8 pitch lfo wave %d freq %f amp %f" % (p["lfowaveform"],p["lfospeed"], pitch_lfo_amp))
+    alles.send(osc=8, wave=p["lfowaveform"],freq=p["lfospeed"], amp=pitch_lfo_amp)
+
+    print("not used: lfo sync %d lfo delay %d " % (p["lfosync"], p["lfodelay"]))
+
     ampbp = "0,1,%d,%f" % (last_release_time, last_release_value)
     print("osc 6 (main)  algo %d feedback %f pitchenv %s ampenv %s" % ( p["algo"], p["feedback"], pitchbp, ampbp))
-    print("transpose is %d" % (p["transpose"]))
     alles.send(osc=6, wave=alles.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", \
         bp0=ampbp, bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL, \
-        bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_TRUE_EXPONENTIAL)
+        bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_TRUE_EXPONENTIAL, \
+        mod_target=alles.TARGET_FREQ, mod_source=8)
 
 def output_level_to_amp(byte):
     """Convert 0-99 log-scale DX7 level into a real value."""
