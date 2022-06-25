@@ -64,6 +64,7 @@ typedef int16_t i2s_sample_type;
 #define TARGET_RESONANCE 16
 #define TARGET_FEEDBACK 32
 #define TARGET_LINEAR 64 // default exp, linear as an option
+#define TARGET_TRUE_EXPONENTIAL 128 // default exp, "true exp" for FM as an option
 
 #define FILTER_LPF 1
 #define FILTER_BPF 2
@@ -146,7 +147,7 @@ struct event {
     // TODO -- this may be too much for Alles, to have per osc. Could have a fixed stack of EGs that get assigned to oscs, maybe 32 of them 
     int64_t note_on_clock;
     int64_t note_off_clock;
-    int8_t breakpoint_target[MAX_BREAKPOINT_SETS];
+    int16_t breakpoint_target[MAX_BREAKPOINT_SETS];
     int32_t breakpoint_times[MAX_BREAKPOINT_SETS][MAX_BREAKPOINTS];
     float breakpoint_values[MAX_BREAKPOINT_SETS][MAX_BREAKPOINTS];
 

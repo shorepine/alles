@@ -71,9 +71,9 @@ def setup_patch(p):
 
         print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
         if(freq>=0):
-            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_LINEAR,bp0=opbp, bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR, amp=op["opamp"], detune=op["detunehz"])
+            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL,bp0=opbp, bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_TRUE_EXPONENTIAL, amp=op["opamp"], detune=op["detunehz"])
         else:
-            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_LINEAR,bp0=opbp, amp=op["opamp"], detune=op["detunehz"])
+            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL,bp0=opbp, amp=op["opamp"], detune=op["detunehz"])
 
     # Set up the main carrier note
     lfo_target = 0
@@ -94,8 +94,8 @@ def setup_patch(p):
     print("osc 6 (main)  algo %d feedback %f pitchenv %s ampenv %s" % ( p["algo"], p["feedback"], pitchbp, ampbp))
     print("transpose is %d" % (p["transpose"]))
     alles.send(osc=6, wave=alles.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", \
-        bp0=ampbp, bp0_target=alles.TARGET_AMP+alles.TARGET_LINEAR, \
-        bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR)
+        bp0=ampbp, bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL, \
+        bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_TRUE_EXPONENTIAL)
 
 
 
@@ -254,11 +254,15 @@ def decode_patch(p):
             l = EGlevel_to_level(eglevel[i])
             if(i!=3):
                 total_ms = total_ms + ms
+                if(total_ms > alles.ALLES_MAX_DRIFT_MS):
+                    total_ms = alles.ALLES_MAX_DRIFT_MS
                 times[i+1] = total_ms
                 rates[i+1] = l
             else:
                 # Release ms counter happens separately, so don't add
                 times[i+1] = 1000 * EG_seg_time(eglevel[0], eglevel[i], egrate[i])
+                if(times[i+1] > alles.ALLES_MAX_DRIFT_MS):
+                    times[i+1] = alles.ALLES_MAX_DRIFT_MS
                 rates[i+1] = l
         # per dx7 spec, level[0] == level[3]
         rates[0] = rates[4]
@@ -273,15 +277,41 @@ def decode_patch(p):
     def lfo_speed_to_hz(byte):
         #   https://web.archive.org/web/20200920050532/https://www.yamahasynth.com/ask-a-question/generating-specific-lfo-frequencies-on-dx
         # but this is weird, he gives 127 values, and we only get in 99
-        return [0.026, 0.042, 0.084, 0.126, 0.168, 0.210, 0.252, 0.294, 0.336, 0.372, 0.412, 0.456, 0.505, 0.542,
-         0.583, 0.626, 0.673, 0.711, 0.752, 0.795, 0.841, 0.880, 0.921, 0.964, 1.009, 1.049, 1.090, 1.133,
-         1.178, 1.218, 1.259, 1.301, 1.345, 1.386, 1.427, 1.470, 1.514, 1.554, 1.596, 1.638, 1.681, 1.722,
-         1.764, 1.807, 1.851, 1.932, 1.975, 2.018, 2.059, 2.101, 2.143, 2.187, 2.227, 2.269, 2.311, 2.354,
-         2.395,2.437,2.480,2.523,2.564,2.606,2.648,2.691,2.772,2.854,2.940,3.028,3.108,3.191,3.275,3.362,3.444,3.528,
-         3.613,3.701,3.858,4.023,4.194,4.372,4.532,4.698,4.870,5.048,5.206,5.369,5.537,5.711,6.024,6.353,6.701,7.067,
-         7.381,7.709,8.051,8.409,8.727,9.057,9.400,9.756,10.291,10.855,11.450,12.077,12.710,13.376,14.077,14.815,15.440,
-         16.249,17.100,17.476,18.538,19.663,20.857,22.124,23.338,24.620,25.971,27.397,28.902,30.303,31.646,33.003,34.364,
-         37.037,39.682][byte]
+        def linear_expand(count, first, last):
+            ret = []
+            for i in range(count):
+                chop = (last-first) / (count+1)
+                ret.append(first+chop*(i+1))
+            return ret
+
+        # better one, with 99 numbers, from measuring it on a tx802
+        lfo_to_hz = [0]*100
+        # fill in some measured landmarks
+        lfo_to_hz[0] = 0.064
+        lfo_to_hz[1] = 0.18
+        lfo_to_hz[2] = 0.321
+        lfo_to_hz[3] = 0.452
+        lfo_to_hz[4:7] = linear_expand(3, 0.452, 1.15)
+        lfo_to_hz[7] =  1.15
+        lfo_to_hz[8:15] = linear_expand(7, 1.15, 2.43)
+        lfo_to_hz[15] = 2.43
+        lfo_to_hz[16:25] = linear_expand(9, 2.43, 4.06)
+        lfo_to_hz[25] = 4.06
+        lfo_to_hz[26:50] = linear_expand(24, 4.06, 8.13)
+        lfo_to_hz[50] = 8.13
+        lfo_to_hz[51:60] = linear_expand(9, 8.13, 10.31)
+        lfo_to_hz[60] = 10.31
+        lfo_to_hz[61:70] = linear_expand(9, 10.31, 16.39)
+        lfo_to_hz[70] = 16.39
+        lfo_to_hz[71:80] = linear_expand(9, 16.39, 27.00)
+        lfo_to_hz[80] = 27.00
+        lfo_to_hz[81:85] = linear_expand(4, 27, 33.33)
+        lfo_to_hz[85] = 33.33
+        lfo_to_hz[86:90] = linear_expand(4, 33.33, 43.48)
+        lfo_to_hz[90] = 43.48
+        lfo_to_hz[91:99] = linear_expand(8, 43.48, 66)
+        lfo_to_hz[99] = 66 # we didn't / couldn't measure this but let's set this as the end
+        return lfo_to_hz[byte]
 
 
     def lfo_wave(byte):

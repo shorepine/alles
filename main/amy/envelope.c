@@ -43,15 +43,15 @@ extern uint8_t debug_on;
 float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
     // given a breakpoint list, compute the scale
     // we first see how many BPs are defined, and where we are in them?
-    uint8_t exp = 1;
     int8_t found = -1;
     int32_t t1,t0;
     float v1,v0;
     int8_t bp_r = 0;
     t0 = 0; v0 = 1.0;
-    float curve = 3.0;
+    float exponential_rate = 3.0;
     int64_t elapsed = 0;    
-    if(synth[osc].breakpoint_target[bp_set] & TARGET_LINEAR) exp = 0;
+
+
 
     // Find out which one is release (the last one)
     
@@ -85,7 +85,7 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
         int8_t bp_rx = 0;
         t0 = 0; // start the elapsed clock again
         if(found > 0) v0 = synth[osc].breakpoint_values[bp_set][found-1];
-        if(debug_on)printf("elapsed %d noc %d total_samples %d found %d v0 %f bpt %d\n", elapsed, synth[osc].note_off_clock, total_samples, found, v0, synth[osc].breakpoint_times[bp_set][bp_r]);
+        if(debug_on)printf("elapsed %lld noc %lld total_samples %lld found %d v0 %f bpt %d\n", elapsed, synth[osc].note_off_clock, total_samples, found, v0, synth[osc].breakpoint_times[bp_set][bp_r]);
         if(elapsed > synth[osc].breakpoint_times[bp_set][bp_r]) {
 
             // are there multiple bp_sets? only turn off the note if it's the last one
@@ -101,8 +101,9 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
                     }
                 }
             }
-            // OK. partials (et al) need a frame to fade out to avoid clicks. This is in conflict with the breakpoint release, which will set it to the bp end value before the fade out, often 0
-            // so the fadeout never gets to hit. I'm not sure i love this solution, but PARTIAL is such a weird type that i guess having it called out like this is fine.
+            // OK. partials (et al) need a frame to fade out to avoid clicks. This is in conflict with the breakpoint release, 
+            // which will set it to the bp end value before the fade out, often 0 so the fadeout never gets to hit. 
+            // I'm not sure i love this solution, but PARTIAL is such a weird type that i guess having it called out like this is fine.
             if(synth[osc].wave==PARTIAL) return 1;
             synth[osc].status=OFF;
             synth[osc].note_off_clock = -1;
@@ -116,17 +117,28 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
         t0 = synth[osc].breakpoint_times[bp_set][found-1]; 
         v0 = synth[osc].breakpoint_values[bp_set][found-1]; 
     }
+    if(t1 < 0 || v1 < 0) {
+        return 0;
+    }
     // OK, we are transition from v0 to v1 , and we're at elapsed time between t0 and t1
     float time_ratio = 1.0 - ((float)(t1 - elapsed) / (float)(t1-t0));
-    if(exp) {
-        float scale = v0 + ((v1-v0) * (1.0 - expf(-curve*time_ratio)));
-        if(debug_on)printf("[%d,%d] EXP t0 %d v0 %f t1 %d v1 %f elapsed %d tr %f scale %f\n", bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
-        return scale;
-    } else {
+    uint32_t segment_block_index = elapsed  / BLOCK_SIZE;
+    // Compute scale based on which type we have
+    if(synth[osc].breakpoint_target[bp_set] & TARGET_LINEAR) {
         float scale = v0 + ((v1-v0) * time_ratio);
-        if(debug_on)printf("%d [%d,%d] LIN t0 %d v0 %f t1 %d v1 %f elapsed %d tr %f scale %f\n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
+        if(debug_on)printf("%lld [%d,%d] LIN t0 %d v0 %f t1 %d v1 %f elapsed %lld tr %f scale %f\n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
         return scale;
-    }
+    } else if(synth[osc].breakpoint_target[bp_set] & TARGET_TRUE_EXPONENTIAL) {
+        float dx7_exponential_rate = -logf(v1/v0) / ((t1 - t0)/1000.0 * ((float)SAMPLE_RATE/(float)BLOCK_SIZE) );
+        float scale = v0 * expf(-dx7_exponential_rate * segment_block_index); 
+        if(debug_on)printf("%lld [%d,%d] DX7 t0 %d v0 %f t1 %d v1 %f elapsed %lld sbi %d exprate %f scale %f \n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, segment_block_index, dx7_exponential_rate, scale);
+        return scale;
+    } else { // "false exponential?"
+        if(debug_on)printf("target is %d\n",synth[osc].breakpoint_target[bp_set] & TARGET_TRUE_EXPONENTIAL );
+        float scale = v0 + ((v1-v0) * (1.0 - expf(-exponential_rate*time_ratio)));
+        if(debug_on)printf("%lld [%d,%d] EXP t0 %d v0 %f t1 %d v1 %f elapsed %lld tr %f scale %f\n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
+        return scale;
+    } 
 
 }
 
