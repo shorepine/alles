@@ -48,7 +48,7 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
     float v1,v0;
     int8_t bp_r = 0;
     t0 = 0; v0 = 1.0;
-    float curve = 3.0;
+    float exponential_rate = 3.0;
     int64_t elapsed = 0;    
 
 
@@ -117,23 +117,25 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
         t0 = synth[osc].breakpoint_times[bp_set][found-1]; 
         v0 = synth[osc].breakpoint_values[bp_set][found-1]; 
     }
+    if(t1 < 0 || v1 < 0) {
+        return 0;
+    }
     // OK, we are transition from v0 to v1 , and we're at elapsed time between t0 and t1
     float time_ratio = 1.0 - ((float)(t1 - elapsed) / (float)(t1-t0));
-
+    uint32_t segment_block_index = elapsed  / BLOCK_SIZE;
     // Compute scale based on which type we have
     if(synth[osc].breakpoint_target[bp_set] & TARGET_LINEAR) {
         float scale = v0 + ((v1-v0) * time_ratio);
         if(debug_on)printf("%lld [%d,%d] LIN t0 %d v0 %f t1 %d v1 %f elapsed %lld tr %f scale %f\n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
         return scale;
     } else if(synth[osc].breakpoint_target[bp_set] & TARGET_TRUE_EXPONENTIAL) {
-        /*
-            So, it’s just linear at the slopes provided by the R parameters, then exponentiated at the end.  
-            If you work in the units of L, the final exponentiation is 2 ** ((X - 99)/8), 
-            and the slope of X is 8 * (2 ** ((R - 24)/6)) per sec (so 8*(2**((R-24)/(6*F))) for frame rate F per sec).
-        */
-        
+        float dx7_exponential_rate = -logf(v1/v0) / ((t1 - t0)/1000.0 * ((float)SAMPLE_RATE/(float)BLOCK_SIZE) );
+        float scale = v0 * expf(-dx7_exponential_rate * segment_block_index); 
+        if(debug_on)printf("%lld [%d,%d] DX7 t0 %d v0 %f t1 %d v1 %f elapsed %lld sbi %d exprate %f scale %f \n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, segment_block_index, dx7_exponential_rate, scale);
+        return scale;
     } else { // "false exponential?"
-        float scale = v0 + ((v1-v0) * (1.0 - expf(-curve*time_ratio)));
+        if(debug_on)printf("target is %d\n",synth[osc].breakpoint_target[bp_set] & TARGET_TRUE_EXPONENTIAL );
+        float scale = v0 + ((v1-v0) * (1.0 - expf(-exponential_rate*time_ratio)));
         if(debug_on)printf("%lld [%d,%d] EXP t0 %d v0 %f t1 %d v1 %f elapsed %lld tr %f scale %f\n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, time_ratio, scale);
         return scale;
     } 

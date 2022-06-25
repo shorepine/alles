@@ -71,9 +71,9 @@ def setup_patch(p):
 
         print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
         if(freq>=0):
-            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_LINEAR,bp0=opbp, bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR, amp=op["opamp"], detune=op["detunehz"])
+            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL,bp0=opbp, bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_TRUE_EXPONENTIAL, amp=op["opamp"], detune=op["detunehz"])
         else:
-            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_LINEAR,bp0=opbp, amp=op["opamp"], detune=op["detunehz"])
+            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL,bp0=opbp, amp=op["opamp"], detune=op["detunehz"])
 
     # Set up the main carrier note
     lfo_target = 0
@@ -94,8 +94,8 @@ def setup_patch(p):
     print("osc 6 (main)  algo %d feedback %f pitchenv %s ampenv %s" % ( p["algo"], p["feedback"], pitchbp, ampbp))
     print("transpose is %d" % (p["transpose"]))
     alles.send(osc=6, wave=alles.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", \
-        bp0=ampbp, bp0_target=alles.TARGET_AMP+alles.TARGET_LINEAR, \
-        bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR)
+        bp0=ampbp, bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL, \
+        bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_TRUE_EXPONENTIAL)
 
 
 
@@ -254,11 +254,15 @@ def decode_patch(p):
             l = EGlevel_to_level(eglevel[i])
             if(i!=3):
                 total_ms = total_ms + ms
+                if(total_ms > alles.ALLES_MAX_DRIFT_MS):
+                    total_ms = alles.ALLES_MAX_DRIFT_MS
                 times[i+1] = total_ms
                 rates[i+1] = l
             else:
                 # Release ms counter happens separately, so don't add
                 times[i+1] = 1000 * EG_seg_time(eglevel[0], eglevel[i], egrate[i])
+                if(times[i+1] > alles.ALLES_MAX_DRIFT_MS):
+                    times[i+1] = alles.ALLES_MAX_DRIFT_MS
                 rates[i+1] = l
         # per dx7 spec, level[0] == level[3]
         rates[0] = rates[4]

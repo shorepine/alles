@@ -147,7 +147,7 @@ struct event {
     // TODO -- this may be too much for Alles, to have per osc. Could have a fixed stack of EGs that get assigned to oscs, maybe 32 of them 
     int64_t note_on_clock;
     int64_t note_off_clock;
-    int8_t breakpoint_target[MAX_BREAKPOINT_SETS];
+    int16_t breakpoint_target[MAX_BREAKPOINT_SETS];
     int32_t breakpoint_times[MAX_BREAKPOINT_SETS][MAX_BREAKPOINTS];
     float breakpoint_values[MAX_BREAKPOINT_SETS][MAX_BREAKPOINTS];
 

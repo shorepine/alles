@@ -64,6 +64,7 @@ const float *choose_from_lutset(float period, lut_entry *lutset, int16_t *plut_s
 // step == scaled_phase
 // skip == step (scaled_step)
 
+// TODO - A-4 and A-6, chained feedback
 float render_lut_fm_osc(float * buf, float phase, float step, float incoming_amp, float ending_amp, const float* lut, int16_t lut_size, float * mod, float feedback_level, float * last_two) { 
     int lut_mask = lut_size - 1;
     float past0 = last_two[0];
