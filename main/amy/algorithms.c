@@ -143,6 +143,8 @@ void algo_setup_patch(uint8_t osc) {
     synth[osc].mod_target = 0;
     float time_ratio = 1;
     if(synth[osc].ratio >=0 ) time_ratio = synth[osc].ratio;
+    // TODO also set the amp BP to the latest algo_osc release time
+    // TODO make this 0..5 
     for(uint8_t i=0;i<4;i++) {
         synth[osc].breakpoint_values[1][i] = p.pitch_rate[i];
         synth[osc].breakpoint_times[1][i] = ms_to_samples((int)((float)p.pitch_time[i]/time_ratio));
@@ -165,6 +167,7 @@ void algo_setup_patch(uint8_t osc) {
         synth[osc+i+1].ratio = op.freq_ratio;
         synth[osc+i+1].amp = op.amp;
         synth[osc+i+1].breakpoint_target[0] = TARGET_AMP+TARGET_LINEAR;
+        // TODO make this 0..5
         for(uint8_t j=0;j<4;j++) {
             synth[osc+i+1].breakpoint_values[0][j] = op.amp_rate[j];
             synth[osc+i+1].breakpoint_times[0][j] =  ms_to_samples((int)((float)op.amp_time[j]/time_ratio));
@@ -199,18 +202,19 @@ void algo_init() {
 
 
 void render_algo(float * buf, uint8_t osc) { 
-    float scratch[6][BLOCK_SIZE];
+    float scratch[5][BLOCK_SIZE];
 
     struct FmAlgorithm algo = algorithms[synth[osc].algorithm];
 
     // starts at op 6
     float *in_buf, *out_buf;
+
+    // TODO, i think i need at most 2 of these buffers, maybe 3?? 
     zero(scratch[0]);
     zero(scratch[1]);
     zero(scratch[2]);
     zero(scratch[3]);
     zero(scratch[4]);
-    zero(scratch[5]);
     for(uint8_t op=0;op<MAX_ALGO_OPS;op++) {
         if(synth[osc].algo_source[op] >=0 && synth[synth[osc].algo_source[op]].status == IS_ALGO_SOURCE) {
             if(debug_on) {

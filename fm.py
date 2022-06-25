@@ -90,12 +90,12 @@ def setup_patch(p):
         alles.send(osc=7, wave=p["lfowaveform"],freq=p["lfospeed"], amp=lfo_amp)
         alles.send(osc=6,mod_target=lfo_target, mod_source=7)
         print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
+    ampbp = "0,1,%d,1" % (last_release_time)
+    print("osc 6 (main)  algo %d feedback %f pitchenv %s ampenv %s" % ( p["algo"], p["feedback"], pitchbp, ampbp))
+    print("transpose is %d" % (p["transpose"]))
+    alles.send(osc=6, wave=alles.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", \
         bp0=ampbp, bp0_target=alles.TARGET_AMP+alles.TARGET_LINEAR, \
         bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR)
-    ampbp = "0,1,%d,1" % (last_release_time)
-    print("osc 6 (main)  algo %d feedback %f pitchenv %s ampenv %s" % ( p["algo"], p["feedback"], pitchbp, ampbp))       
-    print("transpose is %d" % (p["transpose"]))
-    alles.send(osc=6, wave=alles.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_LINEAR)
 
 
 
