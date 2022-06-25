@@ -437,7 +437,7 @@ def play_patch(patch, midinote=50, length_s = 2, keyup_s = 1):
     alles.send(osc=6,vel=0,timestamp=alles.millis() + (length_s-keyup_s)*1000)
     # Catch up to latency
     time.sleep(length_s + alles.ALLES_LATENCY_MS/1000)
-    
+
     # Render Ralph
     print("MSFA:")
     them_samples = dx7_render(dx7_patch, midinote, 90, int(length_s*alles.SAMPLE_RATE),int(keyup_s*alles.SAMPLE_RATE))
