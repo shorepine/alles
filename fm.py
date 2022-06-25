@@ -66,13 +66,15 @@ def setup_patch(p):
 
         bp_rates, bp_times = op["bp_opamp_rates"], op["bp_opamp_times"]
         opbp = "%d,%f,%d,%f,%d,%f,%d,%f,%d,%f" % (
-            bp_times[0], bp_rates[0], bp_times[1], bp_rates[1], bp_times[2], bp_rates[2], bp_times[3], bp_rates[3],bp_times[4], bp_rates[4]
-        )
+            bp_times[0], bp_rates[0], bp_times[1], bp_rates[1], bp_times[2], bp_rates[2], bp_times[3], bp_rates[3],bp_times[4], bp_rates[4])
+        opbpfmt = "%d,%.3f/%d,%.3f/%d,%.3f/%d,%.3f/%d,%.3f" % (
+            bp_times[0], bp_rates[0], bp_times[1], bp_rates[1], bp_times[2], bp_rates[2], bp_times[3], bp_rates[3],bp_times[4], bp_rates[4])
         if(bp_times[4] > last_release_time):
             last_release_time = bp_times[4]
             last_release_value = bp_rates[4]
 
-        print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
+        #print("osc %d (op %d) freq %.1f ratio %.3f beta-bp %s pitch-bp %s beta %.3f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
+        print("osc %d (op %d) freq %.1f ratio %.3f beta-bp %s amp %.3f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbpfmt, op["opamp"], op["detunehz"]))
         if(freq>=0):
             alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL,bp0=opbp, bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_TRUE_EXPONENTIAL, amp=op["opamp"], detune=op["detunehz"])
         else:
@@ -87,7 +89,7 @@ def setup_patch(p):
             lfo_amp = output_level_to_amp(p.get("lfoampmoddepth",0))
         else:
             lfo_target=alles.TARGET_FREQ
-            lfo_amp = output_level_to_amp(p.get("lfopitchmoddepth",0))
+            lfo_amp = output_level_to_amp((p.get("pitchmodsens", 0) / 7) * p.get("lfopitchmoddepth",0))
 
     if(lfo_target>0):
         alles.send(osc=7, wave=p["lfowaveform"],freq=p["lfospeed"], amp=lfo_amp)
@@ -101,37 +103,10 @@ def setup_patch(p):
         bp0=ampbp, bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL, \
         bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_TRUE_EXPONENTIAL)
 
-
-
 def output_level_to_amp(byte):
-    # Sure could be a exp curve but seems a bit custom
-    # https://i.stack.imgur.com/1FQqR.jpg
-    """
-    From Dan:
-        When doing phase modulation in LUTs, there’s the factor of lut_size (the difference between 
-        phase and scaled_phase).  So 0.2 in the “phase” domain becomes 51.2 if we scale it up for a 256 pt LUT
-    """
-    if(byte<20): return 0
-    if(byte<40): return 0.1/14
-    if(byte<50): return 0.25/14
-    if(byte<60): return 0.5/14
-    if(byte<70): return 1.2/14
-    if(byte<80): return 2.75/14
-    if(byte<85): return 4./14
-    if(byte<90): return 6./14
-    if(byte<88): return 6.05/14
-    if(byte<89): return 6.1/14
-    if(byte<90): return 6.2/14
-    if(byte<91): return 6.5/14
-    if(byte<92): return 7./14
-    if(byte<93): return 8./14
-    if(byte<94): return 9./14
-    if(byte<95): return 9.5/14
-    if(byte<96): return 10./14
-    if(byte<97): return 11./14
-    if(byte<98): return 12.5/14
-    if(byte<99): return 13./14
-    return 1.0
+    """Convert 0-99 log-scale DX7 level into a real value."""
+    # Same as eglevel_to_level.
+    return 2 ** ((byte - 99) / 8)
 
 def get_patch(patch_number):
     # returns a patch (as in patches.h) from 
@@ -253,7 +228,8 @@ def decode_patch(p):
         total_ms = 0
         last_L = eglevel[-1]
         for i in range(4):
-            ms = 1000 * EG_seg_time(last_L, eglevel[i], egrate[i])
+            # Segment 0 (attack) is a special case, it's 4x faster (24 steps higher).
+            ms = 1000 * EG_seg_time(last_L, eglevel[i], egrate[i] + 24 * (i==0))
             last_L = eglevel[i]
             l = EGlevel_to_level(eglevel[i])
             if(i!=3):
