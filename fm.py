@@ -54,6 +54,7 @@ def setup_patch(p):
     )
     # Set up each operator
     last_release_time = 0
+    last_release_value = 0
     for i,op in enumerate(p["ops"]):
         freq_ratio = -1
         freq = -1
@@ -62,12 +63,14 @@ def setup_patch(p):
             freq = op["fixedhz"]
         else:
             freq_ratio = op["ratio"]
+
         bp_rates, bp_times = op["bp_opamp_rates"], op["bp_opamp_times"]
         opbp = "%d,%f,%d,%f,%d,%f,%d,%f,%d,%f" % (
             bp_times[0], bp_rates[0], bp_times[1], bp_rates[1], bp_times[2], bp_rates[2], bp_times[3], bp_rates[3],bp_times[4], bp_rates[4]
         )
         if(bp_times[4] > last_release_time):
             last_release_time = bp_times[4]
+            last_release_value = bp_rates[4]
 
         print("osc %d (op %d) freq %f ratio %f beta-bp %s pitch-bp %s beta %f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
         if(freq>=0):
@@ -90,7 +93,8 @@ def setup_patch(p):
         alles.send(osc=7, wave=p["lfowaveform"],freq=p["lfospeed"], amp=lfo_amp)
         alles.send(osc=6,mod_target=lfo_target, mod_source=7)
         print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
-    ampbp = "0,1,%d,1" % (last_release_time)
+
+    ampbp = "0,1,%d,%f" % (last_release_time, last_release_value)
     print("osc 6 (main)  algo %d feedback %f pitchenv %s ampenv %s" % ( p["algo"], p["feedback"], pitchbp, ampbp))
     print("transpose is %d" % (p["transpose"]))
     alles.send(osc=6, wave=alles.ALGO, algorithm=p["algo"], feedback=p["feedback"], algo_source="0,1,2,3,4,5", \
@@ -254,13 +258,12 @@ def decode_patch(p):
             l = EGlevel_to_level(eglevel[i])
             if(i!=3):
                 total_ms = total_ms + ms
-                if(total_ms > alles.ALLES_MAX_DRIFT_MS):
-                    total_ms = alles.ALLES_MAX_DRIFT_MS
                 times[i+1] = total_ms
                 rates[i+1] = l
             else:
                 # Release ms counter happens separately, so don't add
                 times[i+1] = 1000 * EG_seg_time(eglevel[0], eglevel[i], egrate[i])
+                # Chop the release at ALLES_MAX_DRIFT 
                 if(times[i+1] > alles.ALLES_MAX_DRIFT_MS):
                     times[i+1] = alles.ALLES_MAX_DRIFT_MS
                 rates[i+1] = l
