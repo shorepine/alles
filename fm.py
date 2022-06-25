@@ -75,10 +75,14 @@ def setup_patch(p):
 
         #print("osc %d (op %d) freq %.1f ratio %.3f beta-bp %s pitch-bp %s beta %.3f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbp, pitchbp, op["opamp"], op["detunehz"]))
         print("osc %d (op %d) freq %.1f ratio %.3f beta-bp %s amp %.3f detune %d" % (i, (i-6)*-1, freq, freq_ratio, opbpfmt, op["opamp"], op["detunehz"]))
+        print("not used: amp mod sens %d " % (  op["ampmodsens"] ))
+
         if(freq>=0):
-            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL,bp0=opbp, bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_TRUE_EXPONENTIAL, amp=op["opamp"], detune=op["detunehz"])
+            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL,\
+                bp0=opbp, bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_TRUE_EXPONENTIAL, amp=op["opamp"], detune=op["detunehz"])
         else:
-            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL,bp0=opbp, amp=op["opamp"], detune=op["detunehz"])
+            alles.send(osc=i, freq=freq, ratio=freq_ratio,bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL,\
+                bp0=opbp, amp=op["opamp"], detune=op["detunehz"])
 
     # Set up the main carrier note
     lfo_target = 0
@@ -87,15 +91,19 @@ def setup_patch(p):
         if(p.get("lfoampmoddepth",0) >= p.get("lfopitchmoddepth",0)):
             lfo_target=alles.TARGET_AMP
             lfo_amp = output_level_to_amp(p.get("lfoampmoddepth",0))
+            if(p.get("lfopitchmoddepth",0)>0):
+                print("not used: lfo pitch mod depth %d" % (p["lfopitchmoddepth"]))
         else:
             lfo_target=alles.TARGET_FREQ
             lfo_amp = output_level_to_amp((p.get("pitchmodsens", 0) / 7) * p.get("lfopitchmoddepth",0))
+            if(p.get("lfoampmoddepth",0)>0):
+                print("not used: lfo amp mod depth %d" % (p["lfoampmoddepth"]))
 
     if(lfo_target>0):
         alles.send(osc=7, wave=p["lfowaveform"],freq=p["lfospeed"], amp=lfo_amp)
         alles.send(osc=6,mod_target=lfo_target, mod_source=7)
         print("osc 7 lfo wave %d freq %f amp %f target %d" % (p["lfowaveform"],p["lfospeed"], lfo_amp, lfo_target))
-
+        print("not used: lfo sync %d lfo delay %d lfo pitch mod depth %d" % (p["lfosync"], p["lfodelay"], p["lfopitchmoddepth"]))
     ampbp = "0,1,%d,%f" % (last_release_time, last_release_value)
     print("osc 6 (main)  algo %d feedback %f pitchenv %s ampenv %s" % ( p["algo"], p["feedback"], pitchbp, ampbp))
     print("transpose is %d" % (p["transpose"]))
@@ -350,7 +358,7 @@ def decode_patch(p):
 
     (patch["bp_pitch_rates"], patch["bp_pitch_times"]) = (
         eg_to_bp_pitch(patchstruct["pitch_rate"], patchstruct["pitch_level"]))
-    patch["algo"] = patchstruct["algo"] - 1
+    patch["algo"] = patchstruct["algo"] 
     # Empirically matched by ear.
     patch["feedback"] = 0.00125 * (2 ** patchstruct["feedback"])
     patch["oscsync"] = patchstruct["oscsync"]
@@ -396,7 +404,7 @@ def dx7_render(patch, midinote, velocity, samples, keyup_sample):
 
 
 # Play our version vs the MSFA version to A/B test
-def play_patch(patch, midinote=50, length_s = 2, keyup_s = 1):
+def play_patch(patch, midinote=50, length_s = 4, keyup_s = 2):
     # You can pass in a patch # (0-31000 or so) or a 156 byte patch, which you can modify
     if(type(patch)==int):
         dx7_patch = bytes(dx7.unpack(patch))
@@ -413,7 +421,8 @@ def play_patch(patch, midinote=50, length_s = 2, keyup_s = 1):
     alles.send(osc=6,vel=0,timestamp=alles.millis() + (length_s-keyup_s)*1000)
     # Catch up to latency
     time.sleep(length_s + alles.ALLES_LATENCY_MS/1000)
-
+    alles.reset()
+    time.sleep(0.5)
     # Render Ralph
     print("MSFA:")
     them_samples = dx7_render(dx7_patch, midinote, 90, int(length_s*alles.SAMPLE_RATE),int(keyup_s*alles.SAMPLE_RATE))

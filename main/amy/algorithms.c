@@ -38,8 +38,9 @@ enum FmOperatorFlags {
     FB_OUT = 1 << 7
 };
 struct FmAlgorithm { uint8_t ops[MAX_ALGO_OPS]; };
-struct FmAlgorithm algorithms[32] = {
+struct FmAlgorithm algorithms[33] = {
     // 6     5     4     3     2      1   
+    { { 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 } }, // 0 
     { { 0xc1, 0x11, 0x11, 0x14, 0x01, 0x14 } }, // 1
     { { 0x01, 0x11, 0x11, 0x14, 0xc1, 0x14 } }, // 2
     { { 0xc1, 0x11, 0x14, 0x01, 0x11, 0x14 } }, // 3
@@ -218,7 +219,7 @@ void render_algo(float * buf, uint8_t osc) {
     for(uint8_t op=0;op<MAX_ALGO_OPS;op++) {
         if(synth[osc].algo_source[op] >=0 && synth[synth[osc].algo_source[op]].status == IS_ALGO_SOURCE) {
             if(debug_on) {
-                printf("------------------\n");
+                printf("------------------ Algorithm A-%d \n",synth[osc].algorithm );
                 printf("op %d ", 6-op);
                 if(algo.ops[op] & FB_IN) printf(" FB_IN");
                 if(algo.ops[op] & IN_BUS_ONE) printf(" IN_BUS_ONE");

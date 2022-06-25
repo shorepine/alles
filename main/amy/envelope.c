@@ -122,7 +122,6 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
     }
     // OK, we are transition from v0 to v1 , and we're at elapsed time between t0 and t1
     float time_ratio = ((float)(elapsed - t0) / (float)(t1 - t0));
-    uint32_t segment_block_index = elapsed  / BLOCK_SIZE;
     // Compute scale based on which type we have
     if(synth[osc].breakpoint_target[bp_set] & TARGET_LINEAR) {
         float scale = v0 + ((v1-v0) * time_ratio);
