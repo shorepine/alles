@@ -43,6 +43,7 @@ typedef int16_t i2s_sample_type;
 #define CLIP_D 0.1
 #define MAX_RECEIVE_LEN 512  // max length of each message
 #define MAX_VOLUME 11.0
+#define MINIMUM_SCALE 0.000190 // computed from TRUE_EXPONENTIAL's end point after a while 
 
 
 #define LINEAR_INTERP        // use linear interp for oscs
