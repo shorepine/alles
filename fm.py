@@ -266,6 +266,17 @@ def decode_patch(p):
         return (rates, times)
 
     def lfo_speed_to_hz(byte):
+        # Measured values from TX802, linear fit by eye
+        if byte == 0:
+            return 0.064
+        if byte <= 64:
+            return byte / 6.0
+        if byte <= 85:
+            return byte - 64.0 * 5.0/6.0
+        # Byte > 85
+        return 31.67 + (byte - 85.0) * 1.33
+    
+    def lfo_speed_to_hz_old(byte):
         #   https://web.archive.org/web/20200920050532/https://www.yamahasynth.com/ask-a-question/generating-specific-lfo-frequencies-on-dx
         # but this is weird, he gives 127 values, and we only get in 99
         def linear_expand(count, first, last):
