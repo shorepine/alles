@@ -391,6 +391,41 @@ def decode_patch(p):
 
 ##### AB testing / debug stuff here
 
+# Send a message to brian's tx802 and hear it from the live stream
+# do it like
+# import fm
+# fm._token = "thing brian gives you"
+# fm.tx802_patch(fm.get_patch(43)) # or whatever patch data you create
+# fm.tx802_note_on(50)
+# fm.tx802_note_off(50)
+# if it gets stuck, just send tx802_patch again, it'll stop the synth
+
+_token = ""
+def send_to_tx802(message):
+    import uuid, urllib, json
+    room_id="!ETtPRVnMRSWWCmsHQJ:duraflame.rosaline.org"
+    event_type="m.room.message"
+    data={"msgtype":"m.text","body":message}
+    url="https://duraflame.rosaline.org/_matrix/client/v3/rooms/%s/send/%s/%s" % (room_id, event_type, str(uuid.uuid4()))
+    r=urllib.request.Request(url, data=bytes(json.dumps(data).encode('utf-8')), method='PUT')
+    r.add_header('Authorization',"Bearer %s" %(_token))
+    urllib.request.urlopen(r)
+
+def tx802_note_on(note_number):
+    import base64
+    send_to_tx802("noteon " + str(note_number) + " " + base64.b64encode(b"nothing").decode('ascii'))
+
+def tx802_note_off(note_number):
+    import base64
+    send_to_tx802("noteoff " + str(note_number) + " " + base64.b64encode(b"nothing").decode('ascii'))
+
+def tx802_patch(patch_data):
+    import base64
+    # fm.get_patch() now returns 156 bytes, not 155, because of the live operator on/off byte i guess... strip it
+    if(len(patch_data)==156):
+        patch_data = patch_data[:-1]
+    send_to_tx802("patch " + str(0) + " " + base64.b64encode(patch_data).decode('ascii'))
+
 
 # Play a numpy array on a mac without having to use an external library
 def play_np_array(np_array, samplerate=alles.SAMPLE_RATE):
