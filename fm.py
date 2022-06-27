@@ -80,7 +80,7 @@ def setup_patch(p):
             (i, (i-6)*-1, freq, freq_ratio, opbpfmt, op["opamp"], op["detunehz"], op["ampmodsens"]))
 
         args = {"osc":i, "freq":freq, "ratio": freq_ratio, "bp0_target":alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL, "bp0":opbp, \
-            "amp":op["opamp"],"detune":op["detunehz"]}
+                "amp":op["opamp"],"detune":op["detunehz"],"phase":0.25}  # Make them all in cosine phase, to be like DX7.  Important for slow oscs
 
         if(op["ampmodsens"] > 0):
             # TODO: we ignore intensity of amp mod sens, just on/off
@@ -212,6 +212,58 @@ def repack_patch(patch):
     bytestream.extend(ord(c) for c in patch["name"])
     return bytes(bytestream)
 
+def dx7level_to_linear(dx7level):
+    """Map the dx7 0..99 levels to linear amplitude."""
+    return 2 ** ((dx7level - 99)/8)
+
+def linear_to_dx7level(linear):
+    """Map a linear amplitude to the dx7 0..99 scale."""
+    return np.log2(np.maximum(dx7level_to_linear(0), linear)) * 8 + 99
+    
+def calc_loglin_eg_breakpoints(rates, levels):
+    """Convert the DX7 rates/levels into (time, target) pairs (for alles)"""
+    # This is the part we precompute in fm.py to get breakpoints to send to alles.
+    current_level = 0 # it seems, not levels[-1]
+    cumulated_time = 0
+    breakpoints = [(cumulated_time, current_level)]
+
+    MIN_LEVEL = 34
+    ATTACK_RANGE = 75
+
+    def level_to_time(level, t_const):
+        """Return the time at which a paradigmatic DX7 attack envelope will reach a level (0..99 range)"""
+        # Return the t0 that solves level = MIN_LEVEL + ATTACK_RANGE * (1 - exp(-t0 / t_const))
+        return -t_const * np.log((MIN_LEVEL + ATTACK_RANGE - np.maximum(MIN_LEVEL, level))/ATTACK_RANGE)
+
+    for segment, (rate, target_level) in enumerate(zip(rates, levels)):
+        if target_level > current_level:   # Attack segment
+            # The attack envelopes L(t) appear to be ~ 34 + 75 * (1 - exp(t / t_const)), starting from L = 34
+            # i.e. they are rising exponentials (as in analog ADSR, but here in the log(amp) domain) 
+            # with an asymptote at 109 (i.e., 10 higher than the highest possible amp).
+            # The time constant depends on the R (rate) parameter, and is well fit by:
+            t_const = 0.008 * (2 ** ((65 - rate)/6))
+            # Total time for this segment is t1 - t0 where t0 and t1 solve
+            # effective_start = 34 + 75 * (1 - np.exp(-t0 / t_const)) = 109 - 75 exp(-t0 / t_c)
+            # target_level = 34 + 75 * (1 - np.exp(-t1 / t_const)) = 109 - 75 exp(-t1 / t_c)
+            # so t1 - t0 = -t_c * [log((34 + 75 - target_level)/75) - log((34 + 75 - effective_start)/75)]
+            effective_start_level = np.maximum(current_level, MIN_LEVEL)
+            t0 = level_to_time(effective_start_level, t_const)
+            segment_duration = level_to_time(target_level, t_const) - t0
+            #print("eff_st=", effective_start_level, "t_c=", t_const, "t0=", t0, "dur=", segment_duration)
+            # Now alles's task will be to recover t0 and t_const from (time, target) pairs
+        else:
+            # Decay segment.
+            # "A falling segment takes 3.5 mins"
+            # so delta = 99 in 210 seconds -> level_change_per_sec =  0.5
+            # I think just offset everything by 0.5, avoids div0.          
+            level_change_per_sec = -0.5 - 8 * (2 ** ((rate - 24) / 6))
+            segment_duration = (target_level - current_level) / level_change_per_sec
+            #print("lcps=", level_change_per_sec, "dur=", segment_duration)
+        cumulated_time += segment_duration
+        breakpoints.append((cumulated_time, dx7level_to_linear(target_level)))
+        current_level = target_level
+    return breakpoints
+
 # Given a patch byte stream, return a json object that describes it
 def decode_patch(p):
     def EGlevel_to_level(eglevel):
@@ -227,6 +279,15 @@ def decode_patch(p):
         return doublings / doublings_per_sec
 
     def eg_to_bp(egrate, eglevel):
+        breakpoints = calc_loglin_eg_breakpoints(egrate, eglevel)
+        rates = []
+        times = []
+        for time, level in breakpoints:
+            times.append(int(1000 * time))
+            rates.append(level)
+        return rates, times
+    
+    def eg_to_bp_orig(egrate, eglevel):
         # http://www.audiocentralmagazine.com/wp-content/uploads/2012/04/dx7-envelope.png
         # or https://yamahasynth.com/images/RefaceSynthBasics/EG_RatesLevels.png
         # rate seems to be "speed", so higher rate == less time
@@ -241,7 +302,7 @@ def decode_patch(p):
         last_L = eglevel[-1]
         for i in range(4):
             # Segment 0 (attack) is a special case, it's 4x faster (24 steps higher).
-            ms = 1000 * EG_seg_time(last_L, eglevel[i], egrate[i] + 24 * (i==0))
+            ms = 1000 * EG_seg_time(last_L, eglevel[i], egrate[i] + 12*(i==0))
             last_L = eglevel[i]
             l = EGlevel_to_level(eglevel[i])
             if(i!=3):
@@ -260,7 +321,7 @@ def decode_patch(p):
         return (rates, times)
 
     def eg_to_bp_pitch(egrate, eglevel):
-        rates, times = eg_to_bp(egrate, eglevel)
+        rates, times = eg_to_bp_orig(egrate, eglevel)
         for i in range(len(rates)):
           rates[i] /= 0.014328
         return (rates, times)
@@ -362,7 +423,8 @@ def decode_patch(p):
         op["kbdratescaling"] = opstruct["kbdratescaling"]
         op["ampmodsens"] = opstruct["ampmodsens"]
         op["keyvelsens"] = opstruct["keyvelsens"]
-        op["opamp"] = output_level_to_amp(opstruct["opamp"])
+        # DX7 operators output -2..2 (i.e., as phase modulators they can shift +/- 2 cycles)
+        op["opamp"] = 2 * output_level_to_amp(opstruct["opamp"])
         if(opstruct["tuning"] == "fixed"):
             op["fixedhz"] = coarse_fine_fixed_hz(opstruct["coarse"], opstruct["fine"])
         else:
