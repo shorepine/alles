@@ -135,7 +135,7 @@ There's a lot more parameters and things to play with. Check out the [Alles READ
 # alles.message():
 (osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, bp0="", bp1="", bp2="", bp0_target=-1, bp1_target=-1, bp2_target=-1, mod_target=-1, \
-        debug=-1, mod_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, detune = -1, algo_source=None)
+        debug=-1, mod_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, algo_source=None)
 ```
 
 `alles.py` has some helpful presets, if you want to use them, or add to them. To make that filter bass, just do `alles.preset(1, osc=0)` and then `alles.send(osc=0, vel=1, note=40)` to hear it. Here's another one:

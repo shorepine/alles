@@ -99,7 +99,6 @@ s = sync, int64, same as time but used alone to do an enumeration / sync, see al
 S = reset oscillator, uint 0-63 or for all oscillators, anything >63, which also resets speaker gain and EQ.
 T = breakpoint0 target mask. Which parameter the breakpoints controls. 1=amp, 2=duty, 4=freq, 8=filter freq, 16=resonance, 32=feedback. Can handle any combo, add them together. Add 64 to indicate linear ramp, otherwise exponential
 t = time, int64: ms since some fixed start point on your host. you should always give this if you can.
-u = detune, in hertz, for partials and algorithm types, to apply after the ratio 
 v = oscillator, uint, 0 to 63. default: 0
 V = volume, float 0 to about 10 in practice. volume knob for the entire synth / speaker. default 1.0
 w = waveform, uint: [0=SINE, PULSE, SAW_DOWN, SAW_UP, TRIANGLE, NOISE, KS, PCM, ALGO, PARTIAL, PARTIALS, OFF]. default: 0/SINE
@@ -144,7 +143,7 @@ alles.send(osc=0, note=50, vel=1.5) # note on
 # alles.message():
 (osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, bp0="", bp1="", bp2="", bp0_target=-1, bp1_target=-1, bp2_target=-1, mod_target=-1, \
-        debug=-1, mod_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, detune = -1, algo_source=None)
+        debug=-1, mod_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, algo_source=None)
 ```
 
 To see more examples, check out our brand new [Getting Started](https://github.com/bwhitman/alles/tree/main/getting-started.md) page.
@@ -275,7 +274,7 @@ alles.send(osc=2,algorithm=0,wave=alles.ALGO,algo_source="-1,-1,-1,-1,0,1")
 
 ![DX7 Algorithms](https://raw.githubusercontent.com/bwhitman/alles/main/pics/dx7_algorithms.jpg)
 
-When building your own algorithm sets, assign a separate oscillator as wave=`ALGO`, but the source oscillators as `SINE`. The algorithm #s are borrowed from the DX7. You don't have to use all 6 operators, any operators specified as `-1` will be ignored. Note that the `algo_source` parameter counts backwards from operator 6. When building operators, they can have their frequencies specified directly with `freq` or as a ratio of the root `ALGO` oscillator via `ratio`. Each operator can have a `detune` parameter if using frequency ratios. 
+When building your own algorithm sets, assign a separate oscillator as wave=`ALGO`, but the source oscillators as `SINE`. The algorithm #s are borrowed from the DX7. You don't have to use all 6 operators, any operators specified as `-1` will be ignored. Note that the `algo_source` parameter counts backwards from operator 6. When building operators, they can have their frequencies specified directly with `freq` or as a ratio of the root `ALGO` oscillator via `ratio`.
 
 ## Partials
 

@@ -77,7 +77,7 @@ def setup_patch(p):
             last_release_value = bp_rates[4]
 
         print("osc %d (op %d) freq %.1f ratio %.3f beta-bp %s amp %.3f amp_mod %d" % \
-            (i, (i-6)*-1, freq, freq_ratio, opbpfmt, op["opamp"], p["ampmodsens"]))
+            (i, (i-6)*-1, freq, freq_ratio, opbpfmt, op["opamp"], op["ampmodsens"]))
 
         args = {"osc":i, "freq":freq, "ratio": freq_ratio, "bp0_target":alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL, "bp0":opbp, \
                 "amp":op["opamp"],"phase":0.25}  # Make them all in cosine phase, to be like DX7.  Important for slow oscs
@@ -396,7 +396,7 @@ def decode_patch(p):
 
     def coarse_fine_fixed_hz(coarse, fine, detune=7):
         coarse = coarse & 3
-        return 10 ** (coarse + (fine + ((detune - 7) / 8)) / 100 + )
+        return 10 ** (coarse + (fine + ((detune - 7) / 8)) / 100 )
     
     def coarse_fine_ratio(coarse, fine, detune=7):
         coarse = coarse & 31

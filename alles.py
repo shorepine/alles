@@ -85,7 +85,7 @@ def trunc(number):
 # Construct an AMY message
 def message(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, bp0="", bp1="", bp2="", bp0_target=-1, bp1_target=-1, bp2_target=-1, mod_target=-1, \
-        debug=-1, mod_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, detune = -1, algo_source=None):
+        debug=-1, mod_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, algo_source=None):
 
     m = ""
     if(timestamp is None): timestamp = millis()
@@ -98,7 +98,6 @@ def message(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1,
     if(note>=0): m = m + "n" + trunc(note)
     if(patch>=0): m = m + "p" + trunc(patch)
     if(phase>=0): m = m + "P" + trunc(phase)
-    if(detune>=0): m = m + "u" + trunc(detune)
     if(client>=0): m = m + "c" + trunc(client)
     if(amp>=0): m = m + "a" + trunc(amp)
     if(vel>=0): m = m + "l" + trunc(vel)

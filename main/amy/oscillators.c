@@ -355,7 +355,6 @@ void fm_sine_note_on(uint8_t osc, uint8_t algo_osc) {
     if(synth[osc].ratio >= 0) {
         msynth[osc].freq = (msynth[algo_osc].freq * synth[osc].ratio);
     }
-    msynth[osc].freq += synth[osc].detune - 7.0;
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lut = choose_from_lutset(period_samples, sine_lutset, &synth[osc].lut_size);
 }
@@ -364,9 +363,6 @@ void render_fm_sine(float *buf, uint8_t osc, float *mod, float feedback_level, u
     if(synth[osc].ratio >= 0) {
         msynth[osc].freq = msynth[algo_osc].freq * synth[osc].ratio;
     }
-    // from https://github.com/google/music-synthesizer-for-android/blob/f67d41d313b7dc85f6fb99e79e515cc9d208cfff/app/src/main/jni/dx7note.cc#L54
-    // "This was measured at 7.213Hz per count at 9600Hz"
-    msynth[osc].freq *= (1 + 0.00075 * (synth[osc].detune - 7.0));
     float step = msynth[osc].freq / (float)SAMPLE_RATE;
     float amp = msynth[osc].amp;
     synth[osc].phase = render_lut_fm_osc(buf, synth[osc].phase, step, synth[osc].last_amp, amp, 

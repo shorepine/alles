@@ -96,7 +96,6 @@ struct event default_event() {
     e.midi_note = -1;
     e.amp = -1; 
     e.freq = -1;
-    e.detune = -1;
     e.volume = -1;
     e.ratio = -1;
     e.filter_freq = -1;
@@ -184,7 +183,6 @@ void add_event(struct event e) {
     if(e.feedback>-1) { d.param=FEEDBACK; d.data = *(uint32_t *)&e.feedback; add_delta_to_queue(d); }
     if(e.freq>-1) { d.param=FREQ; d.data = *(uint32_t *)&e.freq; add_delta_to_queue(d); }
     if(e.phase>-1) { d.param=PHASE; d.data = *(uint32_t *)&e.phase; add_delta_to_queue(d); }
-    if(e.detune>-1) { d.param=DETUNE; d.data = *(uint32_t *)&e.detune; add_delta_to_queue(d); }
     if(e.volume>-1) { d.param=VOLUME; d.data = *(uint32_t *)&e.volume; add_delta_to_queue(d); }
     if(e.ratio>-1) { d.param=RATIO; d.data = *(uint32_t *)&e.ratio; add_delta_to_queue(d); }
     if(e.filter_freq>-1) { d.param=FILTER_FREQ; d.data = *(uint32_t *)&e.filter_freq; add_delta_to_queue(d); }
@@ -231,7 +229,6 @@ void reset_osc(uint8_t i ) {
     synth[i].amp = 1;
     msynth[i].amp = 1;
     synth[i].phase = 0;
-    synth[i].detune = 7;
     synth[i].volume = 0;
     synth[i].eq_l = 0;
     synth[i].eq_m = 0;
@@ -339,9 +336,9 @@ void show_debug(uint8_t type) {
         printf("global: volume %f eq: %f %f %f \n", global.volume, global.eq[0], global.eq[1], global.eq[2]);
         //printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
         for(uint8_t i=0;i<OSCS;i++) {
-            printf("osc %d: status %d amp %f wave %d freq %f duty %f mod_target %d mod source %d velocity %f filter_freq %f ratio %f feedback %f resonance %f step %f algo %d detune %f source %d,%d,%d,%d,%d,%d  \n",
+            printf("osc %d: status %d amp %f wave %d freq %f duty %f mod_target %d mod source %d velocity %f filter_freq %f ratio %f feedback %f resonance %f step %f algo %d source %d,%d,%d,%d,%d,%d  \n",
                 i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].mod_target, synth[i].mod_source, 
-                synth[i].velocity, synth[i].filter_freq, synth[i].ratio, synth[i].feedback, synth[i].resonance, synth[i].step, synth[i].algorithm, synth[i].detune,
+                synth[i].velocity, synth[i].filter_freq, synth[i].ratio, synth[i].feedback, synth[i].resonance, synth[i].step, synth[i].algorithm,
                 synth[i].algo_source[0], synth[i].algo_source[1], synth[i].algo_source[2], synth[i].algo_source[3], synth[i].algo_source[4], synth[i].algo_source[5] );
             if(type>3) { 
                 for(uint8_t j=0;j<MAX_BREAKPOINT_SETS;j++) {
@@ -382,7 +379,6 @@ void play_event(struct delta d) {
     if(d.param == MIDI_NOTE) { synth[d.osc].midi_note = *(uint16_t *)&d.data; synth[d.osc].freq = freq_for_midi_note(*(uint16_t *)&d.data); } 
     if(d.param == WAVE) synth[d.osc].wave = *(int16_t *)&d.data; 
     if(d.param == PHASE) synth[d.osc].phase = *(float *)&d.data;
-    if(d.param == DETUNE) synth[d.osc].detune = *(float *)&d.data; 
     if(d.param == PATCH) synth[d.osc].patch = *(int16_t *)&d.data;
     if(d.param == DUTY) synth[d.osc].duty = *(float *)&d.data;
     if(d.param == FEEDBACK) synth[d.osc].feedback = *(float *)&d.data;
@@ -964,7 +960,6 @@ void parse_task() {
                 if(osc > OSCS-1) { reset_oscs(); } else { reset_osc(osc); }
             }
             if(mode=='T') e.breakpoint_target[0] = atoi(message + start); 
-            if(mode=='u') e.detune=atof(message + start);
             if(mode=='W') e.breakpoint_target[1] = atoi(message + start); 
             if(mode=='v') e.osc=(atoi(message + start) % OSCS); // allow osc wraparound
             if(mode=='V') {  e.volume = atof(message + start); }
