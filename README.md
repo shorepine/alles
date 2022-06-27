@@ -25,7 +25,7 @@ Each individual synthesizer supports:
    * noise
    * PCM, reading from a baked-in buffer of percussive and misc samples
    * karplus-strong string with adjustable feedback (can have up to 2 per synth)
-   * An operator / algorithm-based frequency modulation synth, similar to a DX7
+   * An operator / algorithm-based frequency modulation synth, very close to a DX7
  * Up to 32 biquad low-pass, bandpass or hi-pass filters with cutoff and resonance, can be assigned to any oscillator
  * An additive partial synthesizer with an analysis front end to play back long strings of breakpoint-based sine waves 
  * Oscillators can be specified by frequency in floating point or midi note 
@@ -90,7 +90,7 @@ I = ratio. for ALGO types, where the base note frequency controls the modulators
 L = modulation source oscillator. 0-63. Which oscillator is used as an modulation/LFO source for this oscillator. Source oscillator will be silent. 
 l = velocity (amplitude), float 0-1+, >0 to trigger note on, 0 to trigger note off.  
 n = midinote, uint, 0-127 (this will also set f). default 0
-o = algorithm, choose which algorithm for the ALGO type, uint, 0-31. mirrors DX7 algorithms (-1)
+o = algorithm, choose which algorithm for the ALGO type, uint, 1-32. mirrors DX7 algorithms 
 O = algorithn source oscillators, choose which oscillators make up the algorithm oscillator, like "0,1,2,3,4,5" for algorithm 0
 p = patch, uint, choose a preloaded PCM sample, partial patch or FM patch number for FM waveforms. See fm.h, pcm.h, partials.h. default 0
 P = phase, float 0-1. where in the oscillator's cycle to start sampling from (also works on the PCM buffer). default 0
@@ -264,7 +264,7 @@ You can set a completely separate breakpoints using the second and third breakpo
 
 ## FM & ALGO type
 
-Alles has a DX7-like algorithm generator that can have oscillator frequency modulate other oscillators, including feedback. Use wave type `ALGO`. You can use one of our 201 presets with the `patch` parameter, or build your own combination of oscillators. For example:
+Alles has a DX7-style algorithm generator that can have oscillator frequency modulate other oscillators, including feedback. Use wave type `ALGO`. You can use one of our 201 presets with the `patch` parameter, or build your own combination of oscillators. For example:
 
 ```python
 alles.reset()
@@ -275,7 +275,7 @@ alles.send(osc=2,algorithm=0,wave=alles.ALGO,algo_source="-1,-1,-1,-1,0,1")
 
 ![DX7 Algorithms](https://raw.githubusercontent.com/bwhitman/alles/main/pics/dx7_algorithms.jpg)
 
-When building your own algorithm sets, assign a separate oscillator as wave=`ALGO`, but the source oscillators as `SINE`. The algorithm #s are borrowed from the DX7, but 0-indexed (so #1 here is our #0.) You don't have to use all 6 operators, any operators specified as `-1` will be ignored. Note that the `algo_source` parameter counts backwards from operator 6. When building operators, they can have their frequencies specified directly with `freq` or as a ratio of the root `ALGO` oscillator via `ratio`. Each operator can have a `detune` parameter if using frequency ratios. 
+When building your own algorithm sets, assign a separate oscillator as wave=`ALGO`, but the source oscillators as `SINE`. The algorithm #s are borrowed from the DX7. You don't have to use all 6 operators, any operators specified as `-1` will be ignored. Note that the `algo_source` parameter counts backwards from operator 6. When building operators, they can have their frequencies specified directly with `freq` or as a ratio of the root `ALGO` oscillator via `ratio`. Each operator can have a `detune` parameter if using frequency ratios. 
 
 ## Partials
 
