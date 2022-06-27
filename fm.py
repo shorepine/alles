@@ -76,11 +76,11 @@ def setup_patch(p):
             last_release_time = bp_times[4]
             last_release_value = bp_rates[4]
 
-        print("osc %d (op %d) freq %.1f ratio %.3f beta-bp %s amp %.3f detune %d amp_mod %d" % \
-            (i, (i-6)*-1, freq, freq_ratio, opbpfmt, op["opamp"], op["detunehz"], op["ampmodsens"]))
+        print("osc %d (op %d) freq %.1f ratio %.3f beta-bp %s amp %.3f amp_mod %d" % \
+            (i, (i-6)*-1, freq, freq_ratio, opbpfmt, op["opamp"], p["ampmodsens"]))
 
         args = {"osc":i, "freq":freq, "ratio": freq_ratio, "bp0_target":alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL, "bp0":opbp, \
-                "amp":op["opamp"],"detune":op["detunehz"],"phase":0.25}  # Make them all in cosine phase, to be like DX7.  Important for slow oscs
+                "amp":op["opamp"],"phase":0.25}  # Make them all in cosine phase, to be like DX7.  Important for slow oscs
 
         if(op["ampmodsens"] > 0):
             # TODO: we ignore intensity of amp mod sens, just on/off
@@ -394,15 +394,15 @@ def decode_patch(p):
         if(byte==3): return "+lin"
         return "unknown"
 
-    def coarse_fine_fixed_hz(coarse, fine):
+    def coarse_fine_fixed_hz(coarse, fine, detune=7):
         coarse = coarse & 3
-        return 10 ** (coarse + fine / 100)
+        return 10 ** (coarse + (fine + ((detune - 7) / 8)) / 100 + )
     
-    def coarse_fine_ratio(coarse,fine):
+    def coarse_fine_ratio(coarse, fine, detune=7):
         coarse = coarse & 31
         if(coarse == 0):
             coarse = 0.5
-        return coarse * (1 + fine / 100)
+        return coarse * (1 + (fine + ((detune - 7) / 8)) / 100)
 
     patch = {}
     patchstruct = unpack_patch(bytes(p))
@@ -426,10 +426,9 @@ def decode_patch(p):
         # DX7 operators output -2..2 (i.e., as phase modulators they can shift +/- 2 cycles)
         op["opamp"] = 2 * output_level_to_amp(opstruct["opamp"])
         if(opstruct["tuning"] == "fixed"):
-            op["fixedhz"] = coarse_fine_fixed_hz(opstruct["coarse"], opstruct["fine"])
+            op["fixedhz"] = coarse_fine_fixed_hz(opstruct["coarse"], opstruct["fine"], opstruct["detune"])
         else:
-            op["ratio"] = coarse_fine_ratio(opstruct["coarse"], opstruct["fine"])
-        op["detunehz"] = opstruct["detune"]
+            op["ratio"] = coarse_fine_ratio(opstruct["coarse"], opstruct["fine"], opstruct["detune"])
         ops.append(op)
     patch["ops"] = ops
 
