@@ -351,12 +351,11 @@ Alles comes prebaked with some converted DX7 patches from the [learnFM](https://
 
 * Alles would not be possible without the help of [DAn Ellis](https://research.google/people/DanEllis/), who helped me with most of the oscillator stack, a lot of deep dives into our algorithm synth, and many great ideas / fixes on the ESP32 code.
 * Douglas Repetto
-* [Ralph Levien](https://www.levien.com) for his work on [MSFA](https://github.com/google/music-synthesizer-for-android) which gave us a lot of hints for our FM implementation
+* [Raph Levien](https://www.levien.com) for his work on [MSFA](https://github.com/google/music-synthesizer-for-android) which gave us a lot of hints for our FM implementation
 * mark fell
 * [esp32 WiFi Manager](https://github.com/tonyp7/esp32-wifi-manager)
 * kyle mcdonald 
 * Matt Mets / [Blinkinlabs](https://blinkinlabs.com)
-* [nodemcu-pyflasher](https://github.com/marcelstoer/nodemcu-pyflasher)
 
 
 ## TODO

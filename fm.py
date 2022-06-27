@@ -33,7 +33,7 @@ import time
 >>> import fm
 >>> fm.alles.connect(local_ip='127.0.0.1')
 >>> fm.play_patch(234) # any number up to 31000
-# You should hear Alles play it, then Ralph L play it
+# You should hear Alles play it, then Raph L play it
 # Or, you can grab a patch and modify it
 >>> piano = fm.get_patch(29978)
 >>> piano[134] = 1 # change DX7 algorithm from 5 to 2 
@@ -535,7 +535,7 @@ def play_patch(patch, midinote=50, length_s = 4, keyup_s = 2):
     time.sleep(length_s + alles.ALLES_LATENCY_MS/1000)
     alles.reset()
     time.sleep(0.5)
-    # Render Ralph
+    # Render Raph
     print("MSFA:")
     them_samples = dx7_render(dx7_patch, midinote, 90, int(length_s*alles.SAMPLE_RATE),int(keyup_s*alles.SAMPLE_RATE))
     play_np_array(them_samples)
