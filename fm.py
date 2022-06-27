@@ -379,8 +379,8 @@ def decode_patch(p):
 
     def lfo_wave(byte):
         if(byte == 0): return alles.TRIANGLE
-        if(byte == 1): return alles.TRIANGLE # saw down TODO
-        if(byte == 2): return alles.TRIANGLE # up, TODO 
+        if(byte == 1): return alles.SAW_DOWN 
+        if(byte == 2): return alles.SAW_UP 
         if(byte == 3): return alles.PULSE 
         if(byte == 4): return alles.SINE
         if(byte == 5): return alles.NOISE
