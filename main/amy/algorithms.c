@@ -110,6 +110,7 @@ void render_mod(float *in, float*out, uint8_t osc, float feedback_level, uint8_t
     }
     */
     hold_and_modify(osc);
+
     // out = buf
     // in = mod
     // so render_mod is mod, buf (out)
@@ -264,7 +265,7 @@ void render_algo(float * buf, uint8_t osc) {
                 if(debug_on)printf("op %d out_buf = zerod out s4\n", 6-op);
             }
 
-            if(debug_on)printf("op %d rendering a sine modded with in_buf into out_buf\n", 6-op);
+            if(debug_on)printf("op %d rendering a sine modded with in_buf into out_buf.\n", 6-op);
             render_mod(in_buf, out_buf, synth[osc].algo_source[op], feedback_level, osc);
 
             if(!(algo.ops[op] & OUT_BUS_ADD)) {
@@ -293,7 +294,7 @@ void render_algo(float * buf, uint8_t osc) {
             }
         }
     }
-    if(debug_on)printf("transmitting buf out\n");
+    if(debug_on)printf("transmitting buf out. algo osc %d amp is %f\n", osc, msynth[osc].amp);
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         buf[i] = buf[i] * msynth[osc].amp;
     }

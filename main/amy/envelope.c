@@ -131,6 +131,7 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
         float dx7_exponential_rate = -logf(v1/v0) / (t1 - t0);
         float scale = v0 * expf(-dx7_exponential_rate * (elapsed - t0)); 
         //printf("%lld [%d,%d] DX7 t0 %d v0 %f t1 %d v1 %f elapsed %lld sbi %d exprate %f scale %f \n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, segment_block_index, dx7_exponential_rate, scale);
+        if(isnan(scale)) return 0; // TODO: do better 
         return scale;
     } else { // "false exponential?"
         if(debug_on)printf("target is %d\n",synth[osc].breakpoint_target[bp_set] & TARGET_TRUE_EXPONENTIAL );
