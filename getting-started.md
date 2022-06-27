@@ -72,7 +72,7 @@ Let's set a simple sine wave first
 alles.send(osc=0, wave=alles.SINE, freq=220, amp=1)
 ```
 
-What we're doing here should be pretty straightforward. I'm telling oscillator 0 to be a sine wave at 220Hz and amplitude 1. You can also try `alles.PULSE`, or `alles.SAW`, etc. 
+What we're doing here should be pretty straightforward. I'm telling oscillator 0 to be a sine wave at 220Hz and amplitude 1. You can also try `alles.PULSE`, or `alles.SAW_DOWN`, etc. 
 
 **Why can't you hear anything yet?** It's because you haven't triggered the note on for this oscillator. We accept a parameter called `vel` (velocity) that can turn a note on or off (`vel=0`.) So now that we've set up the oscillator, we just turn it on by `alles.send(osc=0, vel=1)`. Note the oscillator remembers all its state and setup. To turn off the note, just do `alles.send(osc=0, vel=0)`. 
 
@@ -99,14 +99,14 @@ for i in range(16):
 Neat! You can see how simple / powerful it is to have control over lots of oscillators. You have up to 64. Let's make it more interesting. A classic analog tone is the filtered saw wave. Let's make one.
 
 ```python
-alles.send(osc=0,wave=alles.SAW,filter_freq=2500, resonance=5, filter_type=alles.FILTER_LPF)
+alles.send(osc=0,wave=alles.SAW_DOWN,filter_freq=2500, resonance=5, filter_type=alles.FILTER_LPF)
 alles.send(osc=0, vel=1, note=40)
 ```
 
 Sounds nice. But we want that filter freq to go down over time, to make that classic filter sweep tone. Let's use a breakpoint! A breakpoint is a simple list of (time, value) - you can have up to 8 of those pairs, and up to 3 different sets to control different things. They're just like ADSRs, but more powerful. You can control amplitude, frequency, duty cycle, feedback, filter frequence, or resonance with a breakpoint. It gets triggered when the note does. So let's make a breakpoint that turns the filter frequency down from its start at 2500 to 1250 after 100 milliseconds. And when the note goes off, taper the frequency to 0 after 25 millseconds. 
 
 ```python
-alles.send(osc=0,wave=alles.SAW,filter_freq=2500, resonance=5, filter_type=alles.FILTER_LPF)
+alles.send(osc=0,wave=alles.SAW_DOWN,filter_freq=2500, resonance=5, filter_type=alles.FILTER_LPF)
 alles.send(osc=0, bp0="100,0.5,25,0", bp0_target=alles.TARGET_FILTER_FREQ)
 alles.send(osc=0, vel=1, note=40)
 ```
@@ -116,7 +116,7 @@ Great. You can add multiple targets together, for example, if you want a breakpo
 We also have LFOs, which are implemented as one oscillator modulating another. You set the lower-frequency oscillator up, then have it control a parameter of another audible oscillator. Let's make the classic 8-bit duty cycle pulse wave modulation, a favorite: 
 
 ```python
-alles.send(osc=1, wave=alles.SAW, freq=0.5, amp=0.75)
+alles.send(osc=1, wave=alles.SAW_DOWN, freq=0.5, amp=0.75)
 alles.send(osc=0, wave=alles.PULSE, duty=0.5, freq=220, mod_source=1, mod_target=alles.TARGET_DUTY)
 alles.send(osc=0, vel=0.5)
 ```

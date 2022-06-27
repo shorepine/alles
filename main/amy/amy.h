@@ -74,15 +74,16 @@ typedef int16_t i2s_sample_type;
 #define FILTER_NONE 0
 #define SINE 0
 #define PULSE 1
-#define SAW 2
-#define TRIANGLE 3
-#define NOISE 4
-#define KS 5
-#define PCM 6
-#define ALGO 7
-#define PARTIAL 8
-#define PARTIALS 9
-#define OFF 10
+#define SAW_DOWN 2
+#define SAW_UP 3
+#define TRIANGLE 4
+#define NOISE 5
+#define KS 6
+#define PCM 7
+#define ALGO 8
+#define PARTIAL 9
+#define PARTIALS 10
+#define OFF 11
 
 #define EMPTY 0
 #define SCHEDULED 1
@@ -247,7 +248,8 @@ extern void render_ks(float * buf, uint8_t osc);
 extern void render_sine(float * buf, uint8_t osc); 
 extern void render_fm_sine(float *buf, uint8_t osc, float *mod, float feedback_level, uint8_t algo_osc);
 extern void render_pulse(float * buf, uint8_t osc); 
-extern void render_saw(float * buf, uint8_t osc);
+extern void render_saw_down(float * buf, uint8_t osc);
+extern void render_saw_up(float * buf, uint8_t osc);
 extern void render_triangle(float * buf, uint8_t osc); 
 extern void render_noise(float * buf, uint8_t osc); 
 extern void render_pcm(float * buf, uint8_t osc);
@@ -260,7 +262,8 @@ extern void render_partials(float *buf, uint8_t osc);
 extern float compute_mod_pulse(uint8_t osc);
 extern float compute_mod_noise(uint8_t osc);
 extern float compute_mod_sine(uint8_t osc);
-extern float compute_mod_saw(uint8_t osc);
+extern float compute_mod_saw_up(uint8_t osc);
+extern float compute_mod_saw_down(uint8_t osc);
 extern float compute_mod_triangle(uint8_t osc);
 extern float compute_mod_pcm(uint8_t osc);
 
@@ -268,7 +271,8 @@ extern void ks_note_on(uint8_t osc);
 extern void ks_note_off(uint8_t osc);
 extern void sine_note_on(uint8_t osc); 
 extern void fm_sine_note_on(uint8_t osc, uint8_t algo_osc); 
-extern void saw_note_on(uint8_t osc); 
+extern void saw_down_note_on(uint8_t osc); 
+extern void saw_up_note_on(uint8_t osc); 
 extern void triangle_note_on(uint8_t osc); 
 extern void pulse_note_on(uint8_t osc); 
 extern void pcm_note_on(uint8_t osc);
@@ -278,7 +282,8 @@ extern void partial_note_off(uint8_t osc);
 extern void algo_note_on(uint8_t osc);
 extern void algo_note_off(uint8_t osc) ;
 extern void sine_mod_trigger(uint8_t osc);
-extern void saw_mod_trigger(uint8_t osc);
+extern void saw_down_mod_trigger(uint8_t osc);
+extern void saw_up_mod_trigger(uint8_t osc);
 extern void triangle_mod_trigger(uint8_t osc);
 extern void pulse_mod_trigger(uint8_t osc);
 extern void pcm_mod_trigger(uint8_t osc);

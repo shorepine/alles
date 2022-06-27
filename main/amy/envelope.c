@@ -30,7 +30,8 @@ float compute_mod_scale(uint8_t osc) {
             msynth[source].feedback = synth[source].feedback;
             msynth[source].resonance = synth[source].resonance;
             if(synth[source].wave == NOISE) return compute_mod_noise(source);
-            if(synth[source].wave == SAW) return compute_mod_saw(source);
+            if(synth[source].wave == SAW_DOWN) return compute_mod_saw_down(source);
+            if(synth[source].wave == SAW_UP) return compute_mod_saw_up(source);
             if(synth[source].wave == PULSE) return compute_mod_pulse(source);
             if(synth[source].wave == TRIANGLE) return compute_mod_triangle(source);
             if(synth[source].wave == SINE) return compute_mod_sine(source);

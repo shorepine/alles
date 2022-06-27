@@ -214,16 +214,16 @@ float compute_mod_pulse(uint8_t osc) {
 }
 
 
-/* Saw wave */
+/* Saw waves */
 
-void saw_note_on(uint8_t osc) {
+void saw_note_on(uint8_t osc, int8_t direction) {
     float period_samples = (float)SAMPLE_RATE / synth[osc].freq;
     synth[osc].lut = choose_from_lutset(period_samples, impulse_lutset, &synth[osc].lut_size);
     synth[osc].step = (float)synth[osc].lut_size * synth[osc].phase;
     synth[osc].lpf_state = 0;
     // Tune the initial integrator state to compensate for mid-sample alignment of table.
     float skip = synth[osc].lut_size / period_samples;
-    float amp = synth[osc].amp * skip * 4.0  / synth[osc].lut_size;
+    float amp = ((float)direction*synth[osc].amp) * skip * 4.0  / synth[osc].lut_size;
     synth[osc].lpf_state = -0.5 * amp * synth[osc].lut[0];
     // Calculate the mean of the LUT.
     float lut_sum = 0;
@@ -233,12 +233,20 @@ void saw_note_on(uint8_t osc) {
     synth[osc].dc_offset = -lut_sum / synth[osc].lut_size;
 }
 
-void render_saw(float * buf, uint8_t osc) {
+void saw_down_note_on(uint8_t osc) {
+    saw_note_on(osc, -1);
+}
+void saw_up_note_on(uint8_t osc) {
+    saw_note_on(osc, 1);
+}
+
+
+void render_saw(float * buf, uint8_t osc, int8_t direction) {
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lpf_alpha = 1.0 - 1.0 / (10.0 * period_samples);
     float skip = synth[osc].lut_size / period_samples;
     // Scale the impulse proportional to the skip so its integral remains ~constant.
-    float amp = msynth[osc].amp * skip * 4.0 / synth[osc].lut_size;
+    float amp = ((float)direction*msynth[osc].amp) * skip * 4.0 / synth[osc].lut_size;
     synth[osc].step = render_lut(
           buf, synth[osc].step, skip, synth[osc].last_amp, amp, synth[osc].lut, synth[osc].lut_size);
     // Give the impulse train a negative bias so that it integrates to zero mean.
@@ -250,6 +258,12 @@ void render_saw(float * buf, uint8_t osc) {
     synth[osc].last_amp = amp;
 }
 
+void render_saw_down(float * buf, uint8_t osc) {
+    render_saw(buf, osc, -1);
+}
+void render_saw_up(float * buf, uint8_t osc) {
+    render_saw(buf, osc, 1);
+}
 
 
 void saw_mod_trigger(uint8_t osc) {
@@ -258,8 +272,15 @@ void saw_mod_trigger(uint8_t osc) {
     synth[osc].step = period * synth[osc].phase;
 }
 
+void saw_up_mod_trigger(uint8_t osc) {
+    saw_mod_trigger(osc);
+}
+void saw_down_mod_trigger(uint8_t osc) {
+    saw_mod_trigger(osc);
+}
+
 // TODO -- this should use dpwe code
-float compute_mod_saw(uint8_t osc) {
+float compute_mod_saw(uint8_t osc, int8_t direction) {
     float mod_sr = (float)SAMPLE_RATE / (float)BLOCK_SIZE;
     float period = 1. / (msynth[osc].freq/mod_sr);
     if(synth[osc].step >= period || synth[osc].step == 0) {
@@ -269,8 +290,17 @@ float compute_mod_saw(uint8_t osc) {
         synth[osc].sample = -1 + (synth[osc].step * (2.0 / period));
     }
     synth[osc].step++;
-    return (synth[osc].sample * msynth[osc].amp); 
+    return (synth[osc].sample * ((float)direction*msynth[osc].amp)); 
 }
+
+float compute_mod_saw_down(uint8_t osc) {
+    return compute_mod_saw(osc, -1);
+}
+
+float compute_mod_saw_up(uint8_t osc) {
+    return compute_mod_saw(osc, 1);
+}
+
 
 
 /* triangle wave */
@@ -329,6 +359,7 @@ void fm_sine_note_on(uint8_t osc, uint8_t algo_osc) {
     float period_samples = (float)SAMPLE_RATE / msynth[osc].freq;
     synth[osc].lut = choose_from_lutset(period_samples, sine_lutset, &synth[osc].lut_size);
 }
+
 void render_fm_sine(float *buf, uint8_t osc, float *mod, float feedback_level, uint8_t algo_osc) {
     if(synth[osc].ratio >= 0) {
         msynth[osc].freq = msynth[algo_osc].freq * synth[osc].ratio;

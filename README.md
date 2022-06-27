@@ -102,7 +102,7 @@ t = time, int64: ms since some fixed start point on your host. you should always
 u = detune, in hertz, for partials and algorithm types, to apply after the ratio 
 v = oscillator, uint, 0 to 63. default: 0
 V = volume, float 0 to about 10 in practice. volume knob for the entire synth / speaker. default 1.0
-w = waveform, uint: [0=SINE, PULSE, SAW, TRIANGLE, NOISE, KS, PCM, ALGO, PARTIAL, PARTIALS, OFF]. default: 0/SINE
+w = waveform, uint: [0=SINE, PULSE, SAW_DOWN, SAW_UP, TRIANGLE, NOISE, KS, PCM, ALGO, PARTIAL, PARTIALS, OFF]. default: 0/SINE
 W = breakpoint1 target mask. 
 x = "low" EQ amount for the entire synth (Fc=800Hz). float, in dB, -15 to 15. 0 is off. default: 0
 X = breakpoint2 target mask. 

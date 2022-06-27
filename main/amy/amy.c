@@ -448,7 +448,8 @@ void play_event(struct delta d) {
             if(synth[d.osc].filter_type != FILTER_NONE) update_filter(d.osc);
             // Restart the waveforms, adjusting for phase if given
             if(synth[d.osc].wave==SINE) sine_note_on(d.osc);
-            if(synth[d.osc].wave==SAW) saw_note_on(d.osc);
+            if(synth[d.osc].wave==SAW_DOWN) saw_down_note_on(d.osc);
+            if(synth[d.osc].wave==SAW_UP) saw_up_note_on(d.osc);
             if(synth[d.osc].wave==TRIANGLE) triangle_note_on(d.osc);
             if(synth[d.osc].wave==PULSE) pulse_note_on(d.osc);
             if(synth[d.osc].wave==PCM) pcm_note_on(d.osc);
@@ -458,7 +459,8 @@ void play_event(struct delta d) {
             // Trigger the MOD source, if we have one
             if(synth[d.osc].mod_source >= 0) {
                 if(synth[synth[d.osc].mod_source].wave==SINE) sine_mod_trigger(synth[d.osc].mod_source);
-                if(synth[synth[d.osc].mod_source].wave==SAW) saw_mod_trigger(synth[d.osc].mod_source);
+                if(synth[synth[d.osc].mod_source].wave==SAW_DOWN) saw_up_mod_trigger(synth[d.osc].mod_source);
+                if(synth[synth[d.osc].mod_source].wave==SAW_UP) saw_down_mod_trigger(synth[d.osc].mod_source);
                 if(synth[synth[d.osc].mod_source].wave==TRIANGLE) triangle_mod_trigger(synth[d.osc].mod_source);
                 if(synth[synth[d.osc].mod_source].wave==PULSE) pulse_mod_trigger(synth[d.osc].mod_source);
                 if(synth[synth[d.osc].mod_source].wave==PCM) pcm_mod_trigger(synth[d.osc].mod_source);
@@ -526,7 +528,8 @@ void render_task(uint8_t start, uint8_t end, uint8_t core) {
             for(uint16_t i=0;i<BLOCK_SIZE;i++) { per_osc_fb[core][i] = 0; }
             hold_and_modify(osc); // apply bp / mod
             if(synth[osc].wave == NOISE) render_noise(per_osc_fb[core], osc);
-            if(synth[osc].wave == SAW) render_saw(per_osc_fb[core], osc);
+            if(synth[osc].wave == SAW_DOWN) render_saw_down(per_osc_fb[core], osc);
+            if(synth[osc].wave == SAW_UP) render_saw_up(per_osc_fb[core], osc);
             if(synth[osc].wave == PULSE) render_pulse(per_osc_fb[core], osc);
             if(synth[osc].wave == TRIANGLE) render_triangle(per_osc_fb[core], osc);
             if(synth[osc].wave == SINE) render_sine(per_osc_fb[core], osc);

@@ -4,7 +4,7 @@ BLOCK_SIZE = 256
 SAMPLE_RATE = 44100.0
 OSCS = 64
 MAX_QUEUE = 400
-[SINE, PULSE, SAW, TRIANGLE, NOISE, KS, PCM, ALGO, PARTIAL, PARTIALS, OFF] = range(11)
+[SINE, PULSE, SAW_DOWN, SAW_UP, TRIANGLE, NOISE, KS, PCM, ALGO, PARTIAL, PARTIALS, OFF] = range(12)
 TARGET_AMP, TARGET_DUTY, TARGET_FREQ, TARGET_FILTER_FREQ, TARGET_RESONANCE, TARGET_FEEDBACK, TARGET_LINEAR, TARGET_TRUE_EXPONENTIAL= (1, 2, 4, 8, 16, 32, 64, 128)
 FILTER_NONE, FILTER_LPF, FILTER_BPF, FILTER_HPF = range(4)
 ALLES_LATENCY_MS = 1000
@@ -22,7 +22,7 @@ def preset(which,osc=0, **kwargs):
     if(which==0): # simple note
         send(osc=osc, wave=SINE, bp0="10,1,250,0.7,500,0", bp0_target=TARGET_AMP, **kwargs)
     if(which==1): # filter bass
-        send(osc=osc, filter_freq=2500, resonance=5, wave=SAW, filter_type=FILTER_LPF, bp0="100,0.5,25,0", bp0_target=TARGET_AMP+TARGET_FILTER_FREQ, **kwargs)
+        send(osc=osc, filter_freq=2500, resonance=5, wave=SAW_DOWN, filter_type=FILTER_LPF, bp0="100,0.5,25,0", bp0_target=TARGET_AMP+TARGET_FILTER_FREQ, **kwargs)
 
     # TODO -- this is a good one to test the whistle on the bps... 
     if(which==2): # long sine pad to test ADSR
@@ -170,7 +170,7 @@ def volume(volume, client = -1):
 """
 def test():
     while True:
-        for wave in [SINE, SAW, PULSE, TRIANGLE, NOISE]:
+        for wave in [SINE, SAW_DOWN, PULSE, TRIANGLE, NOISE]:
             for i in range(12):
                 send(osc=0, wave=wave, note=40+i, patch=i, vel=1)
                 time.sleep(0.5)
