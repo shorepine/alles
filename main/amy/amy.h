@@ -44,6 +44,7 @@ typedef int16_t i2s_sample_type;
 #define MAX_RECEIVE_LEN 512  // max length of each message
 #define MAX_VOLUME 11.0
 #define MINIMUM_SCALE 0.000190 // computed from TRUE_EXPONENTIAL's end point after a while 
+#define BREAKPOINT_EPS 0.0002
 
 
 #define LINEAR_INTERP        // use linear interp for oscs
@@ -93,6 +94,8 @@ typedef int16_t i2s_sample_type;
 
 #define AMY_OK 0
 typedef int amy_err_t;
+
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 
 enum params{
