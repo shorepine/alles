@@ -120,7 +120,7 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
     if(t1 < 0 || v1 < 0) {
         return 0;
     }
-    if(t1 == t0) { 
+    if(t1==t0 || elapsed==t1) {
         return v1;
     }
     // OK, we are transition from v0 to v1 , and we're at elapsed time between t0 and t1
