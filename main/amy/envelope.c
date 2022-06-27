@@ -120,6 +120,8 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
     if(t1 < 0 || v1 < 0) {
         return 0;
     }
+
+    // This way we return exact zero for v1 at the end of the segment, rather than BREAKPOINT_EPS
     if(t1==t0 || elapsed==t1) {
         return v1;
     }
