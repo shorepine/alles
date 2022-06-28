@@ -155,7 +155,8 @@ struct event {
     int16_t breakpoint_target[MAX_BREAKPOINT_SETS];
     int32_t breakpoint_times[MAX_BREAKPOINT_SETS][MAX_BREAKPOINTS];
     float breakpoint_values[MAX_BREAKPOINT_SETS][MAX_BREAKPOINTS];
-
+    float last_scale[MAX_BREAKPOINT_SETS];  // remembers current envelope level, to use as start point in release.
+  
     // State variable for the impulse-integrating oscs.
     float lpf_state;
     // Constant offset to add to sawtooth before integrating.

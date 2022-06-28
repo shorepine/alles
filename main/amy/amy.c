@@ -255,6 +255,7 @@ void reset_osc(uint8_t i ) {
     synth[i].algorithm = 0;
     for(uint8_t j=0;j<MAX_ALGO_OPS;j++) synth[i].algo_source[j] = -2;
     for(uint8_t j=0;j<MAX_BREAKPOINT_SETS;j++) { for(uint8_t k=0;k<MAX_BREAKPOINTS;k++) { synth[i].breakpoint_times[j][k] =-1; synth[i].breakpoint_values[j][k] = -1; } synth[i].breakpoint_target[j] = 0; }
+    for(uint8_t j=0;j<MAX_BREAKPOINT_SETS;j++) { synth[i].last_scale[j] = 0; }
     synth[i].last_two[0] = 0;
     synth[i].last_two[1] = 0;
 }
