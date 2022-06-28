@@ -236,6 +236,7 @@ def calc_loglin_eg_breakpoints(rates, levels):
         return -t_const * np.log((MIN_LEVEL + ATTACK_RANGE - np.maximum(MIN_LEVEL, level))/ATTACK_RANGE)
 
     for segment, (rate, target_level) in enumerate(zip(rates, levels)):
+        release_segment = (segment == len(rates)-1)
         if target_level > current_level:   # Attack segment
             # The attack envelopes L(t) appear to be ~ 34 + 75 * (1 - exp(t / t_const)), starting from L = 34
             # i.e. they are rising exponentials (as in analog ADSR, but here in the log(amp) domain) 
@@ -257,7 +258,12 @@ def calc_loglin_eg_breakpoints(rates, levels):
             # so delta = 99 in 210 seconds -> level_change_per_sec =  0.5
             # I think just offset everything by 0.5, avoids div0.          
             level_change_per_sec = -0.5 - 8 * (2 ** ((rate - 24) / 6))
-            segment_duration = (target_level - current_level) / level_change_per_sec
+            level_difference = target_level - current_level
+            # Hack to cover for sustain = 0, release = 0 release segments which look like they should be zero long
+            if release_segment and level_difference == 0:
+                level_difference = -60  # e.g. from a decayed level of 80 to zero.
+                print("** Goosing release amp")
+            segment_duration = level_difference / level_change_per_sec
             #print("lcps=", level_change_per_sec, "dur=", segment_duration)
         cumulated_time += segment_duration
         breakpoints.append((cumulated_time, dx7level_to_linear(target_level)))
@@ -285,6 +291,8 @@ def decode_patch(p):
         for time, level in breakpoints:
             times.append(int(1000 * time))
             rates.append(level)
+        # Fix release time to be relative to 0, not previous
+        times[-1] -= times[-2]
         return rates, times
     
     def eg_to_bp_orig(egrate, eglevel):
@@ -515,7 +523,7 @@ def dx7_render(patch, midinote, velocity, samples, keyup_sample):
 
 
 # Play our version vs the MSFA version to A/B test
-def play_patch(patch, midinote=50, length_s = 4, keyup_s = 2):
+def play_patch(patch, midinote=50, length_s = 4, keyup_s = 2, vel=2):
     # You can pass in a patch # (0-31000 or so) or a 156 byte patch, which you can modify
     if(type(patch)==int):
         dx7_patch = bytes(dx7.unpack(patch))
@@ -528,7 +536,7 @@ def play_patch(patch, midinote=50, length_s = 4, keyup_s = 2):
     print("AMY:")
     setup_patch(p)
 
-    alles.send(osc=6,vel=4,note=midinote,timestamp=alles.millis())
+    alles.send(osc=6,vel=vel,note=midinote,timestamp=alles.millis())
     alles.send(osc=6,vel=0,timestamp=alles.millis() + (length_s-keyup_s)*1000)
     # Catch up to latency
     time.sleep(length_s + alles.ALLES_LATENCY_MS/1000)
