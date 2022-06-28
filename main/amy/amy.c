@@ -819,7 +819,7 @@ int16_t * fill_audio_buffer_task() {
     	} else {
             uintval = (int)(-fsample);
 	    }
-        if (uintval >= FIRSTNON_LIN) {
+        if (uintval >= FIRST_NONLIN) {
             if (uintval >= FIRST_HARDCLIP) {
                 uintval = SAMPLE_MAX;
             } else {

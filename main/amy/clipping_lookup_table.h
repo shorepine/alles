@@ -1,6 +1,7 @@
 // Automatically generated, then edited by hand to use better names.
 // Clipping lookup table.
 
+#define LIN_MAX 29491
 // Sample value at which we start reading from table.
 #define FIRST_NONLIN 29491
 // Table length.
