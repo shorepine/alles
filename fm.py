@@ -213,6 +213,7 @@ class AMYPatch:
     lfo_ampmoddepth: float = 0
     lfo_waveform: int = 0
     name: str = ""
+    exp_type: float = alles.TARGET_DX7_EXPONENTIAL
 
     @staticmethod
     def from_dx7(dx7_patch):
@@ -264,7 +265,7 @@ class AMYPatch:
 
             # Make them all in cosine phase, to be like DX7.  Important for slow oscs
             args = {"osc":i,
-                    "bp0_target":alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL,
+                    "bp0_target":alles.TARGET_AMP+self.exp_type,
                     "bp0":oscbp, "amp":osc.op_amp, "phase":0.25}
             if osc.freq_is_ratio:
                 args["ratio"] = osc.frequency
@@ -274,7 +275,7 @@ class AMYPatch:
                 # TODO: we ignore intensity of amp mod sens, just on/off
                 args.update({"mod_source": 7, "mod_target":alles.TARGET_AMP})
             args.update({"bp1": pitchbp,
-                         "bp1_target": alles.TARGET_FREQ+alles.TARGET_TRUE_EXPONENTIAL})
+                         "bp1_target": alles.TARGET_FREQ+self.exp_type})
             alles.send(**args)
 
         # This is applied to the operators if their amp mod sense > 0 
