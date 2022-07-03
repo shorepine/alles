@@ -383,7 +383,7 @@ void sine_note_on(uint8_t osc) {
 void render_partial(float * buf, uint8_t osc) {
     if(msynth[osc].feedback > 0) {
         float scratch[2][BLOCK_SIZE];
-        for(uint16_t i=0;i<BLOCK_SIZE;i++) scratch[0][i] = get_random() *  20.0;
+        for(uint16_t i=0;i<BLOCK_SIZE;i++) scratch[0][i] = amy_get_random() *  20.0;
         dsps_biquad_gen_lpf_f32(coeffs[osc], 100.0/SAMPLE_RATE, 0.707);
         #ifdef ESP_PLATFORM
             dsps_biquad_f32_ae32(scratch[0], scratch[1], BLOCK_SIZE, coeffs[osc], delay[osc]);
@@ -469,7 +469,7 @@ void sine_mod_trigger(uint8_t osc) {
 }
 
 // returns a # between -1 and 1
-float get_random() {
+float amy_get_random() {
 #ifdef ESP_PLATFORM
     return (((float)esp_random() / UINT32_MAX) * 2.0) - 1.0;
 #else
@@ -481,12 +481,12 @@ float get_random() {
 
 void render_noise(float *buf, uint8_t osc) {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-        buf[i] = get_random() * msynth[osc].amp; 
+        buf[i] = amy_get_random() * msynth[osc].amp; 
     }
 }
 
 float compute_mod_noise(uint8_t osc) {
-    return get_random() * msynth[osc].amp;
+    return amy_get_random() * msynth[osc].amp;
 }
 
 /* karplus-strong */
@@ -510,7 +510,7 @@ void ks_note_on(uint8_t osc) {
     if(buflen > MAX_KS_BUFFER_LEN) buflen = MAX_KS_BUFFER_LEN;
     // init KS buffer with noise up to max
     for(uint16_t i=0;i<buflen;i++) {
-        ks_buffer[ks_polyphony_index][i] = get_random();
+        ks_buffer[ks_polyphony_index][i] = amy_get_random();
     }
     ks_polyphony_index++;
     if(ks_polyphony_index == KS_OSCS) ks_polyphony_index = 0;

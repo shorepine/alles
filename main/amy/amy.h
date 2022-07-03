@@ -288,7 +288,7 @@ extern void saw_up_mod_trigger(uint8_t osc);
 extern void triangle_mod_trigger(uint8_t osc);
 extern void pulse_mod_trigger(uint8_t osc);
 extern void pcm_mod_trigger(uint8_t osc);
-extern float get_random();
+extern float amy_get_random();
 
 // filters
 extern void filters_init();
