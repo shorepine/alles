@@ -185,7 +185,7 @@ void algo_setup_patch(uint8_t osc) {
 }
 
 void algo_note_on(uint8_t osc) {    
-    debug_on = 1;
+    //debug_on = 1;
     // trigger all the source operator voices
     if(synth[osc].patch >= 0) { 
         algo_setup_patch(osc);
@@ -299,5 +299,5 @@ void render_algo(float * buf, uint8_t osc) {
     for(uint16_t i=0;i<BLOCK_SIZE;i++) {
         buf[i] = buf[i] * msynth[osc].amp;
     }
-    debug_on = 0;
+    //debug_on = 0;
 }
