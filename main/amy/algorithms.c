@@ -2,12 +2,14 @@
 // FM2 and partial synths that involve combinations of oscillators
 #include "amy.h"
 
+#define NUM_ALGO_BPS 5
+
 typedef struct {
     float freq;
     float freq_ratio;
     float amp;
-    float amp_rate[4];
-    float amp_time[4];
+    float amp_rate[NUM_ALGO_BPS];
+    float amp_time[NUM_ALGO_BPS];
     float detune;
 } operator_parameters_t;
 
@@ -15,8 +17,8 @@ typedef struct {
 typedef struct  {
     uint8_t algo;
     float feedback;
-    float pitch_rate[4];
-    uint16_t pitch_time[4];
+    float pitch_rate[NUM_ALGO_BPS];
+    uint16_t pitch_time[NUM_ALGO_BPS];
     float lfo_freq;
     int8_t lfo_wave;
     float lfo_amp;
@@ -146,8 +148,7 @@ void algo_setup_patch(uint8_t osc) {
     float time_ratio = 1;
     if(synth[osc].ratio >=0 ) time_ratio = synth[osc].ratio;
     // TODO also set the amp BP to the latest algo_osc release time
-    // TODO make this 0..5 
-    for(uint8_t i=0;i<4;i++) {
+    for(uint8_t i=0;i<NUM_ALGO_BPS;i++) {
         synth[osc].breakpoint_values[1][i] = p.pitch_rate[i];
         synth[osc].breakpoint_times[1][i] = ms_to_samples((int)((float)p.pitch_time[i]/time_ratio));
     }
@@ -170,7 +171,7 @@ void algo_setup_patch(uint8_t osc) {
         synth[osc+i+1].amp = op.amp;
         synth[osc+i+1].breakpoint_target[0] = TARGET_AMP+TARGET_LINEAR;
         // TODO make this 0..5
-        for(uint8_t j=0;j<4;j++) {
+        for(uint8_t j=0;j<NUM_ALGO_BPS;j++) {
             synth[osc+i+1].breakpoint_values[0][j] = op.amp_rate[j];
             synth[osc+i+1].breakpoint_times[0][j] =  ms_to_samples((int)((float)op.amp_time[j]/time_ratio));
             if(op.freq>0) { // set pitch BP for non ratio ops
