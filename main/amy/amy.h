@@ -58,15 +58,16 @@ typedef int16_t i2s_sample_type;
 #define EQ_CENTER_MED 2500.0
 #define EQ_CENTER_HIGH 7000.0
 
-// modulation/breakpoint target mask
+// modulation/breakpoint target mask (int16)
 #define TARGET_AMP 1
 #define TARGET_DUTY 2
 #define TARGET_FREQ 4
 #define TARGET_FILTER_FREQ 8
-#define TARGET_RESONANCE 16
-#define TARGET_FEEDBACK 32
-#define TARGET_LINEAR 64 // default exp, linear as an option
-#define TARGET_TRUE_EXPONENTIAL 128 // default exp, "true exp" for FM as an option
+#define TARGET_RESONANCE 0x10
+#define TARGET_FEEDBACK 0x20
+#define TARGET_LINEAR 0x40 // default exp, linear as an option
+#define TARGET_TRUE_EXPONENTIAL 0x80 // default exp, "true exp" for FM as an option
+#define TARGET_DX7_EXPONENTIAL 0x100 // Asymmetric attack/decay behavior per DX7.
 
 #define FILTER_LPF 1
 #define FILTER_BPF 2

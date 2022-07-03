@@ -154,7 +154,29 @@ float compute_breakpoint_scale(uint8_t osc, uint8_t bp_set) {
 	  v1 = MAX(v1, BREAKPOINT_EPS);
 	  float dx7_exponential_rate = -logf(v1/v0) / (t1 - t0);
 	  scale = v0 * expf(-dx7_exponential_rate * (elapsed - t0)); 
-	  if(debug_on)printf("%lld [%d,%d] DX7 t0 %d v0 %f t1 %d v1 %f elapsed %lld exprate %f scale %f \n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, dx7_exponential_rate, scale);
+	  if(debug_on)printf("%lld [%d,%d] TRUE t0 %d v0 %f t1 %d v1 %f elapsed %lld exprate %f scale %f \n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, dx7_exponential_rate, scale);
+	} else if(synth[osc].breakpoint_target[bp_set] & TARGET_DX7_EXPONENTIAL) {
+	  // Somewhat complicated relationship, see https://colab.research.google.com/drive/1qZmOw4r24IDijUFlel_eSoWEf3L5VSok#scrollTo=F5zkeACrOlum
+#define LINEAR_TO_DX7_LEVEL(linear) (logf(MAX(BREAKPOINT_EPS, linear)) * 8.0 + 99.0)
+#define DX7_LEVEL_TO_LINEAR(level) (powf(2.0, (level - 99.0)/8.0))
+#define MIN_LEVEL 34
+#define ATTACK_RANGE 75
+#define MAP_ATTACK_LEVEL(level) (1 - MAX(level - MIN_LEVEL, 0) / ATTACK_RANGE)
+	  float mapped_current_level = MAP_ATTACK_LEVEL(LINEAR_TO_DX7_LEVEL(v0));
+	  float mapped_target_level = MAP_ATTACK_LEVEL(LINEAR_TO_DX7_LEVEL(v1));
+	  float t_const = (t1 - t0) / logf(mapped_current_level / mapped_target_level);
+	  float my_t0 = -t_const * logf(mapped_current_level);
+	  if (v1 > v0) {
+            // This is the magic equation that shapes the DX7 attack envelopes.
+            scale = DX7_LEVEL_TO_LINEAR(MIN_LEVEL + ATTACK_RANGE * (1 - expf(-(my_t0 + elapsed)/t_const)));
+	    if(debug_on)printf("%lld [%d,%d] DX7 t0 %d v0 %f t1 %d v1 %f elapsed %lld exprate %f t_const %f \n", total_samples, bp_set, osc, t0, v0, t1, v1, elapsed, t_const, scale);
+	  } else {
+	    // Decay is regular true_exponential
+	    v0 = MAX(v0, BREAKPOINT_EPS);
+	    v1 = MAX(v1, BREAKPOINT_EPS);
+	    float dx7_exponential_rate = -logf(v1/v0) / (t1 - t0);
+	    scale = v0 * expf(-dx7_exponential_rate * (elapsed - t0)); 
+	  }
 	} else { // "false exponential?"
 	    if(debug_on)printf("target is %d\n",synth[osc].breakpoint_target[bp_set] & TARGET_TRUE_EXPONENTIAL );
 	    scale = v0 + ((v1-v0) * (1.0 - expf(-exponential_rate*time_ratio)));
