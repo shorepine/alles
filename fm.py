@@ -155,7 +155,7 @@ class DX7Patch:
             bytestream.append(op.ampmodsens)
             bytestream.append(op.keyvelsens)
             bytestream.append(op.opamp)
-            bytestream.append(0 if op.ratiotuning else 0)
+            bytestream.append(0 if op.ratiotuning else 1)
             bytestream.append(op.coarse)
             bytestream.append(op.fine)
             bytestream.append(op.detune)
