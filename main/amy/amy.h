@@ -97,8 +97,9 @@ typedef int16_t i2s_sample_type;
 #define AMY_OK 0
 typedef int amy_err_t;
 
+#ifndef MAX
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
-
+#endif
 
 enum params{
     WAVE, PATCH, MIDI_NOTE, AMP, DUTY, FEEDBACK, FREQ, VELOCITY, PHASE, DETUNE, VOLUME, FILTER_FREQ, RATIO, RESONANCE, 

@@ -46,17 +46,17 @@ int64_t computed_delta; // can be negative no prob, but usually host is larger #
 uint8_t computed_delta_set; // have we set a delta yet?
 
 int8_t check_init(amy_err_t (*fn)(), char *name) {
-    printf("Starting %s: ", name);
+    fprintf(stderr,"Starting %s: ", name);
     const amy_err_t ret = (*fn)();
     if(ret != AMY_OK) {
 #ifdef ESP_PLATFORM
-        printf("[ERROR:%i (%s)]\n", ret, esp_err_to_name((esp_err_t)ret));
+        fprintf(stderr,"[ERROR:%i (%s)]\n", ret, esp_err_to_name((esp_err_t)ret));
 #else
-        printf("[ERROR:%i]\n", ret);
+        fprintf(stderr,"[ERROR:%i]\n", ret);
 #endif
         return -1;
     }
-    printf("[OK]\n");
+    fprintf(stderr,"[OK]\n");
     return 0;
 }
 
@@ -327,29 +327,29 @@ void show_debug(uint8_t type) {
         uint16_t q = global.event_qsize;
         if(q > 25) q = 25;
         for(uint16_t i=0;i<q;i++) {
-            printf("%d time %u osc %d param %d - %f %d\n", i, ptr->time, ptr->osc, ptr->param, *(float *)&ptr->data, *(int *)&ptr->data);
+            fprintf(stderr,"%d time %u osc %d param %d - %f %d\n", i, ptr->time, ptr->osc, ptr->param, *(float *)&ptr->data, *(int *)&ptr->data);
             ptr = ptr->next;
         }
     }
     if(type>2) {
         // print out all the osc data
         //printf("global: filter %f resonance %f volume %f status %d\n", global.filter_freq, global.resonance, global.volume, global.status);
-        printf("global: volume %f eq: %f %f %f \n", global.volume, global.eq[0], global.eq[1], global.eq[2]);
+        fprintf(stderr,"global: volume %f eq: %f %f %f \n", global.volume, global.eq[0], global.eq[1], global.eq[2]);
         //printf("mod global: filter %f resonance %f\n", mglobal.filter_freq, mglobal.resonance);
         for(uint8_t i=0;i<OSCS;i++) {
-            printf("osc %d: status %d amp %f wave %d freq %f duty %f mod_target %d mod source %d velocity %f filter_freq %f ratio %f feedback %f resonance %f step %f algo %d source %d,%d,%d,%d,%d,%d  \n",
+            fprintf(stderr,"osc %d: status %d amp %f wave %d freq %f duty %f mod_target %d mod source %d velocity %f filter_freq %f ratio %f feedback %f resonance %f step %f algo %d source %d,%d,%d,%d,%d,%d  \n",
                 i, synth[i].status, synth[i].amp, synth[i].wave, synth[i].freq, synth[i].duty, synth[i].mod_target, synth[i].mod_source, 
                 synth[i].velocity, synth[i].filter_freq, synth[i].ratio, synth[i].feedback, synth[i].resonance, synth[i].step, synth[i].algorithm,
                 synth[i].algo_source[0], synth[i].algo_source[1], synth[i].algo_source[2], synth[i].algo_source[3], synth[i].algo_source[4], synth[i].algo_source[5] );
             if(type>3) { 
                 for(uint8_t j=0;j<MAX_BREAKPOINT_SETS;j++) {
-                    printf("bp%d (target %d): ", j, synth[i].breakpoint_target[j]);
+                    fprintf(stderr,"bp%d (target %d): ", j, synth[i].breakpoint_target[j]);
                     for(uint8_t k=0;k<MAX_BREAKPOINTS;k++) {
-                        printf("%d: %f ", synth[i].breakpoint_times[j][k], synth[i].breakpoint_values[j][k]);
+                        fprintf(stderr,"%d: %f ", synth[i].breakpoint_times[j][k], synth[i].breakpoint_values[j][k]);
                     }
-                    printf("\n");
+                    fprintf(stderr,"\n");
                 }
-                printf("mod osc %d: amp: %f, freq %f duty %f filter_freq %f resonance %f fb/bw %f \n", i, msynth[i].amp, msynth[i].freq, msynth[i].duty, msynth[i].filter_freq, msynth[i].resonance, msynth[i].feedback);
+                fprintf(stderr,"mod osc %d: amp: %f, freq %f duty %f filter_freq %f resonance %f fb/bw %f \n", i, msynth[i].amp, msynth[i].freq, msynth[i].duty, msynth[i].filter_freq, msynth[i].resonance, msynth[i].feedback);
             }
         }
     }
@@ -549,7 +549,7 @@ void render_task(uint8_t start, uint8_t end, uint8_t core) {
 
 // On all platforms, sysclock is based on total samples played, using audio out (i2s or etc) as system clock
 int64_t get_sysclock() {
-    return (total_samples / (float)SAMPLE_RATE) * 1000;
+    return (int64_t)((total_samples / (float)SAMPLE_RATE) * 1000);
 }
 
 
@@ -574,7 +574,7 @@ void print_devices() {
         const char *default_str = (i==default_output) ? " (default)" : "";
         const char *raw_str = device->is_raw ? " (raw)" : "";
         int chans = device->layouts[0].channel_count;
-        printf("[%d]\t%s%s%s\t%d output channels\n", i, device->name, default_str, raw_str, chans);
+        fprintf(stderr,"[%d]\t%s%s%s\t%d output channels\n", i, device->name, default_str, raw_str, chans);
         soundio_device_unref(device);
     }
 }
@@ -694,7 +694,7 @@ amy_err_t soundio_init() {
         return 1;
     } else {
         const char *all_str = (channel<0) ? " (all)" : "";
-        printf("Using device ID %d, device %s, channel %d %s\n", selected_device_index, device->name, channel, all_str);
+        fprintf(stderr,"Using device ID %d, device %s, channel %d %s\n", selected_device_index, device->name, channel, all_str);
     }
 
     if (device->probe_error) {
@@ -844,7 +844,7 @@ int16_t * fill_audio_buffer_task() {
 }
 
 int32_t ms_to_samples(int32_t ms) {
-    return (((float)ms / 1000.0) * (float)SAMPLE_RATE);
+    return (int32_t)(((float)ms / 1000.0) * (float)SAMPLE_RATE);
 } 
 
 // Helper to parse the list of source voices for an algorithm
@@ -913,7 +913,7 @@ void parse_task() {
     }
     length = new_length;
 
-    if(DEBUG)printf("received message ###%s### len %d\n", message, length);
+    if(DEBUG)fprintf(stderr,"received message ###%s### len %d\n", message, length);
 
     while(c < length+1) {
         uint8_t b = message[c];
@@ -924,7 +924,7 @@ void parse_task() {
                 // if we haven't yet synced our times, do it now
                 if(!computed_delta_set) {
                     computed_delta = e.time - sysclock;
-                    printf("setting computed delta to %lld (e.time is %lld sysclock %lld) max_drift_ms %d latency %d\n", computed_delta, e.time, sysclock, MAX_DRIFT_MS, LATENCY_MS);
+                    fprintf(stderr,"setting computed delta to %lld (e.time is %lld sysclock %lld) max_drift_ms %d latency %d\n", computed_delta, e.time, sysclock, MAX_DRIFT_MS, LATENCY_MS);
                     computed_delta_set = 1;
                 }
             }
@@ -988,9 +988,9 @@ void parse_task() {
             // OK, so check for potentially negative numbers here (or really big numbers-sysclock) 
             int64_t potential_time = (e.time - computed_delta) + LATENCY_MS;
             if(potential_time < 0 || (potential_time > sysclock + LATENCY_MS + MAX_DRIFT_MS)) {
-                printf("recomputing time base: message came in with %lld, mine is %lld, computed delta was %lld\n", e.time, sysclock, computed_delta);
+                fprintf(stderr,"recomputing time base: message came in with %lld, mine is %lld, computed delta was %lld\n", e.time, sysclock, computed_delta);
                 computed_delta = e.time - sysclock;
-                printf("computed delta now %lld\n", computed_delta);
+                fprintf(stderr,"computed delta now %lld\n", computed_delta);
             }
             e.time = (e.time - computed_delta) + LATENCY_MS;
 

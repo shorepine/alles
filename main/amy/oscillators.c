@@ -493,9 +493,9 @@ float compute_mod_noise(uint8_t osc) {
 
 void render_ks(float * buf, uint8_t osc) {
     if(msynth[osc].freq >= 55) { // lowest note we can play
-        uint16_t buflen = (SAMPLE_RATE / msynth[osc].freq);
+        uint16_t buflen = (uint16_t)(SAMPLE_RATE / msynth[osc].freq);
         for(uint16_t i=0;i<BLOCK_SIZE;i++) {
-            uint16_t index = (synth[osc].step);
+            uint16_t index = (uint16_t)(synth[osc].step);
             synth[osc].sample = ks_buffer[ks_polyphony_index][index];
             ks_buffer[ks_polyphony_index][index] = (ks_buffer[ks_polyphony_index][index] + ks_buffer[ks_polyphony_index][(index + 1) % buflen]) * 0.5 * synth[osc].feedback;
             synth[osc].step = (index + 1) % buflen;
@@ -506,7 +506,7 @@ void render_ks(float * buf, uint8_t osc) {
 
 void ks_note_on(uint8_t osc) {
     if(msynth[osc].freq<=0) msynth[osc].freq = 1;
-    uint16_t buflen = (SAMPLE_RATE / msynth[osc].freq);
+    uint16_t buflen = (uint16_t)(SAMPLE_RATE / msynth[osc].freq);
     if(buflen > MAX_KS_BUFFER_LEN) buflen = MAX_KS_BUFFER_LEN;
     // init KS buffer with noise up to max
     for(uint16_t i=0;i<buflen;i++) {
