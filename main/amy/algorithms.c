@@ -10,7 +10,7 @@ typedef struct {
     float amp;
     float amp_rate[NUM_ALGO_BPS];
     float amp_time[NUM_ALGO_BPS];
-    float detune;
+    int8_t lfo_target;
 } operator_parameters_t;
 
 
@@ -21,10 +21,12 @@ typedef struct  {
     uint16_t pitch_time[NUM_ALGO_BPS];
     float lfo_freq;
     int8_t lfo_wave;
-    float lfo_amp;
-    int8_t lfo_target;
+    float lfo_amp_amp;
+    float lfo_pitch_amp;
     operator_parameters_t ops[MAX_ALGO_OPS];
 } algorithms_parameters_t;
+
+
 
 #include "fm.h"
 extern uint8_t debug_on;
@@ -139,28 +141,37 @@ void algo_note_off(uint8_t osc) {
 }
 
 void algo_setup_patch(uint8_t osc) {
+    // Set up the voices from a DX7 patch.
+    // 9 voices total - operators 1,2,3,4,5,6, the root voice (silent), and two LFOs (amp then pitch)
+    // so if we set a patch to osc 0, osc0 = root, osc1 = op6, osc2 = op5, osc3 = op4, osc4 = op3, osc5 = op2, osc6 = op1, osc7 = amp lfo, osc8 = pitch lfo
     algorithms_parameters_t p = fm_patches[synth[osc].patch % ALGO_PATCHES];
     synth[osc].algorithm = p.algo;
     synth[osc].feedback = p.feedback;
-    synth[osc].breakpoint_target[1] = TARGET_FREQ+TARGET_LINEAR;
-    synth[osc].mod_source = -1;
-    synth[osc].mod_target = 0;
+    synth[osc].breakpoint_target[1] = TARGET_FREQ+TARGET_DX7_EXPONENTIAL;
+
+    synth[osc].mod_source = osc+8;
+    synth[osc].mod_target = TARGET_FREQ;
     float time_ratio = 1;
     if(synth[osc].ratio >=0 ) time_ratio = synth[osc].ratio;
-    // TODO also set the amp BP to the latest algo_osc release time
+
     for(uint8_t i=0;i<NUM_ALGO_BPS;i++) {
         synth[osc].breakpoint_values[1][i] = p.pitch_rate[i];
         synth[osc].breakpoint_times[1][i] = ms_to_samples((int)((float)p.pitch_time[i]/time_ratio));
     }
-    if(p.lfo_target > 0) {
-        synth[osc].mod_target = p.lfo_target;
-        synth[osc+MAX_ALGO_OPS+1].freq = p.lfo_freq * time_ratio;
-        synth[osc+MAX_ALGO_OPS+1].wave = p.lfo_wave;
-        synth[osc+MAX_ALGO_OPS+1].status = IS_MOD_SOURCE;
-        synth[osc+MAX_ALGO_OPS+1].amp = p.lfo_amp;
-        synth[osc].mod_source = osc+MAX_ALGO_OPS+1;
-    }
+    // amp LFO
+    synth[osc+7].freq = p.lfo_freq * time_ratio;
+    synth[osc+7].wave = p.lfo_wave;
+    synth[osc+7].status = IS_MOD_SOURCE;
+    synth[osc+7].amp = p.lfo_amp_amp;
+    // pitch LFO
+    synth[osc+8].freq = p.lfo_freq * time_ratio;
+    synth[osc+8].wave = p.lfo_wave;
+    synth[osc+8].status = IS_MOD_SOURCE;
+    synth[osc+8].amp = p.lfo_pitch_amp;
 
+
+    float last_release_time= 0;
+    float last_release_value = 0;
     for(uint8_t i=0;i<MAX_ALGO_OPS;i++) {
         synth[osc].algo_source[i] = osc+i+1;
         operator_parameters_t op = p.ops[i];
@@ -169,19 +180,29 @@ void algo_setup_patch(uint8_t osc) {
         synth[osc+i+1].status = IS_ALGO_SOURCE;
         synth[osc+i+1].ratio = op.freq_ratio;
         synth[osc+i+1].amp = op.amp;
-        synth[osc+i+1].breakpoint_target[0] = TARGET_AMP+TARGET_LINEAR;
-        // TODO make this 0..5
+        synth[osc+i+1].breakpoint_target[0] = TARGET_AMP+TARGET_DX7_EXPONENTIAL;
+        synth[osc+i+1].breakpoint_target[1] = TARGET_FREQ+TARGET_DX7_EXPONENTIAL;
+        synth[osc+i+1].phase = 0.25;
+        synth[osc+i+1].mod_target = op.lfo_target;
         for(uint8_t j=0;j<NUM_ALGO_BPS;j++) {
             synth[osc+i+1].breakpoint_values[0][j] = op.amp_rate[j];
             synth[osc+i+1].breakpoint_times[0][j] =  ms_to_samples((int)((float)op.amp_time[j]/time_ratio));
-            if(op.freq>0) { // set pitch BP for non ratio ops
-                synth[osc+i+1].breakpoint_target[1] = TARGET_FREQ+TARGET_LINEAR;
-                synth[osc+i+1].breakpoint_values[1][j] = p.pitch_rate[j];
-                synth[osc+i+1].breakpoint_times[1][j] = ms_to_samples((int)((float)p.pitch_time[j]/time_ratio));              
-            }
+            synth[osc+i+1].breakpoint_values[1][j] = p.pitch_rate[j];
+            synth[osc+i+1].breakpoint_times[1][j] =  ms_to_samples((int)((float)p.pitch_time[j]/time_ratio));
         }
-        synth[osc+i+1].detune = op.detune;
+        // Calculate the last release time for the root note's amp BP
+        if(op.amp_time[4] > last_release_time) {
+            last_release_time = op.amp_time[4];
+            last_release_value = op.amp_rate[4];
+        }
     }
+
+    // Set an overarching amp target for the root note that is the latest operator amp, so the note dies eventually
+    synth[osc].breakpoint_times[0][0] = ms_to_samples((int)((float)0/time_ratio));
+    synth[osc].breakpoint_values[0][0] = 1;
+    synth[osc].breakpoint_times[0][1] = ms_to_samples((int)((float)last_release_time/time_ratio));    
+    synth[osc].breakpoint_values[0][1] = last_release_value;
+    synth[osc].breakpoint_target[0] = TARGET_AMP+TARGET_DX7_EXPONENTIAL;
 }
 
 void algo_note_on(uint8_t osc) {    
