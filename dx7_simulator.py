@@ -36,7 +36,7 @@ except ImportError:
 def calc_loglin_eg_env(breakpoints, keyup_time=0.5, frame_rate=1000, do_exp=True):
     """Take alles breakpoints derived from DX7 rate,level parameters and generate the actual envelope."""
     # This is what alles has to do to reconstruct DX7 envelopes from the set of breakpoints.
-    current_level = 0
+    current_level = fm.linear_to_dx7level(breakpoints[-1][1])
     current_time = 0
     last_target_time = 0
     output_levels = np.zeros(0)
@@ -140,7 +140,7 @@ def fm_waveform(freq, amp=1.0, freq_mod=None, duration=1.0, sr=44100, feedback=0
             carrier[i] = amp[i] * sample
     return carrier
 
-def dx7_op_waveform(op, f0=440, mod=None, sr=44100, duration=1.0, keyup_time=0.5, feedback=0):
+def dx7_op_waveform(op, f0=440, mod=None, sr=44100, duration=1.0, keyup_time=0.5, feedback=0, lfo=None):
     """Render an FM waveform from the DX7Operator structure."""
     n_samps = int(duration * sr)
     if op.ratiotuning:
@@ -156,10 +156,12 @@ def dx7_op_waveform(op, f0=440, mod=None, sr=44100, duration=1.0, keyup_time=0.5
         env = np.concatenate([env, fm.dx7level_to_linear(op.levels[-1]) * np.ones(n_samps - len(env))])
     else:
         env = env[:n_samps]
+    if lfo is not None:
+        env = env * (1 + op.ampmodsens/3 * lfo)
     env *= 2 * fm.dx7level_to_linear(op.opamp)    
     carrier = fm_waveform(frequency, amp=env, 
                           freq_mod=mod, sr=sr, duration=duration, feedback=feedback)
-    print("Op: rates:", op.rates, "levels:", op.levels, "freq: %.1f" % frequency, "fb", feedback, "amp:", op.opamp)
+    #print("Op: rates:", op.rates, "levels:", op.levels, "freq: %.1f" % frequency, "fb", feedback, "amp:", op.opamp)
     return carrier
 
 # Thank you MFSA for the DX7 op structure , borrowed here \/ \/ \/ 
@@ -209,10 +211,65 @@ IN_BUS_TWO = 0x20
 FB_IN = 0x40
 FB_OUT = 0x80
 
-# TODO: Add pitchenv
-# TODO: Add LFO
+# TODO: Fix pitchenv to be true_exponential
+# TODO: Calibrate pitchenv, lfopitchmod
+# TODO: Other LFO waveforms
+# TODO: LFO delay??
+# TODO: LFO sync
+
+def dx7_f0_contour(patch, f0=440, sr=44100, duration=1.0, keyup_time=0.5):
+    """Calculate the f0 contour including pitchenv."""
+    n_samps = int(sr * duration)
+    pitch_bps = fm.calc_loglin_eg_breakpoints(patch.pitch_rates, patch.pitch_levels)
+    pitch_env = calc_loglin_eg_env(pitch_bps, frame_rate=sr, do_exp=True, keyup_time=keyup_time)
+    if len(pitch_env) < n_samps:
+        pitch_env = np.concatenate([pitch_env, pitch_bps[-1][1]*np.ones(n_samps - len(pitch_env))])
+    else:
+        pitch_env = pitch_env[:n_samps]
+    # The pitch_env is centered at 50 = 0.014328 in linear.
+    # The amp env goes down (50/8) "octaves" to zero, but it should only be 4 (or 50/12 or something) for pitchenv
+    # so raise to 8/12 = 0.67 to reduce range.
+    pitch_env = f0 * (((1/0.014328) * pitch_env) ** 0.67)
+    #plt.plot(np.log2(pitch_env))
+    #plt.xlim([0, 1000])
+    return pitch_env
+
+def dx7_lfo(patch, sr=44100, duration=1.0):
+    """Synthesize the lfo waveform for this patch."""
+    lfo_freq = fm.lfo_speed_to_hz(patch.lfospeed)
+    amp = 1
+    feedback = 0
+    if patch.lfowaveform == 1:  # Saw_down
+        # High feedback makes a reasonable saw.
+        feedback = 0.25
+    elif patch.lfowaveform == 2:  # Saw_up
+        feedback = 0.25
+        amp = -1
+    # Triangle, Pulse, and Sine are all just sine.
+    lfo_wave = fm_waveform(lfo_freq, amp=amp, sr=sr, duration=duration, feedback=feedback)
+    return lfo_wave
+
+def ampmoddepth_to_linear(ampmoddepth):
+    """Convert ampmoddepth to linear gain on lfo waveform."""
+    if ampmoddepth < 40:
+        ampmoddb = ampmoddepth / 10
+    elif ampmoddepth < 70:
+        ampmoddb = ampmoddepth / 5 - 4
+    elif ampmoddepth < 90:
+        ampmoddb = ampmoddepth / 2 - 25
+    else:
+        ampmoddb = ampmoddepth - 70
+    # We want to return g : (1+g)/(1-g) = 10*(ampmoddb/20) = k
+    # so 1 + g = k - kg
+    # so g(1 + k) = k - 1
+    # so g = (k - 1)/(k + 1)
+    k = 10 ** (ampmoddb/20)
+    return (k - 1)/(k + 1)
 
 def synth_dx7_patch(patch, f0=440, sr=44100, duration=1.0, keyup_time=0.5):
+    lfo_wave = dx7_lfo(patch, sr, duration)
+    f0_contour = dx7_f0_contour(patch, f0, sr, duration, keyup_time)
+    f0_contour *= 1 + 0.25 * fm.dx7level_to_linear(patch.lfopitchmoddepth) * lfo_wave
     num_samples = int(sr * duration)
     bus_one = np.zeros(num_samples)
     bus_two = np.zeros(num_samples)
@@ -234,8 +291,8 @@ def synth_dx7_patch(patch, f0=440, sr=44100, duration=1.0, keyup_time=0.5):
             print('fb=', feedback)
             if (opflags & FB_OUT) == 0:
                 print("**warning: FB_OUT different from FB_IN")
-        samples = dx7_op_waveform(op, f0=f0, mod=mod_in, sr=sr, duration=duration, keyup_time=keyup_time, 
-                                  feedback=feedback)
+        samples = dx7_op_waveform(op, f0=f0_contour, mod=mod_in, sr=sr, duration=duration, keyup_time=keyup_time, 
+                                  feedback=feedback, lfo=ampmoddepth_to_linear(patch.lfoampmoddepth)*lfo_wave)
         if opflags & OUT_BUS_ONE:
             if opflags & OUT_BUS_ADD:
                 # OUT_BUS_ADD | OUT_BUS_X means add on to BUS_X

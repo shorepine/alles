@@ -315,12 +315,14 @@ def linear_to_dx7level(linear):
     """Map a linear amplitude to the dx7 0..99 scale."""
     return np.log2(np.maximum(dx7level_to_linear(0), linear)) * 8 + 99
     
+# TODO: Support TRUE_EXPONENTIAL by having an AMP_ENVELOPE flag and only doing 'attack segments' if it's true, 
+#       and modifying the exponential decay to work for both up and down
 def calc_loglin_eg_breakpoints(rates, levels):
     """Convert the DX7 rates/levels into (time, target) pairs (for alles)"""
     # This is the part we precompute in fm.py to get breakpoints to send to alles.
-    current_level = 0 # it seems, not levels[-1]
+    current_level = levels[-1]
     cumulated_time = 0
-    breakpoints = [(cumulated_time, current_level)]
+    breakpoints = [(cumulated_time, dx7level_to_linear(current_level))]
 
     MIN_LEVEL = 34
     ATTACK_RANGE = 75
