@@ -10,6 +10,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "../alles.h"
+
+
 // Constants you can change if you want
 #define OSCS 64              // # of simultaneous oscs to keep track of 
 #define BLOCK_SIZE 256       // buffer block size in samples

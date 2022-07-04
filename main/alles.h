@@ -65,6 +65,10 @@ typedef int16_t i2s_sample_type;
 
 #endif // ESP_PLATFORM
 
+// Choose to use big pcm patches bank or small -- depends on platform, but both Alles v2 and local can support large. Tulip can't 
+#define PCM_PATCHES_SIZE_LARGE 1
+//#define PCM_PATCHES_SIZE_SMALL
+
 #include "amy/amy.h"
 
 #define UDP_PORT 9294        // port to listen on
