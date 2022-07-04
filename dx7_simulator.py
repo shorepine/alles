@@ -1,9 +1,25 @@
 """Simulates the DX7 FM algorithms fully in Python."""
 
 import numpy as np
-import scipy.signal  # for sosfilt HPF
 
 import fm
+
+# We add a (1 - z^-1)/(1 - 0.995 z^-1) HPF to remove low-frequency excursions.
+# Use scipy.signal if available, but emulate if not.
+try:
+    import scipy.signal
+    def final_hpf(x):
+        return scipy.signal.sosfilt([[1, -1, 0, 1, -0.995, 0]], x)
+except ImportError:
+    def final_hpf(x):
+        state = 0
+        y = np.zeros(len(x))
+        # Sample-by-sample loop is slow in Python.
+        for i in range(len(x)):
+            new_state = x[i] + 0.995 * state
+            y[i] = new_state - state
+            state = new_state
+        return y
 
 
 #### Pure-python DX7 simulation (emulates what Alles does).
@@ -241,6 +257,6 @@ def synth_dx7_patch(patch, f0=440, sr=44100, duration=1.0, keyup_time=0.5):
             bus_add += samples
             print('bus_add += samples')
     # Apply HPF - 0.003/3.14 * 22050 = 22 Hz
-    bus_add = scipy.signal.sosfilt([[1, -1, 0, 1, -0.995, 0]], bus_add)
+    bus_add = final_hpf(bus_add)
     return bus_add
 
