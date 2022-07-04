@@ -59,6 +59,7 @@ class DX7Operator:
     freq_coarse: int = 0
     freq_fine: int = 0
     freq_detune: int = 0
+    opamp: int = 0
 
 @dataclass
 class DX7Patch:
@@ -120,9 +121,9 @@ class DX7Patch:
             op.keyvelsens = nextbyte()
             op.opamp = nextbyte()
             op.ratiotuning = False if nextbyte() == 1 else True
-            op.coarse = nextbyte()
-            op.fine = nextbyte()
-            op.detune = nextbyte()
+            op.freq_coarse = nextbyte()
+            op.freq_fine = nextbyte()
+            op.freq_detune = nextbyte()
             ops.append(op)
         result.ops = ops
         result.pitch_rates = nextbyte(4)
@@ -156,9 +157,9 @@ class DX7Patch:
             bytestream.append(op.keyvelsens)
             bytestream.append(op.opamp)
             bytestream.append(0 if op.ratiotuning else 1)
-            bytestream.append(op.coarse)
-            bytestream.append(op.fine)
-            bytestream.append(op.detune)
+            bytestream.append(op.freq_coarse)
+            bytestream.append(op.freq_fine)
+            bytestream.append(op.freq_detune)
         bytestream.extend(self.pitch_rates)
         bytestream.extend(self.pitch_levels)
         bytestream.append(self.algo - 1)
@@ -192,10 +193,10 @@ class AMYOscillator:
         result.amp_levels, result.amp_times = eg_to_bp(op.rates, op.levels)
         result.op_amp = 2 * dx7level_to_linear(op.opamp)
         if op.ratiotuning:
-            result.frequency = coarse_fine_ratio(op.coarse, op.fine, op.detune)
+            result.frequency = coarse_fine_ratio(op.freq_coarse, op.freq_fine, op.freq_detune)
             result.freq_is_ratio = True
         else:
-            result.frequency = coarse_fine_fixed_hz(op.coarse, op.fine, op.detune)
+            result.frequency = coarse_fine_fixed_hz(op.freq_coarse, op.freq_fine, op.freq_detune)
             result.freq_is_ratio = False
         result.ampmodsens = float(op.ampmodsens)  # Don't know scaling, just 0/nonzero.
         return result
@@ -264,7 +265,7 @@ class AMYPatch:
             if(amp_times[4] > last_release_time):
                 last_release_time = amp_times[4]
                 last_release_value = amp_levels[4]
-            print("osc %d (op %d) freq %.1f ratio %d env %s amp %.3f amp_mod %d" % \
+            print("osc %d (op %d) freq %.2f ratio %d env %s amp %.3f amp_mod %d" % \
                   (i, osc.op_num, osc.frequency, osc.freq_is_ratio, oscbpfmt,
                    osc.op_amp, osc.ampmodsens))
 
