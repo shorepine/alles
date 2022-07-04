@@ -215,6 +215,8 @@ extern uint8_t DEBUG;
 // global synth state
 struct state {
     float volume;
+    // State of fixed dc-blocking HPF
+    float hpf_state;
     float eq[3];
     uint16_t event_qsize;
     int16_t next_event_write;
