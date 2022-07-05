@@ -271,7 +271,7 @@ class AMYPatch:
 
             # Make them all in cosine phase, to be like DX7.  Important for slow oscs
             args = {"osc":i,
-                    "bp0_target":alles.TARGET_AMP+self.exp_type,
+                    "bp0_target":alles.TARGET_AMP+alles.TARGET_DX7_EXPONENTIAL,
                     "bp0":oscbp, "amp":osc.op_amp, "phase":0.25}
             if osc.freq_is_ratio:
                 args["ratio"] = osc.frequency
@@ -280,8 +280,11 @@ class AMYPatch:
             if(osc.ampmodsens > 0):
                 # TODO: we ignore intensity of amp mod sens, just on/off
                 args.update({"mod_source": 7, "mod_target":alles.TARGET_AMP})
-            args.update({"bp1": pitchbp,
-                         "bp1_target": alles.TARGET_FREQ+self.exp_type})
+
+            # We are _NOT_ updating operators with pitch bp, per dan tuesday 7/5 morning (but not monday 7/4 morning)
+            #args.update({"bp1": pitchbp,
+            #             "bp1_target": alles.TARGET_FREQ+alles.TARGET_TRUE_EXPONENTIAL})
+
             alles.send(**args)
 
         # Set up the amp LFO 
@@ -303,7 +306,7 @@ class AMYPatch:
             self.algo, self.feedback, pitchbp, ampbp))
         alles.send(osc=6, wave=alles.ALGO, algorithm=self.algo, feedback=self.feedback,
                    algo_source="0,1,2,3,4,5",
-                   bp0=ampbp, bp0_target=alles.TARGET_AMP+alles.TARGET_TRUE_EXPONENTIAL,
+                   bp0=ampbp, bp0_target=alles.TARGET_AMP+alles.TARGET_DX7_EXPONENTIAL,
                    bp1=pitchbp, bp1_target=alles.TARGET_FREQ+alles.TARGET_TRUE_EXPONENTIAL,
                    mod_target=alles.TARGET_FREQ, mod_source=8)
 
