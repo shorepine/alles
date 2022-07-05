@@ -318,14 +318,36 @@ def linear_to_dx7level(linear):
     """Map a linear amplitude to the dx7 0..99 scale."""
     return np.log2(np.maximum(dx7level_to_linear(0), linear)) * 8 + 99
     
-# TODO: Support TRUE_EXPONENTIAL by having an AMP_ENVELOPE flag and only doing 'attack segments' if it's true, 
-#       and modifying the exponential decay to work for both up and down
-def calc_loglin_eg_breakpoints(rates, levels):
+def pitchval_to_ratio(pitchval):
+    """Map 0..99 DX7 pitch vals (e.g. from pitch_env) into f0 ratios."""
+    # Pitch map 0..99 actually becomes -128..127 via a symmetric map with 50->0, linear from 15 to 85, then 
+    # quadratic in the remainder.
+    pitchsign = -1 + 2*(pitchval >= 50)
+    semipitchval = np.abs(pitchval - 50).astype(float)
+    # Above (50 + 36), Quadratic to reach 127 at level 99.
+    semipitchval += (semipitchval > 36) * (((semipitchval - 34)**2) * 93/225 - semipitchval + 34)
+    # DX7 manual states pitchmod range is +/- 4 octaves, so 32 steps/oct sounds right.
+    return 2 ** ((pitchsign * semipitchval) / 32)
+
+def ratio_to_pitchval(ratio):
+    semipitchval = 32 * np.log2(ratio)
+    pitchsign = -1 + 2*(semipitchval >= 0)
+    semipitchval = np.abs(semipitchval)
+    # Vectorized conditional treatment of outside -36 to 36.
+    semipitchval += (semipitchval > 36) * (34 + np.sqrt(np.abs(semipitchval - 34) * (225/93)) - semipitchval)
+    return 50 + pitchsign * semipitchval
+
+def calc_loglin_eg_breakpoints(rates, levels, dx7_attacks=True, 
+                               rate_double_interval=6, rate_scale=0.5, rate_offset=0.5):
     """Convert the DX7 rates/levels into (time, target) pairs (for alles)"""
+    if dx7_attacks:
+        level_to_lin_fn = dx7level_to_linear
+    else:
+        level_to_lin_fn = pitchval_to_ratio
     # This is the part we precompute in fm.py to get breakpoints to send to alles.
     current_level = levels[-1]
     cumulated_time = 0
-    breakpoints = [(cumulated_time, dx7level_to_linear(current_level))]
+    breakpoints = [(cumulated_time, level_to_lin_fn(current_level))]
 
     MIN_LEVEL = 34
     ATTACK_RANGE = 75
@@ -337,7 +359,7 @@ def calc_loglin_eg_breakpoints(rates, levels):
 
     for segment, (rate, target_level) in enumerate(zip(rates, levels)):
         release_segment = (segment == len(rates)-1)
-        if target_level > current_level:   # Attack segment
+        if dx7_attacks and target_level > current_level:   # Attack segment
             # The attack envelopes L(t) appear to be ~ 34 + 75 * (1 - exp(t / t_const)), starting from L = 34
             # i.e. they are rising exponentials (as in analog ADSR, but here in the log(amp) domain) 
             # with an asymptote at 109 (i.e., 10 higher than the highest possible amp).
@@ -353,33 +375,26 @@ def calc_loglin_eg_breakpoints(rates, levels):
             #print("eff_st=", effective_start_level, "t_c=", t_const, "t0=", t0, "dur=", segment_duration)
             # Now alles's task will be to recover t0 and t_const from (time, target) pairs
         else:
-            # Decay segment.
+            # Decay segment, or TRUE_EXPONENTIAL attack segment.
+            direction = 1 if target_level > current_level else -1
             # "A falling segment takes 3.5 mins"
             # so delta = 99 in 210 seconds -> level_change_per_sec =  0.5
             # I think just offset everything by 0.5, avoids div0.          
-            level_change_per_sec = -0.5 - 8 * (2 ** ((rate - 24) / 6))
+            level_change_per_sec = direction*(rate_offset + rate_scale * (2 ** (rate / rate_double_interval)))
             level_difference = target_level - current_level
             # Hack to cover for sustain = 0, release = 0 release segments which look like they should be zero long
             if release_segment and level_difference == 0:
-                level_difference = -60  # e.g. from a decayed level of 80 to zero.
+                level_difference = direction * 60  # e.g. from a decayed level of 80 to zero.
                 #print("** Goosing release amp")
             segment_duration = level_difference / level_change_per_sec
             #print("lcps=", level_change_per_sec, "dur=", segment_duration)
         cumulated_time += segment_duration
-        breakpoints.append((cumulated_time, dx7level_to_linear(target_level)))
+        breakpoints.append((cumulated_time, level_to_lin_fn(target_level)))
         current_level = target_level
     return breakpoints
 
-def EG_seg_time(L0, L1, R):
-    """How long will it take to get from L0 to L1 at rate R (all 0..99)?"""
-    # L is 8 steps per doubling
-    # R is 6 steps per doubling of time, with 24 = 1 sec per doubling of amplitude
-    doublings = np.abs((L0 & -2) - (L1 & -2)) / 8  # LSB of levels is ignored
-    doublings_per_sec = 2 ** ((R - 24) / 6)
-    return doublings / doublings_per_sec
-
-def eg_to_bp(egrate, eglevel):
-    breakpoints = calc_loglin_eg_breakpoints(egrate, eglevel)
+def eg_to_bp(egrate, eglevel, calc_eg_args={}):
+    breakpoints = calc_loglin_eg_breakpoints(egrate, eglevel, **calc_eg_args)
     rates = []
     times = []
     for time, level in breakpoints:
@@ -389,45 +404,11 @@ def eg_to_bp(egrate, eglevel):
     times[-1] -= times[-2]
     return rates, times
 
-def eg_to_bp_orig(egrate, eglevel):
-    # http://www.audiocentralmagazine.com/wp-content/uploads/2012/04/dx7-envelope.png
-    # or https://yamahasynth.com/images/RefaceSynthBasics/EG_RatesLevels.png
-    # rate seems to be "speed", so higher rate == less time
-    # level is probably exp, but so is our ADSR? 
-    #print ("Input rate %s level %s" %(egrate, eglevel))
-
-    # We're adding a (0,0) at the start - this will become level 4
-    times = [0,0,0,0,0]
-    rates = [0,0,0,0,0]
-
-    total_ms = 0
-    last_L = eglevel[-1]
-    for i in range(4):
-        # Segment 0 (attack) is a special case, it's 4x faster (24 steps higher).
-        ms = 1000 * EG_seg_time(last_L, eglevel[i], egrate[i] + 12*(i==0))
-        last_L = eglevel[i]
-        l = dx7level_to_linear(eglevel[i])
-        if(i!=3):
-            total_ms = total_ms + ms
-            times[i+1] = total_ms
-            rates[i+1] = l
-        else:
-            # Release ms counter happens separately, so don't add
-            times[i+1] = 1000 * EG_seg_time(eglevel[0], eglevel[i], egrate[i])
-            # Chop the release at ALLES_MAX_DRIFT 
-            if(times[i+1] > alles.ALLES_MAX_DRIFT_MS):
-                times[i+1] = alles.ALLES_MAX_DRIFT_MS
-            rates[i+1] = l
-    # per dx7 spec, level[0] == level[3]
-    rates[0] = rates[4]
-    return (rates, times)
-
 def eg_to_bp_pitch(egrate, eglevel):
-    rates, times = eg_to_bp_orig(egrate, eglevel)
-    for i in range(len(rates)):
-        rates[i] /= 0.014328
-    return (rates, times)
-
+    # Additional args to make breakpoint calculation to the right thing for pitch.
+    calc_pitch_eg_args = {'dx7_attacks': False, 'rate_double_interval': 20, 'rate_scale': 11, 'rate_offset': -6}
+    return eg_to_bp(egrate, eglevel, calc_pitch_eg_args)
+    
 def coarse_fine_fixed_hz(coarse, fine, detune=7):
     coarse = coarse & 3
     return 10 ** (coarse + (fine + ((detune - 7) / 8)) / 100 )
