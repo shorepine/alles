@@ -33,16 +33,22 @@ except ImportError:
 # plt.plot(wave)
 # fm.play_np_array(0.1*wave)
 
-def calc_loglin_eg_env(breakpoints, keyup_time=0.5, frame_rate=1000, do_exp=True):
+def calc_loglin_eg_env(breakpoints, keyup_time=0.5, frame_rate=1000, do_exp=True, dx7_attacks=True):
     """Take alles breakpoints derived from DX7 rate,level parameters and generate the actual envelope."""
     # This is what alles has to do to reconstruct DX7 envelopes from the set of breakpoints.
-    current_level = fm.linear_to_dx7level(breakpoints[-1][1])
+    if dx7_attacks:
+        lin_to_level_fn = fm.linear_to_dx7level
+        level_to_lin_fn = fm.dx7level_to_linear
+    else:
+        lin_to_level_fn = fm.ratio_to_pitchval
+        level_to_lin_fn = fm.pitchval_to_ratio
+    current_level = lin_to_level_fn(breakpoints[-1][1])
     current_time = 0
     last_target_time = 0
     output_levels = np.zeros(0)
     for segment, breakpoint in enumerate(breakpoints):
         # Work in DX7 levels.
-        target_level = fm.linear_to_dx7level(breakpoint[1])
+        target_level = lin_to_level_fn(breakpoint[1])
         target_time = breakpoint[0]
         release_segment = (segment == len(breakpoints) - 1)
         if release_segment:
@@ -78,7 +84,7 @@ def calc_loglin_eg_env(breakpoints, keyup_time=0.5, frame_rate=1000, do_exp=True
                 # This is used when calculating the time constant from the initial and final levels and the segment duration.
                 return 1 - np.maximum(level - MIN_LEVEL, 0) / ATTACK_RANGE
 
-            if target_level > current_level:  # Attack segment
+            if dx7_attacks and target_level > current_level:  # Attack segment
                 # Derive t_const from delta_t and delta_level
                 # if L = a.exp(-t/t_c)
                 # then L1/L0 = exp(-t1/t_c)/exp(-t0/t_c)
@@ -112,7 +118,7 @@ def calc_loglin_eg_env(breakpoints, keyup_time=0.5, frame_rate=1000, do_exp=True
     if not do_exp:
         return output_levels
     else:
-        return 2 ** ((output_levels - 99) / 8)
+        return level_to_lin_fn(output_levels)
 
 # Basic FM with feedback, vectorized except when feedback is nonzero
 def fm_waveform(freq, amp=1.0, freq_mod=None, duration=1.0, sr=44100, feedback=0):
@@ -220,18 +226,15 @@ FB_OUT = 0x80
 def dx7_f0_contour(patch, f0=440, sr=44100, duration=1.0, keyup_time=0.5):
     """Calculate the f0 contour including pitchenv."""
     n_samps = int(sr * duration)
-    pitch_bps = fm.calc_loglin_eg_breakpoints(patch.pitch_rates, patch.pitch_levels)
-    pitch_env = calc_loglin_eg_env(pitch_bps, frame_rate=sr, do_exp=True, keyup_time=keyup_time)
+    # envelope rate scaling parameters for pitch_env timing.
+    pitch_bps = fm.calc_loglin_eg_breakpoints(patch.pitch_rates, patch.pitch_levels, dx7_attacks=False, 
+                                              rate_double_interval=20, rate_scale=11, rate_offset=-6)
+    pitch_env = calc_loglin_eg_env(pitch_bps, frame_rate=sr, keyup_time=keyup_time, dx7_attacks=False)
     if len(pitch_env) < n_samps:
         pitch_env = np.concatenate([pitch_env, pitch_bps[-1][1]*np.ones(n_samps - len(pitch_env))])
     else:
         pitch_env = pitch_env[:n_samps]
-    # The pitch_env is centered at 50 = 0.014328 in linear.
-    # The amp env goes down (50/8) "octaves" to zero, but it should only be 4 (or 50/12 or something) for pitchenv
-    # so raise to 8/12 = 0.67 to reduce range.
-    pitch_env = f0 * (((1/0.014328) * pitch_env) ** 0.67)
-    #plt.plot(np.log2(pitch_env))
-    #plt.xlim([0, 1000])
+    pitch_env = f0 * pitch_env
     return pitch_env
 
 def dx7_lfo(patch, sr=44100, duration=1.0):
