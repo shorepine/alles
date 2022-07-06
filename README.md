@@ -89,6 +89,7 @@ G = filter type. 0 = none (default.) 1 = low pass, 2 = band pass, 3 = hi pass.
 I = ratio. for ALGO types, where the base note frequency controls the modulators, or for the ALGO base note and PARTIALS base note, where the ratio controls the speed of the playback
 L = modulation source oscillator. 0-63. Which oscillator is used as an modulation/LFO source for this oscillator. Source oscillator will be silent. 
 l = velocity (amplitude), float 0-1+, >0 to trigger note on, 0 to trigger note off.  
+N = latency (ms.) 0-5000 (in practice). default 1000 for mesh use. change to 0 if using locally
 n = midinote, uint, 0-127 (this will also set f). default 0
 o = algorithm, choose which algorithm for the ALGO type, uint, 1-32. mirrors DX7 algorithms 
 O = algorithn source oscillators, choose which oscillators make up the algorithm oscillator, like "0,1,2,3,4,5" for algorithm 0
@@ -162,7 +163,7 @@ You can read the heartbeat messages on your host if you want to enumerate the sy
 
 ## Timing & latency
 
-Alles is not designed as a low latency real-time performance instrument, where your actions have an immediate effect on the sound. Changes you make on the host will take a fixed latency -- currently set at 1000ms -- to get to every synth. This fixed latency ensures that messages arrive to every synth -- both ESP32 based and those running on computers -- in the mesh in time to play in perfect sync, even though Wi-Fi's transmission latency varies widely. This allows you to have millisecond-accurate timing in your performance across dozens of speakers in a large space. 
+Alles is not designed as a low latency real-time performance instrument, where your actions have an immediate effect on the sound. Changes you make on the host will take a fixed latency -- currently set at 1000ms by default -- to get to every synth. This fixed latency ensures that messages arrive to every synth -- both ESP32 based and those running on computers -- in the mesh in time to play in perfect sync, even though Wi-Fi's transmission latency varies widely. This allows you to have millisecond-accurate timing in your performance across dozens of speakers in a large space.
 
 Your host should send along the `time` parameter of the relative time when you expect the sound to play. I'd suggest using the number of milliseconds since your host started, e.g. in Python:
 
@@ -177,6 +178,8 @@ If using Max, use the `cpuclock` object as the `time` parameter. If using MIDI m
 The first time you send a message with `time` the synth mesh uses it to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of WiFi jitter.) Further messages will be millisecond accurate message-to-message, but with the fixed latency. You can adapt `time` per client if you want to account for speed-of-sound delay. 
 
 The `time` parameter is not meant to schedule things far in the future on the clients. If you send a new `time` that is outside 20,000ms from its expected delta, the clock base will re-compute. Your host should be the main "sequencer" and keep track of performance state and future events. 
+
+Latency is adjustable, if you are comfortable with your network you can set it lower, or if using a local (127.0.0.1) connection, or directly sending messages in code, you can set it to 0. 
 
 ## Enumerating synths
 

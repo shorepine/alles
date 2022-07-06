@@ -85,7 +85,7 @@ def trunc(number):
 # Construct an AMY message
 def message(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1, feedback=-1, timestamp=None, reset=-1, phase=-1, \
         client=-1, retries=1, volume=-1, filter_freq = -1, resonance = -1, bp0="", bp1="", bp2="", bp0_target=-1, bp1_target=-1, bp2_target=-1, mod_target=-1, \
-        debug=-1, mod_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, algo_source=None):
+        debug=-1, mod_source=-1, eq_l = -1, eq_m = -1, eq_h = -1, filter_type= -1, algorithm=-1, ratio = -1, latency_ms = -1, algo_source=None):
 
     m = ""
     if(timestamp is None): timestamp = millis()
@@ -102,6 +102,7 @@ def message(osc=0, wave=-1, patch=-1, note=-1, vel=-1, amp=-1, freq=-1, duty=-1,
     if(amp>=0): m = m + "a" + trunc(amp)
     if(vel>=0): m = m + "l" + trunc(vel)
     if(volume>=0): m = m + "V" + trunc(volume)
+    if(latency_ms>=0): m = m + "N" + trunc(latency_ms)
     if(resonance>=0): m = m + "R" + trunc(resonance)
     if(filter_freq>=0): m = m + "F" + trunc(filter_freq)
     if(ratio>=0): m = m + "I" + trunc(ratio)
@@ -163,6 +164,8 @@ def reset(osc=None):
 def volume(volume, client = -1):
     send(client=client, volume=volume)
 
+def latency_ms(latency, client=-1):
+    send(client=client, latency_ms =latency)
 
 """
     Run a scale through all the synth's sounds
