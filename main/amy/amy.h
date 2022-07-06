@@ -16,19 +16,10 @@
 // Constants you can change if you want
 #define OSCS 64              // # of simultaneous oscs to keep track of 
 #define BLOCK_SIZE 256       // buffer block size in samples
-#if defined(ESP_PLATFORM) 
+
 #define DEFAULT_LATENCY_MS 1000      // fixed latency in milliseconds
 #define EVENT_FIFO_LEN 3000  // number of events the queue can store
 #define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
-#elif defined(DESKTOP_PLATFORM)
-#define DEFAULT_LATENCY_MS 1000      
-#define EVENT_FIFO_LEN 3000  // number of events the queue can store
-#define MAX_DRIFT_MS 20000   // ms of time you can schedule ahead before synth recomputes time base
-#else
-#define DEFAULT_LATENCY_MS 0          // no latency for local mode
-#define EVENT_FIFO_LEN 30000  // number of events the queue can store
-#define MAX_DRIFT_MS 60000
-#endif
 #define SAMPLE_RATE 44100    // playback sample rate
 #define SAMPLE_MAX 32767
 #define MAX_ALGO_OPS 6 // dx7
