@@ -69,13 +69,14 @@ typedef int16_t i2s_sample_type;
 #define PCM_PATCHES_SIZE_LARGE 1
 //#define PCM_PATCHES_SIZE_SMALL
 
-#include "amy/amy.h"
+#define DEFAULT_LATENCY_MS 1000 // fixed default latency in milliseconds, can change
+#include "amy.h"
 
 #define UDP_PORT 9294        // port to listen on
 #define MULTICAST_TTL 255     // hops multicast packets can take
 #define MULTICAST_IPV4_ADDR "232.10.11.12"
 #define PING_TIME_MS 10000   // ms between boards pinging each other
-
+#define MAX_RECEIVE_LEN 4096
 
 // enums
 #define DEVBOARD 0

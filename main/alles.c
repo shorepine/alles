@@ -74,7 +74,7 @@ void esp_fill_audio_buffer_task() {
 void esp_parse_task() {
     while(1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        parse_task();
+        parse_task(message_start_pointer);
         xTaskNotifyGive(mcastTask);
     }
 }

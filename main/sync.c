@@ -28,7 +28,7 @@ void update_map(uint8_t client, uint8_t ipv4, int64_t time) {
 
     //printf("[%d %d] Got a sync response client %d ipv4 %d time %lld\n",  ipv4_quartet, client_id, client , ipv4, time);
     clocks[ipv4] = time;
-    int64_t my_sysclock = get_sysclock();
+    int64_t my_sysclock = amy_sysclock();
     ping_times[ipv4] = my_sysclock;
 
     // Now I basically see what index I would be in the list of booted synths (clocks[i] > 0)
@@ -68,7 +68,7 @@ void update_map(uint8_t client, uint8_t ipv4, int64_t time) {
 
 void handle_sync(int64_t time, int8_t index) {
     // I am called when I get an s message, which comes along with host time and index
-    int64_t sysclock = get_sysclock();
+    int64_t sysclock = amy_sysclock();
     char message[100];
     // Before I send, i want to update the map locally
     update_map(client_id, ipv4_quartet, sysclock);
