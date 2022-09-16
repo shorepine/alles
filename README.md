@@ -4,7 +4,7 @@
 
 **Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 64 additive oscillators and 32 filters, with modulation / LFOs and ADSRs per oscillator. The mesh of speakers can be composed of any combination of our custom hardware speakers or programs running on computers. The software is open source and the hardware is cheap and easy to make -- you can build one yourself for about US$20.
 
-The synthesizers automatically form a mesh and listen to multicast WiFi messages. You can control the mesh from a host computer using any programming language or environments like Max or Pd. You can also connect a software speaker to MIDI on your computer and have it broadcast MIDI from any device to the mesh. 
+The synthesizers automatically form a mesh and listen to multicast WiFi messages. You can control the mesh from a host computer using any programming language or environments like Max or Pd. 
 
 We intended their first use as distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [Atari AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 64 partials, all controlled as a group or individually. But you can just treat them as dozens of individual synthesizers and do whatever you want with them. It's pretty fun!
 
@@ -57,7 +57,7 @@ $ ./alles -h # shows all the useful commandline parameters, like changing which 
 
 **Check out our brand new [Getting Started](https://github.com/bwhitman/alles/tree/main/getting-started.md) page for a tutorial!**
 
-You can control every synth on the mesh from a single host, using UDP over WiFi. You can address any synth in the mesh or all of them at once with one message, or use groups. You can specify synth parameters down to 32 bits of precision, far more than MIDI. This method can be used in music environments like Max or Pd, or by musicians or developers using languages like Python, or for plug-in developers who want to bridge Alles's full features to DAWs.
+You can control every synth on the mesh from a single host, using UDP over WiFi. You can address any synth in the mesh or all of them at once with one message, or use groups. This method can be used in music environments like Max or Pd, or by musicians or developers using languages like Python, or for plug-in developers who want to bridge Alles's full features to DAWs.
 
 Alles's wire protocol is a series of numbers delimited by ascii characters that define all possible parameters of an oscillator. This is a design decision intended to make using Alles from any sort of environment as easy as possible, with no data structure or parsing overhead on the client. It's also readable and compact, far more expressive than MIDI and can be sent over network links, UARTs, or as arguments to functions or commands. 
 
@@ -169,7 +169,7 @@ def millis():
     return int((datetime.datetime.utcnow() - datetime.datetime(d.year, d.month, d.day)).total_seconds()*1000)
 ```
 
-If using Max, use the `cpuclock` object as the `time` parameter. If using MIDI mode, the relay synth's clock is used as a time base. 
+If using Max, use the `cpuclock` object as the `time` parameter.
 
 The first time you send a message with `time` the synth mesh uses it to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of WiFi jitter.) Further messages will be millisecond accurate message-to-message, but with the fixed latency. You can adapt `time` per client if you want to account for speed-of-sound delay. 
 
@@ -212,17 +212,6 @@ See [`alles.py`](https://github.com/bwhitman/alles/blob/main/alles.py) for a bet
 You can also easily use it in Max or Pd:
 
 ![Max](https://raw.githubusercontent.com/bwhitman/alles/main/pics/max.png)
-
-## MIDI mode
-
-(Under construction) You can also control Alles through MIDI. You can use standard MIDI programs / DAWs to control the entire mesh from a single software Alles speaker.
-
-`CHANNEL: 1-16`: sets which synth ID in the mesh you want to send the message to. `1` sends the message to all synths, and `2-16`sends the message to only that ID, minus 1. So to send a message to only the first booted synth, use the second channel.
-
-`"Pgm Change Bank"`: set to "Bank 1" and then use `PROGRAM CHANGE` messages to set the tone. Bank `1` and `PGM` 1 is a sine wave, 2 is a square, and so on like the `w` parameter above. `Bank 2` and onwards are the FM patches. `Bank 2` and `PGM 1` is the first FM patch. `Bank 2 PGM 2` is the second patch. `BANK X PGM Y` is the `(128*(X-2) + (Y-1))` patch. 
-
-Currently supported are program / bank changes and note on / offs. Will be adding more CCs soon.
-
 
 
 # Synthesizer Details
@@ -377,7 +366,6 @@ Alles comes prebaked with some converted DX7 patches from the [learnFM](https://
 * ~~case / battery setup~~
 * ~~overloading the volume (I think only on FM) crashes~~
 * ~~UDP message clicks~~
-* more MIDI parameters 
 * desktop USB flasher
 * BT / app based config instead of captive portal (later)
 

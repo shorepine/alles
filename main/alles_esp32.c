@@ -43,10 +43,6 @@ void esp_show_debug(uint8_t type);
 // wifi and multicast
 extern wifi_config_t* wifi_manager_config_sta ;
 extern void mcast_listen_task(void *pvParameters);
-// MIDI
-extern void midi_init();
-extern void midi_deinit();
-extern void read_midi();
 
 uint8_t board_level;
 uint8_t status;
