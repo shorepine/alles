@@ -1,4 +1,5 @@
 build/
+main/alles
 auth.h
 .DS_Store
 *.pyc

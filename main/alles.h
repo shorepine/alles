@@ -95,9 +95,8 @@ amy_err_t sync_init();
 
 extern  void update_map(uint8_t client, uint8_t ipv4, int64_t time);
 extern void handle_sync(int64_t time, int8_t index);
-#ifdef ESP_PLATFORM
 extern void mcast_send(char * message, uint16_t len);
-#else
+#ifndef ESP_PLATFORM
 extern void *mcast_listen_task(void *vargp);
 #endif
 extern void create_multicast_ipv4_socket();
