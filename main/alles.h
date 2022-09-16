@@ -1,46 +1,26 @@
 // alles.h
-
 #ifndef __ALLES_H
 #define __ALLES_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdio.h>
 #include <stddef.h>
-#include <math.h>
-
 #ifdef ESP_PLATFORM
-#define configUSE_TASK_NOTIFICATIONS 1
-//#define configTASK_NOTIFICATION_ARRAY_ENTRIES 2
-#define MAX_WIFI_WAIT_S 120
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include "freertos/event_groups.h"
-#include "esp_wifi.h"
+
 #include "esp_system.h"
 #include "esp_spi_flash.h"
-#include "esp_https_ota.h"
-#include "esp_ota_ops.h"
 #include "esp_intr_alloc.h"
 #include "esp_attr.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_err.h"
-#include "esp_sleep.h"
-#include "driver/uart.h"
-#include "driver/i2s.h"
 #include "nvs_flash.h"
 #include "lwip/netdb.h"
 #include "wifi_manager.h"
-#include "http_app.h"
-#include "power.h"
-// This can be 32 bit, int32_t -- helpful for digital output to a i2s->USB teensy3 board
-#define I2S_SAMPLE_TYPE I2S_BITS_PER_SAMPLE_16BIT
-typedef int16_t i2s_sample_type;
+#include "driver/gpio.h"
 
 #define MAX_TASKS 9
 
@@ -63,13 +43,15 @@ typedef int16_t i2s_sample_type;
 #define CPU_MONITOR_1 12
 #define CPU_MONITOR_2 15
 
-#endif // ESP_PLATFORM
+void wifi_reconfigure();
+extern esp_err_t buttons_init();
+void esp_show_debug(uint8_t type);
+void delay_ms(uint32_t ms);
+
+#endif
 
 // Choose to use big pcm patches bank or small -- depends on platform, but both Alles v2 and local can support large. Tulip can't 
-#define PCM_PATCHES_SIZE_LARGE 1
-//#define PCM_PATCHES_SIZE_SMALL
-
-#define DEFAULT_LATENCY_MS 1000 // fixed default latency in milliseconds, can change
+#define ALLES_LATENCY_MS 1000 // fixed default latency in milliseconds, can change
 #include "amy.h"
 
 #define UDP_PORT 9294        // port to listen on
@@ -91,57 +73,39 @@ typedef int16_t i2s_sample_type;
 #define BATTERY_VOLTAGE_2 0x40
 #define BATTERY_VOLTAGE_1 0x80
 
-void delay_ms(uint32_t ms);
-
 // Status mask 
 #define RUNNING 1
 #define WIFI_MANAGER_OK 2
 #define UPDATE 4
 
+char *message_start_pointer;
+int16_t message_length;
 
-// Sounds
 extern void bleep();
 extern void debleep();
 extern void upgrade_tone();
 extern void wifi_tone();
 extern void scale(uint8_t wave);
 
-#ifdef VIRTUAL_MIDI
-extern void midi_init();
-#endif
+extern uint8_t alive;
+extern int16_t client_id;
 
+void ping(int64_t sysclock);
+amy_err_t sync_init();
+
+extern  void update_map(uint8_t client, uint8_t ipv4, int64_t time);
+extern void handle_sync(int64_t time, int8_t index);
 #ifdef ESP_PLATFORM
-// Button handlers
-void wifi_reconfigure();
-extern esp_err_t buttons_init();
-void esp_show_debug(uint8_t type);
-void increase_volume();
-void decrease_volume();
-
-// wifi and multicast
-extern wifi_config_t* wifi_manager_config_sta ;
-extern void mcast_listen_task(void *pvParameters);
-// MIDI
-extern void midi_init();
-extern void midi_deinit();
-extern void read_midi();
+extern void mcast_send(char * message, uint16_t len);
 #else
 extern void *mcast_listen_task(void *vargp);
 #endif
-
-// multicast
-extern void mcast_send(char * message, uint16_t len);
 extern void create_multicast_ipv4_socket();
+void alles_parse_message(char *message, uint16_t length);
 
 
 
 
-
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

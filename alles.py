@@ -1,9 +1,8 @@
 import socket, struct, datetime, os, time, sys
 sys.path.append('amy')
+import amy
 from amy import *
-
 ALLES_LATENCY_MS = 1000
-ALLES_MAX_DRIFT_MS = 20000
 UDP_PORT = 9294
 sock = 0
 
@@ -13,8 +12,6 @@ sock = 0
 # flush() sends whatever is in the buffer now, and is called after buffer(0) as well 
 send_buffer = ""
 buffer_size = 0
-
-
 
 def transmit(message, retries=1):
     for x in range(retries):
@@ -42,6 +39,10 @@ def send(retries=1, **kwargs):
             send_buffer = send_buffer + m
     else:
         transmit(m,retries=retries)
+
+# We override AMY's send function to send out to the mesh instead of locally
+amy.override_send = send
+
 
 
 """

@@ -12,7 +12,7 @@ default: $(TARGET)
 all: default
 
 
-OBJECTS = $(patsubst %.c, %.o, sync.c midi.c multicast_desktop.c alles_desktop.c sounds.c $(AMY)/algorithms.c \
+OBJECTS = $(patsubst %.c, %.o, sync.c midi.c multicast_desktop.c alles_desktop.c alles.c sounds.c $(AMY)/algorithms.c \
 	$(AMY)/amy.c $(AMY)/envelope.c $(AMY)/filters.c $(AMY)/oscillators.c $(AMY)/pcm.c $(AMY)/partials.c $(AMY)/libsoundio-audio.c)
 HEADERS = alles.h $(wildcard amy/*.h)
 

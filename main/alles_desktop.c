@@ -30,12 +30,11 @@ int main(int argc, char ** argv) {
     sync_init();
     amy_start();
     amy_reset_oscs();
+    global.latency_ms = ALLES_LATENCY_MS;
 
     // For now, indicate ip address via commandline
     local_ip = (char*)malloc(sizeof(char)*1025);
     local_ip[0] = 0;    
-    raw_file = (char*)malloc(sizeof(char)*1025);
-    raw_file[0] = 0;
     get_first_ip_address(local_ip);
 
     int opt;
@@ -68,7 +67,6 @@ int main(int argc, char ** argv) {
                 printf("\t[-c sound channel, default -1 for all channels on device]\n");
                 printf("\t[-o offset for client ID, use for multiple copies of this program on the same host, default is 0]\n");
                 printf("\t[-l list all sound devices and exit]\n");
-                printf("\t[-r output audio to specified raw file (1-channel 16-bit signed int, 44100Hz)\n");
                 printf("\t[-h show this help and exit]\n");
                 return 0;
                 break;

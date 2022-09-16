@@ -208,14 +208,14 @@ void *mcast_listen_task(void *vargp) {
                     }
                     udp_message[full_message_length] = 0;
                     uint16_t start = 0;
-                    // Break the packet up into messages (delimited by \n.)
+                    // Break the packet up into messages (delimited by Z.)
                     for(uint16_t i=0;i<full_message_length;i++) {
                         if(udp_message[i] == 'Z') {
                             udp_message[i] = 0;
                             udp_message_counter++;
                             message_start_pointer = udp_message + start;
                             message_length = i - start;
-                            amy_parse_message(message_start_pointer);
+                            alles_parse_message(message_start_pointer, message_length);
                             start = i+1;
                         }
                     }
