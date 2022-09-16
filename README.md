@@ -15,22 +15,14 @@ Want to try it today? [Build a speaker](#building-your-own-diy-alles) yourself, 
 
 ## Synthesizer specs
 
-Each individual synthesizer supports:
+Each individual synth is powered by the [AMY additive synthesizer library](https://github.com/bwhitman/amy/blob/main/README.md), you can read more details there. But at a high level, each Alles synth has:
 
  * 64 oscillators, each with adjustable frequency and amplitude:
-   * pulse (+ adjustable duty cycle)
-   * sine
-   * saw
-   * triangle
-   * noise
-   * PCM, reading from a baked-in buffer of percussive and misc samples
+   * pulse (+ adjustable duty cycle), sine, saw, triangle, noise and PCM, reading from a baked-in buffer of percussive and misc samples
    * karplus-strong string with adjustable feedback (can have up to 2 per synth)
-   * An operator / algorithm-based frequency modulation synth, very close to a DX7
+   * An operator / algorithm-based frequency modulation synth, almost perfectly like a DX7
  * Up to 32 biquad low-pass, bandpass or hi-pass filters with cutoff and resonance, can be assigned to any oscillator
  * An additive partial synthesizer with an analysis front end to play back long strings of breakpoint-based sine waves 
- * Oscillators can be specified by frequency in floating point or midi note 
- * Each oscillator has 3 breakpoint generators, which can modify any combination of amplitude, frequency, duty, filter cutoff, feedback or resonance
- * Each oscillator can also act as an modulator to modify any combination of parameters of another oscillator, for example, a bass drum can be indicated via a half phase sine wave at 0.25Hz modulating the frequency of another sine wave. 
  * Control of speaker gain and 3-band parametric EQ
  * Built in patches for PCM, FM and partials
 
@@ -224,10 +216,6 @@ If you are using your own dev board and it has less than 8MB of flash (4MB is co
 Alles is completely open source, and can be a fun platform to adapt beyond its current capabilities. 
 
 You can upgrade the firmware or write your own using the USB connection. [See the guide on flashing a hardware Alles speaker](https://github.com/bwhitman/alles/tree/main/alles-flashing.md) (either DIY or one of ours). 
-
-## Generating new FM patches or changing the PCM bank
-
-Alles comes prebaked with some converted DX7 patches from the [learnFM](https://github.com/bwhitman/learnfm) project. It also comes prebaked with a long buffer of PCM samples, mostly ones that are more complex to synthesize using additive oscillators, for example, closed hi-hats or cymbals. If you build your own firmware, you're free to change both. In [`amy_headers.py`](https://github.com/bwhitman/alles/blob/main/amy_headers.py), [`partials.py`](https://github.com/bwhitman/alles/blob/main/partials.py) and [`fm.py`](https://github.com/bwhitman/alles/blob/main/fm.py) you'll see functions that can regenerate `pcm.h`, `fm.h`, `partials.h` for you, by giving it other FM patches, PCM buffers or even SoundFonts. 
 
 
 ## THANK YOU TO
