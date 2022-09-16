@@ -15,6 +15,7 @@
 #include <netdb.h>
 
 extern void deserialize_event(char * message, uint16_t length);
+extern void ping(int64_t sysclock);
 
 int sock= -1;
 uint8_t ipv4_quartet;
@@ -207,21 +208,21 @@ void *mcast_listen_task(void *vargp) {
                     }
                     udp_message[full_message_length] = 0;
                     uint16_t start = 0;
-                    // Break the packet up into messages (delimited by \n.)
+                    // Break the packet up into messages (delimited by Z.)
                     for(uint16_t i=0;i<full_message_length;i++) {
                         if(udp_message[i] == 'Z') {
                             udp_message[i] = 0;
                             udp_message_counter++;
                             message_start_pointer = udp_message + start;
                             message_length = i - start;
-                            parse_task();
+                            alles_parse_message(message_start_pointer, message_length);
                             start = i+1;
                         }
                     }
                 }
             } 
             // Do a ping every so often
-            int64_t sysclock = get_sysclock();
+            int64_t sysclock = amy_sysclock();
             if(sysclock > (last_ping_time+PING_TIME_MS)) {
                 ping(sysclock);
             }

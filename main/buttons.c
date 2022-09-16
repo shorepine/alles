@@ -41,7 +41,7 @@ static void gpio_task(void* arg) {
                 break;
             case BUTTON_MINUS: 
                 printf("minus pushed\n");
-                decrease_volume();
+                amy_decrease_volume();
                 break;
             case BUTTON_WIFI: 
                 // WIFI config mode
@@ -53,7 +53,7 @@ static void gpio_task(void* arg) {
                 if(!(status & WIFI_MANAGER_OK)) { 
                     status |= UPDATE;
                 } else {
-                    increase_volume();
+                    amy_increase_volume();
                 }
                 break;
             }

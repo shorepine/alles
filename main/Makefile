@@ -1,18 +1,19 @@
 # Desktop (not ESP) alles Makefile
 
-
+AMY = ../amy/src
 TARGET = alles
 LIBS = -lpthread -lsoundio -lm 
 CC = gcc
-CFLAGS = -g -Wall -Wno-strict-aliasing -DDESKTOP_PLATFORM
+CFLAGS = -g -Wall -Wno-strict-aliasing -DDESKTOP_PLATFORM -I$(AMY)
 
 .PHONY: default all clean
 
 default: $(TARGET)
 all: default
 
-OBJECTS = $(patsubst %.c, %.o, sync.c midi.c multicast_desktop.c alles_desktop.c sounds.c amy/algorithms.c \
-	amy/amy.c amy/envelope.c amy/filters.c amy/oscillators.c amy/pcm.c amy/partials.c)
+
+OBJECTS = $(patsubst %.c, %.o, sync.c midi.c multicast_desktop.c alles_desktop.c alles.c sounds.c $(AMY)/algorithms.c \
+	$(AMY)/amy.c $(AMY)/envelope.c $(AMY)/filters.c $(AMY)/oscillators.c $(AMY)/pcm.c $(AMY)/partials.c $(AMY)/libsoundio-audio.c)
 HEADERS = alles.h $(wildcard amy/*.h)
 
 UNAME_S := $(shell uname -s)
