@@ -4,7 +4,6 @@ idf_component_register(SRCS alles.c
 							buttons.c
 							sounds.c
 							power.c
-							sync.c
 							../amy/src/amy.c
 							../amy/src/algorithms.c
 							../amy/src/oscillators.c
