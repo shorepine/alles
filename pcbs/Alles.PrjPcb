@@ -196,7 +196,7 @@ DItemRevisionGUID=
 
 [Parameter1]
 Name=VersionRevision
-Value=RevB
+Value=RevE
 
 [Parameter2]
 Name=Project
