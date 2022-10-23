@@ -18,7 +18,7 @@ To do this, you need to set up the following things:
 
 ### Set up ESP-IDF
 
-ESP-IDF is the set of open source tools and libraries that work on the CPU powering Alles, the ESP32. You should first install ESP-IDF on your system if you haven't already. We tend to use the master branch of the IDF as we use some newer features.
+ESP-IDF is the set of open source tools and libraries that work on the CPU powering Alles, the ESP32. You should first install ESP-IDF on your system if you haven't already. We use the 4.4 release of ESP-IDF, which you'll switch to in the installation.
 
 On a Mac, it's usually pretty simple (enter all these in Terminal.app)
 
@@ -36,6 +36,7 @@ mkdir -p ~/esp
 cd ~/esp
 git clone --recursive https://github.com/espressif/esp-idf.git
 cd ~/esp/esp-idf
+git checkout release/v4.4 # Use version 4.4 
 ./install.sh esp32
 ```
 
