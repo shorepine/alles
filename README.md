@@ -83,7 +83,7 @@ Or experiment with oscillators:
 # use a a 0.25Hz sine wave at half phase (going down) to modify frequency of another sine wave
 alles.reset()
 alles.send(osc=1, wave=alles.SINE, vel=0.50, freq=0.25, phase=0.5) # LFO source oscillator
-alles.send(osc=0, wave=alles.SINE, vel=0, bp0="0,500,0,0", bp0_target=alles.TARGET_AMP, lfo_target=alles.TARGET_FREQ, lfo_source=1)
+alles.send(osc=0, wave=alles.SINE, vel=0, bp0="0,500,0,0", bp0_target=alles.TARGET_AMP, mod_target=alles.TARGET_FREQ, mod_source=1)
 alles.send(osc=0, note=60, vel=1.5) # Bass drum!
 alles.send(osc=0, filter_freq=800, resonance=1.5) # filter it
 alles.send(osc=0, note=50, vel=1.5) # note on
