@@ -171,7 +171,10 @@ See [AMY's readme](https://github.com/bwhitman/amy/blob/main/README.md) for more
 
 ## Building your own DIY Alles 
 
-We are currently testing [rev2 of a all-in-one design for Alles](https://github.com/bwhitman/alles/blob/main/pcbs/2021-03-22_Alles_RevB.pdf). The self-contained version has its own rechargable battery, 4ohm speaker, case and buttons for configuration & setup. We're hoping to be able to sell these in packs for anyone to use. More details soon. 
+**You can now buy an Alles PCB from Blinkinlabs!**
+
+ * [Buy the Alles PCB with shipping to the US](https://shop.blinkinlabs.com/products/alles-pcb)
+ * [Buy the Alles PCB with shipping outside of the US](https://shop-nl.blinkinlabs.com/products/alles-pcb)
 
 ![blinkinlabs PCB](https://raw.githubusercontent.com/bwhitman/alles/main/pics/alles_reva.png)
 
