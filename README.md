@@ -13,7 +13,7 @@ The synthesizers automatically form a mesh and listen to multicast WiFi messages
 
 We intended their first use as distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [Atari AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 64 partials, all controlled as a group or individually. But you can just treat them as dozens of individual synthesizers and do whatever you want with them. It's pretty fun!
 
-Want to try it today? [Buy an Alles and optionally a speaker (or use your own)](https://shop.blinkinlabs.com/products/alles-pcb), [build your own Alles](#building-your-own-diy-alles) yourself, or [install the software version](#using-it----software-alles
+Want to try it today? [Buy an Alles and optionally a speaker (or use your own)](#buy-an-alles), [build your own Alles](#diy-alles) yourself, or [install the software version](#using-it----software-alles
 ), and then read our [getting started tutorial!](https://github.com/bwhitman/alles/tree/main/getting-started.md)
 
 ## Synthesizer specs
@@ -165,9 +165,10 @@ You can also easily use it in Max or Pd:
 
 See [AMY's readme](https://github.com/bwhitman/amy/blob/main/README.md) for more details on the synthesizer itself.
 
-# Developer & DIY Zone
 
-## Get your own Alles
+# Get your own Alles!
+
+## Buy an Alles
 
 **You can now buy an Alles PCB from Blinkinlabs!**
 
@@ -183,7 +184,7 @@ If you want the small circular speakers shown on this page and videos, they are 
 ![blinkinlabs PCB](https://raw.githubusercontent.com/bwhitman/alles/main/pics/alles_reva.png)
 
 
-## DIY Hardware Alles
+## DIY Alles
 
 It's very simple to make one yourself with parts you can get from electronics distributors like Sparkfun, Adafruit or Amazon. 
 
