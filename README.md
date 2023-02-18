@@ -13,9 +13,7 @@ The synthesizers automatically form a mesh and listen to multicast WiFi messages
 
 We intended their first use as distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [Atari AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 64 partials, all controlled as a group or individually. But you can just treat them as dozens of individual synthesizers and do whatever you want with them. It's pretty fun!
 
-Our friends at [Blinkinlabs](https://blinkinlabs.com) are helping us produce small self-contained battery powered speakers with Alles built in. But in the meantime, or if you want to DIY, you can easily build your own! They're cheap to make ($7 for the microcontroller, $6 for the amplifier, speakers from $0.50 up depending on quality). And very easy to put together with hookup wire or only a few soldering points. 
-
-Want to try it today? [Buy a PCB](https://shop.blinkinlabs.com/products/alles-pcb), [build a speaker](#building-your-own-diy-alles) yourself, or [install the software version](#using-it----software-alles
+Want to try it today? [Buy an Alles and optionally a speaker (or use your own)](https://shop.blinkinlabs.com/products/alles-pcb), [build your own Alles](#building-your-own-diy-alles) yourself, or [install the software version](#using-it----software-alles
 ), and then read our [getting started tutorial!](https://github.com/bwhitman/alles/tree/main/getting-started.md)
 
 ## Synthesizer specs
