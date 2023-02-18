@@ -13,7 +13,7 @@ The synthesizers automatically form a mesh and listen to multicast WiFi messages
 
 We intended their first use as distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [Atari AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 64 partials, all controlled as a group or individually. But you can just treat them as dozens of individual synthesizers and do whatever you want with them. It's pretty fun!
 
-Want to try it today? [Buy an Alles and optionally a speaker (or use your own)](#buy-an-alles), [build your own Alles](#diy-alles) yourself, or [install the software version](#using-it----software-alles
+Want to try it today? [Buy an Alles](#buy-an-alles), [build your own Alles](#diy-alles), or [install the software version](#using-it----software-alles
 ), and then read our [getting started tutorial!](https://github.com/bwhitman/alles/tree/main/getting-started.md)
 
 ## Synthesizer specs
