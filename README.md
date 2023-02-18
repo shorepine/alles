@@ -169,16 +169,25 @@ See [AMY's readme](https://github.com/bwhitman/amy/blob/main/README.md) for more
 
 # Developer & DIY Zone
 
-## Building your own DIY Alles 
+## Get your own Alles
 
 **You can now buy an Alles PCB from Blinkinlabs!**
 
  * [Buy the Alles PCB with shipping to the US](https://shop.blinkinlabs.com/products/alles-pcb)
  * [Buy the Alles PCB with shipping outside of the US](https://shop-nl.blinkinlabs.com/products/alles-pcb)
 
+If you want an [Alles](https://shop.blinkinlabs.com/products/alles-pcb) to use with your own speaker and battery, you can purchase an Alles PCB with screw connectors already attached. This lets you hook up any speaker and battery to Alles with no soldering. Alles can be powered over micro-USB with or without a battery, and if a battery is present the USB cable will charge the battery.
+
+If you want the small circular speakers shown on this page and videos, they are easy to get. Here's a link to them on Alibaba: [the round A60s](https://www.alibaba.com/product-detail/A60-Wooden-Grain-Portable-Wireless-Bluetooth_1600291216741.html?spm=a2700.wholesale.0.0.3e6c344biON4Qa) – the [square-shaped A70s](https://www.alibaba.com/product-detail/A70-Wood-Speaker-Grain-Portable-Wireless_1600291333969.html) also work! You then can buy an Alles PCB from us with no terminals for speaker and battery -- the connections for the shell solder directly to the board. It takes me about 3 minutes to assemble the Alles PCB inside the A60 or A70 speaker. To do it this way, you only need a wire stripper, a small screwdriver and a soldering iron. 
+ 
+**IMPORTANT:** Alles is sold on a "best effort" community support basis. We will send you working PCBs with the latest Alles firmware loaded on them. Anything that happens after that is up to the community to help with. Alles requires a little bit of computer and networking know-how to get going. We've made it as easy as possible, we hope, but we know we have more work to do before this is ready for a very wide audience. Please use GitHub issues for anything you're having trouble with and we'll do our best to help you figure it out. 
+
 ![blinkinlabs PCB](https://raw.githubusercontent.com/bwhitman/alles/main/pics/alles_reva.png)
 
-But it's still very simple to make one yourself with parts you can get from electronics distributors like Sparkfun, Adafruit or Amazon. 
+
+## DIY Hardware Alles
+
+It's very simple to make one yourself with parts you can get from electronics distributors like Sparkfun, Adafruit or Amazon. 
 
 To make an Alles synth yourself, you need
 
@@ -201,7 +210,6 @@ GND -> GND
 Vin -> Vin / USB / 3.3 (or direct to your 5V power source)
 Speaker connectors -> speaker
 ```
-
 
 ![DIY Alles 1](https://raw.githubusercontent.com/bwhitman/alles/main/pics/diy_alles_1.png)
 ![DIY Alles 2](https://raw.githubusercontent.com/bwhitman/alles/main/pics/diy_alles_2.png)
