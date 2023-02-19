@@ -7,7 +7,7 @@
  * [Buy the Alles PCB with shipping to the US](https://shop.blinkinlabs.com/products/alles-pcb)
  * [Buy the Alles PCB with shipping outside of the US](https://shop-nl.blinkinlabs.com/products/alles-pcb)
 
-**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 64 additive oscillators and 32 filters, with modulation / LFOs and ADSRs per oscillator. The mesh of speakers can be composed of any combination of our custom hardware speakers or programs running on computers. The software is open source and the hardware is cheap and easy to make -- you can build one yourself for about US$20.
+**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 64 additive oscillators and 32 filters, with modulation / LFOs and ADSRs per oscillator. The mesh of speakers can be composed of any combination of our custom hardware speakers or programs running on computers. The software and hardware are open source: you can build it yourself or buy a PCB from us. 
 
 The synthesizers automatically form a mesh and listen to multicast WiFi messages. You can control the mesh from a host computer using any programming language or environments like Max or Pd. 
 
