@@ -37,7 +37,7 @@ Press the power button. You'll start to hear a "chime noise" repeating. This is 
 
 If you've already set a WiFi network, after about a few seconds the chime noise will end and you'll hear a "bleep" tone and then silence. That means the WiFi network has been joined and everything is ready to go.
 
-If you haven't set WiFi yet, now open your nearest mobile phone or any WiFi device with a browser. Go to join a new WiFi network on your device and you'll see a network listed called `alles-synth-XXXXXX` where `XXXXXX` is a unique string per speaker (useful when you have many speakers!). Join that network. On most devices (iPhones, Androids especially) after a few seconds, a browser window will appear with a login page. This is like when you join a hotel's network or other captive portal. If the page never appears, try going to `http://10.10.0.1` in your browser after joiining the network.
+If you haven't set WiFi yet, now open your nearest mobile phone or any WiFi device with a browser. Go to join a new WiFi network on your device and you'll see a network listed called `alles-synth-XXXXXX` where `XXXXXX` is a unique string per speaker (useful when you have many speakers!). Join that network. On most devices (iPhones, Androids especially) after a few seconds, a browser window will appear with a login page. This is like when you join a hotel's network or other captive portal. If the page never appears, try going to `http://10.10.0.1` in your browser after joining the network.
 
 ![Alles WiFi settings](https://raw.githubusercontent.com/bwhitman/alles/main/pics/alles-wifi.png)
 
