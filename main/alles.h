@@ -78,8 +78,8 @@ void delay_ms(uint32_t ms);
 #define WIFI_MANAGER_OK 2
 #define UPDATE 4
 
-char *message_start_pointer;
-int16_t message_length;
+extern char *message_start_pointer;
+extern int16_t message_length;
 
 extern void bleep();
 extern void debleep();
