@@ -224,7 +224,7 @@ This assumes you're using the suggested ESP32 dev board with its pin layout. If 
 
 ## Disabling OTA for 4MB boards
 
-If you are using your own dev board and it has less than 8MB of flash (4MB is common), first overwwrite `alles_partitions.csv` with the contents of`alles_4mb_partitions.csv` -- this will disable the OTA firmware upgrading, but will otherwise work fine. The binary for Alles is almost 4MB total and OTA needs space for two copies to be stored on the flash.
+If you are using your own dev board and it has less than 8MB of flash (4MB is common), first overwwrite `alles_partitions.csv` with the contents of`alles_4mb_partitions.csv` as well as run `idf.py menuconfig` and change the flash size from 8MB to 4MB (in Serial Flasher Config) -- this will disable the OTA firmware upgrading, but will otherwise work fine. The binary for Alles is almost 4MB total and OTA needs space for two copies to be stored on the flash.
 
 ## ESP32 Firmware
 
