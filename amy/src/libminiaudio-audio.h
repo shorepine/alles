@@ -1,9 +1,8 @@
-// libsoundio-audio.h
+// libminiaudio-audio.h
 
-#ifndef __LIBSOUNDIO_AUDIO_H
-#define __LIBSOUNDIO_AUDIO_H
+#ifndef __LIBMINIAUDIO_AUDIO_H
+#define __LIBMINIAUDIO_AUDIO_H
 #include "amy.h"
-#include <soundio/soundio.h>
 #include <pthread.h>
 
 extern int16_t amy_channel;

@@ -2,7 +2,7 @@
 
 AMY = ../amy/src
 TARGET = alles
-LIBS = -lpthread -lsoundio -lm 
+LIBS = -lpthread -lm 
 CC = gcc
 CFLAGS = -g -Wall -Wno-strict-aliasing -DDESKTOP_PLATFORM -I$(AMY)
 
@@ -13,7 +13,7 @@ all: default
 
 
 OBJECTS = $(patsubst %.c, %.o,  multicast_desktop.c alles_desktop.c alles.c sounds.c $(AMY)/algorithms.c \
-	$(AMY)/amy.c $(AMY)/envelope.c $(AMY)/filters.c $(AMY)/oscillators.c $(AMY)/pcm.c $(AMY)/partials.c $(AMY)/libsoundio-audio.c)
+	$(AMY)/amy.c $(AMY)/envelope.c $(AMY)/filters.c $(AMY)/oscillators.c $(AMY)/pcm.c $(AMY)/partials.c $(AMY)/libminiaudio-audio.c)
 HEADERS = alles.h $(wildcard amy/*.h)
 
 UNAME_S := $(shell uname -s)

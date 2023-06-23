@@ -302,10 +302,10 @@ If you've never done this sort of thing before, I recommend first installing Hom
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-After that, make sure you're in the root of the Alles repository (like `cd Downloads/alles-main/`) and install the things you need. (If you've done this stuff before, you need Python 3, libsoundio, swig and ffmpeg, and the Python modules pydub and numpy.)
+After that, make sure you're in the root of the Alles repository (like `cd Downloads/alles-main/`) and install the things you need. (If you've done this stuff before, you need Python 3, swig and ffmpeg, and the Python modules pydub and numpy.)
 
 ```bash
-brew install python3 swig libsoundio ffmpeg
+brew install python3 swig ffmpeg
 python3.9 -m pip install pydub numpy --user
 tar xvf loris-1.8.tar
 cd loris-1.8

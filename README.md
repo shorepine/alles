@@ -40,8 +40,6 @@ If you don't want to build or buy an Alles speaker, you can run Alles locally on
 To build and run `alles` on a computer, simply clone this repository and
 
 ```bash
-$ brew install libsoundio # if on mac
-$ apt install libsoundio-dev # if on linux
 $ cd alles/main
 $ make
 $ ./alles
