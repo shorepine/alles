@@ -32,7 +32,7 @@ config WEBAPP_LOCATION
 
 config DEFAULT_AP_SSID
     string "Access Point SSID"
-    default "alles-synth"
+    default "alles"
     help
 	SSID (network name) the the esp32 will broadcast.
 

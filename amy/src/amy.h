@@ -9,6 +9,7 @@
 #include <math.h>
 #include <string.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #define OSCS 64              // # of simultaneous oscs to keep track of 
 #define AMY_CORES 2         
