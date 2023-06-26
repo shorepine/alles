@@ -14,7 +14,6 @@
 #include "freertos/event_groups.h"
 #include "esp_wifi.h"
 #include "esp_system.h"
-#include "esp_spi_flash.h"
 #include "esp_https_ota.h"
 #include "esp_ota_ops.h"
 #include "esp_intr_alloc.h"
@@ -24,12 +23,17 @@
 #include "esp_err.h"
 #include "esp_sleep.h"
 #include "driver/uart.h"
-#include "driver/i2s.h"
 #include "nvs_flash.h"
 #include "lwip/netdb.h"
 #include "wifi_manager.h"
 #include "http_app.h"
 #include "power.h"
+
+#include "driver/i2s_std.h"
+#include "driver/gpio.h"
+i2s_chan_handle_t tx_handle;
+
+
 // This can be 32 bit, int32_t -- helpful for digital output to a i2s->USB teensy3 board
 #define I2S_SAMPLE_TYPE I2S_BITS_PER_SAMPLE_16BIT
 typedef int16_t i2s_sample_type;
@@ -105,7 +109,7 @@ void esp_fill_audio_buffer_task() {
     while(1) {
         int16_t *block = fill_audio_buffer_task();
         size_t written = 0;
-        i2s_write((i2s_port_t)CONFIG_I2S_NUM, block, BLOCK_SIZE * BYTES_PER_SAMPLE, &written, portMAX_DELAY); 
+        i2s_channel_write(tx_handle, block, BLOCK_SIZE * BYTES_PER_SAMPLE, &written, portMAX_DELAY);
         if(written != BLOCK_SIZE*BYTES_PER_SAMPLE) {
             printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*BYTES_PER_SAMPLE);
         }
@@ -190,7 +194,7 @@ void esp_show_debug(uint8_t type) {
     for(i=0;i<MAX_TASKS;i++) {
         printf("%-15s\t%-15ld\t\t%2.2f%%\n", tasks[i], counter_since_last[i], (float)counter_since_last[i]/ulTotalRunTime * 100.0);
     }   
-    printf("------\nEvent queue size %d / %d. Received %d events and %d messages\n", global.event_qsize, EVENT_FIFO_LEN, event_counter, message_counter);
+    printf("------\nEvent queue size %d / %d. Received %" PRIu32 " events and %" PRIu32 " messages\n", global.event_qsize, EVENT_FIFO_LEN, event_counter, message_counter);
     event_counter = 0;
     message_counter = 0;
     vPortFree(pxTaskStatusArray);
@@ -201,30 +205,29 @@ void esp_show_debug(uint8_t type) {
 
 // Setup I2S
 amy_err_t setup_i2s(void) {
-    //i2s configuration
-    i2s_config_t i2s_config = {
-         .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
-         .sample_rate = SAMPLE_RATE,
-         .bits_per_sample = I2S_SAMPLE_TYPE,
-         .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
-         .communication_format = (i2s_comm_format_t)(I2S_COMM_FORMAT_STAND_I2S),
-         .intr_alloc_flags = 0, //ESP_INTR_FLAG_LEVEL1, // high interrupt priority
-         .dma_buf_count = 2, //I2S_BUFFERS,
-         .dma_buf_len = 1024, //BLOCK_SIZE * BYTES_PER_SAMPLE,
-         .tx_desc_auto_clear = true,
-        };
-        
-    i2s_pin_config_t pin_config = {
-        .bck_io_num = CONFIG_I2S_BCLK, 
-        .ws_io_num = CONFIG_I2S_LRCLK,  
-        .data_out_num = CONFIG_I2S_DIN, 
-        .data_in_num = -1   //Not used
+    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_AUTO, I2S_ROLE_MASTER);
+    i2s_new_channel(&chan_cfg, &tx_handle, NULL);
+    i2s_std_config_t std_cfg = {
+        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_RATE),
+        .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO),
+        .gpio_cfg = {
+            .mclk = I2S_GPIO_UNUSED,
+            .bclk = CONFIG_I2S_BCLK,
+            .ws = CONFIG_I2S_LRCLK,
+            .dout = CONFIG_I2S_DIN,
+            .din = I2S_GPIO_UNUSED,
+            .invert_flags = {
+                .mclk_inv = false,
+                .bclk_inv = false,
+                .ws_inv = false,
+            },
+        },
     };
-    SET_PERI_REG_BITS(I2S_TIMING_REG(0), 0x1, 1, I2S_TX_DSYNC_SW_S);
+    /* Initialize the channel */
+    i2s_channel_init_std_mode(tx_handle, &std_cfg);
 
-    i2s_driver_install((i2s_port_t)CONFIG_I2S_NUM, &i2s_config, 0, NULL);
-    i2s_set_pin((i2s_port_t)CONFIG_I2S_NUM, &pin_config);
-    i2s_set_sample_rates((i2s_port_t)CONFIG_I2S_NUM, SAMPLE_RATE);
+    /* Before writing data, start the TX channel first */
+    i2s_channel_enable(tx_handle);
     return AMY_OK;
 }
 
@@ -268,19 +271,17 @@ void firmware_upgrade( void * pvParameters) {
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .skip_cert_common_name_check = true,
     };
-    esp_err_t ret = esp_https_ota(&config);
+    esp_https_ota_config_t ota_config = {
+        .http_config = &config,
+    };
+    esp_err_t ret = esp_https_ota(&ota_config);
     if (ret == ESP_OK) {
-        printf("upgrade ok!\n");
         esp_restart();
     } else {
-        // TODO play a bad sound...
         printf("Problem with upgrade %i %s\n", ret, esp_err_to_name(ret));
     }
     esp_restart();
-
 }
-
-
 
 void power_monitor() {
     power_status_t power_status;
@@ -335,7 +336,7 @@ void turn_off() {
     esp_deep_sleep_start();
 }
 void app_main() {
-    const esp_app_desc_t * app_desc = esp_ota_get_app_description();
+    const esp_app_desc_t * app_desc = esp_app_get_description(); // esp_ota_get_app_description();
     // version comes back as version "v0.1-alpha-259-g371d500-dirty"
     // the v0.1-alpha seems hardcoded, setting cmake PROJECT_VER replaces the more useful git describe line
     // so we'll have to parse the commit ID out
@@ -420,7 +421,7 @@ void app_main() {
 
     // was + held down right now? if so check for updates
     if(status & UPDATE) {
-        xTaskCreatePinnedToCore(&firmware_upgrade, "upgrade", 16384, NULL, 0, &upgradeTask, 0);
+        xTaskCreatePinnedToCore(&firmware_upgrade, "upgrade", 8192, NULL, 0, &upgradeTask, 0);
         while(1) {
             upgrade_tone();
             delay_ms(2000);
@@ -441,6 +442,9 @@ void app_main() {
 
     // Schedule a "turning on" sound
     bleep();
+
+    // Print free RAm
+    //heap_caps_print_heap_info(MALLOC_CAP_INTERNAL);
 
     // Spin this core until the power off button is pressed, parsing events and making sounds
     while(status & RUNNING) {

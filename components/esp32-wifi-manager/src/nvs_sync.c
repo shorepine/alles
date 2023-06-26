@@ -41,16 +41,16 @@ esp_err_t nvs_sync_create(){
 
         nvs_sync_mutex = xSemaphoreCreateMutex();
 
-        if(nvs_sync_mutex){
-            return ESP_OK;
-        }
-        else{
-            return ESP_FAIL;
-        }
+		if(nvs_sync_mutex){
+			return ESP_OK;
+		}
+		else{
+			return ESP_FAIL;
+		}
     }
-    else{
-        return ESP_OK;
-    }
+	else{
+		return ESP_OK;
+	}
 }
 
 void nvs_sync_free(){
@@ -61,19 +61,19 @@ void nvs_sync_free(){
 }
 
 bool nvs_sync_lock(TickType_t xTicksToWait){
-    if(nvs_sync_mutex){
-        if( xSemaphoreTake( nvs_sync_mutex, xTicksToWait ) == pdTRUE ) {
-            return true;
-        }
-        else{
-            return false;
-        }
-    }
-    else{
-        return false;
-    }
+	if(nvs_sync_mutex){
+		if( xSemaphoreTake( nvs_sync_mutex, xTicksToWait ) == pdTRUE ) {
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+	else{
+		return false;
+	}
 }
 
 void nvs_sync_unlock(){
-    xSemaphoreGive( nvs_sync_mutex );
+	xSemaphoreGive( nvs_sync_mutex );
 }
