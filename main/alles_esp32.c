@@ -271,19 +271,17 @@ void firmware_upgrade( void * pvParameters) {
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .skip_cert_common_name_check = true,
     };
-    esp_err_t ret = esp_https_ota(&config);
+    esp_https_ota_config_t ota_config = {
+        .http_config = &config,
+    };
+    esp_err_t ret = esp_https_ota(&ota_config);
     if (ret == ESP_OK) {
-        printf("upgrade ok!\n");
         esp_restart();
     } else {
-        // TODO play a bad sound...
         printf("Problem with upgrade %i %s\n", ret, esp_err_to_name(ret));
     }
     esp_restart();
-
 }
-
-
 
 void power_monitor() {
     power_status_t power_status;
@@ -338,7 +336,7 @@ void turn_off() {
     esp_deep_sleep_start();
 }
 void app_main() {
-    const esp_app_desc_t * app_desc = esp_ota_get_app_description();
+    const esp_app_desc_t * app_desc = esp_app_get_description(); // esp_ota_get_app_description();
     // version comes back as version "v0.1-alpha-259-g371d500-dirty"
     // the v0.1-alpha seems hardcoded, setting cmake PROJECT_VER replaces the more useful git describe line
     // so we'll have to parse the commit ID out
@@ -423,7 +421,7 @@ void app_main() {
 
     // was + held down right now? if so check for updates
     if(status & UPDATE) {
-        xTaskCreatePinnedToCore(&firmware_upgrade, "upgrade", 16384, NULL, 0, &upgradeTask, 0);
+        xTaskCreatePinnedToCore(&firmware_upgrade, "upgrade", 8192, NULL, 0, &upgradeTask, 0);
         while(1) {
             upgrade_tone();
             delay_ms(2000);
@@ -444,6 +442,9 @@ void app_main() {
 
     // Schedule a "turning on" sound
     bleep();
+
+    // Print free RAm
+    //heap_caps_print_heap_info(MALLOC_CAP_INTERNAL);
 
     // Spin this core until the power off button is pressed, parsing events and making sounds
     while(status & RUNNING) {

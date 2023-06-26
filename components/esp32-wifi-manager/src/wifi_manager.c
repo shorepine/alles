@@ -505,8 +505,8 @@ void wifi_manager_safe_update_sta_ip_string(uint32_t ip){
 
 	if(wifi_manager_lock_sta_ip_string(portMAX_DELAY)){
 
-		esp_ip4_addr_t ip4;
-		ip4.addr = ip;
+		//esp_ip4_addr_t ip4;
+		//ip4.addr = ip;
 
 		wifi_manager_ip4.addr = ip;
 
