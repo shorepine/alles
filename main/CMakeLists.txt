@@ -12,7 +12,7 @@ idf_component_register(SRCS alles.c
 							../amy/src/envelope.c
 							../amy/src/partials.c
 							../amy/src/dsps_biquad_f32_ae32.S
-                    INCLUDE_DIRS ../amy/src)
+                    INCLUDE_DIRS ../amy/src .)
 
 
 list(APPEND IDF_COMPONENTS

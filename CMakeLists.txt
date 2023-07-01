@@ -3,6 +3,9 @@
 cmake_minimum_required(VERSION 3.5)
 set(EXTRA_COMPONENTS_DIRS components/)
 
+execute_process(COMMAND bash -c "git submodule update --init"
+                    WORKING_DIRECTORY ".."
+                    OUTPUT_VARIABLE GIT_SUBMOD_RESULT)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
