@@ -23,7 +23,7 @@ endif
 
 .PHONY: default all clean check-and-reinit-submodules
 
-default: $(TARGET)
+default: $(TARGET) check-and-reinit-submodules
 all: default check-and-reinit-submodules
 
 check-and-reinit-submodules:
@@ -32,10 +32,10 @@ check-and-reinit-submodules:
 		git submodule update --init; \
 	fi
 
-%.o: %.c $(HEADERS)
+%.o: %.c $(HEADERS) check-and-reinit-submodules
 	$(CC) $(CFLAGS) -c $< -o $@
 
-%.o: %.mm $(HEADERS)
+%.o: %.mm $(HEADERS) check-and-reinit-submodules
 	clang $(CFLAGS) -c $< -o $@
 
 .PRECIOUS: $(TARGET) $(OBJECTS)
