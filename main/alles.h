@@ -21,6 +21,7 @@
 #include "wifi_manager.h"
 #include "driver/gpio.h"
 
+
 #define MAX_TASKS 9
 
 // Pins & buttons
@@ -48,6 +49,7 @@ void esp_show_debug(uint8_t type);
 void delay_ms(uint32_t ms);
 
 #endif
+
 
 // Choose to use big pcm patches bank or small -- depends on platform, but both Alles v2 and local can support large. Tulip can't 
 #define ALLES_LATENCY_MS 1000 // fixed default latency in milliseconds, can change

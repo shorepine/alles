@@ -13,7 +13,6 @@ uint8_t debug_on = 0;
 extern struct state global;
 extern uint32_t event_counter;
 extern uint32_t message_counter;
-extern int16_t amy_channel;
 extern int16_t amy_device_id;
 
 uint8_t battery_mask = 0;
@@ -51,9 +50,6 @@ int main(int argc, char ** argv) {
             case 'd': 
                 amy_device_id = atoi(optarg);
                 break;
-            case 'c': 
-                amy_channel = atoi(optarg);
-                break; 
             case 'o': 
                 quartet_offset = atoi(optarg);
                 break; 
@@ -64,7 +60,6 @@ int main(int argc, char ** argv) {
             case 'h':
                 printf("usage: alles\n\t[-i multicast interface ip address, default, autodetect]\n");
                 printf("\t[-d sound device id, use -l to list, default, autodetect]\n");
-                printf("\t[-c sound channel, default -1 for all channels on device]\n");
                 printf("\t[-o offset for client ID, use for multiple copies of this program on the same host, default is 0]\n");
                 printf("\t[-l list all sound devices and exit]\n");
                 printf("\t[-h show this help and exit]\n");

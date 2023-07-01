@@ -92,9 +92,9 @@ extern uint32_t message_counter;
 // Wrap AMY's renderer into 2 FreeRTOS tasks, one per core
 void esp_render_task( void * pvParameters) {
     uint8_t which = *((uint8_t *)pvParameters);
-    uint8_t start = (OSCS/2); 
-    uint8_t end = OSCS;
-    if(which == 0) { start = 0; end = (OSCS/2); } 
+    uint8_t start = (AMY_OSCS/2); 
+    uint8_t end = AMY_OSCS;
+    if(which == 0) { start = 0; end = (AMY_OSCS/2); } 
     printf("I'm renderer #%d on core #%d and i'm handling oscs %d up until %d\n", which, xPortGetCoreID(), start, end);
     while(1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
@@ -109,9 +109,9 @@ void esp_fill_audio_buffer_task() {
     while(1) {
         int16_t *block = fill_audio_buffer_task();
         size_t written = 0;
-        i2s_channel_write(tx_handle, block, BLOCK_SIZE * BYTES_PER_SAMPLE, &written, portMAX_DELAY);
-        if(written != BLOCK_SIZE*BYTES_PER_SAMPLE) {
-            printf("i2s underrun: %d vs %d\n", written, BLOCK_SIZE*BYTES_PER_SAMPLE);
+        i2s_channel_write(tx_handle, block, AMY_BLOCK_SIZE * BYTES_PER_SAMPLE, &written, portMAX_DELAY);
+        if(written != AMY_BLOCK_SIZE*BYTES_PER_SAMPLE) {
+            printf("i2s underrun: %d vs %d\n", written, AMY_BLOCK_SIZE*BYTES_PER_SAMPLE);
         }
     }
 }
@@ -194,7 +194,7 @@ void esp_show_debug(uint8_t type) {
     for(i=0;i<MAX_TASKS;i++) {
         printf("%-15s\t%-15ld\t\t%2.2f%%\n", tasks[i], counter_since_last[i], (float)counter_since_last[i]/ulTotalRunTime * 100.0);
     }   
-    printf("------\nEvent queue size %d / %d. Received %" PRIu32 " events and %" PRIu32 " messages\n", global.event_qsize, EVENT_FIFO_LEN, event_counter, message_counter);
+    printf("------\nEvent queue size %d / %d. Received %" PRIu32 " events and %" PRIu32 " messages\n", global.event_qsize, AMY_EVENT_FIFO_LEN, event_counter, message_counter);
     event_counter = 0;
     message_counter = 0;
     vPortFree(pxTaskStatusArray);
@@ -208,7 +208,7 @@ amy_err_t setup_i2s(void) {
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_AUTO, I2S_ROLE_MASTER);
     i2s_new_channel(&chan_cfg, &tx_handle, NULL);
     i2s_std_config_t std_cfg = {
-        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_RATE),
+        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(AMY_SAMPLE_RATE),
         .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO),
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED,
