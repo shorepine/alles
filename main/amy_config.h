@@ -1,4 +1,8 @@
-// amy_config.h
+/* 
+
+AMY config for the Alles speaker (both hardware and software.)
+No reverb/chorus, mono. Large PCM sample set.
+*/
 
 // Your AMY configuration goes here
 #define AMY_OSCS 64              // # of simultaneous oscs to keep track of 
