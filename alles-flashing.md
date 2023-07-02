@@ -36,7 +36,7 @@ If using macOS, you'll want to also install the [CP210X drivers](https://www.sil
 
 ### Get the Alles repository
 
-You likely already have this, but if not, [download and unzip this repository](https://github.com/bwhitman/alles/archive/refs/heads/main.zip).
+You likely already have this, but if not, [clone this repository](https://github.com/bwhitman/alles).
 
 ### Get a real micro-USB cable 
 
