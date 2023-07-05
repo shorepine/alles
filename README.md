@@ -16,7 +16,7 @@ We intended their first use as distributed / spatial version of an [Alles Machin
 Want to try it today? [Buy an Alles](#buy-an-alles), [build your own Alles](#diy-alles), or [install the software version](#using-it----software-alles
 ), and then read our [getting started tutorial!](https://github.com/bwhitman/alles/tree/main/getting-started.md)
 
-![The Alles mesh networking synthesizer - a field of sound at your control] 
+[![The Alles mesh networking synthesizer - a field of sound at your control] 
 (https://i.ytimg.com/vi/8CmcsQXHVEo/maxresdefault.jpg)](https://www.youtube.com/watch?v=8CmcsQXHVEo "The Alles mesh networking synthesizer - a field of sound at your control")
 
 
