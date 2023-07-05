@@ -16,6 +16,10 @@ We intended their first use as distributed / spatial version of an [Alles Machin
 Want to try it today? [Buy an Alles](#buy-an-alles), [build your own Alles](#diy-alles), or [install the software version](#using-it----software-alles
 ), and then read our [getting started tutorial!](https://github.com/bwhitman/alles/tree/main/getting-started.md)
 
+[![The Alles mesh networking synthesizer - a field of sound at your control] 
+(https://i.ytimg.com/vi/8CmcsQXHVEo/maxresdefault.jpg)](https://www.youtube.com/watch?v=8CmcsQXHVEo "The Alles mesh networking synthesizer - a field of sound at your control")
+
+
 ## Synthesizer specs
 
 Each individual synth is powered by the [AMY additive synthesizer library](https://github.com/bwhitman/amy/blob/main/README.md), you can read more details there. But at a high level, each Alles synth has:
