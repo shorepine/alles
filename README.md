@@ -7,6 +7,12 @@
  * [Buy the Alles PCB with shipping to the US](https://shop.blinkinlabs.com/products/alles-pcb)
  * [Buy the Alles PCB with shipping outside of the US](https://shop-nl.blinkinlabs.com/products/alles-pcb)
 
+
+** Check out this video! **
+
+[![The Alles mesh networking synthesizer - a field of sound at your control](https://i.ytimg.com/vi/8CmcsQXHVEo/maxresdefault.jpg)](https://www.youtube.com/watch?v=8CmcsQXHVEo "The Alles mesh networking synthesizer - a field of sound at your control")
+
+
 **Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 64 additive oscillators and 32 filters, with modulation / LFOs and ADSRs per oscillator. The mesh of speakers can be composed of any combination of our custom hardware speakers or programs running on computers. The software and hardware are open source: you can build it yourself or buy a PCB from us. 
 
 The synthesizers automatically form a mesh and listen to multicast WiFi messages. You can control the mesh from a host computer using any programming language or environments like Max or Pd. 
@@ -16,7 +22,6 @@ We intended their first use as distributed / spatial version of an [Alles Machin
 Want to try it today? [Buy an Alles](#buy-an-alles), [build your own Alles](#diy-alles), or [install the software version](#using-it----software-alles
 ), and then read our [getting started tutorial!](https://github.com/bwhitman/alles/tree/main/getting-started.md)
 
-[![The Alles mesh networking synthesizer - a field of sound at your control](https://i.ytimg.com/vi/8CmcsQXHVEo/maxresdefault.jpg)](https://www.youtube.com/watch?v=8CmcsQXHVEo "The Alles mesh networking synthesizer - a field of sound at your control")
 
 
 ## Synthesizer specs
