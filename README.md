@@ -8,7 +8,7 @@
  * [Buy the Alles PCB with shipping outside of the US](https://shop-nl.blinkinlabs.com/products/alles-pcb)
 
 
-** Check out this video! **
+**Check out this video!**
 
 [![The Alles mesh networking synthesizer - a field of sound at your control](https://i.ytimg.com/vi/8CmcsQXHVEo/maxresdefault.jpg)](https://www.youtube.com/watch?v=8CmcsQXHVEo "The Alles mesh networking synthesizer - a field of sound at your control")
 
