@@ -16,6 +16,8 @@ That's ok! You can run a software speaker too. Skip down to the section [Setup](
 
 ### Back to the hardware speaker 
 
+[Read here on how to get your Alles PCB into a speaker shell!](speaker-assembly.md)
+
 Each Alles speaker has four buttons up top and a USB micro receptacle on back. 
 
 Before getting going, let's make sure the speaker is charged or charging. Simply plug the included USB cable between the speaker and any USB charge point, like a phone charger. (If you hook it into a computer, the speaker will show up as a USB device for debugging and upgrades, but you don't have to worry about that for now -- all control happens wirelessly.) The battery will last "a few hours" making constant music and longer with sparse or silence. It shouldn't take more than an hour or so to charge. If the power button does not make any noise, it's probably a dead battery.
