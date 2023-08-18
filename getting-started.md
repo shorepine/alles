@@ -16,6 +16,8 @@ That's ok! You can run a software speaker too. Skip down to the section [Setup](
 
 ### Back to the hardware speaker 
 
+[Read here on how to get your Alles PCB into a speaker shell!](speaker-assembly.md)
+
 Each Alles speaker has four buttons up top and a USB micro receptacle on back. 
 
 Before getting going, let's make sure the speaker is charged or charging. Simply plug the included USB cable between the speaker and any USB charge point, like a phone charger. (If you hook it into a computer, the speaker will show up as a USB device for debugging and upgrades, but you don't have to worry about that for now -- all control happens wirelessly.) The battery will last "a few hours" making constant music and longer with sparse or silence. It shouldn't take more than an hour or so to charge. If the power button does not make any noise, it's probably a dead battery.
@@ -53,7 +55,7 @@ It's helpful to make sure your Alles speaker has the latest firmware. If you hav
 
 You send the mesh (group of speakers) explicit messages that define the state of oscillators. You can control anything you can imagine, with high precision and millisecond accuracy. You can control up to 64 oscillators on each of any number of speakers in a mesh. You do this from either a programming language like Python (what we use) or an environment like Max/MSP (or Max for Ableton Live). Python is built-in on Macs and pretty easy to use once you get the hang of it. And then you can write small programs to make interesting sounds! For this tutorial, we'll use Python. But there's also a Max patch you can download that shows you how to access all the same parameters as we're changing in Python. So it's up to you!
 
-So let's start python. Open your terminal, on a Mac, that's Terminal.app, on Windows I suggest using WSL, and on Linux whatever you've installed. [Clone this repository](https://github.com/bwhitman/alles/) if you haven't already. (`git clone https://github.com/bwhitman/alles.git`) Make sure you are in the directory containing the repository, e.g. `cd alles`. And type `python3`. If on Mac, if you've never done this sort of thing before, you may have to accept a small download of tools from Apple the first time you run Python. Let that finish. Then you'll see a prompt like `>>>`. 
+So let's start python. Open your terminal, on a Mac, that's Terminal.app, on Windows I suggest using WSL, and on Linux whatever you've installed. [Clone this repository](https://github.com/bwhitman/alles/) if you haven't already. (`git clone https://github.com/bwhitman/alles.git`) Also make sure to update the submodules, so `cd alles; git submodule update --init --recursive`. Make sure you are in the directory containing the repository. And type `python3`. If on Mac, if you've never done this sort of thing before, you may have to accept a small download of tools from Apple the first time you run Python. Let that finish. Then you'll see a prompt like `>>>`. 
 
 Start by importing the Python module needed to control the mesh: `import alles`
 
