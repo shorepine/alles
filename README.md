@@ -8,7 +8,7 @@
  * [Buy the Alles PCB with shipping outside of the US](https://shop-nl.blinkinlabs.com/products/alles-pcb)
 
 
- [![shore pine sound systems discord](https://raw.githubusercontent.com/bwhitman/tulipcc/main/docs/pics/shorepine100.png) **Chat about Alles on our Discord!**](https://discord.gg/2cZ53zMf)
+ [![shore pine sound systems discord](https://raw.githubusercontent.com/bwhitman/tulipcc/main/docs/pics/shorepine100.png) **Chat about Alles on our Discord!**](https://discord.gg/TzBFkUb8pG)
 
 **Check out this video!**
 
