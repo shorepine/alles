@@ -20,12 +20,12 @@ No reverb/chorus, mono. Large PCM sample set.
 // Are you using an ESP? You'll want to tell us how to allocate ram here. Not used on other platforms.
 #ifdef ESP_PLATFORM
 #include <esp_heap_caps.h>
-#define EVENTS_RAM_CAPS MALLOC_CAP_INTERNAL
-#define SYNTH_RAM_CAPS MALLOC_CAP_INTERNAL
-#define BLOCK_RAM_CAPS MALLOC_CAP_INTERNAL
-#define FBL_RAM_CAPS MALLOC_CAP_INTERNAL
-#define CHORUS_RAM_CAPS MALLOC_CAP_INTERNAL 
-#define REVERB_RAM_CAPS MALLOC_CAP_INTERNAL 
+#define EVENTS_RAM_CAPS MALLOC_CAP_DEFAULT
+#define SYNTH_RAM_CAPS MALLOC_CAP_DEFAULT
+#define BLOCK_RAM_CAPS MALLOC_CAP_DEFAULT
+#define FBL_RAM_CAPS MALLOC_CAP_DEFAULT
+#define CHORUS_RAM_CAPS MALLOC_CAP_DEFAULT 
+#define REVERB_RAM_CAPS MALLOC_CAP_DEFAULT 
 #else
 #define EVENTS_RAM_CAPS 0
 #define SYNTH_RAM_CAPS 0
