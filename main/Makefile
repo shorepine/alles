@@ -3,10 +3,16 @@
 AMY = ../amy/src
 TARGET = alles
 LIBS = -lpthread -lm 
+
+# on macOS, need to link to AudioUnit, CoreAudio, and CoreFoundation
+ifeq ($(shell uname -s), Darwin)
+LIBS += -framework AudioUnit -framework CoreAudio -framework CoreFoundation
+endif
+
 CC = gcc
 CFLAGS = -g -Wall -Wno-strict-aliasing -I$(AMY) -I.
 
-OBJECTS = $(patsubst %.c, %.o,  multicast_desktop.c alles_desktop.c alles.c sounds.c $(AMY)/algorithms.c \
+OBJECTS = $(patsubst %.c, %.o,  multicast_desktop.c alles_desktop.c alles.c sounds.c $(AMY)/algorithms.c $(AMY)/delay.c \
 	$(AMY)/amy.c $(AMY)/envelope.c $(AMY)/filters.c $(AMY)/oscillators.c $(AMY)/pcm.c $(AMY)/partials.c $(AMY)/libminiaudio-audio.c)
 HEADERS = alles.h $(wildcard amy/*.h)
 
