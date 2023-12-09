@@ -40,7 +40,7 @@ void wifi_tone() {
     e.time = sysclock;
     e.wave = SINE;
     e.freq = 440;
-    strcpy(e.bp0 ,"0,0,10,1,500,0,0,0");
+    strcpy(e.bp0 ,"0,1,10,1,500,0,0,0");
     e.bp0_target = TARGET_AMP;
     amy_add_event(e);
     e.osc = 1;

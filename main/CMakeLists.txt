@@ -20,6 +20,8 @@ list(APPEND IDF_COMPONENTS
 	mdns
 )
 
+target_compile_definitions(${COMPONENT_TARGET} PUBLIC "-DALLES")
+
 set_source_files_properties(alles_esp32.c alles.c ../amy/src/amy.c
     PROPERTIES COMPILE_FLAGS
     -Wno-strict-aliasing
