@@ -133,17 +133,17 @@ amy_err_t esp_amy_init() {
     // We create a mutex for changing the event queue and pointers as two tasks do it at once
     xQueueSemaphore = xSemaphoreCreateMutex();
 
-    // Create rendering threads, one per core so we can deal with dan ellis float math
+    // Create rendering threads, one per core so we can deal with dan ellis FIXED POINT math
     static uint8_t zero = 0;
     static uint8_t one = 1;
-    xTaskCreatePinnedToCore(&esp_render_task, "render_task0", 8192, &zero, 4, &amy_render_handle[0], 0);
-    xTaskCreatePinnedToCore(&esp_render_task, "render_task1", 8192, &one, 4, &amy_render_handle[1], 1);
+    xTaskCreatePinnedToCore(&esp_render_task, "render_task0", 8192, &zero, (ESP_TASK_PRIO_MAX - 1), &amy_render_handle[0], 0);
+    xTaskCreatePinnedToCore(&esp_render_task, "render_task1", 8192, &one, (ESP_TASK_PRIO_MAX - 1), &amy_render_handle[1], 1);
 
     // Wait for the render tasks to get going before starting the i2s task
     delay_ms(100);
 
     // And the fill audio buffer thread, combines, does volume & filters
-    xTaskCreatePinnedToCore(&esp_fill_audio_buffer_task, "fill_audio_buff", 4096, NULL, 22, &fillbufferTask, 0);
+    xTaskCreatePinnedToCore(&esp_fill_audio_buffer_task, "fill_audio_buff", 8192, NULL,  (ESP_TASK_PRIO_MAX - 1), &fillbufferTask, 0);
 
     // Grab the idle handles while we're here, we use them for CPU usage reporting
     idleTask0 = xTaskGetIdleTaskHandleForCPU(0);
@@ -407,6 +407,8 @@ void app_main() {
     //So now they shut off after MAX_WIFI_WAIT_S if they can't connect.
     int64_t start_time = amy_sysclock();
     delay_ms(250);
+    //heap_caps_print_heap_info(MALLOC_CAP_INTERNAL);
+
     while((!(status & WIFI_MANAGER_OK) && (status & RUNNING) )) {
         wifi_tone();
         for(uint8_t i=0;i<250;i++) { 
@@ -436,9 +438,9 @@ void app_main() {
     create_multicast_ipv4_socket();
 
     // Create the task that waits for UDP messages, parses them and puts them on the sequencer queue (core 1)
-    xTaskCreatePinnedToCore(&esp_parse_task, "parse_task", 4096, NULL, 2, &parseTask, 0);
+    xTaskCreatePinnedToCore(&esp_parse_task, "parse_task", 4096, NULL, (ESP_TASK_PRIO_MIN +2), &parseTask, 0);
     // Create the task that listens fro new incoming UDP messages (core 2)
-    xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, 3, &mcastTask, 1);
+    xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, (ESP_TASK_PRIO_MIN + 3), &mcastTask, 1);
 
     // Schedule a "turning on" sound
     bleep();

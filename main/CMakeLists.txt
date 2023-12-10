@@ -11,6 +11,7 @@ idf_component_register(SRCS alles.c
 							../amy/src/filters.c
 							../amy/src/envelope.c
 							../amy/src/partials.c
+                            ../amy/src/delay.c
 							../amy/src/dsps_biquad_f32_ae32.S
                     INCLUDE_DIRS ../amy/src .)
 
@@ -18,6 +19,8 @@ idf_component_register(SRCS alles.c
 list(APPEND IDF_COMPONENTS
 	mdns
 )
+
+target_compile_definitions(${COMPONENT_TARGET} PUBLIC "-DALLES")
 
 set_source_files_properties(alles_esp32.c alles.c ../amy/src/amy.c
     PROPERTIES COMPILE_FLAGS
