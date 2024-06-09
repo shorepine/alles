@@ -27,7 +27,7 @@ char *local_ip, *raw_file;
 
 int main(int argc, char ** argv) {
     sync_init();
-    amy_start();
+    amy_start(1,0,1);
     amy_reset_oscs();
     amy_global.latency_ms = ALLES_LATENCY_MS;
 

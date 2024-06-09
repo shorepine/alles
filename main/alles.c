@@ -21,7 +21,7 @@ amy_err_t sync_init() {
 
 
 
-void update_map(uint8_t client, uint8_t ipv4, int64_t time) {
+void update_map(int16_t client, uint8_t ipv4, int64_t time) {
     // I'm called when I get a sync response or a regular ping packet
     // I update a map of booted devices.
 
@@ -111,7 +111,8 @@ void alles_parse_message(char *message, uint16_t length) {
         if(b == '_' && c==0) sync_response = 1;
         if( ((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')) || b == 0) {  // new mode or end
             if(mode=='g') client = atoi(message + start); 
-            if(mode=='i') sync_index = atoi(message + start);
+            if(sync_response) if(mode=='i') sync_index = atoi(message + start);
+            if(sync_response) if(mode=='r') ipv4=atoi(message + start);
             if(mode=='U') sync = atol(message + start); 
             mode = b;
             start = c + 1;
@@ -120,6 +121,7 @@ void alles_parse_message(char *message, uint16_t length) {
     }
     if(sync_response) {
         // If this is a sync response, let's update our local map of who is booted
+        //printf("got sync response client %d ipv4 %d sync %lld\n", client, ipv4, sync);
         update_map(client, ipv4, sync);
         length = 0; // don't need to do the rest
     }

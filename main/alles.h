@@ -22,7 +22,7 @@
 #include "driver/gpio.h"
 
 
-#define MAX_TASKS 9
+#define MAX_TASKS 8
 
 // Pins & buttons
 #define BUTTON_WAKEUP 34
@@ -94,7 +94,7 @@ extern int16_t client_id;
 void ping(int64_t sysclock);
 amy_err_t sync_init();
 
-extern  void update_map(uint8_t client, uint8_t ipv4, int64_t time);
+extern  void update_map(int16_t client, uint8_t ipv4, int64_t time);
 extern void handle_sync(int64_t time, int8_t index);
 extern void mcast_send(char * message, uint16_t len);
 #ifndef ESP_PLATFORM

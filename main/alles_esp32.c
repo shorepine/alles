@@ -191,13 +191,20 @@ amy_err_t esp_amy_init() {
 void esp_show_debug(uint8_t type) { 
     TaskStatus_t *pxTaskStatusArray;
     volatile UBaseType_t uxArraySize, x, i;
-    const char* const tasks[] = { "render_task0", "render_task1", "mcast_task", "parse_task", "main", "fill_audio_buff", "wifi", "idle0", "idle1", 0 }; 
+    const char* const tasks[] = { ALLES_PARSE_TASK_NAME, ALLES_RECEIVE_TASK_NAME, ALLES_RENDER_TASK_NAME, ALLES_FILL_BUFFER_TASK_NAME, "main", "wifi", "IDLE0", "IDLE1", 0 }; 
+    const uint8_t cores[] = {ALLES_PARSE_TASK_COREID, ALLES_RECEIVE_TASK_COREID, ALLES_RENDER_TASK_COREID, ALLES_FILL_BUFFER_TASK_COREID, 0, 0, 0, 1, 0};
+
     uxArraySize = uxTaskGetNumberOfTasks();
     pxTaskStatusArray = pvPortMalloc( uxArraySize * sizeof( TaskStatus_t ) );
     uxArraySize = uxTaskGetSystemState( pxTaskStatusArray, uxArraySize, NULL );
     unsigned long counter_since_last[MAX_TASKS];
-    unsigned long ulTotalRunTime = 0;
-    TaskStatus_t xTaskDetails;
+    //unsigned long ulTotalRunTime = 0;
+    unsigned long ulTotalRunTime_per_core[2];
+    ulTotalRunTime_per_core[0] = 0;
+    ulTotalRunTime_per_core[1] = 0;
+
+    //TaskStatus_t xTaskDetails;
+
     // We have to check for the names we want to track
     for(i=0;i<MAX_TASKS;i++) { // for each name
         counter_since_last[i] = 0;
@@ -205,29 +212,14 @@ void esp_show_debug(uint8_t type) {
             if(strcmp(pxTaskStatusArray[x].pcTaskName, tasks[i])==0) {
                 counter_since_last[i] = pxTaskStatusArray[x].ulRunTimeCounter - last_task_counters[i];
                 last_task_counters[i] = pxTaskStatusArray[x].ulRunTimeCounter;
-                ulTotalRunTime = ulTotalRunTime + counter_since_last[i];
+                //ulTotalRunTime = ulTotalRunTime + counter_since_last[i];
+                ulTotalRunTime_per_core[cores[i]] += counter_since_last[i];
             }
         }
-        
-        // Have to get these specially as the task manager calls them both "IDLE" and swaps their orderings around
-        if(strcmp("idle0", tasks[i])==0) { 
-            vTaskGetInfo(idle_0_handle, &xTaskDetails, pdFALSE, eRunning);
-            counter_since_last[i] = xTaskDetails.ulRunTimeCounter - last_task_counters[i];
-            last_task_counters[i] = xTaskDetails.ulRunTimeCounter;
-            ulTotalRunTime = ulTotalRunTime + counter_since_last[i];
-        }
-        if(strcmp("idle1", tasks[i])==0) { 
-            vTaskGetInfo(idle_1_handle, &xTaskDetails, pdFALSE, eRunning);
-            counter_since_last[i] = xTaskDetails.ulRunTimeCounter - last_task_counters[i];
-            last_task_counters[i] = xTaskDetails.ulRunTimeCounter;
-            ulTotalRunTime = ulTotalRunTime + counter_since_last[i];
-        }
-        
-
     }
     printf("------ CPU usage since last call to debug()\n");
     for(i=0;i<MAX_TASKS;i++) {
-        printf("%-15s\t%-15ld\t\t%2.2f%%\n", tasks[i], counter_since_last[i], (float)counter_since_last[i]/ulTotalRunTime * 100.0);
+        printf("%d %-15s\t%-15ld\t\t%2.2f%%\n", cores[i], tasks[i], counter_since_last[i], (float)counter_since_last[i]/ulTotalRunTime_per_core[cores[i]] * 100.0);
     }   
     printf("------\nEvent queue size %d / %d. Received %" PRIu32 " events and %" PRIu32 " messages\n", amy_global.event_qsize, AMY_EVENT_FIFO_LEN, event_counter, message_counter);
     event_counter = 0;
@@ -472,16 +464,18 @@ void app_main() {
     // Setup the socket
     create_multicast_ipv4_socket();
 
-    // Create the task that waits for UDP messages, parses them and puts them on the sequencer queue (core 1)
-    xTaskCreatePinnedToCore(&esp_parse_task, ALLES_PARSE_TASK_NAME, ALLES_PARSE_TASK_STACK_SIZE, NULL, ALLES_PARSE_TASK_PRIORITY, &parseTask, ALLES_PARSE_TASK_COREID);
     // Create the task that listens fro new incoming UDP messages (core 2)
     xTaskCreatePinnedToCore(&mcast_listen_task, ALLES_RECEIVE_TASK_NAME, ALLES_RECEIVE_TASK_STACK_SIZE, NULL, ALLES_RECEIVE_TASK_PRIORITY, &mcastTask, ALLES_RECEIVE_TASK_COREID);
+    delay_ms(100);
+
+    // Create the task that waits for UDP messages, parses them and puts them on the sequencer queue (core 1)
+    xTaskCreatePinnedToCore(&esp_parse_task, ALLES_PARSE_TASK_NAME, ALLES_PARSE_TASK_STACK_SIZE, NULL, ALLES_PARSE_TASK_PRIORITY, &parseTask, ALLES_PARSE_TASK_COREID);
 
     // Schedule a "turning on" sound
     bleep();
 
     // Print free RAm
-    heap_caps_print_heap_info(MALLOC_CAP_INTERNAL);
+    //heap_caps_print_heap_info(MALLOC_CAP_INTERNAL);
 
     // Spin this core until the power off button is pressed, parsing events and making sounds
     while(status & RUNNING) {
