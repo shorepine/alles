@@ -4,7 +4,11 @@ idf_component_register(SRCS alles.c
 							buttons.c
 							sounds.c
 							power.c
+							../amy/src/log2_exp2.c
 							../amy/src/amy.c
+							../amy/src/custom.c
+							../amy/src/delay.c
+							../amy/src/patches.c
 							../amy/src/algorithms.c
 							../amy/src/oscillators.c
 							../amy/src/pcm.c
@@ -20,7 +24,10 @@ list(APPEND IDF_COMPONENTS
 	mdns
 )
 
-target_compile_definitions(${COMPONENT_TARGET} PUBLIC "-DALLES")
+target_compile_options(${COMPONENT_TARGET} PUBLIC 
+	-DALLES
+	-Wno-uninitialized
+)
 
 set_source_files_properties(alles_esp32.c alles.c ../amy/src/amy.c
     PROPERTIES COMPILE_FLAGS

@@ -74,45 +74,83 @@ extern xQueueHandle gpio_evt_queue;
 TaskHandle_t mcastTask = NULL;
 TaskHandle_t parseTask = NULL;
 TaskHandle_t upgradeTask = NULL;
-TaskHandle_t amy_render_handle[AMY_CORES]; // one per core
-static TaskHandle_t fillbufferTask = NULL;
-static TaskHandle_t idleTask0 = NULL;
-static TaskHandle_t idleTask1 = NULL;
+
+TaskHandle_t alles_handle;
+TaskHandle_t alles_parse_handle;
+TaskHandle_t alles_receive_handle;
+TaskHandle_t amy_render_handle;
+TaskHandle_t alles_fill_buffer_handle;
+TaskHandle_t idle_0_handle;
+TaskHandle_t idle_1_handle;
+
+
+#define ALLES_TASK_COREID (1)
+#define ALLES_PARSE_TASK_COREID (0)
+#define ALLES_RECEIVE_TASK_COREID (1)
+#define ALLES_RENDER_TASK_COREID (0)
+#define ALLES_FILL_BUFFER_TASK_COREID (1)
+#define ALLES_PARSE_TASK_PRIORITY (ESP_TASK_PRIO_MIN +2)
+#define ALLES_RECEIVE_TASK_PRIORITY (ESP_TASK_PRIO_MIN + 3)
+#define ALLES_RENDER_TASK_PRIORITY (ESP_TASK_PRIO_MAX-1 )
+#define ALLES_FILL_BUFFER_TASK_PRIORITY (ESP_TASK_PRIO_MAX-1)
+#define ALLES_TASK_NAME             "alles_task"
+#define ALLES_PARSE_TASK_NAME       "alles_par_task"
+#define ALLES_RECEIVE_TASK_NAME     "alles_rec_task"
+#define ALLES_RENDER_TASK_NAME      "alles_r_task"
+#define ALLES_FILL_BUFFER_TASK_NAME "alles_fb_task"
+#define ALLES_TASK_STACK_SIZE    (4 * 1024) 
+#define ALLES_PARSE_TASK_STACK_SIZE (8 * 1024)
+#define ALLES_RECEIVE_TASK_STACK_SIZE (4 * 1024)
+#define ALLES_RENDER_TASK_STACK_SIZE (8 * 1024)
+#define ALLES_FILL_BUFFER_TASK_STACK_SIZE (8 * 1024)
+
 
 // Battery status for V2 board. If no v2 board, will stay at 0
 uint8_t battery_mask = 0;
 
 // AMY synth states
-extern struct state global;
+extern struct state amy_global;
 extern uint32_t event_counter;
 extern uint32_t message_counter;
 
 
-
-// Wrap AMY's renderer into 2 FreeRTOS tasks, one per core
+// Render the second core
 void esp_render_task( void * pvParameters) {
-    uint8_t which = *((uint8_t *)pvParameters);
-    uint8_t start = (AMY_OSCS/2); 
-    uint8_t end = AMY_OSCS;
-    if(which == 0) { start = 0; end = (AMY_OSCS/2); } 
-    printf("I'm renderer #%d on core #%d and i'm handling oscs %d up until %d\n", which, xPortGetCoreID(), start, end);
     while(1) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        render_task(start, end, which);
-        xTaskNotifyGive(fillbufferTask);
+        amy_render(0, AMY_OSCS/2, 1);
+        xTaskNotifyGive(alles_fill_buffer_handle);
     }
 }
-
 
 // Make AMY's FABT run forever , as a FreeRTOS task 
 void esp_fill_audio_buffer_task() {
     while(1) {
-        int16_t *block = fill_audio_buffer_task();
+        AMY_PROFILE_START(AMY_ESP_FILL_BUFFER)
+
+        // Get ready to render
+        amy_prepare_buffer();
+        // Tell the other core to start rendering
+        xTaskNotifyGive(amy_render_handle);
+        // Render me
+        amy_render(AMY_OSCS/2, AMY_OSCS, 0);
+        // Wait for the other core to finish
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+        // Write to i2s
+        int16_t *block = amy_fill_buffer();
+        AMY_PROFILE_STOP(AMY_ESP_FILL_BUFFER)
+
+        // We turn off writing to i2s on r10 when doing on chip debugging because of pins
+        #ifndef TULIP_R10_DEBUG
         size_t written = 0;
-        i2s_channel_write(tx_handle, block, AMY_BLOCK_SIZE * BYTES_PER_SAMPLE, &written, portMAX_DELAY);
-        if(written != AMY_BLOCK_SIZE*BYTES_PER_SAMPLE) {
-            printf("i2s underrun: %d vs %d\n", written, AMY_BLOCK_SIZE*BYTES_PER_SAMPLE);
+        i2s_channel_write(tx_handle, block, AMY_BLOCK_SIZE * BYTES_PER_SAMPLE * AMY_NCHANS, &written, portMAX_DELAY);
+        if(written != AMY_BLOCK_SIZE * BYTES_PER_SAMPLE * AMY_NCHANS) {
+            fprintf(stderr,"i2s underrun: %d vs %d\n", written, AMY_BLOCK_SIZE * BYTES_PER_SAMPLE * AMY_NCHANS);
         }
+        #endif
+
+
     }
 }
 
@@ -128,26 +166,23 @@ void esp_parse_task() {
 
 // init AMY from the esp. wraps some amy funcs in a task to do multicore rendering on the ESP32 
 amy_err_t esp_amy_init() {
-    amy_start();
-    global.latency_ms = ALLES_LATENCY_MS;
+    amy_start(2, 0, 1);
+    amy_global.latency_ms = ALLES_LATENCY_MS;
     // We create a mutex for changing the event queue and pointers as two tasks do it at once
     xQueueSemaphore = xSemaphoreCreateMutex();
 
-    // Create rendering threads, one per core so we can deal with dan ellis FIXED POINT math
-    static uint8_t zero = 0;
-    static uint8_t one = 1;
-    xTaskCreatePinnedToCore(&esp_render_task, "render_task0", 8192, &zero, (ESP_TASK_PRIO_MAX - 1), &amy_render_handle[0], 0);
-    xTaskCreatePinnedToCore(&esp_render_task, "render_task1", 8192, &one, (ESP_TASK_PRIO_MAX - 1), &amy_render_handle[1], 1);
+    // Create the second core rendering task
+    xTaskCreatePinnedToCore(&esp_render_task, ALLES_RENDER_TASK_NAME, ALLES_RENDER_TASK_STACK_SIZE, NULL, ALLES_RENDER_TASK_PRIORITY, &amy_render_handle, ALLES_RENDER_TASK_COREID);
 
     // Wait for the render tasks to get going before starting the i2s task
     delay_ms(100);
 
     // And the fill audio buffer thread, combines, does volume & filters
-    xTaskCreatePinnedToCore(&esp_fill_audio_buffer_task, "fill_audio_buff", 8192, NULL,  (ESP_TASK_PRIO_MAX - 1), &fillbufferTask, 0);
+    xTaskCreatePinnedToCore(&esp_fill_audio_buffer_task, ALLES_FILL_BUFFER_TASK_NAME, ALLES_FILL_BUFFER_TASK_STACK_SIZE, NULL, ALLES_FILL_BUFFER_TASK_PRIORITY, &alles_fill_buffer_handle, ALLES_FILL_BUFFER_TASK_COREID);
 
     // Grab the idle handles while we're here, we use them for CPU usage reporting
-    idleTask0 = xTaskGetIdleTaskHandleForCPU(0);
-    idleTask1 = xTaskGetIdleTaskHandleForCPU(1);
+    idle_0_handle = xTaskGetIdleTaskHandleForCPU(0);
+    idle_1_handle = xTaskGetIdleTaskHandleForCPU(1);
     return AMY_OK;
 }
 
@@ -156,13 +191,20 @@ amy_err_t esp_amy_init() {
 void esp_show_debug(uint8_t type) { 
     TaskStatus_t *pxTaskStatusArray;
     volatile UBaseType_t uxArraySize, x, i;
-    const char* const tasks[] = { "render_task0", "render_task1", "mcast_task", "parse_task", "main", "fill_audio_buff", "wifi", "idle0", "idle1", 0 }; 
+    const char* const tasks[] = { ALLES_PARSE_TASK_NAME, ALLES_RECEIVE_TASK_NAME, ALLES_RENDER_TASK_NAME, ALLES_FILL_BUFFER_TASK_NAME, "main", "wifi", "IDLE0", "IDLE1", 0 }; 
+    const uint8_t cores[] = {ALLES_PARSE_TASK_COREID, ALLES_RECEIVE_TASK_COREID, ALLES_RENDER_TASK_COREID, ALLES_FILL_BUFFER_TASK_COREID, 0, 0, 0, 1, 0};
+
     uxArraySize = uxTaskGetNumberOfTasks();
     pxTaskStatusArray = pvPortMalloc( uxArraySize * sizeof( TaskStatus_t ) );
     uxArraySize = uxTaskGetSystemState( pxTaskStatusArray, uxArraySize, NULL );
     unsigned long counter_since_last[MAX_TASKS];
-    unsigned long ulTotalRunTime = 0;
-    TaskStatus_t xTaskDetails;
+    //unsigned long ulTotalRunTime = 0;
+    unsigned long ulTotalRunTime_per_core[2];
+    ulTotalRunTime_per_core[0] = 0;
+    ulTotalRunTime_per_core[1] = 0;
+
+    //TaskStatus_t xTaskDetails;
+
     // We have to check for the names we want to track
     for(i=0;i<MAX_TASKS;i++) { // for each name
         counter_since_last[i] = 0;
@@ -170,31 +212,16 @@ void esp_show_debug(uint8_t type) {
             if(strcmp(pxTaskStatusArray[x].pcTaskName, tasks[i])==0) {
                 counter_since_last[i] = pxTaskStatusArray[x].ulRunTimeCounter - last_task_counters[i];
                 last_task_counters[i] = pxTaskStatusArray[x].ulRunTimeCounter;
-                ulTotalRunTime = ulTotalRunTime + counter_since_last[i];
+                //ulTotalRunTime = ulTotalRunTime + counter_since_last[i];
+                ulTotalRunTime_per_core[cores[i]] += counter_since_last[i];
             }
         }
-        
-        // Have to get these specially as the task manager calls them both "IDLE" and swaps their orderings around
-        if(strcmp("idle0", tasks[i])==0) { 
-            vTaskGetInfo(idleTask0, &xTaskDetails, pdFALSE, eRunning);
-            counter_since_last[i] = xTaskDetails.ulRunTimeCounter - last_task_counters[i];
-            last_task_counters[i] = xTaskDetails.ulRunTimeCounter;
-            ulTotalRunTime = ulTotalRunTime + counter_since_last[i];
-        }
-        if(strcmp("idle1", tasks[i])==0) { 
-            vTaskGetInfo(idleTask1, &xTaskDetails, pdFALSE, eRunning);
-            counter_since_last[i] = xTaskDetails.ulRunTimeCounter - last_task_counters[i];
-            last_task_counters[i] = xTaskDetails.ulRunTimeCounter;
-            ulTotalRunTime = ulTotalRunTime + counter_since_last[i];
-        }
-        
-
     }
     printf("------ CPU usage since last call to debug()\n");
     for(i=0;i<MAX_TASKS;i++) {
-        printf("%-15s\t%-15ld\t\t%2.2f%%\n", tasks[i], counter_since_last[i], (float)counter_since_last[i]/ulTotalRunTime * 100.0);
+        printf("%d %-15s\t%-15ld\t\t%2.2f%%\n", cores[i], tasks[i], counter_since_last[i], (float)counter_since_last[i]/ulTotalRunTime_per_core[cores[i]] * 100.0);
     }   
-    printf("------\nEvent queue size %d / %d. Received %" PRIu32 " events and %" PRIu32 " messages\n", global.event_qsize, AMY_EVENT_FIFO_LEN, event_counter, message_counter);
+    printf("------\nEvent queue size %d / %d. Received %" PRIu32 " events and %" PRIu32 " messages\n", amy_global.event_qsize, AMY_EVENT_FIFO_LEN, event_counter, message_counter);
     event_counter = 0;
     message_counter = 0;
     vPortFree(pxTaskStatusArray);
@@ -437,10 +464,12 @@ void app_main() {
     // Setup the socket
     create_multicast_ipv4_socket();
 
-    // Create the task that waits for UDP messages, parses them and puts them on the sequencer queue (core 1)
-    xTaskCreatePinnedToCore(&esp_parse_task, "parse_task", 4096, NULL, (ESP_TASK_PRIO_MIN +2), &parseTask, 0);
     // Create the task that listens fro new incoming UDP messages (core 2)
-    xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, (ESP_TASK_PRIO_MIN + 3), &mcastTask, 1);
+    xTaskCreatePinnedToCore(&mcast_listen_task, ALLES_RECEIVE_TASK_NAME, ALLES_RECEIVE_TASK_STACK_SIZE, NULL, ALLES_RECEIVE_TASK_PRIORITY, &mcastTask, ALLES_RECEIVE_TASK_COREID);
+    delay_ms(100);
+
+    // Create the task that waits for UDP messages, parses them and puts them on the sequencer queue (core 1)
+    xTaskCreatePinnedToCore(&esp_parse_task, ALLES_PARSE_TASK_NAME, ALLES_PARSE_TASK_STACK_SIZE, NULL, ALLES_PARSE_TASK_PRIORITY, &parseTask, ALLES_PARSE_TASK_COREID);
 
     // Schedule a "turning on" sound
     bleep();

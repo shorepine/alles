@@ -1,4 +1,4 @@
-import socket, struct, datetime, os, time, sys
+import socket, struct, datetime, os, time, sys, datetime
 sys.path.append('amy')
 import amy
 from amy import *
@@ -28,20 +28,19 @@ def flush(retries=1):
     transmit(send_buffer)
     send_buffer = ""
 
-def send(retries=1, **kwargs):
+def alles_send(message, retries=1):
     global send_buffer
-    m = message(**kwargs)
     if(buffer_size > 0):
-        if(len(send_buffer + m) > buffer_size):
+        if(len(send_buffer + message) > buffer_size):
             transmit(send_buffer, retries=retries)
-            send_buffer = m
+            send_buffer = message
         else:
             send_buffer = send_buffer + m
     else:
-        transmit(m,retries=retries)
+        transmit(message,retries=retries)
 
 # We override AMY's send function to send out to the mesh instead of locally
-amy.override_send = send
+amy.override_send = alles_send
 
 
 
@@ -118,6 +117,12 @@ def decode_battery_mask(mask):
     if (mask & 0x80): level = 1
     return(state, level)
 
+def millis():
+    now = datetime.datetime.now()
+    midnight = datetime.datetime.combine(now.date(), datetime.time.min)
+    delta = now - midnight
+    milliseconds = (delta.total_seconds() * 1000) + (delta.microseconds / 1000)
+    return int(milliseconds)
 
 def sync(count=10, delay_ms=100):
     global sock
@@ -136,7 +141,7 @@ def sync(count=10, delay_ms=100):
         if((tic - last_sent) > delay_ms):
             time_sent[i] = millis()
             #print ("sending %d at %d" % (i, time_sent[i]))
-            output = "s%di%dZ" % (time_sent[i], i)
+            output = "U%di%dZ" % (time_sent[i], i)
             sock.sendto(output.encode('ascii'), get_multicast_group())
             i = i + 1
             last_sent = tic
@@ -147,7 +152,7 @@ def sync(count=10, delay_ms=100):
             if(data[0] == '_'):
                 data = data[:-1]
                 try:
-                    [_, client_time, sync_index, client_id, ipv4, battery] = re.split(r'[sicry]',data)
+                    [_, client_time, sync_index, client_id, ipv4, battery] = re.split(r'[Uigry]',data)
                 except ValueError:
                     print("What! %s" % (data))
                 if(int(sync_index) <= i): # skip old ones from a previous run

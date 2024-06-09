@@ -10,7 +10,7 @@ uint8_t status = RUNNING;
 uint8_t debug_on = 0;
 
 // AMY synth states
-extern struct state global;
+extern struct state amy_global;
 extern uint32_t event_counter;
 extern uint32_t message_counter;
 extern int16_t amy_device_id;
@@ -27,9 +27,9 @@ char *local_ip, *raw_file;
 
 int main(int argc, char ** argv) {
     sync_init();
-    amy_start();
+    amy_start(1,0,1);
     amy_reset_oscs();
-    global.latency_ms = ALLES_LATENCY_MS;
+    amy_global.latency_ms = ALLES_LATENCY_MS;
 
     // For now, indicate ip address via commandline
     local_ip = (char*)malloc(sizeof(char)*1025);
