@@ -72,7 +72,7 @@ void handle_sync(int64_t time, int8_t index) {
     // Before I send, i want to update the map locally
     update_map(client_id, ipv4_quartet, sysclock);
     // Send back sync message with my time and received sync index and my client id & battery status (if any)
-    sprintf(message, "_s%lldi%dc%dr%dy%dZ", sysclock, index, client_id, ipv4_quartet, battery_mask);
+    sprintf(message, "_U%lldi%dg%dr%dy%dZ", sysclock, index, client_id, ipv4_quartet, battery_mask);
     mcast_send(message, strlen(message));
     // Update computed delta (i could average these out, but I don't think that'll help too much)
     //int64_t old_cd = computed_delta;
@@ -81,10 +81,11 @@ void handle_sync(int64_t time, int8_t index) {
     //if(old_cd != computed_delta) printf("Changed computed_delta from %lld to %lld on sync\n", old_cd, computed_delta);
 }
 
+// It's ok that r & y are used by AMY, this is only to return values
 void ping(int64_t sysclock) {
     char message[100];
     //printf("[%d %d] pinging with %lld\n", ipv4_quartet, client_id, sysclock);
-    sprintf(message, "_s%lldi-1c%dr%dy%dZ", sysclock, client_id, ipv4_quartet, battery_mask);
+    sprintf(message, "_U%lldi-1g%dr%dy%dZ", sysclock, client_id, ipv4_quartet, battery_mask);
     update_map(client_id, ipv4_quartet, sysclock);
     mcast_send(message, strlen(message));
     last_ping_time = sysclock;
@@ -104,15 +105,14 @@ void alles_parse_message(char *message, uint16_t length) {
     struct i_event e = amy_parse_message(message);
     uint8_t sync_response = 0;
 
-    // Then pull out any alles-specific modes in this message - c,i,r,s, _
+    // Then pull out any alles-specific modes in this message 
     while(c < length+1) {
         uint8_t b = message[c];
         if(b == '_' && c==0) sync_response = 1;
         if( ((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')) || b == 0) {  // new mode or end
-            if(mode=='c') client = atoi(message + start); 
+            if(mode=='g') client = atoi(message + start); 
             if(mode=='i') sync_index = atoi(message + start);
-            if(mode=='r') ipv4=atoi(message + start);
-            if(mode=='s') sync = atol(message + start); 
+            if(mode=='U') sync = atol(message + start); 
             mode = b;
             start = c + 1;
         } 

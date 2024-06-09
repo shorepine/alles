@@ -136,7 +136,7 @@ def sync(count=10, delay_ms=100):
         if((tic - last_sent) > delay_ms):
             time_sent[i] = millis()
             #print ("sending %d at %d" % (i, time_sent[i]))
-            output = "s%di%dZ" % (time_sent[i], i)
+            output = "U%di%dZ" % (time_sent[i], i)
             sock.sendto(output.encode('ascii'), get_multicast_group())
             i = i + 1
             last_sent = tic
@@ -147,7 +147,7 @@ def sync(count=10, delay_ms=100):
             if(data[0] == '_'):
                 data = data[:-1]
                 try:
-                    [_, client_time, sync_index, client_id, ipv4, battery] = re.split(r'[sicry]',data)
+                    [_, client_time, sync_index, client_id, ipv4, battery] = re.split(r'[Uigry]',data)
                 except ValueError:
                     print("What! %s" % (data))
                 if(int(sync_index) <= i): # skip old ones from a previous run
