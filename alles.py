@@ -28,20 +28,19 @@ def flush(retries=1):
     transmit(send_buffer)
     send_buffer = ""
 
-def send(retries=1, **kwargs):
+def alles_send(message, retries=1):
     global send_buffer
-    m = message(**kwargs)
     if(buffer_size > 0):
-        if(len(send_buffer + m) > buffer_size):
+        if(len(send_buffer + message) > buffer_size):
             transmit(send_buffer, retries=retries)
-            send_buffer = m
+            send_buffer = message
         else:
             send_buffer = send_buffer + m
     else:
-        transmit(m,retries=retries)
+        transmit(message,retries=retries)
 
 # We override AMY's send function to send out to the mesh instead of locally
-amy.override_send = send
+amy.override_send = alles_send
 
 
 

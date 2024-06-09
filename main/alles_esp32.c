@@ -99,7 +99,7 @@ TaskHandle_t idle_1_handle;
 #define ALLES_RENDER_TASK_NAME      "alles_r_task"
 #define ALLES_FILL_BUFFER_TASK_NAME "alles_fb_task"
 #define ALLES_TASK_STACK_SIZE    (4 * 1024) 
-#define ALLES_PARSE_TASK_STACK_SIZE (4 * 1024)
+#define ALLES_PARSE_TASK_STACK_SIZE (8 * 1024)
 #define ALLES_RECEIVE_TASK_STACK_SIZE (4 * 1024)
 #define ALLES_RENDER_TASK_STACK_SIZE (8 * 1024)
 #define ALLES_FILL_BUFFER_TASK_STACK_SIZE (8 * 1024)
@@ -473,15 +473,15 @@ void app_main() {
     create_multicast_ipv4_socket();
 
     // Create the task that waits for UDP messages, parses them and puts them on the sequencer queue (core 1)
-    xTaskCreatePinnedToCore(&esp_parse_task, "parse_task", 4096, NULL, (ESP_TASK_PRIO_MIN +2), &parseTask, 0);
+    xTaskCreatePinnedToCore(&esp_parse_task, ALLES_PARSE_TASK_NAME, ALLES_PARSE_TASK_STACK_SIZE, NULL, ALLES_PARSE_TASK_PRIORITY, &parseTask, ALLES_PARSE_TASK_COREID);
     // Create the task that listens fro new incoming UDP messages (core 2)
-    xTaskCreatePinnedToCore(&mcast_listen_task, "mcast_task", 4096, NULL, (ESP_TASK_PRIO_MIN + 3), &mcastTask, 1);
+    xTaskCreatePinnedToCore(&mcast_listen_task, ALLES_RECEIVE_TASK_NAME, ALLES_RECEIVE_TASK_STACK_SIZE, NULL, ALLES_RECEIVE_TASK_PRIORITY, &mcastTask, ALLES_RECEIVE_TASK_COREID);
 
     // Schedule a "turning on" sound
     bleep();
 
     // Print free RAm
-    //heap_caps_print_heap_info(MALLOC_CAP_INTERNAL);
+    heap_caps_print_heap_info(MALLOC_CAP_INTERNAL);
 
     // Spin this core until the power off button is pressed, parsing events and making sounds
     while(status & RUNNING) {
