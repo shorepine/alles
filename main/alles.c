@@ -102,7 +102,7 @@ void alles_parse_message(char *message, uint16_t length) {
     uint16_t c = 0;
 
     // Parse the AMY stuff out of the message first
-    struct i_event e = amy_parse_message(message);
+    struct event e = amy_parse_message(message);
     uint8_t sync_response = 0;
 
     // Then pull out any alles-specific modes in this message 
@@ -150,7 +150,7 @@ void alles_parse_message(char *message, uint16_t length) {
                     if(client_id % (client-255) == 0) for_me = 1;
                 }
             }
-            if(for_me) amy_add_i_event(e);
+            if(for_me) amy_add_event(e);
         }
     }
 }

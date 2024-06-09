@@ -4,6 +4,7 @@ idf_component_register(SRCS alles.c
 							buttons.c
 							sounds.c
 							power.c
+							../amy/src/log2_exp2.c
 							../amy/src/amy.c
 							../amy/src/custom.c
 							../amy/src/delay.c
