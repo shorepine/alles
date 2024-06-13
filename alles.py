@@ -117,12 +117,6 @@ def decode_battery_mask(mask):
     if (mask & 0x80): level = 1
     return(state, level)
 
-def millis():
-    now = datetime.datetime.now()
-    midnight = datetime.datetime.combine(now.date(), datetime.time.min)
-    delta = now - midnight
-    milliseconds = (delta.total_seconds() * 1000) + (delta.microseconds / 1000)
-    return int(milliseconds)
 
 def sync(count=10, delay_ms=100):
     global sock
