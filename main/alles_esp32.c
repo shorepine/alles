@@ -293,7 +293,7 @@ void wifi_reconfigure() {
 
 void firmware_upgrade( void * pvParameters) {
     esp_http_client_config_t config = {
-        .url = "https://github.com/bwhitman/alles/raw/main/ota/alles.bin",
+        .url = "https://github.com/shorepine/alles/raw/main/ota/alles.bin",
         .cert_pem = NULL,
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .skip_cert_common_name_check = true,

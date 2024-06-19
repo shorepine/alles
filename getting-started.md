@@ -3,7 +3,7 @@
 
 # Alles Speaker RevB getting started notes
 
-![picture](https://raw.githubusercontent.com/bwhitman/alles/main/pics/alles-revb-moss.png)
+![picture](https://raw.githubusercontent.com/shorepine/alles/main/pics/alles-revb-moss.png)
 
 Hello! You're the lucky owner of at least one Alles speaker. This guide will help you get started.
 
@@ -24,7 +24,7 @@ Before getting going, let's make sure the speaker is charged or charging. Simply
 
 The row of buttons up top, facing the speaker, are power, volume + and -, and WiFi setup (the play/pause). Volume can be set with those buttons or using `alles.volume()` from your compositions. Using `alles.volume()` will override whatever you set with the buttons.
 
-![Picture of speaker](https://raw.githubusercontent.com/bwhitman/alles/main/pics/revb-top.png)
+![Picture of speaker](https://raw.githubusercontent.com/shorepine/alles/main/pics/revb-top.png)
 
 The power button turns the speaker off and on. When you turn it on, it will re-join the network and mesh. 
 
@@ -41,7 +41,7 @@ If you've already set a WiFi network, after about a few seconds the chime noise 
 
 If you haven't set WiFi yet, now open your nearest mobile phone or any WiFi device with a browser. Go to join a new WiFi network on your device and you'll see a network listed called `alles-synth-XXXXXX` where `XXXXXX` is a unique string per speaker (useful when you have many speakers!). Join that network. On most devices (iPhones, Androids especially) after a few seconds, a browser window will appear with a login page. This is like when you join a hotel's network or other captive portal. If the page never appears, try going to `http://10.10.0.1` in your browser after joiining the network.
 
-![Alles WiFi settings](https://raw.githubusercontent.com/bwhitman/alles/main/pics/alles-wifi.png)
+![Alles WiFi settings](https://raw.githubusercontent.com/shorepine/alles/main/pics/alles-wifi.png)
 
 Wait a few seconds for the login page to populate with all the nearby WiFi stations it finds. After you see the one you want the speaker to join, tap it and carefully enter its password. This should be the same network as the computer you're going to control Alles from. After a few moments, the speaker should stop chiming, indicating it has succesfully joined the network and saved the details to its internal storage. 
 
@@ -49,13 +49,13 @@ If this doesn't seem to work, try again by hitting the WiFi button (play/pause) 
 
 ## Upgrade the firmware
 
-It's helpful to make sure your Alles speaker has the latest firmware. If you have a recent speaker, you can do this wirelesly. If you have an older one, it's slightly more complicated but only takes a few minutes of setup (and you can do it wirelessly going forward.) [See the guide on upgrading a hardware Alles speaker](https://github.com/bwhitman/alles/tree/main/alles-flashing.md)
+It's helpful to make sure your Alles speaker has the latest firmware. If you have a recent speaker, you can do this wirelesly. If you have an older one, it's slightly more complicated but only takes a few minutes of setup (and you can do it wirelessly going forward.) [See the guide on upgrading a hardware Alles speaker](https://github.com/shorepine/alles/tree/main/alles-flashing.md)
 
 ## Control Alles
 
 You send the mesh (group of speakers) explicit messages that define the state of oscillators. You can control anything you can imagine, with high precision and millisecond accuracy. You can control up to 64 oscillators on each of any number of speakers in a mesh. You do this from either a programming language like Python (what we use) or an environment like Max/MSP (or Max for Ableton Live). Python is built-in on Macs and pretty easy to use once you get the hang of it. And then you can write small programs to make interesting sounds! For this tutorial, we'll use Python. But there's also a Max patch you can download that shows you how to access all the same parameters as we're changing in Python. So it's up to you!
 
-So let's start python. Open your terminal, on a Mac, that's Terminal.app, on Windows I suggest using WSL, and on Linux whatever you've installed. [Clone this repository](https://github.com/bwhitman/alles/) if you haven't already. (`git clone https://github.com/bwhitman/alles.git`) Also make sure to update the submodules, so `cd alles; git submodule update --init --recursive`. Make sure you are in the directory containing the repository. And type `python3`. If on Mac, if you've never done this sort of thing before, you may have to accept a small download of tools from Apple the first time you run Python. Let that finish. Then you'll see a prompt like `>>>`. 
+So let's start python. Open your terminal, on a Mac, that's Terminal.app, on Windows I suggest using WSL, and on Linux whatever you've installed. [Clone this repository](https://github.com/shorepine/alles/) if you haven't already. (`git clone https://github.com/shorepine/alles.git`) Also make sure to update the submodules, so `cd alles; git submodule update --init --recursive`. Make sure you are in the directory containing the repository. And type `python3`. If on Mac, if you've never done this sort of thing before, you may have to accept a small download of tools from Apple the first time you run Python. Let that finish. Then you'll see a prompt like `>>>`. 
 
 Start by importing the Python module needed to control the mesh: `import alles`
 
@@ -131,7 +131,7 @@ alles.send(osc=0, wave=alles.PULSE, duty=0.5, freq=110, mod_source=1, mod_target
 alles.send(osc=0, vel=0.5)
 ```
 
-There's a lot more parameters and things to play with. Check out the [Alles README](https://github.com/bwhitman/alles/blob/main/README.md) for the full list, or look at alles.message in Python:
+There's a lot more parameters and things to play with. Check out the [Alles README](https://github.com/shorepine/alles/blob/main/README.md) for the full list, or look at alles.message in Python:
 
 ```python
 # alles.message():
@@ -185,7 +185,7 @@ Those deep into synth lore already know why Alles is called that: we initially b
 
 Additive synthesis is simply adding together oscillators to make more complex tones. You can modulate the breakpoints of these oscillators over time, for example, changing their pitch or time without artifacts, as the synthesis is simply playing sine waves back at certain amplitudes and frequencies (and phases.) It's well suited to certain types of instruments. 
 
-![Partials](https://raw.githubusercontent.com/bwhitman/alles/main/pics/partials.png)
+![Partials](https://raw.githubusercontent.com/shorepine/alles/main/pics/partials.png)
 
 We have analyzed the partials of a group of instruments and stored them as presets baked into the speaker. Each of these patches are comprised of multiple sine wave oscillators, changing over time. The `PARTIALS` type has the presets:
 
@@ -289,7 +289,7 @@ alles.send(wave=alles.PCM,vel=1,patch=35,feedback=1) # nice violin
 
 ### What's next
 
-Make sure you read the main [Alles README](https://github.com/bwhitman/alles/blob/main/README.md) for more details!!
+Make sure you read the main [Alles README](https://github.com/shorepine/alles/blob/main/README.md) for more details!!
 
 
 ## Advanced section

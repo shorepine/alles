@@ -1,6 +1,6 @@
 # Alles - the mesh synthesizer
 
-![picture](https://raw.githubusercontent.com/bwhitman/alles/main/pics/alles-revB-group.png)
+![picture](https://raw.githubusercontent.com/shorepine/alles/main/pics/alles-revB-group.png)
 
 **You can now buy an Alles PCB from Blinkinlabs!**
 
@@ -9,7 +9,7 @@
 
 
 
- [![shore pine sound systems discord](https://raw.githubusercontent.com/bwhitman/tulipcc/main/docs/pics/shorepine100.png) **Chat about Alles on our Discord!**](https://discord.gg/TzBFkUb8pG)
+ [![shore pine sound systems discord](https://raw.githubusercontent.com/shorepine/tulipcc/main/docs/pics/shorepine100.png) **Chat about Alles on our Discord!**](https://discord.gg/TzBFkUb8pG)
 
 
 **Check out this video!**
@@ -24,13 +24,13 @@ The synthesizers automatically form a mesh and listen to multicast WiFi messages
 We intended their first use as distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [Atari AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 64 partials, all controlled as a group or individually. But you can just treat them as dozens of individual synthesizers and do whatever you want with them. It's pretty fun!
 
 Want to try it today? [Buy an Alles](#buy-an-alles), [build your own Alles](#diy-alles), or [install the software version](#using-it----software-alles
-), and then read our [getting started tutorial!](https://github.com/bwhitman/alles/tree/main/getting-started.md)
+), and then read our [getting started tutorial!](https://github.com/shorepine/alles/tree/main/getting-started.md)
 
 
 
 ## Synthesizer specs
 
-Each individual synth is powered by the [AMY additive synthesizer library](https://github.com/bwhitman/amy/blob/main/README.md), you can read more details there. But at a high level, each Alles synth has:
+Each individual synth is powered by the [AMY additive synthesizer library](https://github.com/shorepine/amy/blob/main/README.md), you can read more details there. But at a high level, each Alles synth has:
 
  * 64 oscillators, each with adjustable frequency and amplitude:
    * pulse (+ adjustable duty cycle), sine, saw, triangle, noise and PCM, reading from a baked-in buffer of percussive and misc samples
@@ -60,7 +60,7 @@ $ ./alles -h # shows all the useful commandline parameters, like changing which 
 
 ## Controlling the mesh
 
-**Check out our brand new [Getting Started](https://github.com/bwhitman/alles/tree/main/getting-started.md) page for a tutorial!**
+**Check out our brand new [Getting Started](https://github.com/shorepine/alles/tree/main/getting-started.md) page for a tutorial!**
 
 You can control every synth on the mesh from a single host, using UDP over WiFi. You can address any synth in the mesh or all of them at once with one message, or use groups. This method can be used in music environments like Max or Pd, or by musicians or developers using languages like Python, or for plug-in developers who want to bridge Alles's full features to DAWs.
 
@@ -72,7 +72,7 @@ Alles accepts commands in ASCII, each command separated with a `Z` (you can grou
 v0w4f440.0l0.9Z
 ```
 
-See [AMY's readme](https://github.com/bwhitman/amy/blob/main/README.md) for the full list of synth parameters.
+See [AMY's readme](https://github.com/shorepine/amy/blob/main/README.md) for the full list of synth parameters.
 
 For higher throughput, it's recommended to batch many messages into one UDP message, up to 508 bytes per message. (`alles.py` does this for you, optionally.)
 
@@ -100,7 +100,7 @@ alles.send(osc=0, filter_freq=800, resonance=1.5) # filter it
 alles.send(osc=0, note=50, vel=1.5) # note on
 ```
 
-To see more examples, check out our brand new [Getting Started](https://github.com/bwhitman/alles/tree/main/getting-started.md) page.
+To see more examples, check out our brand new [Getting Started](https://github.com/shorepine/alles/tree/main/getting-started.md) page.
 
 ## Addressing individual synthesizers
 
@@ -164,16 +164,16 @@ def c_major(octave=2):
 
 ```
 
-See [`alles.py`](https://github.com/bwhitman/alles/blob/main/alles.py) for a better example. Any language that supports sockets and multicast can work, I encourage pull requests with new clients!
+See [`alles.py`](https://github.com/shorepine/alles/blob/main/alles.py) for a better example. Any language that supports sockets and multicast can work, I encourage pull requests with new clients!
 
 You can also easily use it in Max or Pd:
 
-![Max](https://raw.githubusercontent.com/bwhitman/alles/main/pics/max.png)
+![Max](https://raw.githubusercontent.com/shorepine/alles/main/pics/max.png)
 
 
 # Synthesizer Details
 
-See [AMY's readme](https://github.com/bwhitman/amy/blob/main/README.md) for more details on the synthesizer itself.
+See [AMY's readme](https://github.com/shorepine/amy/blob/main/README.md) for more details on the synthesizer itself.
 
 
 # Get your own Alles!
@@ -193,7 +193,7 @@ If you want the small circular speakers shown on this page and videos, they are 
  
 **IMPORTANT:** Alles is sold on a "best effort" community support basis. We will send you working PCBs with the latest Alles firmware loaded on them. Anything that happens after that is up to the community to help with. Alles requires a little bit of computer and networking know-how to get going. We've made it as easy as possible, we hope, but we know we have more work to do before this is ready for a very wide audience. Please use GitHub issues for anything you're having trouble with and we'll do our best to help you figure it out. 
 
-![blinkinlabs PCB](https://raw.githubusercontent.com/bwhitman/alles/main/pics/alles_reva.png)
+![blinkinlabs PCB](https://raw.githubusercontent.com/shorepine/alles/main/pics/alles_reva.png)
 
 
 ## DIY Alles
@@ -222,15 +222,15 @@ Vin -> Vin / USB / 3.3 (or direct to your 5V power source)
 Speaker connectors -> speaker
 ```
 
-![DIY Alles 1](https://raw.githubusercontent.com/bwhitman/alles/main/pics/diy_alles_1.png)
-![DIY Alles 2](https://raw.githubusercontent.com/bwhitman/alles/main/pics/diy_alles_2.png)
+![DIY Alles 1](https://raw.githubusercontent.com/shorepine/alles/main/pics/diy_alles_1.png)
+![DIY Alles 2](https://raw.githubusercontent.com/shorepine/alles/main/pics/diy_alles_2.png)
 
 
 ### DIY bridge PCB
 
 *You don't need this PCB made to build a DIY Alles!* -- it will work with just hookup wire. But if you're making a lot of DIY Alleses want more stability, I had a tiny little board made to join the boards together, like so:
 
-![closeup](https://raw.githubusercontent.com/bwhitman/alles/main/pics/adapter.jpg)
+![closeup](https://raw.githubusercontent.com/shorepine/alles/main/pics/adapter.jpg)
 
 This assumes you're using the suggested ESP32 dev board with its pin layout. If you use another one, you can probably change the GPIO assignments in `alles.h`. Fritzing file in the `pcbs` folder of this repository, and [it's here on Aisler](https://aisler.net/p/TEBMDZWQ). This is a lot more stable and easier to wire up than snipping small bits of hookup wire, especially for the GAIN connection. 
 
@@ -242,7 +242,7 @@ If you are using your own dev board and it has less than 8MB of flash (4MB is co
 
 Alles is completely open source, and can be a fun platform to adapt beyond its current capabilities. 
 
-You can upgrade the firmware or write your own using the USB connection. [See the guide on flashing a hardware Alles speaker](https://github.com/bwhitman/alles/tree/main/alles-flashing.md) (either DIY or one of ours). 
+You can upgrade the firmware or write your own using the USB connection. [See the guide on flashing a hardware Alles speaker](https://github.com/shorepine/alles/tree/main/alles-flashing.md) (either DIY or one of ours). 
 
 
 ## THANK YOU TO
