@@ -6,7 +6,7 @@ This page will help you upgrade your own firmware on an Alles hardware speaker.
 
 **If you have a recent model (you received it after November 2021), or flashed your firmware after November 2021, you can upgrade your firmware over the internet wirelessly, called OTA, "over-the-air."**
 
-After you first set up wifi (and make sure your speaker is on a wifi network that can connect to the internet,) if you turn off, then on the speaker, then press the + button while the "joining wifi" tones are playing (in the few seconds before it plays the turn-on bleep), the speaker will connect to the internet and download the [latest released Alles speaker firmware](https://github.com/bwhitman/alles/blob/main/ota/alles.bin) right to the device, then reboot. It takes about a minute, and you'll hear a different (sometimes glitchy sounding -- that's ok --) repeating tone while it works. 
+After you first set up wifi (and make sure your speaker is on a wifi network that can connect to the internet,) if you turn off, then on the speaker, then press the + button while the "joining wifi" tones are playing (in the few seconds before it plays the turn-on bleep), the speaker will connect to the internet and download the [latest released Alles speaker firmware](https://github.com/shorepine/alles/blob/main/ota/alles.bin) right to the device, then reboot. It takes about a minute, and you'll hear a different (sometimes glitchy sounding -- that's ok --) repeating tone while it works. 
 
 ## Upgrading firmware over USB
 
@@ -36,7 +36,7 @@ If using macOS, you'll want to also install the [CP210X drivers](https://www.sil
 
 ### Get the Alles repository
 
-You likely already have this, but if not, [clone this repository](https://github.com/bwhitman/alles).
+You likely already have this, but if not, [clone this repository](https://github.com/shorepine/alles).
 
 ### Get a real micro-USB cable 
 
