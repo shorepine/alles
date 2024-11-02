@@ -89,7 +89,7 @@ esp_err_t buttons_init() {
         return ESP_ERR_NO_MEM;
 
     //start gpio task
-    if(xTaskCreate(gpio_task, "gpio_task", 2048, NULL, 10, NULL) != pdPASS)
+    if(xTaskCreate(gpio_task, "gpio_task", 4096, NULL, 10, NULL) != pdPASS)
         return ESP_ERR_NO_MEM;
 
     //install gpio isr service

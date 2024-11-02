@@ -9,8 +9,9 @@ int64_t clocks[255];
 int64_t ping_times[255];
 uint8_t alive = 1;
 
-extern int64_t computed_delta ; // can be negative no prob, but usually host is larger # than client
-extern uint8_t computed_delta_set ; // have we set a delta yet?
+int32_t computed_delta = 0 ; // can be negative no prob, but usually host is larger # than client
+uint8_t computed_delta_set = 0; // have we set a delta yet?
+
 extern int64_t last_ping_time;
 
 amy_err_t sync_init() {
@@ -76,8 +77,8 @@ void handle_sync(int64_t time, int8_t index) {
     mcast_send(message, strlen(message));
     // Update computed delta (i could average these out, but I don't think that'll help too much)
     //int64_t old_cd = computed_delta;
-    computed_delta = time - sysclock;
-    computed_delta_set = 1;
+    //computed_delta = time - sysclock;
+    //computed_delta_set = 1;
     //if(old_cd != computed_delta) printf("Changed computed_delta from %lld to %lld on sync\n", old_cd, computed_delta);
 }
 
@@ -101,17 +102,23 @@ void alles_parse_message(char *message, uint16_t length) {
     uint16_t start = 0;
     uint16_t c = 0;
 
+    uint32_t sysclock = amy_sysclock();
+
+
     // Parse the AMY stuff out of the message first
     struct event e = amy_parse_message(message);
     uint8_t sync_response = 0;
 
+
+
     // Then pull out any alles-specific modes in this message 
+    //fprintf(stderr, "alles messsage %s\n", message);
     while(c < length+1) {
         uint8_t b = message[c];
         if(b == '_' && c==0) sync_response = 1;
         if( ((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')) || b == 0) {  // new mode or end
             if(mode=='g') client = atoi(message + start); 
-            if(sync_response) if(mode=='i') sync_index = atoi(message + start);
+            if(mode=='i') sync_index = atoi(message + start);
             if(sync_response) if(mode=='r') ipv4=atoi(message + start);
             if(mode=='U') sync = atol(message + start); 
             mode = b;
@@ -124,6 +131,22 @@ void alles_parse_message(char *message, uint16_t length) {
         //printf("got sync response client %d ipv4 %d sync %lld\n", client, ipv4, sync);
         update_map(client, ipv4, sync);
         length = 0; // don't need to do the rest
+    } else {
+        // AMY has time always set now.
+        // Latency is already added by AMY as well.
+        // the way this worked we keep a delta of e.time in (already latency added) and our sysclock 
+        // if e.time - delta is > max drift, recompute it !
+
+        int32_t delta = e.time - (sysclock+amy_global.latency_ms); 
+        if(!computed_delta_set || abs(delta - computed_delta) > ALLES_MAX_DRIFT_MS) {
+            computed_delta = delta;
+            fprintf(stderr,"setting computed delta to %"PRIi32 " (e.time is %"PRIu32 " sysclock %"PRIu32 ") max_drift_ms %"PRIu32 " latency %"PRIu16 "\n", 
+                    computed_delta, e.time, sysclock, (uint32_t)ALLES_MAX_DRIFT_MS, amy_global.latency_ms);
+            computed_delta_set = 1;
+        }  
+        // Adjust our time with computed_delta
+        e.time = e.time - computed_delta;
+
     }
     // Only do this if we got some data
     if(length >0) {

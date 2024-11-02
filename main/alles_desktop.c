@@ -13,7 +13,7 @@ uint8_t debug_on = 0;
 extern struct state amy_global;
 extern uint32_t event_counter;
 extern uint32_t message_counter;
-extern int16_t amy_device_id;
+extern int16_t amy_playback_device_id;
 
 uint8_t battery_mask = 0;
 
@@ -27,7 +27,7 @@ char *local_ip, *raw_file;
 
 int main(int argc, char ** argv) {
     sync_init();
-    amy_start(1,0,1);
+    amy_start(1,0,1,0);
     amy_reset_oscs();
     amy_global.latency_ms = ALLES_LATENCY_MS;
 
@@ -48,7 +48,7 @@ int main(int argc, char ** argv) {
                 strcpy(raw_file, optarg);
                 break; 
             case 'd': 
-                amy_device_id = atoi(optarg);
+                amy_playback_device_id = atoi(optarg);
                 break;
             case 'o': 
                 quartet_offset = atoi(optarg);
@@ -82,7 +82,7 @@ int main(int argc, char ** argv) {
     midi_init();
 #endif
     // make a bleep
-    bleep();
+    bleep(0);
     usleep(1000*1000);
     amy_reset_oscs();
     while(status & RUNNING) {
