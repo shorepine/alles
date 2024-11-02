@@ -144,9 +144,9 @@ void esp_fill_audio_buffer_task() {
         // We turn off writing to i2s on r10 when doing on chip debugging because of pins
         #ifndef TULIP_R10_DEBUG
         size_t written = 0;
-        i2s_channel_write(tx_handle, block, AMY_BLOCK_SIZE * BYTES_PER_SAMPLE * AMY_NCHANS, &written, portMAX_DELAY);
-        if(written != AMY_BLOCK_SIZE * BYTES_PER_SAMPLE * AMY_NCHANS) {
-            fprintf(stderr,"i2s underrun: %d vs %d\n", written, AMY_BLOCK_SIZE * BYTES_PER_SAMPLE * AMY_NCHANS);
+        i2s_channel_write(tx_handle, block, AMY_BLOCK_SIZE * AMY_BYTES_PER_SAMPLE * AMY_NCHANS, &written, portMAX_DELAY);
+        if(written != AMY_BLOCK_SIZE * AMY_BYTES_PER_SAMPLE * AMY_NCHANS) {
+            fprintf(stderr,"i2s underrun: %d vs %d\n", written, AMY_BLOCK_SIZE * AMY_BYTES_PER_SAMPLE * AMY_NCHANS);
         }
         #endif
 
@@ -166,7 +166,7 @@ void esp_parse_task() {
 
 // init AMY from the esp. wraps some amy funcs in a task to do multicore rendering on the ESP32 
 amy_err_t esp_amy_init() {
-    amy_start(2, 0, 1);
+    amy_start(2, 0, 1, 0);
     amy_global.latency_ms = ALLES_LATENCY_MS;
     // We create a mutex for changing the event queue and pointers as two tasks do it at once
     xQueueSemaphore = xSemaphoreCreateMutex();
@@ -472,7 +472,7 @@ void app_main() {
     xTaskCreatePinnedToCore(&esp_parse_task, ALLES_PARSE_TASK_NAME, ALLES_PARSE_TASK_STACK_SIZE, NULL, ALLES_PARSE_TASK_PRIORITY, &parseTask, ALLES_PARSE_TASK_COREID);
 
     // Schedule a "turning on" sound
-    bleep();
+    bleep(amy_sysclock());
 
     // Print free RAm
     //heap_caps_print_heap_info(MALLOC_CAP_INTERNAL);

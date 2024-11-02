@@ -201,19 +201,9 @@ def battery_test():
 
 
 # Setup the sock on module import
-# I have some convenience hardcoded IPs for machines I work on here
+
 try:
-    if(os.uname().nodename.startswith('colossus')):
-        connect(local_ip="192.168.1.2")
-    elif(os.uname().nodename.startswith('convolve')):
-        connect(local_ip = '192.168.1.3')
-    elif(os.uname().nodename.startswith('cedar')):
-        connect(local_ip = '192.168.1.3')
-    else:
-        connect(local_ip=None)
+    connect(local_ip=None)
 except OSError:
-    try:
-        connect(local_ip=None)
-    except OSError:
-        print("Couldn't connect. Try manually with alles.connect('local_ip_address')")
+    print("Couldn't connect. Try manually with alles.connect('local_ip_address')")
 
