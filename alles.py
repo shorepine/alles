@@ -6,41 +6,18 @@ ALLES_LATENCY_MS = 1000
 UDP_PORT = 9294
 sock = 0
 
-
-# Buffer messages sent to the synths if you call buffer(). 
-# Calling buffer(0) turns off the buffering
-# flush() sends whatever is in the buffer now, and is called after buffer(0) as well 
-send_buffer = ""
-buffer_size = 0
-
 def transmit(message, retries=1):
     for x in range(retries):
         get_sock().sendto(message.encode('ascii'), get_multicast_group())
 
-def buffer(size=508):
-    global buffer_size
-    buffer_size = size
-    if(buffer_size == 0):
-        flush()
-
-def flush(retries=1):
-    global send_buffer
-    transmit(send_buffer)
-    send_buffer = ""
-
 def alles_send(message, retries=1):
-    global send_buffer
-    if(buffer_size > 0):
-        if(len(send_buffer + message) > buffer_size):
-            transmit(send_buffer, retries=retries)
-            send_buffer = message
-        else:
-            send_buffer = send_buffer + m
-    else:
-        transmit(message,retries=retries)
+    transmit(message,retries=retries)
 
 # We override AMY's send function to send out to the mesh instead of locally
 amy.override_send = alles_send
+
+# Explicitly send time arg to AMY using amy.millis() when using Alles.
+amy.insert_time = True
 
 
 
