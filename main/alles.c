@@ -9,8 +9,9 @@ int64_t clocks[255];
 int64_t ping_times[255];
 uint8_t alive = 1;
 
-extern int64_t computed_delta ; // can be negative no prob, but usually host is larger # than client
-extern uint8_t computed_delta_set ; // have we set a delta yet?
+int32_t computed_delta = 0 ; // can be negative no prob, but usually host is larger # than client
+uint8_t computed_delta_set = 0; // have we set a delta yet?
+
 extern int64_t last_ping_time;
 
 amy_err_t sync_init() {
@@ -101,12 +102,26 @@ void alles_parse_message(char *message, uint16_t length) {
     uint16_t start = 0;
     uint16_t c = 0;
 
+    uint32_t sysclock = amy_sysclock();
+
+
     // Parse the AMY stuff out of the message first
     struct event e = amy_parse_message(message);
     uint8_t sync_response = 0;
 
+
+    if(AMY_IS_SET(e.time)) {
+        if(amy_global.latency_ms != 0) {
+            if(!computed_delta_set) {
+                computed_delta = e.time - sysclock;
+                fprintf(stderr,"setting computed delta to %" PRIi32" (e.time is %"PRIu32" sysclock %"PRIu32") max_drift_ms %"PRIu32" latency %"PRIu32"\n", computed_delta, e.time, sysclock, ALLES_MAX_DRIFT_MS, amy_global.latency_ms);
+                computed_delta_set = 1;
+            }
+        }
+    }
     // Then pull out any alles-specific modes in this message 
     while(c < length+1) {
+
         uint8_t b = message[c];
         if(b == '_' && c==0) sync_response = 1;
         if( ((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')) || b == 0) {  // new mode or end
@@ -127,6 +142,21 @@ void alles_parse_message(char *message, uint16_t length) {
     }
     // Only do this if we got some data
     if(length >0) {
+        // adjust time in some useful way:
+        // if we have a delta OR latency is 0 , AND got a time in this message, use it schedule it properly
+        if(( (computed_delta_set || amy_global.latency_ms==0) && AMY_IS_SET(e.time))) {
+            // OK, so check for potentially negative numbers here (or really big numbers-sysclock)
+            int32_t potential_time = (int32_t)((int32_t)e.time - (int32_t)computed_delta) + amy_global.latency_ms;
+            if(potential_time < 0 || (potential_time > (int32_t)(sysclock + amy_global.latency_ms + ALLES_MAX_DRIFT_MS))) {
+                //fprintf(stderr,"recomputing time base: message came in with %lld, mine is %lld, computed delta was %lld\n", e.time, sysclock, computed_delta);
+                computed_delta = e.time - sysclock;
+                //fprintf(stderr,"computed delta now %lld\n", computed_delta);
+            }
+            e.time = (e.time - computed_delta) + amy_global.latency_ms;
+        } else { // else play it asap
+            e.time = sysclock + amy_global.latency_ms;
+        }
+
         // TODO -- not that it matters, but the below could probably be one or two lines long instead
         // Don't add sync messages to the event queue
         if(sync >= 0 && sync_index >= 0) {

@@ -74,6 +74,9 @@ void delay_ms(uint32_t ms);
 #define BATTERY_VOLTAGE_2 0x40
 #define BATTERY_VOLTAGE_1 0x80
 
+#define ALLES_MAX_DRIFT_MS 20000
+
+
 // Status mask 
 #define RUNNING 1
 #define WIFI_MANAGER_OK 2
@@ -82,7 +85,7 @@ void delay_ms(uint32_t ms);
 extern char *message_start_pointer;
 extern int16_t message_length;
 
-extern void bleep();
+extern void bleep(uint32_t start);
 extern void debleep();
 extern void upgrade_tone();
 extern void wifi_tone();

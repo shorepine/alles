@@ -14,7 +14,7 @@ CFLAGS = -g -Wall -Wno-strict-aliasing -I$(AMY) -I.
 
 OBJECTS = $(patsubst %.c, %.o,  multicast_desktop.c alles_desktop.c alles.c sounds.c $(AMY)/algorithms.c $(AMY)/delay.c \
 	$(AMY)/amy.c $(AMY)/envelope.c $(AMY)/filters.c $(AMY)/oscillators.c $(AMY)/pcm.c $(AMY)/partials.c $(AMY)/libminiaudio-audio.c \
-	$(AMY)/log2_exp2.c $(AMY)/custom.c $(AMY)/patches.c)
+	$(AMY)/log2_exp2.c $(AMY)/custom.c $(AMY)/patches.c $(AMY)/transfer.c)
 HEADERS = alles.h $(wildcard amy/*.h)
 
 UNAME_S := $(shell uname -s)
