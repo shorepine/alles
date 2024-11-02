@@ -2,13 +2,6 @@
 
 ![picture](https://raw.githubusercontent.com/shorepine/alles/main/pics/alles-revB-group.png)
 
-**You can now buy an Alles PCB from Blinkinlabs!**
-
- * [Buy the Alles PCB with shipping to the US](https://shop.blinkinlabs.com/products/alles-pcb)
- * [Buy the Alles PCB with shipping outside of the US](https://shop-nl.blinkinlabs.com/products/alles-pcb)
-
-
-
  [![shore pine sound systems discord](https://raw.githubusercontent.com/shorepine/tulipcc/main/docs/pics/shorepine100.png) **Chat about Alles on our Discord!**](https://discord.gg/TzBFkUb8pG)
 
 
@@ -17,29 +10,20 @@
 [![The Alles mesh networking synthesizer - a field of sound at your control](https://i.ytimg.com/vi/8CmcsQXHVEo/maxresdefault.jpg)](https://www.youtube.com/watch?v=8CmcsQXHVEo "The Alles mesh networking synthesizer - a field of sound at your control")
 
 
-**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 64 additive oscillators and 32 filters, with modulation / LFOs and ADSRs per oscillator. The mesh of speakers can be composed of any combination of our custom hardware speakers or programs running on computers. The software and hardware are open source: you can build it yourself or buy a PCB from us. 
+**Alles** is a many-speaker distributed mesh synthesizer that responds over WiFi. Each synth -- there can be hundreds in a mesh -- supports up to 120 additive oscillators, with filters, modulation / LFOs and ADSRs per oscillator. The mesh of speakers can be composed of any combination of our custom hardware speakers or programs running on computers. The software and hardware are open source: you can build it yourself or buy a PCB from us. 
 
 The synthesizers automatically form a mesh and listen to multicast WiFi messages. You can control the mesh from a host computer using any programming language or environments like Max or Pd. 
 
 We intended their first use as distributed / spatial version of an [Alles Machine](https://en.wikipedia.org/wiki/Bell_Labs_Digital_Synthesizer) / [Atari AMY](https://www.atarimax.com/jindroush.atari.org/achamy.html) additive synthesizer where each speaker represents up to 64 partials, all controlled as a group or individually. But you can just treat them as dozens of individual synthesizers and do whatever you want with them. It's pretty fun!
 
-Want to try it today? [Buy an Alles](#buy-an-alles), [build your own Alles](#diy-alles), or [install the software version](#using-it----software-alles
+Want to try it today? [Build your own Alles](#diy-alles), or [install the software version](#using-it----software-alles
 ), and then read our [getting started tutorial!](https://github.com/shorepine/alles/tree/main/getting-started.md)
 
 
 
 ## Synthesizer specs
 
-Each individual synth is powered by the [AMY additive synthesizer library](https://github.com/shorepine/amy/blob/main/README.md), you can read more details there. But at a high level, each Alles synth has:
-
- * 64 oscillators, each with adjustable frequency and amplitude:
-   * pulse (+ adjustable duty cycle), sine, saw, triangle, noise and PCM, reading from a baked-in buffer of percussive and misc samples
-   * karplus-strong string with adjustable feedback (can have up to 2 per synth)
-   * An operator / algorithm-based frequency modulation synth, almost perfectly like a DX7
- * Up to 32 biquad low-pass, bandpass or hi-pass filters with cutoff and resonance, can be assigned to any oscillator
- * An additive partial synthesizer with an analysis front end to play back long strings of breakpoint-based sine waves 
- * Control of speaker gain and 3-band parametric EQ
- * Built in patches for PCM, FM and partials
+Each individual synth is powered by the [AMY synthesizer library](https://github.com/shorepine/amy/blob/main/README.md), you can read more details there. 
 
 ## Using it -- hardware Alles
 
@@ -74,8 +58,6 @@ v0w4f440.0l0.9Z
 
 See [AMY's readme](https://github.com/shorepine/amy/blob/main/README.md) for the full list of synth parameters.
 
-For higher throughput, it's recommended to batch many messages into one UDP message, up to 508 bytes per message. (`alles.py` does this for you, optionally.)
-
 
 ## alles.py 
 
@@ -86,18 +68,6 @@ $ python3
 >>> import alles
 >>> alles.drums() # plays a drum pattern on all synths
 >>> alles.drums(client=2) # just on one 
-```
-
-Or experiment with oscillators:
-
-```python
-# use a a 0.25Hz sine wave at half phase (going down) to modify frequency of another sine wave
-alles.reset()
-alles.send(osc=1, wave=alles.SINE, vel=0.50, freq=0.25, phase=0.5) # LFO source oscillator
-alles.send(osc=0, wave=alles.SINE, vel=0, bp0="0,500,0,0", bp0_target=alles.TARGET_AMP, mod_target=alles.TARGET_FREQ, mod_source=1)
-alles.send(osc=0, note=60, vel=1.5) # Bass drum!
-alles.send(osc=0, filter_freq=800, resonance=1.5) # filter it
-alles.send(osc=0, note=50, vel=1.5) # note on
 ```
 
 To see more examples, check out our brand new [Getting Started](https://github.com/shorepine/alles/tree/main/getting-started.md) page.
@@ -126,6 +96,8 @@ def millis():
     return int((datetime.datetime.utcnow() - datetime.datetime(d.year, d.month, d.day)).total_seconds()*1000)
 ```
 
+If you're using `alles.py`, we do this for you!
+
 If using Max, use the `cpuclock` object as the `time` parameter.
 
 The first time you send a message with `time` the synth mesh uses it to figure out the delta between its time and your expected time. (If you never send a time parameter, you're at the mercy of WiFi jitter.) Further messages will be millisecond accurate message-to-message, but with the fixed latency. You can adapt `time` per client if you want to account for speed-of-sound delay. 
@@ -136,7 +108,7 @@ Latency is adjustable, if you are comfortable with your network you can set it l
 
 ## Enumerating synths
 
-The `sync` command (see `alles_util.sync()`) triggers an immediate response back from each on-line synthesizer. The response looks like `_s65201i4c248y2`, where s is the time on the client, i is the index it is responding to, y has battery status (for versions that support that) and c is the client id. This lets you build a map of not only each booted synthesizer, but if you send many messages with different indexes, will also let you figure the round-trip latency for each one along with the reliability. 
+The `sync` command (see `alles.sync()`) triggers an immediate response back from each on-line synthesizer. The response looks like `_s65201i4c248y2`, where s is the time on the client, i is the index it is responding to, y has battery status (for versions that support that) and c is the client id. This lets you build a map of not only each booted synthesizer, but if you send many messages with different indexes, will also let you figure the round-trip latency for each one along with the reliability. 
 
 ## WiFi & reliability for performances
 
@@ -177,15 +149,6 @@ See [AMY's readme](https://github.com/shorepine/amy/blob/main/README.md) for mor
 
 
 # Get your own Alles!
-
-## Buy an Alles
-
-**You can now buy an Alles PCB from Blinkinlabs!**
-
- * [Buy the Alles PCB with shipping to the US](https://shop.blinkinlabs.com/products/alles-pcb)
- * [Buy the Alles PCB with shipping outside of the US](https://shop-nl.blinkinlabs.com/products/alles-pcb)
-
-If you want an [Alles](https://shop.blinkinlabs.com/products/alles-pcb) to use with your own speaker and battery, you can purchase an Alles PCB with screw connectors already attached. This lets you hook up any speaker and battery to Alles with no soldering. Alles can be powered over micro-USB with or without a battery, and if a battery is present the USB cable will charge the battery.
 
 **[Read here how to install a PCB into a speaker shell!](speaker-assembly.md)**
 
