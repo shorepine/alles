@@ -17,7 +17,7 @@ def alles_send(message, retries=1):
 amy.override_send = alles_send
 
 # Explicitly send time arg to AMY using amy.millis() when using Alles.
-amy.insert_time = True
+amy.insert_time = amy.millis
 
 
 
